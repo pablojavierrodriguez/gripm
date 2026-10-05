@@ -80,19 +80,19 @@
     "prepare": "node scripts/prepare-hooks.js"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.20",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.50.0",
     "postcss": "^8.4.45",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwindcss": "^3.4.11",
-    "vite": "^5.4.3"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.5.4",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "typescript": "^5.5.4"
   }
 }
