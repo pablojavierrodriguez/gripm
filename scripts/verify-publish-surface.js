@@ -56,7 +56,9 @@ const REQUIRED_ENTRIES = [
 
 function run(cmd, args, opts = {}) {
   const isWin = process.platform === 'win32';
-  return execFileSync(cmd, args, { encoding: 'utf8', cwd: ROOT, shell: isWin, ...opts });
+  const cleanEnv = { ...process.env, ...(opts.env || {}) };
+  delete cleanEnv.npm_config_dry_run;
+  return execFileSync(cmd, args, { encoding: 'utf8', cwd: ROOT, shell: isWin, ...opts, env: cleanEnv });
 }
 
 console.log('📦 [Publish Surface Guard] Empaquetando y verificando la superficie pública...\n');
