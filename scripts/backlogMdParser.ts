@@ -1,0 +1,782 @@
+/**
+ * backlogMdParser.ts
+ * Parser y serializador nativo (zero-dependency) para el estándar Backlog.md (MrLesk/Backlog.md)
+ * Compatible con Node.js y navegadores.
+ */
+
+export type CanonicalStatus = 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas';
+
+export interface ParsedAcceptanceCriteria {
+  index: number;
+  text: string;
+  checked: boolean;
+}
+
+export interface BacklogMdTask {
+  id: string;
+  title: string;
+  status: CanonicalStatus;
+  rawStatus?: string;
+  type?: string;
+  priority?: string;
+  assignees?: string[];
+  labels?: string[];
+  dependencies?: string[];
+  milestone?: string;
+  sprint?: string;
+  targetSprint?: string;
+  parentId?: string;
+  blocks?: string[];
+  blockedBy?: string[];
+  relatedTo?: string[];
+  sprints?: string[];
+  releases?: string[];
+  createdDate?: string;
+  updatedDate?: string;
+  description?: string;
+  acceptanceCriteria?: ParsedAcceptanceCriteria[];
+  implementationPlan?: string;
+  implementationNotes?: string;
+  finalSummary?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  previousStatus?: string;
+  module?: string;
+  epic?: string;
+  category?: string;
+  impactedFile?: string;
+  risk?: string;
+  fix?: string;
+  rawExtraFrontmatter?: Record<string, string>;
+}
+
+/**
+ * Normaliza cualquier estado (legacy o comunidad) al estándar unificado:
+ * 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas'
+ */
+export function normalizeStatus(raw: string | undefined | null): CanonicalStatus {
+  if (!raw) return 'draft';
+  const clean = raw.trim().toLowerCase().replace(/[\s_-]+/g, '');
+
+  switch (clean) {
+    case 'ideas':
+    case 'idea':
+    case 'discovery':
+      return 'ideas';
+
+    case 'draft':
+    case 'drafts':
+    case 'backlog':
+    case 'todo':
+    case 'open':
+      return 'draft';
+
+    case 'doing':
+    case 'inprogress':
+    case 'wip':
+    case 'inprog':
+    case 'active':
+    case 'started':
+      return 'doing';
+
+    case 'review':
+    case 'testing':
+    case 'testingqa':
+    case 'qa':
+    case 'test':
+    case 'inreview':
+      return 'review';
+
+    case 'ready':
+    case 'finish':
+    case 'readyfordeploy':
+    case 'staged':
+    case 'resolved':
+      return 'ready';
+
+    case 'done':
+    case 'deployed':
+    case 'closed':
+    case 'completed':
+    case 'shipped':
+      return 'done';
+
+    case 'dismissed':
+    case 'cancelled':
+    case 'canceled':
+    case 'abandoned':
+    case 'archived':
+    case 'archive':
+      return 'dismissed';
+
+    default:
+      return 'draft';
+  }
+}
+
+/**
+ * Convierte un estado canónico al formato legible para Backlog.md
+ */
+export function formatStatusForMd(status: CanonicalStatus | string): string {
+  const norm = normalizeStatus(status);
+  switch (norm) {
+    case 'ideas':
+      return 'ideas';
+    case 'draft':
+      return 'draft';
+    case 'doing':
+      return 'doing';
+    case 'review':
+      return 'review';
+    case 'ready':
+      return 'ready';
+    case 'done':
+      return 'done';
+    case 'dismissed':
+      return 'dismissed';
+    default:
+      return 'draft';
+  }
+}
+
+/**
+ * Normaliza prioridad hacia p0..p3
+ */
+export function normalizePriority(raw: string | undefined | null): 'p0' | 'p1' | 'p2' | 'p3' {
+  if (!raw) return 'p2';
+  const clean = raw.trim().toLowerCase();
+  if (clean === 'p0' || clean === 'urgent' || clean === 'critical') return 'p0';
+  if (clean === 'p1' || clean === 'high') return 'p1';
+  if (clean === 'p2' || clean === 'medium' || clean === 'med') return 'p2';
+  if (clean === 'p3' || clean === 'low') return 'p3';
+  return 'p2';
+}
+
+/**
+ * Formatea prioridad para Backlog.md frontmatter
+ */
+export function formatPriorityForMd(p: 'p0' | 'p1' | 'p2' | 'p3' | string): string {
+  if (p === 'p0') return 'urgent';
+  if (p === 'p1') return 'high';
+  if (p === 'p2') return 'medium';
+  if (p === 'p3') return 'low';
+  return p || 'medium';
+}
+
+/**
+ * Normaliza el tipo de tarea al vocabulario estándar de DevBoard
+ * (bug, feature, tech_debt, ux, epic, initiative)
+ */
+export function normalizeType(raw: string | undefined | null): string {
+  if (!raw) return 'feature';
+  const clean = raw.trim().toLowerCase();
+  if (clean === 'bugfix' || clean === 'defect' || clean === 'fix') return 'bug';
+  return clean;
+}
+
+/**
+ * DEV-132: Escapa marcadores de sección literales que aparezcan dentro de texto libre del usuario.
+ * Convierte e.g. `<!-- AC:BEGIN -->` en `<!\-- AC:BEGIN -->` para evitar que un lector simple
+ * o el guard confunda el ejemplo con un delimitador estructural real.
+ */
+export function escapeSectionMarkers(text: string): string {
+  if (!text) return text;
+  return text.replace(/<!--\s*(\/?(?:AC|SECTION:[A-Za-z0-9_-]+):(BEGIN|END))\s*-->/gi, '<!\\-- $1 -->');
+}
+
+/**
+ * DEV-132: Desescapa marcadores literales que fueron neutralizados durante la serialización.
+ */
+export function unescapeSectionMarkers(text: string): string {
+  if (!text) return text;
+  return text.replace(/<!\\--\s*(\/?(?:AC|SECTION:[A-Za-z0-9_-]+):(BEGIN|END))\s*-->/gi, '<!-- $1 -->');
+}
+
+/**
+ * DEV-132: Extrae el bloque de contenido delimitado bajo un encabezado H2 específico (## HeaderName)
+ * hasta el siguiente encabezado H2 o el fin del documento.
+ */
+function extractSectionBlock(body: string, headerName: string): string {
+  const headerRegex = new RegExp(`^##\\s+${headerName}\\b[^\r\n]*`, 'im');
+  const match = body.match(headerRegex);
+  if (!match || match.index === undefined) return '';
+  const startIndex = match.index + match[0].length;
+  const rest = body.slice(startIndex);
+  const nextHeaderMatch = rest.match(/\r?\n##\s+[^\r\n]+/);
+  const endIndex = nextHeaderMatch && nextHeaderMatch.index !== undefined
+    ? startIndex + nextHeaderMatch.index
+    : body.length;
+  return body.slice(startIndex, endIndex);
+}
+
+/**
+ * Parsea un archivo de tarea Markdown con YAML frontmatter y secciones
+ */
+export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
+  const result: BacklogMdTask = {
+    id: defaultId,
+    title: 'Sin título',
+    status: 'draft',
+    type: 'feature',
+    priority: 'p2',
+    assignees: [],
+    labels: [],
+    dependencies: [],
+    acceptanceCriteria: [],
+    rawExtraFrontmatter: {}
+  };
+
+  if (!content) return result;
+
+  // 1. Extraer Frontmatter
+  let bodyContent = content;
+  const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  
+  if (frontmatterMatch) {
+    const rawFm = frontmatterMatch[1];
+    bodyContent = frontmatterMatch[2];
+
+    const lines = rawFm.split(/\r?\n/);
+    let currentKey = '';
+    let currentList: string[] = [];
+    let inList = false;
+
+    const finalizeList = () => {
+      if (inList && currentKey) {
+        if (currentKey === 'labels') result.labels = currentList;
+        else if (currentKey === 'assignee' || currentKey === 'assignees') result.assignees = currentList;
+        else if (currentKey === 'dependencies') result.dependencies = currentList;
+        else if (currentKey === 'blocks') result.blocks = currentList;
+        else if (currentKey === 'blocked_by' || currentKey === 'blockedby') result.blockedBy = currentList;
+        else if (currentKey === 'related_to' || currentKey === 'relatedto') result.relatedTo = currentList;
+        else if (currentKey === 'sprints') {
+          result.sprints = currentList;
+          if (currentList.length > 0 && !result.sprint) {
+            result.sprint = currentList[currentList.length - 1];
+            result.targetSprint = currentList[currentList.length - 1];
+          }
+        }
+        else if (currentKey === 'releases') result.releases = currentList;
+      }
+      inList = false;
+      currentList = [];
+    };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      if (trimmed.startsWith('- ')) {
+        // Elemento de lista
+        const itemVal = trimmed.replace(/^- /, '').trim().replace(/^['"]|['"]$/g, '');
+        currentList.push(itemVal);
+        continue;
+      }
+
+      // Si teníamos una lista abierta y encontramos una clave nueva, finalizarla
+      if (inList && !line.startsWith(' ') && !line.startsWith('\t')) {
+        finalizeList();
+      }
+
+      const colonIdx = line.indexOf(':');
+      if (colonIdx !== -1) {
+        const key = line.slice(0, colonIdx).trim().toLowerCase();
+        const rawVal = line.slice(colonIdx + 1).trim();
+        const cleanVal = rawVal.replace(/^['"]|['"]$/g, '');
+
+        currentKey = key;
+
+        if (!rawVal) {
+          // Posible inicio de lista en la siguiente línea
+          inList = true;
+          currentList = [];
+          continue;
+        }
+
+        if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+          // Inline list [a, b, c]
+          const items = rawVal.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+          if (key === 'labels') result.labels = items;
+          else if (key === 'assignee' || key === 'assignees') result.assignees = items;
+          else if (key === 'dependencies') result.dependencies = items;
+          else if (key === 'blocks') result.blocks = items;
+          else if (key === 'blocked_by' || key === 'blockedby') result.blockedBy = items;
+          else if (key === 'related_to' || key === 'relatedto') result.relatedTo = items;
+          else if (key === 'sprints') {
+            result.sprints = items;
+            if (items.length > 0 && !result.sprint) {
+              result.sprint = items[items.length - 1];
+              result.targetSprint = items[items.length - 1];
+            }
+          }
+          else if (key === 'releases') result.releases = items;
+          continue;
+        }
+
+        switch (key) {
+          case 'id':
+            result.id = cleanVal;
+            break;
+          case 'title':
+            result.title = cleanVal;
+            break;
+          case 'status':
+            result.rawStatus = cleanVal;
+            result.status = normalizeStatus(cleanVal);
+            break;
+          case 'type':
+            result.type = normalizeType(cleanVal);
+            break;
+          case 'priority':
+            result.priority = cleanVal;
+            break;
+          case 'milestone':
+            result.milestone = cleanVal;
+            break;
+          case 'module':
+            result.module = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.module = cleanVal;
+            break;
+          case 'epic':
+            result.epic = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.epic = cleanVal;
+            break;
+          case 'category':
+            result.category = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.category = cleanVal;
+            break;
+          case 'impactedfile':
+            result.impactedFile = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.impactedFile = cleanVal;
+            break;
+          case 'risk':
+            result.risk = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.risk = cleanVal;
+            break;
+          case 'fix':
+            result.fix = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.fix = cleanVal;
+            break;
+          case 'parent':
+          case 'parentid':
+            result.parentId = cleanVal;
+            break;
+          case 'blocks':
+            result.blocks = [cleanVal];
+            break;
+          case 'blocked_by':
+          case 'blockedby':
+            result.blockedBy = [cleanVal];
+            break;
+          case 'related_to':
+          case 'relatedto':
+            result.relatedTo = [cleanVal];
+            break;
+          case 'sprints':
+            result.sprints = [cleanVal];
+            break;
+          case 'releases':
+            result.releases = [cleanVal];
+            break;
+          case 'sprint':
+          case 'targetsprint':
+            result.sprint = cleanVal;
+            result.targetSprint = cleanVal;
+            if (!result.sprints || result.sprints.length === 0) {
+              result.sprints = [cleanVal];
+            }
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter.sprint = cleanVal;
+              result.rawExtraFrontmatter.targetSprint = cleanVal;
+            }
+            break;
+          case 'release':
+          case 'targetrelease':
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter.release = cleanVal;
+              result.rawExtraFrontmatter.targetRelease = cleanVal;
+            }
+            break;
+          case 'created_date':
+          case 'createdat':
+            result.createdDate = cleanVal;
+            break;
+          case 'updated_date':
+          case 'updatedat':
+            result.updatedDate = cleanVal;
+            break;
+          case 'assignee':
+            result.assignees = [cleanVal];
+            break;
+          case 'isdeleted':
+            result.isDeleted = cleanVal.toLowerCase() === 'true';
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter[key] = cleanVal;
+            }
+            break;
+          case 'deletedat':
+            result.deletedAt = cleanVal;
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter[key] = cleanVal;
+            }
+            break;
+          case 'previousstatus':
+            result.previousStatus = cleanVal;
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter[key] = cleanVal;
+            }
+            break;
+          default:
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter[key] = cleanVal;
+            }
+            break;
+        }
+      }
+    }
+    finalizeList();
+    if (result.sprints && result.sprints.length > 0 && !result.sprint) {
+      result.sprint = result.sprints[result.sprints.length - 1];
+      result.targetSprint = result.sprint;
+    }
+  }
+
+  // 2. Extraer Secciones Delimitadas
+  // DEV-132: Aislamos la extracción de cada sección a su propio bloque H2 (## Description, ## Acceptance Criteria, etc.)
+  // para que marcadores de sección literales en la descripción o en bloques de código no capturen secciones ajenas.
+
+  // A. Descripción
+  const descBlock = extractSectionBlock(bodyContent, 'Description');
+  const descTarget = descBlock || bodyContent;
+  const descMatch = descTarget.match(/<!--\s*SECTION:DESCRIPTION:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:DESCRIPTION:END\s*-->/i);
+  if (descMatch) {
+    result.description = unescapeSectionMarkers(descMatch[1].trim());
+  } else {
+    const descHeaderMatch = descTarget.match(/## Description\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
+    if (descHeaderMatch) {
+      result.description = unescapeSectionMarkers(descHeaderMatch[1].trim());
+    } else if (descBlock) {
+      result.description = unescapeSectionMarkers(descBlock.trim());
+    }
+  }
+
+  // B. Acceptance Criteria (AC)
+  const acBlock = extractSectionBlock(bodyContent, 'Acceptance Criteria');
+  const acTarget = acBlock || bodyContent;
+  const acMatch = acTarget.match(/<!--\s*AC:BEGIN\s*-->([\s\S]*?)<!--\s*AC:END\s*-->/i);
+  const acText = acMatch ? acMatch[1] : (acTarget.match(/## Acceptance Criteria\r?\n([\s\S]*?)(?=\r?\n## |$)/i)?.[1] || '');
+  
+  if (acText) {
+    const acLines = acText.split(/\r?\n/);
+    const parsedAC: ParsedAcceptanceCriteria[] = [];
+    let autoIndex = 1;
+
+    for (const line of acLines) {
+      const match = line.match(/^-\s*\[([ xX])\]\s*(?:#(\d+)\s+)?(.*)$/);
+      if (match) {
+        const checked = match[1].toLowerCase() === 'x';
+        const num = match[2] ? parseInt(match[2], 10) : autoIndex++;
+        const text = unescapeSectionMarkers(match[3].trim());
+        parsedAC.push({ index: num, text, checked });
+      }
+    }
+    result.acceptanceCriteria = parsedAC;
+  }
+
+  // C. Implementation Plan
+  const planBlock = extractSectionBlock(bodyContent, 'Implementation Plan');
+  const planTarget = planBlock || bodyContent;
+  const planMatch = planTarget.match(/<!--\s*SECTION:PLAN:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:PLAN:END\s*-->/i);
+  if (planMatch) {
+    result.implementationPlan = unescapeSectionMarkers(planMatch[1].trim());
+  } else {
+    const planHeaderMatch = planTarget.match(/## Implementation Plan\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
+    if (planHeaderMatch) {
+      result.implementationPlan = unescapeSectionMarkers(planHeaderMatch[1].trim());
+    }
+  }
+
+  // D. Implementation Notes
+  const notesBlock = extractSectionBlock(bodyContent, 'Implementation Notes');
+  const notesTarget = notesBlock || bodyContent;
+  const notesMatch = notesTarget.match(/<!--\s*SECTION:NOTES:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:NOTES:END\s*-->/i);
+  if (notesMatch) {
+    result.implementationNotes = unescapeSectionMarkers(notesMatch[1].trim());
+  } else {
+    const notesHeaderMatch = notesTarget.match(/## Implementation Notes\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
+    if (notesHeaderMatch) {
+      result.implementationNotes = unescapeSectionMarkers(notesHeaderMatch[1].trim());
+    }
+  }
+
+  // E. Final Summary
+  const summaryBlock = extractSectionBlock(bodyContent, 'Final Summary');
+  const summaryTarget = summaryBlock || bodyContent;
+  const summaryMatch = summaryTarget.match(/<!--\s*SECTION:FINAL_SUMMARY:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:FINAL_SUMMARY:END\s*-->/i);
+  if (summaryMatch) {
+    result.finalSummary = unescapeSectionMarkers(summaryMatch[1].trim());
+  } else {
+    const summaryHeaderMatch = summaryTarget.match(/## Final Summary\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
+    if (summaryHeaderMatch) {
+      result.finalSummary = unescapeSectionMarkers(summaryHeaderMatch[1].trim());
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Serializa un objeto BacklogMdTask a un archivo Markdown compatible con el estándar Backlog.md
+ */
+export function serializeBacklogMd(task: BacklogMdTask): string {
+  const frontmatterLines: string[] = ['---'];
+
+  frontmatterLines.push(`id: ${task.id}`);
+  frontmatterLines.push(`title: ${JSON.stringify(task.title || 'Sin título')}`);
+  frontmatterLines.push(`status: ${formatStatusForMd(task.status)}`);
+  
+  if (task.assignees && task.assignees.length > 0) {
+    frontmatterLines.push('assignee:');
+    task.assignees.forEach(a => frontmatterLines.push(`  - ${JSON.stringify(a)}`));
+  }
+
+  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+  frontmatterLines.push(`created_date: '${task.createdDate || nowStr}'`);
+  frontmatterLines.push(`updated_date: '${nowStr}'`);
+
+  if (task.labels && task.labels.length > 0) {
+    frontmatterLines.push('labels:');
+    task.labels.forEach(l => frontmatterLines.push(`  - ${JSON.stringify(l)}`));
+  } else {
+    frontmatterLines.push('labels: []');
+  }
+
+  if (task.dependencies && task.dependencies.length > 0) {
+    frontmatterLines.push('dependencies:');
+    task.dependencies.forEach(d => frontmatterLines.push(`  - ${JSON.stringify(d)}`));
+  } else {
+    frontmatterLines.push('dependencies: []');
+  }
+
+  frontmatterLines.push(`priority: ${formatPriorityForMd(task.priority || 'p2')}`);
+
+  if (task.type) {
+    frontmatterLines.push(`type: ${task.type}`);
+  }
+
+  if (task.milestone) {
+    frontmatterLines.push(`milestone: ${JSON.stringify(task.milestone)}`);
+  }
+
+  if (task.parentId) {
+    frontmatterLines.push(`parent: ${JSON.stringify(task.parentId)}`);
+  }
+
+  if (task.blocks && task.blocks.length > 0) {
+    frontmatterLines.push('blocks:');
+    task.blocks.forEach(b => frontmatterLines.push(`  - ${JSON.stringify(b)}`));
+  }
+
+  if (task.blockedBy && task.blockedBy.length > 0) {
+    frontmatterLines.push('blocked_by:');
+    task.blockedBy.forEach(b => frontmatterLines.push(`  - ${JSON.stringify(b)}`));
+  }
+
+  if (task.relatedTo && task.relatedTo.length > 0) {
+    frontmatterLines.push('related_to:');
+    task.relatedTo.forEach(r => frontmatterLines.push(`  - ${JSON.stringify(r)}`));
+  }
+
+  const isInvalidSprint = (s: string | undefined | null) => {
+    if (!s) return true;
+    const clean = s.trim().toLowerCase();
+    return clean === 'backlog-futuro' || clean === 'sin-sprint' || clean === 'sin sprint' || clean === 'backlog' || clean === 'none' || clean === 'null';
+  };
+
+  if (task.sprints && task.sprints.length > 0) {
+    const validSprints = task.sprints.filter(s => !isInvalidSprint(s));
+    if (validSprints.length > 0) {
+      frontmatterLines.push('sprints:');
+      validSprints.forEach(s => frontmatterLines.push(`  - ${JSON.stringify(s)}`));
+    }
+  }
+
+  if (task.releases && task.releases.length > 0) {
+    frontmatterLines.push('releases:');
+    task.releases.forEach(r => frontmatterLines.push(`  - ${JSON.stringify(r)}`));
+  }
+
+  if (task.sprint && !isInvalidSprint(task.sprint)) {
+    frontmatterLines.push(`sprint: ${JSON.stringify(task.sprint)}`);
+  }
+
+  if (task.targetSprint && task.targetSprint !== task.sprint && !isInvalidSprint(task.targetSprint)) {
+    frontmatterLines.push(`targetSprint: ${JSON.stringify(task.targetSprint)}`);
+  }
+
+  if (task.isDeleted) {
+    frontmatterLines.push('isDeleted: true');
+    if (task.deletedAt) {
+      frontmatterLines.push(`deletedAt: ${JSON.stringify(task.deletedAt)}`);
+    }
+    if (task.previousStatus) {
+      frontmatterLines.push(`previousStatus: ${JSON.stringify(task.previousStatus)}`);
+    }
+  }
+
+  if (task.rawExtraFrontmatter) {
+    for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
+      if (!['id', 'title', 'status', 'assignee', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus'].includes(k.toLowerCase())) {
+        frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
+      }
+    }
+  }
+
+  frontmatterLines.push('---');
+  frontmatterLines.push('');
+
+  // Cuerpo Markdown con secciones delimitadas
+  const bodySections: string[] = [];
+
+  // 1. Description
+  // DEV-127: NUNCA fabricar contenido que el usuario no escribió. El .md de cada
+  // tarea es la fuente de verdad, se commitea en git y lo leen agentes de IA: si
+  // escribimos aquí un relleno, ese texto pasa a ser indistinguible de lo que el
+  // autor redactó realmente, y además desactiva el Plan Guard (que detecta "tiene
+  // plan o ACs" para bloquear el paso a Doing). La sección se escribe vacía.
+  // DEV-132: Escapamos marcadores literales dentro de texto libre para no propagar corrupciones.
+  bodySections.push('## Description\n');
+  bodySections.push('<!-- SECTION:DESCRIPTION:BEGIN -->');
+  bodySections.push(escapeSectionMarkers(task.description || ''));
+  bodySections.push('<!-- SECTION:DESCRIPTION:END -->\n');
+
+  // 2. Acceptance Criteria
+  // DEV-127: sin ACs, la sección queda vacía (no se inyecta un AC de relleno).
+  bodySections.push('## Acceptance Criteria\n');
+  bodySections.push('<!-- AC:BEGIN -->');
+  if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+    task.acceptanceCriteria.forEach((ac, i) => {
+      const idx = ac.index || (i + 1);
+      const mark = ac.checked ? 'x' : ' ';
+      bodySections.push(`- [${mark}] #${idx} ${escapeSectionMarkers(ac.text)}`);
+    });
+  }
+  bodySections.push('<!-- AC:END -->\n');
+
+  // 3. Implementation Plan
+  // DEV-127: sin plan, la sección queda vacía (no se inyecta un plan genérico).
+  bodySections.push('## Implementation Plan\n');
+  bodySections.push('<!-- SECTION:PLAN:BEGIN -->');
+  if (task.implementationPlan) {
+    bodySections.push(escapeSectionMarkers(task.implementationPlan));
+  }
+  bodySections.push('<!-- SECTION:PLAN:END -->\n');
+
+  // 4. Implementation Notes (si existen)
+  if (task.implementationNotes) {
+    bodySections.push('## Implementation Notes\n');
+    bodySections.push('<!-- SECTION:NOTES:BEGIN -->');
+    bodySections.push(escapeSectionMarkers(task.implementationNotes));
+    bodySections.push('<!-- SECTION:NOTES:END -->\n');
+  }
+
+  // 5. Final Summary (si existe)
+  if (task.finalSummary) {
+    bodySections.push('## Final Summary\n');
+    bodySections.push('<!-- SECTION:FINAL_SUMMARY:BEGIN -->');
+    bodySections.push(escapeSectionMarkers(task.finalSummary));
+    bodySections.push('<!-- SECTION:FINAL_SUMMARY:END -->\n');
+  }
+
+  return `${frontmatterLines.join('\n')}\n${bodySections.join('\n')}`;
+}
+
+/**
+ * Genera el nombre estándar canónico de archivo para una tarea Backlog.md:
+ * e.g. "DOM-SPEC-001 - SPEC-001 Arquitectura de Persistencia Real & Sincronización con Supabase.md"
+ * El nombre DEBE comenzar con el ID en MAYÚSCULAS seguido de " - " y el título limpio preservando mayúsculas y espacios.
+ */
+export function generateTaskFilename(id: string, title: string): string {
+  const cleanId = (id || 'TASK').trim().toUpperCase().replace(/--+/g, '-');
+  let cleanTitle = (title || 'task')
+    .replace(/[/\\:*?"<>|]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleanTitle.length > 200) {
+    cleanTitle = cleanTitle.slice(0, 200).trim();
+  }
+
+  return `${cleanId} - ${cleanTitle || 'Task'}.md`;
+}
+
+/**
+ * Genera un archivo Markdown unificado consolidado (BACKLOG.md) a partir de una lista de tareas.
+ */
+export function generateMonolithicBacklogMd(projectName: string, items: BacklogMdTask[]): string {
+  const now = new Date().toISOString().slice(0, 10);
+  const lines: string[] = [
+    `# Backlog: ${projectName}`,
+    `> Consolidado generado el ${now} por DevBoard ⚡`,
+    '',
+    '## Resumen de Estados',
+    ''
+  ];
+
+  const statuses: CanonicalStatus[] = ['ideas', 'doing', 'review', 'ready', 'draft', 'done', 'dismissed'];
+  const grouped: Record<CanonicalStatus, BacklogMdTask[]> = {
+    ideas: [],
+    doing: [],
+    review: [],
+    ready: [],
+    draft: [],
+    done: [],
+    dismissed: [],
+    cancelled: []
+  };
+
+  for (const item of items) {
+    const s = item.status || 'draft';
+    if (grouped[s]) grouped[s].push(item);
+    else grouped.draft.push(item);
+  }
+
+  for (const s of statuses) {
+    const list = grouped[s];
+    if (list.length === 0) continue;
+
+    const titleMap: Record<string, string> = {
+      ideas: '💡 Ideas / Discovery',
+      doing: '⚡ In Progress / Doing',
+      review: '🔍 Review & QA',
+      ready: '🚀 Ready for Deploy',
+      draft: '📋 Backlog / Draft',
+      done: '✅ Done / Deployed',
+      dismissed: '📦 Archivadas / Descartadas'
+    };
+
+    lines.push(`### ${titleMap[s] || s.toUpperCase()} (${list.length})`);
+    lines.push('');
+
+    for (const item of list) {
+      lines.push(`#### [${item.id}] ${item.title}`);
+      lines.push(`- **Prioridad**: \`${item.priority || 'p2'}\` | **Tipo**: \`${item.type || 'feature'}\``);
+      if (item.milestone) lines.push(`- **Sprint / Milestone**: ${item.milestone}`);
+      if (item.description) lines.push(`\n${item.description}\n`);
+
+      if (item.acceptanceCriteria && item.acceptanceCriteria.length > 0) {
+        lines.push('**Criterios de Aceptación:**');
+        item.acceptanceCriteria.forEach(ac => {
+          lines.push(`- [${ac.checked ? 'x' : ' '}] #${ac.index} ${ac.text}`);
+        });
+        lines.push('');
+      }
+
+      lines.push('---');
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}

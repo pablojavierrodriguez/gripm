@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // Anti-flash: aplica el tema persistido ANTES del primer paint.
+      // Sin esto, el tema se ve correctamente al cambiarlo pero al recargar
+      // parte siempre de dark hasta que React monta y suprime el efecto.
+      (function () {
+        try {
+          var t = localStorage.getItem('gripm_theme') || localStorage.getItem('devboard-theme');
+          var dark = t ? t !== 'light' : true;
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.backgroundColor = dark ? '#080c14' : '#f8fafc';
+          document.documentElement.style.color = dark ? '#f8fafc' : '#1e293b';
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gripm ⚡ Agile Engineering & Product Management Cockpit</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="antialiased min-h-screen">
+    <div id="root">
+      <div id="gripm-pre-splash" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <style>
+          @keyframes gripmGlow {
+            0%, 100% { box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.3), 0 0 0 1px rgba(99, 102, 241, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 12px 30px -4px rgba(6, 182, 212, 0.4), 0 0 0 1px rgba(6, 182, 212, 0.45); transform: scale(1.02); }
+          }
+          @keyframes gripmDotPulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.15); }
+          }
+        </style>
+        <div style="width: 56px; height: 56px; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #080c14; border: 1px solid rgba(99, 102, 241, 0.35); animation: gripmGlow 2.4s ease-in-out infinite;">
+          <img src="/favicon.png" alt="gripm" width="56" height="56" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: inherit;">gripm</span>
+            <span style="font-size: 9px; font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 1.5px 5px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.25); text-transform: uppercase; letter-spacing: 0.05em;">tablero</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 7px; font-size: 11px; font-family: 'JetBrains Mono', monospace; opacity: 0.6;">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #6366f1; animation: gripmDotPulse 1.4s ease-in-out infinite;"></span>
+            <span>Iniciando tablero ágil...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

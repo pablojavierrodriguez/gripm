@@ -1,0 +1,98 @@
+{
+  "name": "gripm",
+  "version": "1.0.0",
+  "description": "Agile engineering & Product Management cockpit for AI pair programming: Markdown-backed backlog, MCP server and CLI for developers and autonomous agents.",
+  "keywords": [
+    "gripm",
+    "agile",
+    "product-management",
+    "kanban",
+    "backlog",
+    "sprint",
+    "task-management",
+    "ai",
+    "llm",
+    "agent",
+    "mcp",
+    "model-context-protocol",
+    "markdown",
+    "cli",
+    "devtools",
+    "developer-tools",
+    "pair-programming"
+  ],
+  "author": "gripm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pablojavierrodriguez/gripm.git"
+  },
+  "homepage": "https://github.com/pablojavierrodriguez/gripm#readme",
+  "bugs": {
+    "url": "https://github.com/pablojavierrodriguez/gripm/issues"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "type": "module",
+  "files": [
+    ".agents",
+    ".githooks",
+    "bin",
+    "dist",
+    "scripts",
+    "src",
+    "data/demo-backlog.json",
+    "index.html",
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js",
+    "LICENSE",
+    "README.md",
+    "README.es.md"
+  ],
+  "bin": {
+    "gripm": "./bin/gripm.js",
+    "gripm-mcp": "./bin/gripm-mcp.js"
+  },
+  "scripts": {
+    "dev": "vite",
+    "gripm": "node bin/gripm.js",
+    "board": "node bin/gripm.js",
+    "build": "tsc && vite build && node scripts/build-binaries.js",
+    "build:bin": "node scripts/build-binaries.js",
+    "preview": "vite preview",
+    "import:docs": "node scripts/import-docs.js",
+    "test": "node scripts/test-parser.js && node --experimental-strip-types scripts/verify-integration.js && node scripts/test-api-security.js && node scripts/test-package-smoke.js && node scripts/verify-optimistic-locking.js && node scripts/verify-sse.js && node scripts/verify-legacy-import.js && node scripts/verify-mcp-binary.js && node scripts/verify-resilience-and-cli.js && node scripts/verify-dist.js",
+    "test:backlog": "node --experimental-strip-types scripts/verify-integration.js",
+    "verify:dist": "node scripts/verify-dist.js",
+    "mcp": "node bin/gripm-mcp.js",
+    "tasks": "node --experimental-strip-types scripts/gripm-cli.ts list --open",
+    "backlog:check": "node scripts/verify-backlog-sync.js",
+    "backlog:sync": "node scripts/verify-backlog-sync.js --fix",
+    "playbook:sync": "node scripts/sync-playbook.mjs",
+    "backlog:purge-fabricated": "node scripts/purge-fabricated-task-sections.js",
+"publish:check": "node scripts/verify-publish-surface.js",
+    "audit:ux": "node scripts/audit-ux-code.cjs",
+    "changelog": "node scripts/generate-changelog.cjs",
+    "lint": "tsc --noEmit",
+    "format": "node scripts/verify-backlog-sync.js --fix",
+    "prepare": "node scripts/prepare-hooks.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "lucide-react": "^1.16.0",
+    "postcss": "^8.4.45",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.11",
+    "vite": "^5.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4"
+  }
+}

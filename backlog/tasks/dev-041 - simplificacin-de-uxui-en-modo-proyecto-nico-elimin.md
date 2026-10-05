@@ -1,0 +1,42 @@
+---
+id: DEV-041
+title: "Simplificación de UX/UI en Modo Proyecto Único (Eliminación de Ruido Multi-Proyecto)"
+status: Done
+created_date: '2026-09-18'
+updated_date: '2026-09-24 12:14'
+labels: []
+dependencies: []
+priority: high
+type: ux
+milestone: "0.4.0"
+sprints:
+  - "Sprint 4"
+releases:
+  - "0.4.0"
+sprint: "Sprint 4"
+targetSprint: "Sprint 4"
+order: 120
+release: "0.4.0"
+targetRelease: "0.4.0"
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Simplificar radicalmente la navegación y la cabecera cuando DevBoard se ejecuta en un repositorio único, eliminando el ruido de selectores de proyectos globales, modales de importación y cambio de repositorios, ofreciendo una experiencia enfocada y limpia similar a Storybook o Prisma Studio.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+
+<!-- AC:BEGIN -->
+- [x] #1 Detectar modo monoproyecto (Single-Project Mode) cuando devboard se ejecuta apuntando a un único repositorio local
+- [x] #2 Ocultar selector desplegable de proyectos en la cabecera cuando se ejecuta en modo monoproyecto
+- [x] #3 Ocultar botones y modales de 'Añadir Proyecto' e 'Importar Proyecto' en la navegación principal en modo monoproyecto
+- [x] #4 Mostrar en la cabecera el nombre del repositorio activo con un indicador sutil de estado local
+- [x] #5 Reservar la interfaz multi-proyecto completa para cuando se invoque explícitamente con flag --hub o --multi
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

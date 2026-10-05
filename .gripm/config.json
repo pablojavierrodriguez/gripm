@@ -1,0 +1,28 @@
+{
+  "projectName": "gripm",
+  "projectId": "gripm",
+  "codePrefix": "DEV",
+  "language": "en",
+  "theme": "dark",
+  "density": "comfortable",
+  "autoSave": true,
+  "kanban": {
+    "showIdeasByDefault": false,
+    "showDoneHistoryByDefault": false,
+    "wipLimits": {
+      "col-doing": 0,
+      "col-review": 0,
+      "col-ready": 0
+    }
+  },
+  "version": "1.0.0",
+  "defaultView": "kanban",
+  "enabledTabs": {
+    "kanban": true,
+    "sprint": true,
+    "release": true
+  },
+  "methodology": "kanban",
+  "rankingEnabled": true,
+  "customItemTypes": []
+}
