@@ -323,7 +323,7 @@ npm run build
 
 ---
 
-## ✨ Resumen de Características (v1.0.1)
+## ✨ Resumen de Características (v1.0.2)
 
 - **🌐 Internacionalización Integral Bilingüe (i18n)**: Selector de idioma en asistente CLI (`--init`), cobertura total de diccionarios en todas las vistas y modales del Tablero UI y plantillas bilingües (`DEV-114`).
 - **🚀 Apertura Automática del Navegador**: `npm run dev` y `npm run board` abren el tablero automáticamente en el navegador predeterminado del sistema con soporte para `--no-open` (`DEV-145`).
@@ -368,7 +368,7 @@ npm run build
 
 gripm se construye utilizando gripm para gestionar su propio desarrollo.
 
-Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestionada en modo `backlog-md`, registrando funcionalidades reales, pulido de UX y releases a lo largo de **180+ tareas** (`DEV-001` a `DEV-181`), 9 sprints y 9 releases formales (`v0.2.0` a `v1.0.1`).
+Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestionada en modo `backlog-md`, registrando funcionalidades reales, pulido de UX y releases a lo largo de **180+ tareas** (`DEV-001` a `DEV-185`), 9 sprints y 10 releases formales (`v0.2.0` a `v1.0.2`).
 
 ---
 

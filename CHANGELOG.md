@@ -13,6 +13,18 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.0.2] — 2026-10-05 🐛 Parche de Desacople CLI: Soporte de Promesas en Desinstalación Interactiva
+
+### 🎯 Resumen
+*Parche correctivo v1.0.2 de gripm: corrección crítica de la CLI npx gripm --uninstall migrando a node:readline/promises para prevenir fallas por TypeError en terminales interactivas (DEV-185).*
+
+### 🐛 Correcciones y Estabilidad
+- **CLI de Desacople Interactivo (--uninstall / --clean):** Migración de node:readline a node:readline/promises, permitiendo resolver await rl.question() limpiamente y previniendo TypeError: Cannot read properties of undefined (reading trim) en consolas interactivas.
+- **Manejo Defensivo de Entrada:** Salvaguardas ante lecturas nulas o cierres tempranos de flujo estándar de entrada.
+- **Inyección de Streams y Pruebas de Integración:** Habilitación de inyección de streams en runUninstallCommand con suite automatizada de pruebas interactivas en scripts/verify-integration.js.
+
+---
+
 ## [1.0.1] — 2026-10-05 ⚡ Saneamiento P0 de Frontera OSS: Skills Canónicas, Contrato MCP y Endurecimiento de Seguridad
 
 ### 🎯 Resumen

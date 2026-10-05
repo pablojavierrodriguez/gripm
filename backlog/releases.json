@@ -1,5 +1,21 @@
 [
   {
+    "id": "rel-1-0-2",
+    "projectId": "dev-board",
+    "version": "1.0.2",
+    "date": "2026-10-05",
+    "targetDate": "2026-10-05",
+    "status": "released",
+    "title": "v1.0.2 - Parche de Desacople CLI: Soporte de Promesas en Desinstalación Interactiva",
+    "summary": "Parche correctivo v1.0.2 de gripm: corrección crítica de la CLI npx gripm --uninstall migrando a node:readline/promises para prevenir fallas por TypeError en terminales interactivas (DEV-185).",
+    "scopeNotes": "Parche correctivo de CLI para desacople seguro interactivo en terminales TTY.",
+    "itemCodes": [
+      "DEV-185"
+    ],
+    "markdownContent": "## [1.0.2] — 2026-10-05 🐛 Parche de Desacople CLI: Soporte de Promesas en Desinstalación Interactiva\\n\\n### 🎯 Resumen\\n*Parche correctivo v1.0.2 de gripm: corrección crítica de la CLI npx gripm --uninstall migrando a node:readline/promises para prevenir fallas por TypeError en terminales interactivas (DEV-185).*\\n\\n### 🐛 Correcciones y Estabilidad\\n- **CLI de Desacople Interactivo (--uninstall / --clean):** Migración de node:readline a node:readline/promises, permitiendo resolver await rl.question() limpiamente y previniendo TypeError: Cannot read properties of undefined (reading trim) en consolas interactivas.\\n- **Manejo Defensivo de Entrada:** Salvaguardas ante lecturas nulas o cierres tempranos de flujo estándar de entrada.\\n- **Inyección de Streams y Pruebas de Integración:** Habilitación de inyección de streams en runUninstallCommand con suite automatizada de pruebas interactivas en scripts/verify-integration.js.",
+    "createdAt": "2026-10-05T21:21:16.316Z"
+  },
+  {
     "id": "rel-1-0-1",
     "projectId": "dev-board",
     "version": "1.0.1",

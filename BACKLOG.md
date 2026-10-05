@@ -580,7 +580,7 @@ Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm
 
 ---
 
-### ✅ Done / Deployed (160)
+### ✅ Done / Deployed (161)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -4144,6 +4144,30 @@ Ejecutar el saneamiento integral de frontera pública identificado en la auditor
 - [x] #5 Endurecer reglas de seguridad cuando se usa host 0.0.0.0 sin deshabilitar protecciones de Host ni reflejar Origin indiscriminadamente
 - [x] #6 Limpiar menciones de ESLint y actualizar conteos de tareas y sprints en README.md, README.es.md y CHANGELOG.md
 - [x] #7 Validar que la pirámide completa de verificación (tsc, npm test, backlog:check, publish:check, build) pase con código 0
+
+---
+
+#### [DEV-185] Corrección de Desacople Interactivo: Reemplazar node:readline por node:readline/promises en scripts/uninstall.js
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al ejecutar `npx gripm --uninstall` (o `gripm --clean`) en una terminal interactiva (TTY), el proceso fallaba inmediatamente con:
+`TypeError: Cannot read properties of undefined (reading 'trim')`.
+
+**Causa Raíz:**
+En `scripts/uninstall.js`, se importaba `node:readline` (basado en callbacks) en lugar de `node:readline/promises`. Por consiguiente, `await rl.question('')` evaluaba a `undefined`, provocando que la invocación `.trim()` fallara.
+
+**Solución:**
+1. Se migró la importación a `import readline from 'node:readline/promises';`.
+2. Se añadieron salvaguardas defensivas para respuestas nulas `(rawAnswer || '').trim()`.
+3. Se implementó la inyección opcional de streams (`input`, `output`, `interactive`) en `runUninstallCommand` para testeo automatizado de flujos interactivos.
+4. Se extendió `scripts/verify-integration.js` con una prueba de integración interactiva que valida el ciclo interactivo completo de preguntas y respuestas sin regresiones.
+
+**Criterios de Aceptación:**
+- [x] #1 Importar node:readline/promises en scripts/uninstall.js para soportar llamadas async/await en rl.question
+- [x] #2 Implementar manejo defensivo ante respuestas nulas al recortar con trim
+- [x] #3 Soportar inyección de opciones de streams (input, output, interactive) en runUninstallCommand
+- [x] #4 Agregar prueba de integración del flujo interactivo en scripts/verify-integration.js
+- [x] #5 Validar que npm test y npm run backlog:check pasen con código 0
 
 ---
 

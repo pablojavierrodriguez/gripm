@@ -1,3 +1,4 @@
+import { PassThrough, Writable } from 'node:stream';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -603,6 +604,58 @@ try {
       );
     } finally {
       fs.rmSync(repo2, { recursive: true, force: true });
+    }
+  }
+
+    // DEV-185: Flujo interactivo con node:readline/promises sin crashear por .trim()
+  {
+    const repoInteractive = fs.mkdtempSync(path.join(os.tmpdir(), "gripm-uninstall-interactive-"));
+    try {
+      fs.mkdirSync(path.join(repoInteractive, "backlog", "tasks"), { recursive: true });
+      fs.writeFileSync(path.join(repoInteractive, "backlog", "tasks", "DEV-001 - demo.md"), "demo", "utf8");
+      fs.writeFileSync(path.join(repoInteractive, "BACKLOG.md"), "# Backlog", "utf8");
+      fs.mkdirSync(path.join(repoInteractive, ".agents", "skills", "gripm"), { recursive: true });
+      fs.writeFileSync(path.join(repoInteractive, ".agents", "skills", "gripm", "SKILL.md"), "skill", "utf8");
+      fs.writeFileSync(path.join(repoInteractive, "AGENTS.md"), "agents", "utf8");
+
+      const mockInput = new PassThrough();
+      let inputIdx = 0;
+      const answers = ["1", "s"];
+      const timer = setInterval(() => {
+        if (inputIdx < answers.length) {
+          mockInput.write(answers[inputIdx++] + "\n");
+        } else {
+          clearInterval(timer);
+        }
+      }, 10);
+      let outputBuffer = "";
+      const mockOutput = new Writable({
+        write(chunk, _encoding, callback) {
+          outputBuffer += chunk.toString();
+          callback();
+        }
+      });
+
+      const res = await runUninstallCommand(repoInteractive, {
+        interactive: true,
+        input: mockInput,
+        output: mockOutput
+      });
+
+      clearInterval(timer);
+      assert.strictEqual(res.scope, "local", "DEV-185: scope interactivo debe ser local con opcion 1");
+      assert.strictEqual(
+        fs.existsSync(path.join(repoInteractive, ".agents", "skills", "gripm")),
+        false,
+        "DEV-185: debe remover artefactos de agente tras confirmacion interactiva"
+      );
+      assert.strictEqual(
+        fs.existsSync(path.join(repoInteractive, "backlog", "tasks", "DEV-001 - demo.md")),
+        true,
+        "DEV-185: backlog debe permanecer intacto"
+      );
+    } finally {
+      fs.rmSync(repoInteractive, { recursive: true, force: true });
     }
   }
 

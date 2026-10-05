@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import readline from 'node:readline';
+import readline from 'node:readline/promises';
 import { loadRegistryFile, saveRegistryFile, getRegistryPath } from './registryConfig.js';
 
 /**
@@ -279,7 +279,8 @@ export function purgeGlobalDevBoard(repoPath, options = {}) {
 }
 
 async function askYesNo(question, rl) {
-  const answer = (await rl.question(`${question} (s/N): `)).trim().toLowerCase();
+  const raw = await rl.question(`${question} (s/N): `);
+  const answer = (raw || "").trim().toLowerCase();
   return answer === 's' || answer === 'si' || answer === 'sí' || answer === 'y';
 }
 
@@ -376,13 +377,17 @@ export async function runUninstallCommand(repoPath, options = {}) {
   let scope = 'local';
   let removeAgentArtifacts = options.removeAgentArtifacts === true;
 
-  const isInteractive = process.stdin.isTTY && !options.yes && !options.global;
+  const isInteractive = (options.interactive ?? process.stdin.isTTY) && !options.yes && !options.global;
 
   if (isInteractive) {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const rl = readline.createInterface({
+      input: options.input || process.stdin,
+      output: options.output || process.stdout
+    });
     try {
       console.log(printPlan(repoPath, { otherProjects }));
-      const answer = (await rl.question('')).trim();
+      const rawAnswer = await rl.question('');
+      const answer = (rawAnswer || "").trim();
       if (answer === '2') scope = 'global';
 
       if (await askYesNo('\n  ¿Eliminar también la skill de agentes (.agents/skills/gripm) y AGENTS.md?', rl)) {
