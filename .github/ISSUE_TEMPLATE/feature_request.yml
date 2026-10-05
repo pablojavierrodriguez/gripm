@@ -1,0 +1,42 @@
+name: 💡 Propuesta de Mejora (Feature Request)
+description: Propón una nueva funcionalidad, componente visual o mejora en la experiencia de usuario o MCP
+title: "[FEAT]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Nos encantan las nuevas ideas! Describe la mejora teniendo en cuenta los principios de gripm: **local-first, soberanía de datos, ergonomía visual y simbiosis con agentes de IA**.
+  - type: textarea
+    id: problem
+    attributes:
+      label: ¿Qué problema o necesidad resuelve esta propuesta?
+      description: Explica el caso de uso real. ¿Qué fricción enfrentas actualmente?
+      placeholder: Actualmente al trabajar con múltiples sprints...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+      description: Describe cómo te gustaría que funcionase la funcionalidad o interfaz.
+      placeholder: Me gustaría un nuevo selector en la barra superior que permita...
+    validations:
+      required: true
+  - type: textarea
+    id: ai-relevance
+    attributes:
+      label: Relevancia para pair programming con agentes de IA (Opcional)
+      description: Si la propuesta incluye herramientas MCP, prompts o interacción con modelos de IA, detállalo aquí.
+      placeholder: Podría exponerse como una nueva MCP tool 'gripm_...' que permita...
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: ¿Has probado otras soluciones o herramientas similares?
+  - type: checkboxes
+    id: checkboxes
+    attributes:
+      label: Compromiso
+      options:
+        - label: Estoy dispuesto/a a enviar un Pull Request para implementar esta funcionalidad si es aprobada.

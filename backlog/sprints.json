@@ -1,0 +1,93 @@
+[
+  {
+    "id": "sprint-0",
+    "projectId": "gripm",
+    "name": "Sprint 0",
+    "goal": "Fundaciones v0.2.0: Motor Markdown, CLI, MCP y Resiliencia",
+    "status": "completed",
+    "createdAt": "2026-09-16T00:00:00.000Z",
+    "completedAt": "2026-09-18T00:00:00.000Z"
+  },
+  {
+    "id": "sprint-1",
+    "projectId": "gripm",
+    "name": "Sprint 1",
+    "goal": "Fundaciones de visualización, filtros y arquitectura de backlog",
+    "status": "completed",
+    "createdAt": "2026-09-18T10:00:00.000Z"
+  },
+  {
+    "id": "sprint-2",
+    "projectId": "gripm",
+    "name": "Sprint 2",
+    "goal": "Refinamiento de UX de cards y simplificación de releases",
+    "status": "completed",
+    "createdAt": "2026-09-18T18:00:00.000Z"
+  },
+  {
+    "id": "sprint-3",
+    "projectId": "gripm",
+    "name": "Sprint 3",
+    "goal": "Ciclo de vida integral de Sprints, filtros unificados y drop zones inteligentes",
+    "status": "completed",
+    "durationWeeks": 1,
+    "startDate": "2026-09-19",
+    "endDate": "2026-09-26",
+    "createdAt": "2026-09-19T00:00:00.000Z",
+    "completedAt": "2026-09-19T19:34:02.053Z"
+  },
+  {
+    "id": "sprint-4",
+    "projectId": "gripm",
+    "name": "Sprint 4",
+    "goal": "Empaquetado standalone, relaciones jerárquicas y settings avanzados",
+    "status": "completed",
+    "createdAt": "2026-09-19T05:00:00.000Z",
+    "completedAt": "2026-09-23T19:05:00.000Z"
+  },
+  {
+    "id": "sprint-1790252674566",
+    "projectId": "gripm",
+    "name": "Sprint 5",
+    "goal": "Resolución de errores críticos de UX/UI, coherencia de backlog, mejoras de configuración y robustecimiento de MCP",
+    "startDate": "2026-09-24",
+    "endDate": "2026-09-25",
+    "durationWeeks": 1,
+    "status": "completed",
+    "createdAt": "2026-09-24T12:24:34.498Z",
+    "completedAt": "2026-09-24T18:41:00.000Z"
+  },
+  {
+    "id": "sprint-6",
+    "projectId": "gripm",
+    "name": "Sprint 6",
+    "goal": "Robustecimiento de CLI y Empaquetado: Estándar XDG, Aislamiento de Repositorios, Bundler de Tailwind y Notificador de Versiones",
+    "startDate": "2026-09-25",
+    "endDate": "2026-09-25",
+    "durationWeeks": 1,
+    "status": "completed",
+    "createdAt": "2026-09-25T14:52:00.000Z",
+    "completedAt": "2026-09-25T21:40:00.000Z"
+  },
+  {
+    "id": "sprint-sprint-7",
+    "projectId": "gripm",
+    "name": "Sprint 7",
+    "goal": "Integridad del dato y corrección de fallos silenciosos: hooks de verificación que no mutan el repositorio, paridad de temas, identidad de proyecto, y eliminación de los defectos que no fallaban de forma visible (contenido fabricado en los .md, stacking context y containing block en overlays, y pulido de ItemModal).",
+    "status": "completed",
+    "createdAt": "2026-09-26T05:57:10.912Z",
+    "completedAt": "2026-10-02T21:00:00.000Z"
+  },
+  {
+    "id": "sprint-8",
+    "projectId": "gripm",
+    "name": "Sprint 8",
+    "goal": "Lanzamiento Open-Source: CI/CD automatizado, templates comunitarios, linting estricto, internacionalización total (i18n), assets visuales y branding gripm (\"grip-em\").",
+    "status": "completed",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-08",
+    "durationWeeks": 1,
+    "createdAt": "2026-09-30T23:05:00.000Z",
+    "completedAt": "2026-10-04T10:48:00.000Z"
+  }
+]

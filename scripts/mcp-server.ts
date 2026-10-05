@@ -1,0 +1,1475 @@
+#!/usr/bin/env node
+/**
+ * DevBoard MCP Server (Model Context Protocol)
+ * stdio-based JSON-RPC 2.0 server for AI Agents (Cursor, Claude Code, Antigravity, etc.)
+ * Provides tools to read and mutate the DevBoard backlog without friction.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
+import {
+  parseBacklogMd,
+  serializeBacklogMd,
+  normalizeStatus,
+  normalizePriority,
+  generateTaskFilename,
+  generateMonolithicBacklogMd,
+  type BacklogMdTask
+} from './backlogMdParser.ts';
+import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
+import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from './updateChecker.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '..');
+const DEMO_FILE = path.join(ROOT_DIR, 'data/demo-backlog.json');
+
+let currentVersion = '0.5.0';
+try {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
+  if (pkg.version) currentVersion = pkg.version;
+} catch {}
+
+// Non-blocking update check for MCP server (outputs to stderr to keep stdout JSON-RPC clean)
+try {
+  const cached = getCachedUpdateInfo(currentVersion);
+  if (cached && cached.hasUpdate) {
+    process.stderr.write('\n' + formatUpdateBanner(currentVersion, cached.latestVersion) + '\n\n');
+  }
+  checkForUpdates(currentVersion).then((res) => {
+    if (res.hasUpdate && !cached?.hasUpdate) {
+      process.stderr.write('\n' + formatUpdateBanner(currentVersion, res.latestVersion) + '\n\n');
+    }
+  }).catch(() => {});
+} catch {}
+
+interface ProjectMeta {
+  id: string;
+  name: string;
+  codePrefix: string;
+  repoPath?: string;
+  description?: string;
+  isDemo?: boolean;
+  storageType?: 'json' | 'markdown';
+  backlogDir?: string;
+  createdAt: string;
+  error?: string;
+}
+
+function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
+  let reg: { activeProjectId: string; projects: ProjectMeta[] } = loadRegistryFile(ROOT_DIR);
+  if (!reg || !Array.isArray(reg.projects)) {
+    reg = { activeProjectId: '', projects: [] };
+  }
+
+  // CLI arg support: --repo <dir> or -p <dir>
+  const args = process.argv.slice(2);
+  let cliRepo: string | null = null;
+  const repoIdx = args.findIndex(a => a === '--repo' || a === '-p');
+  if (repoIdx !== -1 && args[repoIdx + 1]) {
+    cliRepo = path.resolve(args[repoIdx + 1]);
+  }
+
+  const targetRepo = cliRepo || process.cwd();
+  const hasMdBacklog = fs.existsSync(path.join(targetRepo, 'backlog/tasks'));
+  const hasJsonBacklog = fs.existsSync(path.join(targetRepo, '.gripm/backlog.json')) || fs.existsSync(path.join(targetRepo, '.devboard/backlog.json'));
+
+  if (hasMdBacklog || hasJsonBacklog || cliRepo) {
+    const existing = reg.projects.find(p => p.repoPath && path.resolve(p.repoPath) === targetRepo);
+    const identity = resolveProjectIdentity(targetRepo);
+    if (existing) {
+      if (identity.id && identity.id !== existing.id) {
+        existing.id = identity.id;
+      }
+      existing.name = identity.name || existing.name;
+      existing.codePrefix = identity.codePrefix || existing.codePrefix;
+      reg.activeProjectId = existing.id;
+    } else {
+      const synthProject: ProjectMeta = {
+        id: identity.id,
+        name: identity.name,
+        codePrefix: identity.codePrefix,
+        repoPath: targetRepo,
+        storageType: hasMdBacklog ? 'markdown' : 'json',
+        backlogDir: 'backlog',
+        createdAt: new Date().toISOString()
+      };
+      reg.projects.unshift(synthProject);
+      reg.activeProjectId = identity.id;
+    }
+  }
+
+  return reg;
+}
+
+function getTasksDir(project: ProjectMeta): string {
+  const dir = project.backlogDir || 'backlog';
+  return path.join(project.repoPath || ROOT_DIR, dir, 'tasks');
+}
+
+function resolveLegibleSprint(project: ProjectMeta, val: string | undefined | null): string | undefined {
+  if (!val) return undefined;
+  const clean = String(val).trim();
+  if (!clean) return undefined;
+  const lower = clean.toLowerCase();
+  if (['backlog-futuro', 'sin-sprint', 'sin sprint', 'backlog', 'none', 'null'].includes(lower)) {
+    return undefined;
+  }
+  if (!project.repoPath) return clean;
+  const sprintsPath = path.join(project.repoPath, project.backlogDir || 'backlog', 'sprints.json');
+  if (fs.existsSync(sprintsPath)) {
+    try {
+      const registeredSprints = JSON.parse(fs.readFileSync(sprintsPath, 'utf8'));
+      if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
+        const matched = registeredSprints.find((s: any) =>
+          (s.id && s.id.toLowerCase() === lower) ||
+          (s.name && s.name.trim().toLowerCase() === lower)
+        );
+        if (matched) {
+          return matched.name || clean;
+        }
+      }
+    } catch {}
+  }
+  if (lower.startsWith('sprint-') || lower.includes('backlog-futuro')) {
+    return undefined;
+  }
+  return clean;
+}
+
+function getProjectJsonBacklogPath(project: ProjectMeta): string {
+  if (project.isDemo) return DEMO_FILE;
+  if (project.repoPath) {
+    const gripmPath = path.join(project.repoPath, '.gripm/backlog.json');
+    if (fs.existsSync(gripmPath)) return gripmPath;
+    const devboardPath = path.join(project.repoPath, '.devboard/backlog.json');
+    if (fs.existsSync(devboardPath)) return devboardPath;
+    return gripmPath;
+  }
+  return path.join(ROOT_DIR, `data/${project.id}-backlog.json`);
+}
+
+function readTasksForProject(project: ProjectMeta): any[] {
+  if (project.storageType === 'markdown' && project.repoPath) {
+    const tasksDir = getTasksDir(project);
+    if (!fs.existsSync(tasksDir)) return [];
+    const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+    files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const items: any[] = [];
+    for (const file of files) {
+      try {
+        const raw = fs.readFileSync(path.join(tasksDir, file), 'utf8');
+        const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
+        const task = parseBacklogMd(raw, fallbackId);
+        items.push({
+          id: task.id,
+          code: task.id,
+          projectId: project.id,
+          title: task.title,
+          status: task.status,
+          type: task.type || 'feature',
+          priority: task.priority,
+          assignees: task.assignees || [],
+          labels: task.labels || [],
+          description: task.description,
+          implementationPlan: task.implementationPlan,
+          notes: task.implementationNotes,
+          acceptanceCriteriaList: task.acceptanceCriteria,
+          sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
+          targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint,
+          milestone: task.milestone,
+          createdAt: task.createdDate ? `${task.createdDate}T00:00:00.000Z` : undefined,
+          updatedAt: task.updatedDate ? `${task.updatedDate}T00:00:00.000Z` : undefined
+        });
+      } catch (err) {
+        // Skip unparseable files
+      }
+    }
+    return items;
+  }
+
+  // JSON storage fallback
+  const filePath = getProjectJsonBacklogPath(project);
+  
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      return data.items || [];
+    } catch {}
+  }
+  return [];
+}
+
+// Tool definitions for MCP tools/list
+const CANONICAL_TOOLS = [
+  {
+    name: 'gripm_list_projects',
+    description: 'Lists registered projects in the gripm cockpit, their repository paths and storage engine (Markdown vs JSON).',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'gripm_list_tasks',
+    description: 'Lists backlog tasks with optional filters (openOnly, search, limit, compact format for minimal token usage).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID. If omitted, uses active project.' },
+        status: { 
+          type: 'string', 
+          description: 'Filter by status: "draft", "doing", "review", "ready", "done", "dismissed", "cancelled".' 
+        },
+        openOnly: {
+          type: 'boolean',
+          description: 'If true, excludes closed/done/dismissed tasks, returning only active or backlog tasks.'
+        },
+        priority: { type: 'string', description: 'Filter by priority: "urgent", "high", "medium", "low".' },
+        sprint: { type: 'string', description: 'Filter by assigned sprint (e.g. "Sprint 8").' },
+        milestone: { type: 'string', description: 'Filter by milestone or release version.' },
+        search: { type: 'string', description: 'Search term to match against task title, code, or labels.' },
+        prefix: { type: 'string', description: 'Filter by task code prefix (e.g. "DEV-", "FEAT-").' },
+        taskIds: { 
+          type: 'array', 
+          items: { type: 'string' }, 
+          description: 'Explicit list of task IDs to query (e.g. ["DEV-001", "DEV-002"]).' 
+        },
+        limit: { type: 'number', description: 'Maximum number of tasks to return (recommended to prevent token saturation).' },
+        offset: { type: 'number', description: 'Pagination offset (defaults to 0).' },
+        format: { 
+          type: 'string', 
+          enum: ['detailed', 'compact'], 
+          description: 'Output format. "compact" returns a 1-line summary per task (saves ~90% tokens).' 
+        }
+      }
+    }
+  },
+  {
+    name: 'gripm_get_stats',
+    description: 'Calculates aggregate backlog metrics: total tasks, open, closed, completion percentage, status/priority breakdown, and code prefix breakdown.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID. If omitted, analyzes active project.' }
+      }
+    }
+  },
+  {
+    name: 'gripm_bulk_update_tasks',
+    description: 'Performs atomic batch updates across multiple tasks simultaneously (by taskIds list or prefix/status filter).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID.' },
+        taskIds: { 
+          type: 'array', 
+          items: { type: 'string' }, 
+          description: 'Explicit list of task IDs to update (e.g. ["DEV-001", "DEV-002"]).' 
+        },
+        filterPrefix: { 
+          type: 'string', 
+          description: 'Code prefix to match for bulk update (e.g. "FEAT-", "BUG-").' 
+        },
+        filterStatus: {
+          type: 'string',
+          description: 'Filter by current status before applying update (e.g. "draft").'
+        },
+        updates: {
+          type: 'object',
+          description: 'Fields to update across all matching tasks.',
+          properties: {
+            status: { type: 'string', enum: ['draft', 'doing', 'review', 'ready', 'done', 'dismissed', 'cancelled', 'ideas'] },
+            priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'] },
+            milestone: { type: 'string' },
+            sprint: { type: 'string', description: 'Sprint to assign to matching tasks.' },
+            implementationNotes: { type: 'string' },
+            labels: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      },
+      required: ['updates']
+    }
+  },
+  {
+    name: 'gripm_get_task',
+    description: 'Retrieves complete details of a task including Acceptance Criteria (AC), Implementation Plan, and Notes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string', description: 'Task ID or code (e.g. "DEV-001").' },
+        projectId: { type: 'string', description: 'Project ID (optional if task code is unique).' }
+      },
+      required: ['taskId']
+    }
+  },
+  {
+    name: 'gripm_create_task',
+    description: 'Creates a new task in the backlog, generating an individual Markdown file in backlog/tasks/.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID.' },
+        title: { type: 'string', description: 'Descriptive title for the task.' },
+        description: { type: 'string', description: 'Technical description or detailed requirements.' },
+        type: { type: 'string', enum: ['feature', 'bug', 'tech_debt', 'ux'], description: 'Item type.' },
+        priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'], description: 'Priority level.' },
+        status: { type: 'string', enum: ['draft', 'doing', 'review', 'ready', 'done', 'dismissed', 'cancelled', 'ideas'], description: 'Initial status.' },
+        acceptanceCriteria: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Plain-text list of acceptance criteria.'
+        },
+        implementationPlan: { type: 'string', description: 'Step-by-step technical implementation plan.' },
+        milestone: { type: 'string', description: 'Assigned sprint or milestone.' }
+      },
+      required: ['title']
+    }
+  },
+  {
+    name: 'gripm_update_task',
+    description: 'Updates task status (draft, doing, review, ready, done), acceptance criteria checkboxes, priority, or implementation plan.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'string', description: 'Task ID or code to update.' },
+        projectId: { type: 'string', description: 'Project ID.' },
+        status: { 
+          type: 'string', 
+          enum: ['draft', 'doing', 'review', 'ready', 'done', 'dismissed', 'cancelled', 'ideas'],
+          description: 'Task status (canonical top-level field).'
+        },
+        updates: {
+          type: 'object',
+          description: 'Optional update object (supports status, title, description, priority, etc.).',
+          properties: {
+            status: { type: 'string', enum: ['draft', 'doing', 'review', 'ready', 'done', 'dismissed', 'cancelled', 'ideas'] },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'] },
+            implementationPlan: { type: 'string' },
+            milestone: { type: 'string' },
+            sprint: { type: 'string' },
+            checkAllAcs: { type: 'boolean' }
+          }
+        },
+        title: { type: 'string' },
+        description: { type: 'string' },
+        priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'] },
+        implementationPlan: { type: 'string', description: 'Technical plan update.' },
+        sprint: { type: 'string', description: 'Sprint name to assign (e.g. "Sprint 8").' },
+        toggleAcIndex: { type: 'number', description: 'AC index (1-indexed) to toggle checked/unchecked.' },
+        checkAllAcs: { type: 'boolean', description: 'If true, checks all ACs. If false, unchecks all ACs.' },
+        milestone: { type: 'string' }
+      },
+      required: ['taskId']
+    }
+  },
+  {
+    name: 'gripm_export_backlog',
+    description: 'Generates or updates the consolidated BACKLOG.md document at the repository root.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID to consolidate.' }
+      }
+    }
+  },
+  {
+    name: 'gripm_list_releases',
+    description: 'Lists all project releases, versions, changelog notes, and linked tasks (both released and in preparation).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID. If omitted, uses active project.' },
+        version: { type: 'string', description: 'Specific version to query (e.g. "v1.0.0"). If omitted, returns all.' }
+      }
+    }
+  },
+  {
+    name: 'gripm_sync_backlog',
+    description: 'Audits and automatically reconciles tasks with acceptance criteria and regenerates BACKLOG.md without shell commands.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID. If omitted, uses active project.' },
+        autoFix: { type: 'boolean', description: 'If true, auto-promotes completed tasks to Done and reconciles ACs.' }
+      }
+    }
+  },
+  {
+    name: 'gripm_create_retro',
+    description: 'Records and persists a structured sprint retrospective in Markdown inside backlog/retros/sprint-N-retro.md.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID. If omitted, uses active project.' },
+        sprintId: { type: 'string', description: 'Sprint ID or number (e.g. "sprint-8").' },
+        sprintName: { type: 'string', description: 'Human-readable sprint name (e.g. "Sprint 8").' },
+        whatWentWell: { type: 'string', description: 'Strengths: What worked well and should be repeated?' },
+        whatWentWrong: { type: 'string', description: 'Issues: What failed or took longer than expected?' },
+        whatToImprove: { type: 'string', description: 'Efficiency: What could be improved for next iterations?' },
+        actions: { 
+          type: 'array', 
+          items: { type: 'string' }, 
+          description: 'Concrete action items for subsequent sprints.' 
+        }
+      },
+      required: ['sprintId']
+    }
+  },
+  {
+    name: 'gripm_list_retros',
+    description: 'Lists saved sprint retrospectives in backlog/retros/ with summaries and timestamps.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: 'Project ID.' }
+      }
+    }
+  }
+];
+
+// Canonical tools are the official public MCP catalog
+const TOOLS = CANONICAL_TOOLS;
+
+// Tool execution handler
+async function handleToolCall(rawName: string, args: any): Promise<any> {
+  const registry = getRegistry();
+  const name = rawName;
+
+  if (name === 'gripm_list_projects') {
+    return {
+      activeProjectId: registry.activeProjectId,
+      projects: registry.projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        codePrefix: p.codePrefix,
+        repoPath: p.repoPath,
+        storageType: p.storageType || 'json'
+      }))
+    };
+  }
+
+  if (name === 'gripm_list_tasks') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+
+    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+
+    let tasks = readTasksForProject(targetProject);
+
+    if (args.openOnly) {
+      const closedStatuses = ['done', 'dismissed', 'cancelled', 'released'];
+      tasks = tasks.filter(t => !closedStatuses.includes(normalizeStatus(t.status)));
+    }
+
+    if (args.status) {
+      const norm = normalizeStatus(args.status);
+      tasks = tasks.filter(t => normalizeStatus(t.status) === norm);
+    }
+    if (args.priority) {
+      const normP = normalizePriority(args.priority);
+      tasks = tasks.filter(t => normalizePriority(t.priority) === normP);
+    }
+    if (args.sprint) {
+      const sp = String(args.sprint).toLowerCase();
+      tasks = tasks.filter(t => 
+        (t.sprint && String(t.sprint).toLowerCase() === sp) ||
+        (t.targetSprint && String(t.targetSprint).toLowerCase() === sp) ||
+        (Array.isArray(t.sprints) && t.sprints.some((s: string) => String(s).toLowerCase() === sp))
+      );
+    }
+    if (args.milestone) {
+      tasks = tasks.filter(t => t.milestone === args.milestone || t.targetSprint === args.milestone);
+    }
+    if (args.prefix) {
+      const pfx = String(args.prefix).toLowerCase();
+      tasks = tasks.filter(t => 
+        (t.id && t.id.toLowerCase().startsWith(pfx)) || 
+        (t.code && t.code.toLowerCase().startsWith(pfx))
+      );
+    }
+    if (Array.isArray(args.taskIds) && args.taskIds.length > 0) {
+      const idsLower = new Set(args.taskIds.map((id: string) => String(id).toLowerCase()));
+      tasks = tasks.filter(t => 
+        (t.id && idsLower.has(t.id.toLowerCase())) || 
+        (t.code && idsLower.has(t.code.toLowerCase()))
+      );
+    }
+    if (args.search) {
+      const q = String(args.search).toLowerCase();
+      tasks = tasks.filter(t => 
+        (t.title && t.title.toLowerCase().includes(q)) || 
+        (t.id && t.id.toLowerCase().includes(q)) ||
+        (t.labels && Array.isArray(t.labels) && t.labels.some((l: string) => l.toLowerCase().includes(q)))
+      );
+    }
+
+    const totalFiltered = tasks.length;
+    const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
+    if (args.limit && typeof args.limit === 'number' && args.limit > 0) {
+      tasks = tasks.slice(offset, offset + args.limit);
+    } else if (offset > 0) {
+      tasks = tasks.slice(offset);
+    }
+
+    if (args.format === 'compact') {
+      return {
+        projectId: targetProject.id,
+        projectName: targetProject.name,
+        storageType: targetProject.storageType,
+        total: totalFiltered,
+        showing: tasks.length,
+        offset,
+        items: tasks.map(t => {
+          const acInfo = t.acceptanceCriteriaList 
+            ? `${t.acceptanceCriteriaList.filter((ac: any) => ac.checked).length}/${t.acceptanceCriteriaList.length} AC` 
+            : '0/0 AC';
+          const m = t.milestone || t.targetSprint ? ` [${t.milestone || t.targetSprint}]` : '';
+          return `[${t.code || t.id}] (${t.status}/${t.priority}) ${t.title}${m} (${acInfo})`;
+        })
+      };
+    }
+
+    return {
+      projectId: targetProject.id,
+      projectName: targetProject.name,
+      storageType: targetProject.storageType,
+      total: totalFiltered,
+      showing: tasks.length,
+      offset,
+      tasks: tasks.map(t => ({
+        id: t.code || t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        type: t.type,
+        milestone: t.milestone || t.targetSprint,
+        acProgress: t.acceptanceCriteriaList 
+          ? `${t.acceptanceCriteriaList.filter((ac: any) => ac.checked).length}/${t.acceptanceCriteriaList.length} AC` 
+          : '0/0 AC'
+      }))
+    };
+  }
+
+  if (name === 'gripm_get_stats') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+
+    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+
+    const tasks = readTasksForProject(targetProject);
+    const total = tasks.length;
+    const closedStatuses = ['done', 'dismissed', 'cancelled', 'released'];
+    let openCount = 0;
+    let doneCount = 0;
+    const byStatus: Record<string, number> = {};
+    const byPriority: Record<string, number> = {};
+    const byPrefix: Record<string, { total: number; open: number; done: number }> = {};
+
+    for (const t of tasks) {
+      const s = normalizeStatus(t.status);
+      const p = normalizePriority(t.priority);
+      const isClosed = closedStatuses.includes(s);
+      if (isClosed) doneCount++; else openCount++;
+
+      byStatus[s] = (byStatus[s] || 0) + 1;
+      byPriority[p] = (byPriority[p] || 0) + 1;
+
+      const code = String(t.code || t.id || '');
+      const parts = code.split('-');
+      const prefix = parts.length > 2 ? `${parts[0]}-${parts[1]}` : (parts[0] || 'OTHER');
+
+      if (!byPrefix[prefix]) {
+        byPrefix[prefix] = { total: 0, open: 0, done: 0 };
+      }
+      byPrefix[prefix].total++;
+      if (isClosed) byPrefix[prefix].done++; else byPrefix[prefix].open++;
+    }
+
+    const completionRate = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+    return {
+      projectId: targetProject.id,
+      projectName: targetProject.name,
+      storageType: targetProject.storageType,
+      summary: {
+        total,
+        open: openCount,
+        done: doneCount,
+        completionRate: `${completionRate}%`
+      },
+      byStatus,
+      byPriority,
+      byPrefix
+    };
+  }
+
+  if (name === 'gripm_bulk_update_tasks') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+
+    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+
+    const updates = args.updates || {};
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString();
+    const cleanIds = Array.isArray(args.taskIds) ? new Set(args.taskIds.map((id: string) => String(id).toLowerCase())) : null;
+    const pfxFilter = args.filterPrefix ? String(args.filterPrefix).toLowerCase() : null;
+    const statusFilter = args.filterStatus ? normalizeStatus(args.filterStatus) : null;
+
+    let updatedCount = 0;
+    const updatedIds: string[] = [];
+
+    // Markdown storage
+    if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
+      const tasksDir = getTasksDir(targetProject);
+      if (!fs.existsSync(tasksDir)) throw new Error('Carpeta de tareas no encontrada.');
+      const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+
+      for (const file of files) {
+        try {
+          const fullPath = path.join(tasksDir, file);
+          const raw = fs.readFileSync(fullPath, 'utf8');
+          const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
+          const current = parseBacklogMd(raw, fallbackId);
+          const taskId = String(current.id || fallbackId).toLowerCase();
+
+          // Match criteria
+          let match = false;
+          if (cleanIds) {
+            match = cleanIds.has(taskId);
+          } else if (pfxFilter) {
+            match = taskId.startsWith(pfxFilter);
+          } else {
+            match = true;
+          }
+
+          if (statusFilter && normalizeStatus(current.status) !== statusFilter) {
+            match = false;
+          }
+
+          if (match) {
+            if (updates.status) current.status = normalizeStatus(updates.status);
+            if (updates.priority) current.priority = normalizePriority(updates.priority);
+            if (updates.milestone !== undefined) current.milestone = updates.milestone;
+            if (updates.sprint !== undefined) {
+              const legSprint = resolveLegibleSprint(targetProject, updates.sprint);
+              if (legSprint) {
+                current.sprint = legSprint;
+                current.targetSprint = legSprint;
+                if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+                current.rawExtraFrontmatter.sprint = legSprint;
+                current.rawExtraFrontmatter.targetSprint = legSprint;
+                current.sprints = [legSprint];
+              } else {
+                current.sprint = undefined;
+                current.targetSprint = undefined;
+                current.sprints = [];
+                if (current.rawExtraFrontmatter) {
+                  delete current.rawExtraFrontmatter.sprint;
+                  delete current.rawExtraFrontmatter.targetSprint;
+                }
+              }
+            }
+            if (updates.implementationNotes !== undefined) current.implementationNotes = updates.implementationNotes;
+            if (Array.isArray(updates.labels)) current.labels = updates.labels;
+            current.updatedDate = today;
+
+            const serialized = serializeBacklogMd(current);
+            // Sobreescritura in-place del archivo existente sin renombrar ni generar slugs innecesarios
+            fs.writeFileSync(fullPath, serialized, 'utf8');
+            updatedCount++;
+            updatedIds.push(current.id);
+          }
+        } catch {}
+      }
+
+      return {
+        ok: true,
+        projectId: targetProject.id,
+        storageType: 'markdown',
+        updatedCount,
+        updatedIds
+      };
+    }
+
+    // JSON storage
+    const filePath = getProjectJsonBacklogPath(targetProject);
+
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const items = data.items || [];
+
+      for (let i = 0; i < items.length; i++) {
+        const current = items[i];
+        const taskId = String(current.id || current.code || '').toLowerCase();
+
+        let match = false;
+        if (cleanIds) {
+          match = cleanIds.has(taskId);
+        } else if (pfxFilter) {
+          match = taskId.startsWith(pfxFilter);
+        } else {
+          match = true;
+        }
+
+        if (statusFilter && normalizeStatus(current.status) !== statusFilter) {
+          match = false;
+        }
+
+        if (match) {
+          if (updates.status) current.status = normalizeStatus(updates.status);
+          if (updates.priority) current.priority = normalizePriority(updates.priority);
+          if (updates.milestone !== undefined) {
+            current.milestone = updates.milestone;
+            current.targetSprint = updates.milestone;
+          }
+          if (updates.sprint !== undefined) {
+            const legSprint = resolveLegibleSprint(targetProject, updates.sprint);
+            current.sprint = legSprint;
+            current.targetSprint = legSprint;
+            current.sprints = legSprint ? [legSprint] : [];
+          }
+          if (updates.implementationNotes !== undefined) {
+            current.implementationNotes = updates.implementationNotes;
+            current.fix = updates.implementationNotes;
+          }
+          if (Array.isArray(updates.labels)) current.labels = updates.labels;
+          current.updatedAt = now;
+
+          items[i] = current;
+          updatedCount++;
+          updatedIds.push(current.code || current.id);
+        }
+      }
+
+      data.items = items;
+      data.lastUpdated = now;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+      return {
+        ok: true,
+        projectId: targetProject.id,
+        storageType: 'json',
+        updatedCount,
+        updatedIds
+      };
+    }
+
+    throw new Error('No se pudo encontrar el archivo de almacenamiento del proyecto.');
+  }
+
+  if (name === 'gripm_get_task') {
+    const cleanId = String(args.taskId).toLowerCase();
+    for (const p of registry.projects) {
+      if (args.projectId && p.id !== args.projectId) continue;
+      const tasks = readTasksForProject(p);
+      const match = tasks.find(t => 
+        (t.id && t.id.toLowerCase() === cleanId) || 
+        (t.code && t.code.toLowerCase() === cleanId)
+      );
+      if (match) {
+        return {
+          found: true,
+          project: { id: p.id, name: p.name, storageType: p.storageType },
+          task: match
+        };
+      }
+    }
+    throw new Error(`Tarea ${args.taskId} no encontrada.`);
+  }
+
+  if (name === 'gripm_create_task') {
+    const project = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+    if (!project) throw new Error('Proyecto no encontrado.');
+
+    const cleanPrefix = (project.codePrefix || 'DEV').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'DEV';
+    const tasks = readTasksForProject(project);
+
+    let maxNum = 0;
+    const regex = new RegExp(`^${cleanPrefix}-(\\d+)`, 'i');
+    for (const t of tasks) {
+      const m = (t.code || t.id || '').match(regex);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    const nextNum = maxNum > 0 ? maxNum + 1 : tasks.length + 1;
+    const code = `${cleanPrefix}-${String(nextNum).padStart(3, '0')}`;
+    const today = new Date().toISOString().split('T')[0];
+
+    const acList = (args.acceptanceCriteria || []).map((text: string, i: number) => ({
+      index: i + 1,
+      text,
+      checked: false
+    }));
+
+    const taskData: BacklogMdTask = {
+      id: code,
+      title: args.title,
+      status: normalizeStatus(args.status || 'draft'),
+      priority: normalizePriority(args.priority || 'medium'),
+      type: args.type || 'feature',
+      createdDate: today,
+      updatedDate: today,
+      milestone: args.milestone,
+      description: args.description || '',
+      acceptanceCriteria: acList,
+      implementationPlan: args.implementationPlan || ''
+    };
+
+    if (project.storageType === 'markdown' && project.repoPath) {
+      const tasksDir = getTasksDir(project);
+      if (!fs.existsSync(tasksDir)) fs.mkdirSync(tasksDir, { recursive: true });
+      const filename = generateTaskFilename(code, args.title);
+      const filepath = path.join(tasksDir, filename);
+      fs.writeFileSync(filepath, serializeBacklogMd(taskData), 'utf8');
+      return { ok: true, task: taskData, savedFile: filepath };
+    }
+
+    // JSON fallback
+    const filePath = getProjectJsonBacklogPath(project);
+    
+    const now = new Date().toISOString();
+    const newItem = {
+      ...taskData,
+      code,
+      projectId: project.id,
+      acceptanceCriteriaList: acList,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    let existingData = { project, items: [] as any[], releases: [] };
+    if (fs.existsSync(filePath)) {
+      existingData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    existingData.items.push(newItem);
+    fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf8');
+    return { ok: true, task: newItem, savedFile: filePath };
+  }
+
+  if (name === 'gripm_update_task') {
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString();
+
+    for (const project of registry.projects) {
+      if (args.projectId && project.id !== args.projectId) continue;
+
+      if (project.storageType === 'markdown' && project.repoPath) {
+        const tasksDir = getTasksDir(project);
+        if (!fs.existsSync(tasksDir)) continue;
+        const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+        const cleanId = String(args.taskId).toLowerCase();
+
+        // 1. Coincidencia por convención de nombre de archivo (case-insensitive)
+        let resolvedFile = files.find(f => {
+          const fLower = f.toLowerCase();
+          return fLower.startsWith(`${cleanId} `) || fLower === `${cleanId}.md` || fLower.startsWith(`${cleanId}-`);
+        });
+
+        // 2. Reconciliación por frontmatter YAML si el archivo fue renombrado (DEV-019)
+        if (!resolvedFile) {
+          for (const f of files) {
+            try {
+              const raw = fs.readFileSync(path.join(tasksDir, f), 'utf8');
+              const fallbackId = f.split(' - ')[0] || f.replace(/\.md$/, '');
+              const task = parseBacklogMd(raw, fallbackId);
+              if (task.id && task.id.toLowerCase() === cleanId) {
+                resolvedFile = f;
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        if (resolvedFile) {
+          const fullPath = path.join(tasksDir, resolvedFile);
+          const raw = fs.readFileSync(fullPath, 'utf8');
+          const current = parseBacklogMd(raw, args.taskId);
+
+          const effectiveStatus = args.status || args.updates?.status;
+          const effectiveTitle = args.title || args.updates?.title;
+          const effectiveDesc = args.description !== undefined ? args.description : args.updates?.description;
+          const effectivePriority = args.priority || args.updates?.priority;
+          const effectivePlan = args.implementationPlan !== undefined ? args.implementationPlan : args.updates?.implementationPlan;
+          const effectiveMilestone = args.milestone !== undefined ? args.milestone : args.updates?.milestone;
+          const effectiveSprint = args.sprint !== undefined ? args.sprint : args.updates?.sprint;
+          const effectiveCheckAllAcs = args.checkAllAcs !== undefined ? args.checkAllAcs : args.updates?.checkAllAcs;
+          const usedUpdatesObject = Boolean(args.updates && !args.status && args.updates.status);
+
+          if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
+          if (effectiveTitle) current.title = effectiveTitle;
+          if (effectiveDesc !== undefined) current.description = effectiveDesc;
+          if (effectivePriority) current.priority = normalizePriority(effectivePriority);
+          if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
+          if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
+          if (effectiveSprint !== undefined) {
+            const legSprint = resolveLegibleSprint(project, effectiveSprint);
+            if (legSprint) {
+              current.sprint = legSprint;
+              current.targetSprint = legSprint;
+              if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+              current.rawExtraFrontmatter.sprint = legSprint;
+              current.rawExtraFrontmatter.targetSprint = legSprint;
+              current.sprints = [legSprint];
+            } else {
+              current.sprint = undefined;
+              current.targetSprint = undefined;
+              current.sprints = [];
+              if (current.rawExtraFrontmatter) {
+                delete current.rawExtraFrontmatter.sprint;
+                delete current.rawExtraFrontmatter.targetSprint;
+              }
+            }
+          }
+          current.updatedDate = today;
+
+          if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteria) {
+            current.acceptanceCriteria = current.acceptanceCriteria.map(ac => ({
+              ...ac,
+              checked: Boolean(effectiveCheckAllAcs)
+            }));
+          } else if (args.toggleAcIndex !== undefined && current.acceptanceCriteria) {
+            current.acceptanceCriteria = current.acceptanceCriteria.map(ac => 
+              ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+            );
+          }
+
+          const serialized = serializeBacklogMd(current);
+          // Sobreescritura in-place del archivo existente (fullPath) sin borrar ni generar slugs innecesarios
+          fs.writeFileSync(fullPath, serialized, 'utf8');
+          const resp: any = { ok: true, updatedTask: current, filePath: fullPath };
+          if (usedUpdatesObject) {
+            resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+          }
+          return resp;
+        }
+      } else {
+        // JSON storage update
+        const filePath = getProjectJsonBacklogPath(project);
+        
+        if (fs.existsSync(filePath)) {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const cleanId = String(args.taskId).toLowerCase();
+          const idx = data.items.findIndex((i: any) => 
+            (i.id && String(i.id).toLowerCase() === cleanId) || 
+            (i.code && String(i.code).toLowerCase() === cleanId)
+          );
+          if (idx >= 0) {
+            const current = data.items[idx];
+            const effectiveStatus = args.status || args.updates?.status;
+            const effectiveTitle = args.title || args.updates?.title;
+            const effectiveDesc = args.description !== undefined ? args.description : args.updates?.description;
+            const effectivePriority = args.priority || args.updates?.priority;
+            const effectivePlan = args.implementationPlan !== undefined ? args.implementationPlan : args.updates?.implementationPlan;
+            const effectiveMilestone = args.milestone !== undefined ? args.milestone : args.updates?.milestone;
+            const effectiveSprint = args.sprint !== undefined ? args.sprint : args.updates?.sprint;
+            const effectiveCheckAllAcs = args.checkAllAcs !== undefined ? args.checkAllAcs : args.updates?.checkAllAcs;
+            const usedUpdatesObject = Boolean(args.updates && !args.status && args.updates.status);
+
+            if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
+            if (effectiveTitle) current.title = effectiveTitle;
+            if (effectiveDesc !== undefined) current.description = effectiveDesc;
+            if (effectivePriority) current.priority = normalizePriority(effectivePriority);
+            if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
+            if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
+            if (effectiveSprint !== undefined) {
+              const legSprint = resolveLegibleSprint(project, effectiveSprint);
+              current.sprint = legSprint;
+              current.targetSprint = legSprint;
+              current.sprints = legSprint ? [legSprint] : [];
+            }
+            current.updatedAt = now;
+
+            if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteriaList) {
+              current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) => ({
+                ...ac,
+                checked: Boolean(effectiveCheckAllAcs)
+              }));
+            } else if (args.toggleAcIndex !== undefined && current.acceptanceCriteriaList) {
+              current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) =>
+                ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+              );
+            }
+
+            data.items[idx] = current;
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+            const resp: any = { ok: true, updatedTask: current, filePath };
+            if (usedUpdatesObject) {
+              resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+            }
+            return resp;
+          }
+        }
+      }
+    }
+    throw new Error(`Tarea ${args.taskId} no encontrada para actualizar.`);
+  }
+
+  if (name === 'gripm_export_backlog') {
+    const project = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+    if (!project) throw new Error('Proyecto no encontrado.');
+
+    const tasks = readTasksForProject(project);
+    const mdTasks: BacklogMdTask[] = tasks.map(t => ({
+      id: t.code || t.id,
+      title: t.title,
+      status: normalizeStatus(t.status),
+      type: t.type,
+      priority: t.priority,
+      milestone: t.milestone,
+      description: t.description,
+      acceptanceCriteria: t.acceptanceCriteriaList || []
+    }));
+
+    const content = generateMonolithicBacklogMd(project.name, mdTasks);
+    let savedPath = null;
+    if (project.repoPath) {
+      savedPath = path.join(project.repoPath, 'BACKLOG.md');
+      fs.writeFileSync(savedPath, content, 'utf8');
+    }
+
+    return {
+      ok: true,
+      savedPath,
+      taskCount: tasks.length
+    };
+  }
+
+  if (name === 'gripm_sync_backlog') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+    if (!targetProject) throw new Error('Proyecto no encontrado.');
+
+    let fixedCount = 0;
+    const errors: string[] = [];
+    const autoFix = args.autoFix !== false; // Default true
+
+    if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
+      const tasksDir = getTasksDir(targetProject);
+      if (fs.existsSync(tasksDir)) {
+        const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+        for (const file of files) {
+          const filePath = path.join(tasksDir, file);
+          const content = fs.readFileSync(filePath, 'utf8');
+          const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          if (!fmMatch) continue;
+
+          const fm = fmMatch[1];
+          const statusMatch = fm.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+          const idMatch = fm.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+          const rawStatus = (statusMatch ? statusMatch[1] : '').toLowerCase();
+          const taskId = idMatch ? idMatch[1] : file.split(' - ')[0];
+
+          const acBlockMatch = content.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
+          if (!acBlockMatch) continue;
+
+          const acBlock = acBlockMatch[1];
+          const allAcs = acBlock.match(/^-\s*\[([ xX])\]/gm) || [];
+          const checkedAcs = acBlock.match(/^-\s*\[[xX]\]/gm) || [];
+          const totalAcs = allAcs.length;
+          const totalChecked = checkedAcs.length;
+
+          // Regla 1: Si todos los AC están marcados, promocionar a Done
+          if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === 'draft' || rawStatus === 'doing')) {
+            if (autoFix) {
+              const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: Done');
+              const updatedContent = content.replace(fmMatch[0], `---\n${updatedFm}\n---`);
+              fs.writeFileSync(filePath, updatedContent, 'utf8');
+              fixedCount++;
+            } else {
+              errors.push(`${taskId}: Todos los AC completados (${totalChecked}/${totalAcs}) pero status es '${rawStatus}'`);
+            }
+          }
+
+          // Regla 2: Si el estado es done, tildar los ACs pendientes
+          if (rawStatus === 'done' && totalAcs > 0 && totalChecked < totalAcs) {
+            if (autoFix) {
+              const fixedAcBlock = acBlock.replace(/-\s*\[ \]/g, '- [x]');
+              const updatedContent = content.replace(acBlock, fixedAcBlock);
+              fs.writeFileSync(filePath, updatedContent, 'utf8');
+              fixedCount++;
+            } else {
+              errors.push(`${taskId}: Status es 'done' pero solo tiene ${totalChecked}/${totalAcs} ACs marcados`);
+            }
+          }
+        }
+      }
+    }
+
+    // Regenerar BACKLOG.md
+    const allTasks = readTasksForProject(targetProject);
+    const mdTasks: BacklogMdTask[] = allTasks.map(t => ({
+      id: t.code || t.id,
+      title: t.title,
+      status: normalizeStatus(t.status),
+      type: t.type,
+      priority: t.priority,
+      milestone: t.milestone,
+      description: t.description,
+      acceptanceCriteria: t.acceptanceCriteriaList || []
+    }));
+
+    const content = generateMonolithicBacklogMd(targetProject.name, mdTasks);
+    let backlogPath = null;
+    if (targetProject.repoPath) {
+      backlogPath = path.join(targetProject.repoPath, 'BACKLOG.md');
+      fs.writeFileSync(backlogPath, content, 'utf8');
+    }
+
+    return {
+      ok: true,
+      fixedCount,
+      errorsFound: errors.length,
+      errors,
+      taskCount: allTasks.length,
+      backlogPath
+    };
+  }
+
+  if (name === 'gripm_list_releases') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+
+    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+
+    let releases: any[] = [];
+    const repoPath = targetProject.repoPath || ROOT_DIR;
+    const releasesJsonPath = path.join(repoPath, targetProject.backlogDir || 'backlog', 'releases.json');
+    const gripmReleasesPath = path.join(repoPath, '.gripm/releases.json');
+    const legacyReleasesPath = path.join(repoPath, '.devboard/releases.json');
+    const dataReleasesPath = path.join(ROOT_DIR, 'data/releases.json');
+
+    if (fs.existsSync(releasesJsonPath)) {
+      try { releases = JSON.parse(fs.readFileSync(releasesJsonPath, 'utf8')); } catch {}
+    } else if (fs.existsSync(gripmReleasesPath)) {
+      try { releases = JSON.parse(fs.readFileSync(gripmReleasesPath, 'utf8')); } catch {}
+    } else if (fs.existsSync(legacyReleasesPath)) {
+      try { releases = JSON.parse(fs.readFileSync(legacyReleasesPath, 'utf8')); } catch {}
+    } else if (fs.existsSync(dataReleasesPath)) {
+      try { releases = JSON.parse(fs.readFileSync(dataReleasesPath, 'utf8')); } catch {}
+    }
+
+    const allTasks = readTasksForProject(targetProject);
+    const knownCodes = new Set(allTasks.map(t => (t.code || t.id || '').toUpperCase()).filter(Boolean));
+    const codePrefix = (targetProject.codePrefix || '').toUpperCase().trim();
+
+    // Fallback: parse docs/RELEASE_NOTES.md or RELEASE_NOTES.md
+    if (releases.length === 0) {
+      const notesPaths = [
+        path.join(repoPath, 'docs/RELEASE_NOTES.md'),
+        path.join(repoPath, 'docs/releasenotes.md'),
+        path.join(repoPath, 'RELEASE_NOTES.md'),
+        path.join(repoPath, 'releasenotes.md'),
+        path.join(repoPath, 'CHANGELOG.md')
+      ];
+      for (const np of notesPaths) {
+        if (fs.existsSync(np)) {
+          try {
+            const content = fs.readFileSync(np, 'utf8');
+            const sections = content.split(/(?=^##\s+)/m);
+            for (const section of sections) {
+              const trimmed = section.trim();
+              if (!trimmed.startsWith('##')) continue;
+              const firstLineEnd = trimmed.indexOf('\n');
+              const headerLine = firstLineEnd > 0 ? trimmed.substring(0, firstLineEnd) : trimmed;
+              const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\]—–-]+)?)\]?/);
+              if (!vMatch) continue;
+
+              const rawVersion = vMatch[1].trim();
+              const version = rawVersion.replace(/^v(?=\d)/i, '');
+              const dateMatch = headerLine.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+              const date = dateMatch ? dateMatch[1] : '';
+
+              let title = headerLine.replace(/^##\s*\[?[^\]]+\]?/, '').trim();
+              if (date) title = title.replace(date, '').trim();
+              title = title.replace(/^[-—–:🚀 ]+/, '').trim();
+
+              const itemCodesSet = new Set<string>();
+              const candidates = trimmed.match(/\b([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\b/g) || [];
+              for (const c of candidates) {
+                const upper = c.toUpperCase();
+                if (knownCodes.has(upper) || (codePrefix && upper.startsWith(`${codePrefix}-`))) {
+                  itemCodesSet.add(upper);
+                }
+              }
+              for (const t of allTasks) {
+                const m = (t.milestone || t.targetSprint || '').replace(/^v/i, '');
+                if (m && m === version) itemCodesSet.add(t.code || t.id);
+              }
+
+              releases.push({
+                version,
+                date: date || '',
+                title: title || `Release ${version}`,
+                itemCodes: Array.from(itemCodesSet),
+                itemCount: itemCodesSet.size
+              });
+            }
+          } catch {}
+          if (releases.length > 0) break;
+        }
+      }
+    }
+
+    if (args.version) {
+      const vClean = String(args.version).trim().toLowerCase().replace(/^v/, '');
+      const foundRelease = releases.find(r => String(r.version).toLowerCase().replace(/^v/, '') === vClean);
+      if (!foundRelease) {
+        return {
+          project: targetProject.id,
+          version: args.version,
+          found: false,
+          message: `No se encontró el release para la versión "${args.version}".`,
+          availableVersions: releases.map(r => r.version)
+        };
+      }
+
+      const relatedCodes = new Set((foundRelease.itemCodes || []).map((c: string) => c.toLowerCase()));
+      const relatedTasks = allTasks.filter(t => {
+        const idLower = String(t.id || t.code || '').toLowerCase();
+        if (relatedCodes.has(idLower)) return true;
+        const mLower = String(t.milestone || t.targetSprint || '').toLowerCase().replace(/^v/, '');
+        return mLower === vClean;
+      });
+
+      return {
+        project: targetProject.id,
+        release: foundRelease,
+        taskCount: relatedTasks.length,
+        tasks: relatedTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          type: t.type
+        }))
+      };
+    }
+
+    return {
+      project: targetProject.id,
+      totalReleases: releases.length,
+      releases: releases.map(r => ({
+        version: r.version,
+        status: r.status || (r.version === '0.2.0' ? 'released' : 'unreleased'),
+        date: r.date,
+        title: r.title,
+        itemCount: Array.isArray(r.itemCodes) ? r.itemCodes.length : 0,
+        itemCodes: r.itemCodes || []
+      }))
+    };
+  }
+
+  if (name === 'gripm_create_retro') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+    if (!targetProject) throw new Error('Proyecto no encontrado.');
+
+    const sprintKey = String(args.sprintId || args.sprintName || 'sprint').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const retrosDir = path.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || 'backlog', 'retros');
+    if (!fs.existsSync(retrosDir)) {
+      fs.mkdirSync(retrosDir, { recursive: true });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const sprintTitle = args.sprintName || args.sprintId;
+    const filePath = path.join(retrosDir, `${sprintKey}-retro.md`);
+
+    const mdContent = `# Retrospectiva — ${sprintTitle}
+
+**Fecha:** ${today}  
+**Sprint:** ${sprintTitle}  
+**Proyecto:** ${targetProject.name}
+
+---
+
+## 🟢 Fortalezas (¿Qué funcionó bien y debe repetirse?)
+${args.whatWentWell ? args.whatWentWell.trim() : 'No se registraron comentarios específicos.'}
+
+## 🔴 Problemas (¿Qué falló, se rompió o tomó más tiempo del esperado?)
+${args.whatWentWrong ? args.whatWentWrong.trim() : 'No se registraron incidentes críticos.'}
+
+## 🟡 Eficiencia (¿Qué podría haberse hecho en menos pasos o con menos tokens?)
+${args.whatToImprove ? args.whatToImprove.trim() : 'Flujo eficiente y directo.'}
+
+## 📌 Acciones Concretas (Compromisos y Mejoras)
+${Array.isArray(args.actions) && args.actions.length > 0 
+  ? args.actions.map((act: string) => `- [ ] ${act}`).join('\n') 
+  : '- [ ] Continuar aplicando las buenas prácticas establecidas.'}
+`;
+
+    fs.writeFileSync(filePath, mdContent, 'utf8');
+    return {
+      ok: true,
+      sprint: sprintTitle,
+      savedFile: filePath,
+      actionsCount: Array.isArray(args.actions) ? args.actions.length : 0
+    };
+  }
+
+  if (name === 'gripm_list_retros') {
+    const targetProject = registry.projects.find(p => p.id === args.projectId) 
+      || registry.projects.find(p => p.id === registry.activeProjectId) 
+      || registry.projects[0];
+    if (!targetProject) throw new Error('Proyecto no encontrado.');
+
+    const retrosDir = path.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || 'backlog', 'retros');
+    if (!fs.existsSync(retrosDir)) {
+      return { ok: true, retros: [] };
+    }
+
+    const files = fs.readdirSync(retrosDir).filter(f => f.endsWith('.md'));
+    const retros: any[] = [];
+
+    for (const f of files) {
+      try {
+        const full = path.join(retrosDir, f);
+        const raw = fs.readFileSync(full, 'utf8');
+        const titleMatch = raw.match(/^#\s+(.+)$/m);
+        const dateMatch = raw.match(/\*\*Fecha:\*\*\s*([^\n]+)/);
+        retros.push({
+          file: f,
+          path: full,
+          title: titleMatch ? titleMatch[1].trim() : f.replace(/\.md$/, ''),
+          date: dateMatch ? dateMatch[1].trim() : ''
+        });
+      } catch {}
+    }
+
+    return {
+      ok: true,
+      total: retros.length,
+      retros
+    };
+  }
+
+  throw new Error(`Herramienta desconocida: ${name}`);
+}
+
+// JSON-RPC stdio event loop
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  terminal: false
+});
+
+function sendJsonRpc(response: any) {
+  process.stdout.write(JSON.stringify(response) + '\n');
+}
+
+rl.on('line', async (line) => {
+  if (!line.trim()) return;
+  try {
+    const request = JSON.parse(line);
+    const { id, method, params } = request;
+
+    if (method === 'initialize') {
+      sendJsonRpc({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          protocolVersion: '2024-11-05',
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: 'gripm-mcp',
+            version: '1.0.0'
+          }
+        }
+      });
+      return;
+    }
+
+    if (method === 'notifications/initialized') {
+      // No response required for notifications
+      return;
+    }
+
+    if (method === 'tools/list') {
+      sendJsonRpc({
+        jsonrpc: '2.0',
+        id,
+        result: {
+          tools: TOOLS
+        }
+      });
+      return;
+    }
+
+    if (method === 'tools/call') {
+      const toolName = params?.name;
+      const toolArgs = params?.arguments || {};
+
+      try {
+        const result = await handleToolCall(toolName, toolArgs);
+        sendJsonRpc({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
+              }
+            ]
+          }
+        });
+      } catch (toolErr: any) {
+        sendJsonRpc({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Error ejecutando ${toolName}: ${toolErr.message}`
+              }
+            ]
+          }
+        });
+      }
+      return;
+    }
+
+    // Unknown method
+    if (id !== undefined) {
+      sendJsonRpc({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32601,
+          message: `Método desconocido: ${method}`
+        }
+      });
+    }
+  } catch (parseErr: any) {
+    sendJsonRpc({
+      jsonrpc: '2.0',
+      id: null,
+      error: {
+        code: -32700,
+        message: 'Parse error: invalid JSON'
+      }
+    });
+  }
+});

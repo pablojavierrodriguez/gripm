@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentación de Contribución
+    url: https://github.com/pablojavierrodriguez/gripm/blob/main/CONTRIBUTING.md
+    about: Revisa nuestra guía de contribución y flujo de trabajo antes de reportar.
+  - name: 🔒 Reporte de Seguridad
+    url: https://github.com/pablojavierrodriguez/gripm/blob/main/SECURITY.md
+    about: Para reportar vulnerabilidades de seguridad de forma privada y responsable.
