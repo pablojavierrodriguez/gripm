@@ -4,7 +4,7 @@
  * Agentic Team Playbook Synchronizer & Updater
  * 
  * Fetches and synchronizes the canonical skills, rules, and methodology
- * from https://github.com/pablojavierrodriguez/agentic-team-playbook
+ * from https://github.com/pablojavierrodriguez/gripm-playbook
  * 
  * Architecture Principle: Separation of Layers
  * - Framework Layer (Updated): .agents/skills/*, .agents/TEAM_PLAYBOOK.md, scripts/audit-ux-code.cjs
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DEFAULT_REMOTE = 'pablojavierrodriguez/agentic-team-playbook';
+const DEFAULT_REMOTE = 'pablojavierrodriguez/gripm-playbook';
 const DEFAULT_BRANCH = 'main';
 
 // Canonical framework files to synchronize

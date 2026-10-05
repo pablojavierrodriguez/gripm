@@ -40,29 +40,27 @@ Cada archivo envuelve un primitivo de Radix (que viene sin estilos) con clases d
 
 ---
 
-## Permisos en UI: siempre `PermissionGate`
+## Permisos y Visibilidad Condicional en UI
 
-Toda UI que depende de un permiso o rol **debe usar `PermissionGate`**, no condicionales manuales:
+Toda UI que depende de un permiso, rol o feature flag debe estructurarse mediante componentes de control declarativo o hooks de autorización:
 
 ```tsx
-import { PermissionGate } from '@/lib/permissions';
-
-// ✅ Correcto
-<PermissionGate permission="people:edit">
+// ✅ Control declarativo por capacidades o flags
+<FeatureGate feature="items:edit">
   <Button>Editar</Button>
-</PermissionGate>
+</FeatureGate>
 
-// ❌ Incorrecto — verificación manual sin el gate
+// ❌ Evitar verificación dispersa hardcodeada
 {userRoles.includes('admin') && <Button>Editar</Button>}
 ```
 
-Para verificaciones programáticas (no de render), usar `usePermissions()`:
+Para verificaciones programáticas en manejadores de eventos o flujos:
 ```tsx
 const { can } = usePermissions();
-if (!can('people:delete')) return;
+if (!can('items:delete')) return;
 ```
 
-El sistema de permisos es basado en capacidades (`can('people:edit')`), no en roles estáticos. Ver `src/lib/permissions.tsx` y SPEC-070.
+Favorecer siempre verificación basada en capacidades (`can('items:edit')`) antes que inspección acoplada a nombres de roles estáticos.
 
 ---
 
@@ -140,17 +138,17 @@ const [name, setName] = useState("");
 const [name, setName] = useState<string>();
 ```
 
-Este bug apareció en `People.tsx` y se resolvió en un fix de estabilidad (v0.6.x).
+Inicializar siempre con string vacío evita que el input cambie de estado no-controlado a controlado durante el ciclo de vida del componente.
 
 ### Responsive mobile vs desktop
 
 - Usar breakpoints de Tailwind para adaptar layouts: `hidden lg:flex`, `flex-1 min-w-0`, etc.
-- En APK, los filtros y barras de acción deben ser `flex-wrap` o reducirse a `icon-only` en pantallas pequeñas para evitar que se salgan de la pantalla (bug resuelto en `Calendar.tsx` y `Tasks.tsx`).
-- El `MobileBottomNav` ya incluye las correcciones de safe area para Android — no modificar sus márgenes sin entender el impacto en el APK.
+- En dispositivos móviles o pantallas reducidas, los filtros y barras de acción deben ser `flex-wrap` o reducirse a `icon-only` para evitar desbordamientos horizontales.
+- Las barras de navegación fijas inferiores deben respetar las variables de entorno de safe area (`env(safe-area-inset-bottom)`) para no colisionar con controles nativos del sistema.
 
 ### `CardHeader` con padding simétrico
 
-Usar `py-4` en lugar de `pb-3` en `CardHeader` para centrado perfecto de elementos en toolbars (bug resuelto en `Tasks.tsx` v0.9.1):
+Usar `py-4` en lugar de `pb-3` en `CardHeader` para centrado vertical consistente de elementos en toolbars:
 
 ```tsx
 <CardHeader className="py-4 flex-row items-center justify-between">
@@ -160,7 +158,7 @@ Usar `py-4` en lugar de `pb-3` en `CardHeader` para centrado perfecto de element
 
 Al usar `Tabs` con contenido asíncrono (como gráficos o timelines) dentro de un `Dialog` que ajusta su altura de forma dinámica (`max-h-*`), el modal puede parpadear o redimensionarse abruptamente al cambiar de pestaña.
 Para evitar esto:
-1. Utilizar `forceMount` en los componentes `TabsContent`. Esto obliga a Radix a renderizar ambos paneles en el YourApp desde el inicio, precargando la altura y anulando el flicker.
+1. Utilizar `forceMount` en los componentes `TabsContent`. Esto obliga a Radix a renderizar ambos paneles en el DOM desde el inicio, precargando la altura y anulando el flicker.
 2. Controlar la visibilidad mediante clases de CSS (ej: `data-[state=inactive]:hidden`) para que los paneles inactivos no interfieran.
 3. Asignar un contenedor scrollable (`overflow-y-auto`) a cada pestaña de forma independiente en lugar de asignar el scroll al Dialog global.
 
@@ -307,13 +305,13 @@ Al refactorizar bloques JSX grandes, un `div` que debe ser **hermano** puede que
 
 ## 🏛️ Estándar Oficial de Modales de Detalle (ReadOnly / Info)
 
-Todos los modales de consulta o visualización de entidades (`GroupDetailModal`, `MeetingDetailModal`, etc.) **deben compartir exactamente la misma arquitectura y tokens visuales**:
+Todos los modales de consulta o visualización de entidades (vistas de detalle, paneles informativos, etc.) **deben compartir una arquitectura coherente y tokens visuales consistentes**:
 
 ```tsx
 <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
   <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0 rounded-2xl border-none shadow-2xl bg-background overflow-hidden">
     {/* 1. Barra de Acento */}
-    <div className="h-1.5 w-full shrink-0 vibrant-gradient-primary" />
+    <div className="h-1.5 w-full shrink-0 bg-primary/80" />
 
     {/* 2. Cabecera Estática */}
     <DialogHeader className="p-6 pb-4 shrink-0">
@@ -355,7 +353,7 @@ Todos los modales de consulta o visualización de entidades (`GroupDetailModal`,
         </Button>
         <div className="flex items-center gap-2 w-full sm:flex-1 justify-end">
           {/* Acciones principales alineadas a la derecha */}
-          <Button className="h-10 px-3 text-xs font-semibold vibrant-gradient-primary shadow-md shrink-0" onClick={onEdit}>
+          <Button className="h-10 px-3 text-xs font-semibold bg-primary text-primary-foreground shadow-md shrink-0" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
           </Button>
         </div>
@@ -386,6 +384,6 @@ const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 1. **Ejecutar `npx tsc --noEmit`**: 0 errores de tipado o imports faltantes.
 2. **Revisar cierre de JSX**: Ningún tag o bloque cortado (`}`, `</div>` o snippets residuales dentro del render).
-3. **Validar subconsultas y relaciones**: Nunca usar `auth.users` directo en RLS; usar funciones seguras con fallback en cliente si la relación puede retornar nulos.
-4. **Verificar ciclo de vida de modales anidados**: Si un modal abre otro secundario (ej. modal de detalle abre Check-in QR), nunca cerrar o desmontar el padre en el trigger del hijo si coexisten en el mismo árbol de render.
+3. **Validar subconsultas y relaciones**: Usar tipado estricto y defensivo con fallback en cliente si la relación puede retornar nulos.
+4. **Verificar ciclo de vida de modales anidados**: Si un modal abre otro secundario (ej. modal de confirmación o flujo anidado), nunca cerrar o desmontar el padre en el trigger del hijo si coexisten en el mismo árbol de render.
 

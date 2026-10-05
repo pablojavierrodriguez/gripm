@@ -16,7 +16,7 @@ Esta skill proporciona las reglas de inspección, heurísticas y herramientas de
 
 ### 1. [UX-001] Bloqueo de Coma Decimal Regional (`input[type="number"]`)
 - **Firma en código:** `<input type="number">` o `<Input type="number">` para captura de montos o saldos.
-- **Impacto en Runtime:** En teclados móviles de Argentina y países hispanohablantes (`regional-locale`), el teclado numérico nativo muchas veces solo muestra la coma `,` y desactiva el punto `.`, pero el estándar HTML5 de `type="number"` rechaza la coma en WebKit/Blink, arrojando valor vacío o error silencioso.
+- **Impacto en Runtime:** En teclados móviles de países hispanohablantes (configuración regional `es-ES`, `es-AR`, etc.), el teclado numérico nativo muchas veces solo muestra la coma `,` y desactiva el punto `.`, pero el estándar HTML5 de `type="number"` rechaza la coma en WebKit/Blink, arrojando valor vacío o error silencioso.
 - **Regla de corrección:** Reemplazar por `inputMode="decimal"` con utilidades bidireccionales `formatThousandsInput` y `parseThousandsInput`.
 
 ### 2. [UX-002] Contaminación de Atajos Físicos en Pantallas Táctiles

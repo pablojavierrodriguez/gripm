@@ -204,7 +204,7 @@ Para que el framework sea consumible y actualizable en **cualquier proyecto** (s
 ```
 
 ### Comando Universal de Sincronización
-Para traer la última versión canónica del Playbook desde [upstream](https://github.com/pablojavierrodriguez/agentic-team-playbook) a este repositorio o a cualquier otro proyecto:
+Para traer la última versión canónica del Playbook desde [upstream](https://github.com/pablojavierrodriguez/gripm-playbook) a este repositorio o a cualquier otro proyecto:
 
 ```bash
 # Dentro de gripm:

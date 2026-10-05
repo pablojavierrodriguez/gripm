@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (1)
+### 💡 Ideas / Discovery (2)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -27,7 +27,31 @@ Módulo de observabilidad, estadísticas y diagnóstico para el ecosistema de Ag
 
 ---
 
-### 📋 Backlog / Draft (14)
+#### [DEV-178] Previsibilidad de Puerto y Evitación de Saltos Innecesarios en Servidor Dev y CLI
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm run dev`) y el CLI (`npm run board`) cambien inesperadamente de puerto (ej. saltando de 4100 a 4101 o 4102) durante una misma sesión de trabajo o ante reinicios de servidor.
+
+**Problemas detectados:**
+1. **Reinicio de servidor Vite (*Server Restart*):** `vite.config.ts` importa utilidades de backend/parsers (`scripts/backlogMdParser.ts`, `src/utils/legacyParser.ts`, etc.). Modificar estos módulos provoca un reinicio completo del servidor Vite (`server.restart()`). Si el socket anterior en macOS aún está cerrándose (estado `TIME_WAIT`), `findAvailablePort` detecta el puerto 4100 como ocupado y migra automáticamente a 4101.
+2. **Política `strictPort: false`:** La configuración actual incrementa silenciosamente el puerto ante cualquier colisión o demora transitoria de bind, rompiendo la pestaña que el desarrollador tiene abierta en el navegador.
+3. **Doble resolución redundante:** En `npm run board`, `bin/gripm.js` ejecuta `findAvailablePort(4100)` con binds temporales y luego `vite.config.ts` vuelve a invocar `findAvailablePort(4100)` antes del `server.listen()` definitivo, generando ráfagas de sockets de sondeo.
+
+**Vías de solución a evaluar:**
+- Evaluar `strictPort: true` con mensajes claros de diagnóstico para que el servidor falle explícitamente en lugar de cambiar de URL de forma silenciosa.
+- Desacoplar `vite.config.ts` de dependencias de parsers para aislar el HMR de la UI y no disparar reinicios globales del servidor HTTP.
+- Sincronizar el puerto resuelto en `bin/gripm.js` exportando `process.env.GRIPM_PORT` para evitar doble invocación de `findAvailablePort`.
+- Reintento con backoff breve antes de declarar un puerto ocupado en reinicios calientes de Vite.
+
+**Criterios de Aceptación:**
+- [ ] #1 Evaluar tradeoff entre strictPort: true (fallo explícito y diagnóstico) vs strictPort: false (salto automático)
+- [ ] #2 Evitar doble sondeo de puertos sincronizando el puerto entre bin/gripm.js y vite.config.ts vía process.env.GRIPM_PORT
+- [ ] #3 Analizar desacoplamiento de imports de scripts en vite.config.ts para reducir disparadores de server restart completo
+- [ ] #4 Preservar compatibilidad con configuración multi-puerto explícita (--port y GRIPM_PORT)
+
+---
+
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -470,7 +494,93 @@ Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo qu
 
 ---
 
-### ✅ Done / Deployed (158)
+#### [DEV-180] Evaluación y Migración Arquitectónica de Dependencias Core a React 19 y Tooling Moderno
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Planificar y ejecutar la migración arquitectónica integral de las dependencias principales del stack hacia sus versiones mayores modernas (React 19, TypeScript moderno y plugins actualizados de Vite).
+
+**Contexto del parche temporal:**
+Durante el monitoreo automatizado de dependencias (DEV-175), Dependabot intentó actualizar automáticamente `react`/`react-dom` a v19.x y `typescript`/`@types/node` a versiones mayores. Esto provocó fallos en el pipeline de CI debido a incompatibilidades de tipos en `vite.config.ts` (TS2769: sobrecargas incompatibles de `@vitejs/plugin-react`) y diferencias en las definiciones de tipos de React 19. Para preservar la estabilidad de la rama `main` en producción, se aplicó una regla de contención en `.github/dependabot.yml` ignorando actualizaciones `semver-major`.
+
+**Alcance de la resolución de fondo:**
+1. **Auditoría de compatibilidad de React 19:**
+   - Evaluar soporte y compatibilidad de `@vitejs/plugin-react`, `lucide-react` y Tailwind CSS con React 19.
+   - Revisar tipado estricto en componentes (adaptar definiciones de `FC`, `ReactNode`, eventos sintéticos y ref handling nativo de React 19).
+2. **Actualización de Vite y Tooling:**
+   - Evaluar actualización coordinada de Vite (`vite` v6+) y sus plugins asociados.
+   - Alinear `@types/react`, `@types/react-dom` y `@types/node` a las versiones meta.
+3. **Validación de Rendimiento y Cero Regresiones:**
+   - Comprobar compatibilidad con el sistema de portales (`createPortal` en `ConfirmModal` y menús contextuales).
+   - Verificar estabilidad de renderizado en Kanban y vistas de tabla (Zero-CLS y 60 FPS).
+4. **Desbloqueo de Dependabot:**
+   - Retirar las reglas de `ignore` en `.github/dependabot.yml` una vez consolidado el nuevo baseline arquitectónico.
+
+**Criterios de Aceptación:**
+- [ ] #1 Auditar matriz de breaking changes de React 19 y compatibilidad con el catálogo de dependencias del proyecto
+- [ ] #2 Actualizar react, react-dom, @types/react y @types/react-dom en package.json resolviendo contratos de tipos
+- [ ] #3 Actualizar vite.config.ts y @vitejs/plugin-react garantizando compilación estricta (npx tsc --noEmit con 0 errores)
+- [ ] #4 Verificar suite de pruebas completa (npm test), build de producción y empaquetado standalone (binarios bin/)
+- [ ] #5 Remover los ignores de semver-major en .github/dependabot.yml para React y sus tipos
+
+---
+
+#### [DEV-182] Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Configurar e implementar el workflow automatizado de despliegue continuo (CD) para la publicación en el registro público de npm (`@gripm/board` y `@gripm/playbook`) ante la creación de releases o tags en GitHub, eliminando la necesidad de publicación manual desde terminales locales.
+
+**Puntos clave identificados en auditoría (R19):**
+1. **Disparador:** Ejecución automática en eventos `release: [published]` o push de tags `v*`.
+2. **Seguridad y Provenance:** Publicación con flag `--provenance` mediante permisos OIDC (`id-token: write`, `contents: read`).
+3. **Validación previa:** Ejecutar `prepublishOnly` verificando build y `publish:check` sin fugas antes de publicar.
+
+**Criterios de Aceptación:**
+- [ ] #1 Crear workflow .github/workflows/publish.yml en gripm con trigger de release/tag
+- [ ] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
+- [ ] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
+- [ ] #4 Replicar el workflow automatizado en el repositorio de gripm-playbook
+- [ ] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
+
+---
+
+#### [DEV-183] Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+Ejecutar la limpieza y actualización de documentación técnica secundaria y residuos de logs internos identificados en el informe de auditoría técnica (R11):
+
+1. **Logs y Fallbacks de UI:** Erradicar cadenas residuales `[DevBoard]` en `App.tsx` y fallbacks `|| 'dev-board'` en `ReleaseAssembler.tsx`.
+2. **Endpoints en Arquitectura:** Corregir menciones obsoletas de endpoints en `docs/ARCHITECTURE.md` (`/api/backlog`, `/api/tasks` por los reales `/api/data`, `/api/items`).
+3. **Métricas en Docs:** Sincronizar recuentos de herramientas MCP en `CONTRIBUTING.md` (12 tools) y tiempos reales de tests.
+4. **Metadata de Repositorio:** Configurar topics de GitHub oficiales para gripm basados en las palabras clave del paquete.
+
+**Criterios de Aceptación:**
+- [ ] #1 Erradicar prefijos de log residuales [DevBoard] en App.tsx reemplazando por [gripm]
+- [ ] #2 Actualizar fallbacks de proyecto en ReleaseAssembler.tsx
+- [ ] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
+- [ ] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
+- [ ] #5 Verificar que la suite de tests y backlog:check pasen con código 0
+
+---
+
+#### [DEV-184] Endurecimiento del Playbook: Consistencia de Estados T0-T5, Opt-outs en audit:ux y Reglas Multilínea
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm-playbook` (hallazgos R8, R9 y R12 del informe de auditoría):
+
+1. **Consistencia de Transiciones (R9):** Alinear los IDs de transición en `docs/sprints/SPRINT_SPEC_TEMPLATE.md` y `TEAM_PLAYBOOK.md` para coincidir de forma unívoca con `STATE_MACHINE.md` (T0 a T5, eliminando la referencia ficticia a T6).
+2. **Soporte de Opt-outs (R8):** Implementar la propiedad `exclude` documentada en `.uxaudit.json` dentro de `audit-ux-code.cjs`, o limpiar la documentación en caso de ser redundante.
+3. **Robustez en Motor de Reglas UX (R12):** Corregir el contador de delimitadores en `buildUnits` para ignorar flechas de funciones (`=>`) y prevenir falsos positivos de UX-001 en inputs multilínea.
+
+**Criterios de Aceptación:**
+- [ ] #1 Corregir IDs de transición en SPRINT_SPEC_TEMPLATE.md y TEAM_PLAYBOOK.md alineándolos con STATE_MACHINE.md
+- [ ] #2 Implementar soporte de exclude en audit-ux-code.cjs o unificar la especificación en la documentación
+- [ ] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
+- [ ] #4 Agregar test fixture multilínea en la suite de tests del playbook
+- [ ] #5 Validar que npm run check:all pase en verde en gripm-playbook
+
+---
+
+### ✅ Done / Deployed (160)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -3994,6 +4104,46 @@ Dado que los navegadores modernos y las pilas de red locales resuelven `localhos
 - [x] #4 Se conserva intacta la compatibilidad con hosts explícitos: si se define `--host 0.0.0.0` o `GRIPM_HOST=<otro>`, se respeta dicho valor sin forzar `localhost`
 - [x] #5 Se preserva la compatibilidad de red de DEV-169: el servidor continúa enlazando a `127.0.0.1` a nivel socket, permitiendo que tanto `localhost` en navegador como `127.0.0.1` en herramientas locales reciban respuesta HTTP 200
 - [x] #6 `npx tsc --noEmit` compila con 0 errores, `npm test` pasa con exit 0, `npm run backlog:sync && npm run backlog:check` en verde y `npm run build` compila sin errores
+
+---
+
+#### [DEV-179] Alineación de Playbook Upstream a gripm-playbook y Preservación de gripm como Repositorio Insignia
+- **Prioridad**: `high` | **Tipo**: `improvement`
+
+Alinear las referencias y automatizaciones de sincronización del Playbook tras su renombramiento canónico a `gripm-playbook` (`pablojavierrodriguez/gripm-playbook`), preservando a `gripm` como el repositorio insignia (*flagship*) único y unificado del ecosistema.
+
+**Decisión de Arquitectura de Ecosistema:**
+1. **`gripm` (este repositorio):** Es el producto estrella integral (*batteries-included*). Contiene el cockpit visual, motor Markdown, servidor MCP, CLI global y las skills canónicas del playbook ya integradas y sincronizadas. No requiere renombrarse a `gripm-board`, conservando la máxima simplicidad y peso de marca (`github.com/pablojavierrodriguez/gripm`).
+2. **`gripm-playbook`:** Existe como repositorio desacoplado e independiente para usuarios y proyectos (Python, Go, Rust, etc.) que desean adoptar la metodología, roles y skills de agentes sin clonar ni depender del stack del cockpit.
+3. **Sincronización:** Se actualiza el sincronizador (`scripts/sync-playbook.mjs`), la documentación (`docs/AGENTIC_PLAYBOOK.md`) y los badges del proyecto (`README.md`, `README.es.md`) para consumir desde el nuevo upstream `pablojavierrodriguez/gripm-playbook`.
+
+**Criterios de Aceptación:**
+- [x] #1 Actualizar DEFAULT_REMOTE en scripts/sync-playbook.mjs apuntando a pablojavierrodriguez/gripm-playbook
+- [x] #2 Actualizar enlace a upstream en docs/AGENTIC_PLAYBOOK.md hacia pablojavierrodriguez/gripm-playbook
+- [x] #3 Actualizar badges y referencias de metodología en README.md y README.es.md reflejando gripm-playbook
+- [x] #4 Preservar la identidad canónica soberana de gripm como repositorio insignia (package.json, binarios, CI/CD) sin fragmentación innecesaria
+- [x] #5 Verificar que la suite unificada de calidad (tsc, npm test, backlog:check, publish:check) pase con código 0
+
+---
+
+#### [DEV-181] Saneamiento P0 de Frontera OSS: Fugas en Skills, Contrato MCP y Endurecimiento de Seguridad
+- **Prioridad**: `urgent` | **Tipo**: `bug`
+
+Ejecutar el saneamiento integral de frontera pública identificado en la auditoría técnica de código abierto (`docs/informe-auditoria.md`):
+
+1. **Fuga de contexto en Skills:** Eliminar residuos de proyectos privados (`YourApp`, `PermissionGate`, `People.tsx`, `MeetingDetailModal`, `Check-in QR`, `Ministerios y grupos`, etc.) y corregir tokens sintéticos inválidos (`'regional-locale'`) en `.agents/skills/`.
+2. **Contrato de Herramientas MCP:** Corregir `.agents/skills/gripm/SKILL.md` para erradicar las llamadas `devboard_*` obsoletas y documentar con fidelidad las 12 herramientas canónicas `gripm_*`.
+3. **Endurecimiento de Seguridad en API Local:** Contener `/api/fs/browse` dentro de rutas autorizadas (`os.homedir()`) y proteger el comportamiento de CORS/Host cuando se configura `0.0.0.0`.
+4. **Higiene Documental:** Remover referencias a tooling eliminado (ESLint) y actualizar conteos de métricas del proyecto en los READMEs.
+
+**Criterios de Aceptación:**
+- [x] #1 Erradicar de .agents/skills/ todas las referencias a YourApp y componentes/contextos de proyectos privados, convirtiéndolas en plantillas universales
+- [x] #2 Reemplazar en .agents/skills/ tokens sintéticos inválidos ('regional-locale') y clases CSS no declaradas
+- [x] #3 Actualizar .agents/skills/gripm/SKILL.md reemplazando devboard_* por el catálogo canónico de 12 tools gripm_*
+- [x] #4 Implementar contención en /api/fs/browse (vite.config.ts) validando que targetDir resida dentro de os.homedir() o rutas permitidas (403 Forbidden ante escapes)
+- [x] #5 Endurecer reglas de seguridad cuando se usa host 0.0.0.0 sin deshabilitar protecciones de Host ni reflejar Origin indiscriminadamente
+- [x] #6 Limpiar menciones de ESLint y actualizar conteos de tareas y sprints en README.md, README.es.md y CHANGELOG.md
+- [x] #7 Validar que la pirámide completa de verificación (tsc, npm test, backlog:check, publish:check, build) pase con código 0
 
 ---
 

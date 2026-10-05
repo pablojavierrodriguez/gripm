@@ -17,7 +17,7 @@ Todo chart va envuelto en `ResponsiveContainer` con altura fija en el padre (Rec
 </div>
 ```
 
-**En móvil**: usar `width: '100%'` en el contenedor externo también para el eje X — los dashboards que no respetan esto desbordan el viewport en APK (bug resuelto en v0.9.1, Dashboard.tsx).
+**En móvil**: usar `width: '100%'` en el contenedor externo también para el eje X — los contenedores que no respetan esto generan scroll horizontal involuntario en vistas móviles o embebidas.
 
 ---
 
@@ -28,12 +28,12 @@ Formatear los datos ANTES de pasarlos al chart (no dentro del render de cada `<L
 ```ts
 const data = rows.map(r => ({
   name: formatDate(r.date),      // ya formateado para eje X
-  asistencia: r.attendanceCount,
+  metrica: r.metricCount,
   promedio: r.average,
 }));
 ```
 
-**Advertencia**: no recrear el array de datos dentro del render del componente. Si los datos vienen del `OrgContext` (que ya los memoiza), no re-mapearlos en cada render sin `useMemo`:
+**Advertencia**: no recrear el array de datos dentro del render del componente. Si los datos provienen de un contexto o hook de estado global, no re-mapearlos en cada render sin `useMemo`:
 
 ```ts
 const chartData = useMemo(() => 
@@ -56,7 +56,7 @@ Evitar depender solo del color para distinguir series (accesibilidad) — combin
 
 - `useMemo` para la transformación de datos si el dataset es grande o el componente padre re-renderiza seguido.
 - No pasar el array de datos recreado en cada render (rompe memoización interna de Recharts).
-- El Dashboard usa RPCs de Supabase (`get_dashboard_stats`) para traer datos agregados pre-calculados — nunca calcular agregaciones en el frontend si hay un RPC disponible.
+- Si el backend ofrece endpoints o funciones de agregación precalculadas, aprovecharlas en lugar de realizar cómputos pesados en el hilo principal del cliente.
 
 ---
 
@@ -64,17 +64,17 @@ Evitar depender solo del color para distinguir series (accesibilidad) — combin
 
 Formatear números/fechas en el `formatter` del `<Tooltip>`, no en el dato crudo (así el eje puede seguir ordenando/calculando sobre el valor numérico real).
 
-**Locale del proyecto**: `regional-locale` para formato de números y fechas:
+**Locale del proyecto**: usar formato regional estándar (`es-ES`, `es-AR` o el locale activo):
 
 ```tsx
-<Tooltip formatter={(value: number) => value.toLocaleString('regional-locale')} />
+<Tooltip formatter={(value: number) => value.toLocaleString('es-ES')} />
 ```
 
 ```tsx
 // Eje X de fechas:
 <XAxis
   dataKey="name"
-  tickFormatter={(date) => new Date(date).toLocaleDateString('regional-locale', { month: 'short', day: 'numeric' })}
+  tickFormatter={(date) => new Date(date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
 />
 ```
 
@@ -92,11 +92,10 @@ Al implementar pills/tabs de rango de tiempo (7d, 30d, 3m, etc.), usar labels co
 ['Última semana', 'Último mes', 'Últimos 3 meses']
 ```
 
-Este bug fue resuelto en el Dashboard mobile (v0.9.1).
+Mantener los chips breves previene saltos de línea involuntarios y saturación visual en pantallas estrechas.
 
 ---
 
-## Referencia de implementación
+## Patrón de Sparklines y KPIs
 
-- Dashboard principal: ver `src/pages/Dashboard.tsx` y [SPEC-076 — Dashboard Improvements](../../docs/specs/SPEC-076-dashboard-improvements.md)
-- Los KPI cards del dashboard usan sparklines (mini `LineChart` sin ejes ni tooltips) como indicador de tendencia.
+- Las tarjetas métricas (KPI cards) pueden complementar el valor principal con sparklines (mini `LineChart` o `AreaChart` sin ejes ni tooltips) para reflejar tendencias inmediatas de manera limpia.

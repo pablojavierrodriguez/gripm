@@ -1,6 +1,6 @@
 {
   "name": "@gripm/board",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Agile engineering & Product Management cockpit for AI pair programming: Markdown-backed backlog, MCP server and CLI for developers and autonomous agents.",
   "keywords": [
     "gripm",

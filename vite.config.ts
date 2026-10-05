@@ -112,6 +112,69 @@ function getProjectDocsPath(project: ProjectMeta): string | null {
   return null;
 }
 
+function getAllowedBrowseRoots(): string[] {
+  const roots: string[] = [];
+  const homedir = os.homedir();
+  if (homedir) {
+    roots.push(path.resolve(homedir));
+    try { roots.push(fs.realpathSync(homedir)); } catch {}
+  }
+  const cwd = process.cwd();
+  if (cwd) {
+    roots.push(path.resolve(cwd));
+    try { roots.push(fs.realpathSync(cwd)); } catch {}
+  }
+  const tmpdir = os.tmpdir();
+  if (tmpdir) {
+    roots.push(path.resolve(tmpdir));
+    try { roots.push(fs.realpathSync(tmpdir)); } catch {}
+  }
+  try {
+    const reg = getRegistry();
+    if (reg && Array.isArray(reg.projects)) {
+      for (const p of reg.projects) {
+        if (p.repoPath) {
+          roots.push(path.resolve(p.repoPath));
+          try { roots.push(fs.realpathSync(p.repoPath)); } catch {}
+        }
+      }
+    }
+  } catch {}
+  const extra = process.env.GRIPM_ALLOWED_PATHS || process.env.DEVBOARD_ALLOWED_PATHS;
+  if (extra) {
+    for (const p of extra.split(path.delimiter)) {
+      if (p.trim()) {
+        roots.push(path.resolve(p.trim()));
+        try { roots.push(fs.realpathSync(p.trim())); } catch {}
+      }
+    }
+  }
+  return [...new Set(roots)];
+}
+
+function isPathContained(targetPath: string, rootDir: string): boolean {
+  const relative = path.relative(rootDir, targetPath);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isAllowedBrowsePath(targetPath: string): boolean {
+  if (!targetPath || typeof targetPath !== 'string') return false;
+  try {
+    const resolved = path.resolve(path.normalize(targetPath));
+    const roots = getAllowedBrowseRoots();
+    if (roots.some(root => isPathContained(resolved, root))) return true;
+
+    try {
+      const real = fs.realpathSync(resolved);
+      if (roots.some(root => isPathContained(real, root))) return true;
+    } catch {}
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function getSafeInitialBrowseDir(): string {
   const candidates = [
     path.resolve(process.cwd(), '..'),
@@ -120,13 +183,13 @@ function getSafeInitialBrowseDir(): string {
   ];
   for (const candidate of candidates) {
     try {
-      if (fs.existsSync(candidate)) {
+      if (candidate && fs.existsSync(candidate) && isAllowedBrowsePath(candidate)) {
         fs.readdirSync(candidate);
         return candidate;
       }
     } catch {}
   }
-  return process.cwd();
+  return path.resolve(os.homedir() || process.cwd());
 }
 
 function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
@@ -1156,11 +1219,21 @@ function devBoardApi(): PluginOption {
     const hostHeader = (req.headers.host || '').split(':')[0].toLowerCase();
     const originHeader = req.headers.origin;
     const configuredHost = (process.env.DEVBOARD_HOST || process.env.GRIPM_HOST || '127.0.0.1').toLowerCase();
-    const isLoopbackHost = ['localhost', '127.0.0.1'].includes(hostHeader);
-    const isAllowedHost = isLoopbackHost || hostHeader === configuredHost;
+    const isLoopbackHost = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostHeader);
+    const isIpHost = /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(hostHeader) ||
+                     hostHeader.includes(':') || hostHeader.endsWith('.local');
+    const extraAllowedHosts = (process.env.GRIPM_ALLOWED_HOSTS || process.env.DEVBOARD_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((h: string) => h.trim().toLowerCase())
+      .filter(Boolean);
+
+    const isAllowedHost = isLoopbackHost ||
+      (configuredHost !== '0.0.0.0' && hostHeader === configuredHost) ||
+      (configuredHost === '0.0.0.0' && isIpHost) ||
+      extraAllowedHosts.includes(hostHeader);
 
     // 1. DNS Rebinding Protection: Host header validation
-    if (!isAllowedHost && configuredHost !== '0.0.0.0') {
+    if (!isAllowedHost) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Forbidden: Invalid or untrusted Host header' }));
@@ -1168,12 +1241,18 @@ function devBoardApi(): PluginOption {
     }
 
     // 2. CSRF Protection: Origin validation
+    let isAllowedOrigin = false;
     if (originHeader) {
       try {
         const originUrl = new URL(originHeader);
         const originHost = originUrl.hostname.toLowerCase();
-        const isAllowedOrigin = ['localhost', '127.0.0.1'].includes(originHost) || originHost === configuredHost;
-        if (!isAllowedOrigin && configuredHost !== '0.0.0.0') {
+        const isLoopbackOrigin = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(originHost);
+        isAllowedOrigin = isLoopbackOrigin ||
+          originHost === hostHeader ||
+          (configuredHost !== '0.0.0.0' && originHost === configuredHost) ||
+          extraAllowedHosts.includes(originHost);
+
+        if (!isAllowedOrigin) {
           res.statusCode = 403;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ error: 'Forbidden: Cross-Origin request blocked' }));
@@ -1204,8 +1283,9 @@ function devBoardApi(): PluginOption {
 
     // Handle CORS preflight requests for allowed local origins
     if (method === 'OPTIONS') {
-      if (originHeader) {
+      if (originHeader && isAllowedOrigin) {
         res.setHeader('Access-Control-Allow-Origin', originHeader);
+        res.setHeader('Vary', 'Origin');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       }
@@ -1221,8 +1301,9 @@ function devBoardApi(): PluginOption {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       };
-      if (originHeader) {
+      if (originHeader && isAllowedOrigin) {
         sseHeaders['Access-Control-Allow-Origin'] = originHeader;
+        sseHeaders['Vary'] = 'Origin';
       }
       res.writeHead(200, sseHeaders);
       res.write(`event: connected\ndata: ${JSON.stringify({ status: 'connected', clients: sseClients.size + 1 })}\n\n`);
@@ -1724,6 +1805,9 @@ function devBoardApi(): PluginOption {
               let backlogDir = body.backlogDir || 'backlog';
 
               const normalizedRepoPath = body.repoPath ? path.normalize(body.repoPath.trim()) : undefined;
+              if (normalizedRepoPath && !isAllowedBrowsePath(normalizedRepoPath)) {
+                return sendJson(403, { error: 'Forbidden: repoPath is outside allowed roots' });
+              }
               if (!storageType && normalizedRepoPath) {
                 const detected = detectProjectStorage(normalizedRepoPath);
                 storageType = detected.storageType;
@@ -1776,6 +1860,9 @@ function devBoardApi(): PluginOption {
               if (!inputPath) {
                 return sendJson(400, { error: 'repoPath required' });
               }
+              if (!isAllowedBrowsePath(inputPath)) {
+                return sendJson(403, { error: 'Forbidden: repoPath is outside allowed roots' });
+              }
               const exists = fs.existsSync(inputPath);
               const isGit = exists && fs.existsSync(path.join(inputPath, '.git'));
               const detection = detectProjectStorage(inputPath);
@@ -1825,14 +1912,19 @@ function devBoardApi(): PluginOption {
             // GET /api/fs/browse?dir=...
             if (req.method === 'GET' && url.startsWith('/api/fs/browse')) {
               const urlObj = new URL(`http://localhost${url}`);
-              let targetDir = urlObj.searchParams.get('dir') || '';
+              let rawDir = urlObj.searchParams.get('dir') || '';
+              let targetDir = rawDir.trim();
 
-              if (!targetDir.trim()) {
+              if (!targetDir) {
                 targetDir = getSafeInitialBrowseDir();
+              } else {
+                targetDir = path.resolve(path.normalize(targetDir));
+                if (!isAllowedBrowsePath(targetDir)) {
+                  return sendJson(403, { error: 'Forbidden: Path is outside allowed roots' });
+                }
               }
 
               try {
-                targetDir = path.resolve(path.normalize(targetDir));
                 if (!fs.existsSync(targetDir)) {
                   targetDir = getSafeInitialBrowseDir();
                 }
@@ -1842,8 +1934,12 @@ function devBoardApi(): PluginOption {
                   targetDir = path.dirname(targetDir);
                 }
 
+                if (!isAllowedBrowsePath(targetDir)) {
+                  return sendJson(403, { error: 'Forbidden: Path is outside allowed roots' });
+                }
+
                 const parent = path.dirname(targetDir);
-                const parentPath = parent === targetDir ? null : parent;
+                const parentPath = (parent !== targetDir && isAllowedBrowsePath(parent)) ? parent : null;
 
                 let entries: fs.Dirent[] = [];
                 let dirWarning: string | undefined = undefined;
@@ -1905,10 +2001,11 @@ function devBoardApi(): PluginOption {
               } catch (browseErr: any) {
                 const safeDir = getSafeInitialBrowseDir();
                 const parent = path.dirname(safeDir);
+                const parentPath = (parent !== safeDir && isAllowedBrowsePath(parent)) ? parent : null;
                 return sendJson(200, {
                   ok: true,
                   currentPath: safeDir,
-                  parentPath: parent === safeDir ? null : parent,
+                  parentPath,
                   folders: [],
                   warning: `No se pudo acceder a la ruta solicitada (${browseErr.message}). Se cargó una ruta segura.`
                 });

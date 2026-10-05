@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pablojavierrodriguez/agentic-team-playbook"><img src="https://img.shields.io/badge/Metodolog%C3%ADa-Agentic%20Team%20Playbook-purple.svg" alt="Metodología: Agentic Team Playbook" /></a>
+  <a href="https://github.com/pablojavierrodriguez/gripm-playbook"><img src="https://img.shields.io/badge/Metodolog%C3%ADa-gripm%20Playbook-purple.svg" alt="Metodología: gripm Playbook" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-blue.svg" alt="Licencia: MIT" /></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocolo%20Listo-6366f1.svg" alt="Protocolo MCP: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.6.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=22.6.0" /></a>
@@ -323,7 +323,7 @@ npm run build
 
 ---
 
-## ✨ Resumen de Características (v1.0.0)
+## ✨ Resumen de Características (v1.0.1)
 
 - **🌐 Internacionalización Integral Bilingüe (i18n)**: Selector de idioma en asistente CLI (`--init`), cobertura total de diccionarios en todas las vistas y modales del Tablero UI y plantillas bilingües (`DEV-114`).
 - **🚀 Apertura Automática del Navegador**: `npm run dev` y `npm run board` abren el tablero automáticamente en el navegador predeterminado del sistema con soporte para `--no-open` (`DEV-145`).
@@ -333,7 +333,7 @@ npm run build
 - **🔒 Pre-Commit Hook No Mutador**: Verificación estricta del backlog que audita sin mutar el índice de Git, preservando staging selectivo (`DEV-125`).
 - **🪟 Overlays y Modales Montados en Portal**: Portals montados sobre `document.body` para modales y menús contextuales, eliminando problemas de stacking context y containing block (`DEV-129`, `DEV-130`).
 - **🎨 Ergonomía de ItemModal**: Placeholders dinámicos de criterios de aceptación por tipo, tipografía homogénea y eliminación del flash de hidratación (`DEV-126`).
-- **🛠️ Tooling Open Source y CI/CD**: Pipeline de GitHub Actions CI, templates comunitarios de issues/PRs, ESLint flat config, Prettier, EditorConfig y Node engines (`DEV-121`, `DEV-122`, `DEV-123`, `DEV-140`, `DEV-141`).
+- **🛠️ Tooling Open Source y CI/CD**: Pipeline de GitHub Actions CI, templates comunitarios de issues/PRs, Prettier, EditorConfig y Node engines (`DEV-121`, `DEV-122`, `DEV-123`, `DEV-140`, `DEV-141`).
 - **📐 Gobernanza Canónica de Sprint vs Release**: Paquetes de versión organizados estrictamente por valor entregado y timeboxing ágil sin ataduras bidireccionales artificiales (`DEV-146`).
 - **⚡ Resiliencia Zero-Install y Scaffolding**: Hook `prepare` resiliente en `package.json` y scripts generados con fallback automático (`gripm 2>/dev/null || npx -y github:pablojavierrodriguez/gripm`), garantizando cero abortos en `npx` y ejecución inmediata de `npm run board` sin requerir instalaciones globales (`DEV-112`, `DEV-113`).
 - **📦 Distribución Global por CLI y Empaquetado**: Binarios ejecutables nativos `gripm` y `gripm-mcp` con resolución absoluta de rutas en Tailwind CSS y bundler Vite (`DEV-108`, `DEV-144`).
@@ -368,7 +368,7 @@ npm run build
 
 gripm se construye utilizando gripm para gestionar su propio desarrollo.
 
-Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestionada en modo `backlog-md`, registrando funcionalidades reales, pulido de UX y releases a lo largo de **146+ tareas** (`DEV-001` a `DEV-146`), 7 sprints y 7 releases formales (`v0.2.0` a `v0.7.0`).
+Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestionada en modo `backlog-md`, registrando funcionalidades reales, pulido de UX y releases a lo largo de **180+ tareas** (`DEV-001` a `DEV-181`), 9 sprints y 9 releases formales (`v0.2.0` a `v1.0.1`).
 
 ---
 

@@ -13,19 +13,32 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
-## [1.0.0] — 2026-10-05 ⚡ Lanzamiento Oficial: gripm ("grip-em"), Rebranding, Seguridad, i18n, Empaquetado y Hardening
+## [1.0.1] — 2026-10-05 ⚡ Saneamiento P0 de Frontera OSS: Skills Canónicas, Contrato MCP y Endurecimiento de Seguridad
 
 ### 🎯 Resumen
-*Lanzamiento oficial de la versión 1.0.0 bajo la nueva denominación de marca gripm ("grip-em"): tablero ágil multidisciplinario de ingeniería y producto para pair programming con IA, internacionalización total bilingüe, empaquetado autónomo verificado para npm, seguridad reforzada del API local, catálogo MCP canónico gripm_* con 12 tools, persistencia local con prefijo gripm_*, CI Multi-OS y automatización de dependencias.*
+*Parche crítico v1.0.1 de gripm: saneamiento integral de las 13 skills del playbook para erradicar tokens residuales y referencias ajenas (DEV-181), alineación del catálogo de herramientas MCP canónicas gripm_* y formato de llamadas, contención estricta del filesystem en endpoints de navegación y creación de proyectos, y blindaje de endpoints locales contra DNS rebinding y orígenes web no autorizados.*
+
+### 🐛 Correcciones y Estabilidad
+- **Saneamiento Integral de Skills (.agents/skills/*):** Erradicación total de referencias ajenas y rutas ficticias en las 13 skills del framework.
+- **Alineación de Herramientas MCP Canónicas:** Documentación corregida del catálogo de 12 herramientas `gripm_*` y formato top-level de `status` en `gripm/SKILL.md`.
+- **Contención de Filesystem en API:** Validación rigurosa de rutas autorizadas en `/api/fs/browse`, `/api/projects` y `/api/projects/detect-path` impidiendo escapes fuera del home o directorio de trabajo.
+- **Seguridad en Modo LAN:** Bloqueo de ataques de DNS Rebinding y filtrado estricto de encabezados `Origin` en peticiones entrantes y SSE.
+
+---
+
+## [1.0.0] — 2026-10-05 ⚡ Lanzamiento Oficial: gripm ("grip-em"), Seguridad, i18n, Empaquetado y Hardening
+
+### 🎯 Resumen
+*Lanzamiento oficial de la versión 1.0.0 de gripm ("grip-em"): tablero ágil multidisciplinario de ingeniería y producto para pair programming con IA, internacionalización total bilingüe, empaquetado autónomo verificado para npm, seguridad reforzada del API local, catálogo MCP canónico gripm_* con 12 tools, persistencia local con prefijo gripm_*, CI Multi-OS y automatización de dependencias.*
 
 ### 🚀 Novedades y Mejoras
-- **Evolutivo de Marca e Identidad (DEV-043, DEV-176):** Transición hacia gripm ("grip-em"), adopción canónica de "tablero" en español, unificación de badges de estado y nuevo isotipo geométrico.
+- **Identidad de Marca y UI (DEV-043, DEV-176):** Presentación oficial de gripm ("grip-em"), adopción canónica de "tablero" en español, unificación de badges de estado y nuevo isotipo geométrico.
 - **Internacionalización Total (DEV-060, DEV-152, DEV-153):** Cobertura 100% bilingüe en inglés y español, erradicación de cadenas hardcodeadas, traducción completa de Settings y selector de idioma dinámico.
-- **Migración de Binarios y CLI (DEV-144, DEV-163):** Ejecutables canónicos `gripm` y `gripm-mcp`, subcomando `gripm mcp` y soporte de alias de transición.
+- **Binarios Ejecutables y CLI (DEV-144, DEV-163):** Ejecutables canónicos `gripm` y `gripm-mcp`, subcomando `gripm mcp` y herramientas de línea de comandos integradas.
 - **Empaquetado y Distribución npm (DEV-147, DEV-171):** Inclusión de plantillas `.agents/` y `.githooks/` en el tarball de npm, soporte zero-install y smoke tests rigurosos con `npm pack`.
 - **Seguridad y Red Local (DEV-148, DEV-169, DEV-177):** Blindaje contra CSRF y DNS Rebinding, loopback bind estricto a IPv4 `127.0.0.1` y priorización amigable de `localhost` en logs y navegador.
 - **Servidor MCP Canónico gripm_* (DEV-149, DEV-150, DEV-160):** Catálogo unificado de 12 herramientas canónicas, soporte nativo de estado `ideas` y suite de verificación automatizada.
-- **Persistencia y Retrocompatibilidad (DEV-168):** Migración limpia de claves de `localStorage` a `gripm_*` con auto-migración y retrocompatibilidad total.
+- **Persistencia y Arquitectura Local (DEV-168):** Almacenamiento local bajo prefijo `gripm_*` con auto-migración y retrocompatibilidad total.
 - **Integración Continua Multi-OS y Mantenimiento (DEV-174, DEV-175):** Matriz de GitHub Actions CI para Ubuntu, macOS y Windows en Node 22, junto con configuración de GitHub Dependabot.
 
 ---
@@ -45,7 +58,7 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 - **Pre-Commit Hook No Invasivo (DEV-125):** Verificación rigurosa sin mutar el índice de git para permitir commits selectivos.
 - **Portales y Overlays Confiables (DEV-129, DEV-130):** Montaje de modales en `document.body` evitando bugs de stacking context y containing block.
 - **Ergonomía de ItemModal (DEV-126):** Tipografía unificada, placeholders dinámicos contextuales por tipo y eliminación del flash de hidratación.
-- **Tooling Open Source y CI/CD (DEV-121, DEV-122, DEV-123, DEV-140, DEV-141):** GitHub Actions CI, templates de issues/PRs, ESLint flat config, Prettier, EditorConfig y engines Node en package.json.
+- **Tooling Open Source y CI/CD (DEV-121, DEV-122, DEV-123, DEV-140, DEV-141):** GitHub Actions CI, templates de issues/PRs, Prettier, EditorConfig y engines Node en package.json.
 - **Desacople Canónico Sprint vs Release (DEV-146):** Paquetes de versión organizados por valor entregado y timeboxing ágil sin ataduras bidireccionales artificiales.
 
 ---

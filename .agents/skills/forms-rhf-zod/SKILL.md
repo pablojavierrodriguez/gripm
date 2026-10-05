@@ -42,13 +42,13 @@ Si un campo puede ser nulo desde la base de datos, usar `?? ''` al asignar:
 
 ```ts
 defaultValues: {
-  name: person?.name ?? '',
-  email: person?.email ?? '',
-  phone: person?.phone ?? '',
+  name: entity?.name ?? '',
+  email: entity?.email ?? '',
+  phone: entity?.phone ?? '',
 }
 ```
 
-**Por qué**: React lanza el warning "A component is changing an uncontrolled input to be controlled" cuando el valor pasa de `undefined` a un string. Este bug apareció en `People.tsx` y se resolvió en v0.6.x.
+**Por qué**: React lanza el warning "A component is changing an uncontrolled input to be controlled" cuando el valor pasa de `undefined` a un string tras la carga inicial de datos. Inicializar siempre con string vacío previene re-renders innecesarios y warnings en consola.
 
 ---
 
@@ -88,51 +88,51 @@ Coordinar con la skill `i18next-namespaces` para verificar que la clave exista e
 
 ---
 
-## Errores de servidor (Supabase)
+## Errores de servidor y APIs
 
-Si Supabase devuelve un error de validación que no captura Zod (ej. "email ya registrado" — código Postgres `23505`), mapear al campo específico con `setError` y usar el namespace `api_errors`:
+Si el backend devuelve un error de validación que no captura Zod (ej. "email ya registrado" o conflicto de unicidad), mapear al campo específico con `setError`:
 
 ```ts
 // En el catch del submit:
-if (error.code === '23505') {
+if (error.status === 409 || error.code === 'CONFLICT') {
   setError('email', { type: 'server', message: 'api_errors.emailTaken' });
 } else {
   setError('root', { type: 'server', message: 'api_errors.generic' });
 }
 ```
 
-No usar errores genéricos de formulario cuando se puede mapear a un campo específico — mejora mucho la UX.
+No usar errores genéricos de formulario cuando se puede mapear a un campo específico — mejora sustancialmente la UX.
 
 ---
 
-## Social links y campos de objeto anidado
+## Objetos anidados y estructuras compuestas
 
-Para campos de objetos anidados como `social_links` (que vienen de Supabase como `jsonb`), guardar los campos con acceso por punto y proteger contra `undefined`:
+Para campos de objetos anidados (como metadatos o configuraciones estructuradas), guardar los campos con acceso por punto y proteger contra `undefined`:
 
 ```ts
 // ✅ Correcto — guardar contra undefined en defaultValues
 defaultValues: {
-  social_links: {
-    instagram: org?.social_links?.instagram ?? '',
-    facebook: org?.social_links?.facebook ?? '',
+  metadata: {
+    website: entity?.metadata?.website ?? '',
+    notes: entity?.metadata?.notes ?? '',
   }
 }
 ```
 
-Este bug fue resuelto en `SettingsPage.tsx` — las propiedades de `social_links` fallaban con warning de input controlado cuando el objeto era `null` desde la DB.
+Garantizar siempre que las propiedades anidadas inicialicen con fallback para evitar warnings de reactividad cuando los datos provienen de fuentes asíncronas.
 
 ---
 
-## Inputs de montos y moneda (Formato `regional-locale`)
+## Inputs numéricos y montos localizados
 
-En **YourApp**, todos los montos se presentan con separador de miles por punto (`.`) y decimales por coma (`,`).
+En aplicaciones con formato regional hispanohablante o europeo, los montos suelen presentarse con separador de miles por punto (`.`) y decimales por coma (`,`).
 
 **Regla de Oro:** Nunca usar `<input type="number">` para montos si se pretende admitir decimales en español o separador de miles, ya que el navegador móvil/desktop fuerza la notación anglosajona (`.`) y rechaza comas.
 
 ### Patrón canónico con `formatThousandsInput` / `parseThousandsInput`
 
 1. Mantener en el estado/RHF el string formateado visible para el usuario (`1.500,00`).
-2. Sanitizar al parsear en Zod usando `z.preprocess` o convertir con `parseThousandsInput` al enviar a la base de datos:
+2. Sanitizar al parsear en Zod usando `z.preprocess` o convertir con `parseThousandsInput` al enviar al backend:
 
 ```ts
 import { z } from 'zod';
@@ -163,7 +163,7 @@ export const amountSchema = z.preprocess(
       setValue('amount', numeric);
     }
   }}
-  className="font-mono-data text-right"
+  className="font-mono text-right"
 />
 ```
 

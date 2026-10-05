@@ -58,8 +58,8 @@ espera de un reporte bien formado.
 
 **En alcance:**
 
-- El servidor MCP (`gripm-mcp`, `devboard-mcp`) y su protocolo.
-- El CLI (`gripm`, `devboard`), incluido `--init` y el scaffolding que escribe en el
+- El servidor MCP (`gripm-mcp`) y su protocolo.
+- El CLI (`gripm`, `board`), incluido `--init` y el scaffolding que escribe en el
   repositorio del usuario.
 - La capa de persistencia Markdown: serialización, migraciones y la migración
   del registro de proyectos.

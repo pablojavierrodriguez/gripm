@@ -1,11 +1,11 @@
 ---
 name: mobile-ux-design
-description: Usar esta skill siempre que se diseñen, modifiquen o auditen interfaces móviles, vistas responsivas, modales/sheets en mobile, comportamiento con teclado virtual, touch targets, safe areas o integración de Capacitor en admin-portal.
+description: Usar esta skill siempre que se diseñen, modifiquen o auditen interfaces móviles, vistas responsivas, modales/sheets en mobile, comportamiento con teclado virtual, touch targets, safe areas o integración PWA.
 ---
 
 # Mobile UX & Responsive Design Standards
 
-Guía de estándares para garantizar que admin-portal ofrezca una experiencia táctil y fluida de clase mundial tanto en navegadores móviles como en la app nativa (APK vía Capacitor).
+Guía de estándares para garantizar que la aplicación ofrezca una experiencia táctil y fluida de clase mundial tanto en navegadores móviles como en pantallas táctiles y Progressive Web Apps (PWA).
 
 ---
 
@@ -78,14 +78,14 @@ En pantallas móviles (`< 768px`), las tablas de datos **deben transformarse en 
 ```
 
 ### 4.1. Jerarquía Vertical de Tarjetas (Anti-Hacinamiento)
-En pantallas de 375px a 390px de ancho, queda terminantemente prohibido colocar en una sola fila horizontal: icono + nombre + badge de workflow + fecha de vencimiento + cuenta bancaria + monto.
-- **Nivel 1 (Identidad y Monto):** `flex items-start justify-between`. A la izquierda: Icono (36x36px) y bloque de texto con `min-w-0 flex-1` (título `truncate` + subtítulo `truncate`). A la derecha: Monto `font-mono-data` grande y alineado.
-- **Nivel 2 (Contexto y Metadatos):** `flex flex-wrap items-center gap-1.5`. Chips sutiles para fecha, estado y workflow (`Débito auto` / `Pago manual`).
+En pantallas de 375px a 390px de ancho, evitar sobrecargar una sola fila horizontal con múltiples datos heterogéneos (icono + título + badges + montos + fechas).
+- **Nivel 1 (Identidad y Dato Principal):** `flex items-start justify-between`. A la izquierda: Icono/avatar (36x36px) y bloque de texto con `min-w-0 flex-1` (título `truncate` + subtítulo `truncate`). A la derecha: Dato principal o cifra con `font-mono` grande y alineado.
+- **Nivel 2 (Contexto y Metadatos):** `flex flex-wrap items-center gap-1.5`. Chips sutiles para fecha, estado o categoría.
 - **Nivel 3 (Acciones y Footer):** `flex items-center justify-between pt-2 border-t`. Estado general y acciones táctiles.
 
 ### 4.2. Control de Saturación de Acciones (`Action Creep Rule`)
 - Nunca exponer 3 o 4 botones chicos seguidos en una fila en mobile.
-- Si una entidad tiene más de 1 acción (ej: editar, archivar, reasignar, borrar), mantener **1 botón de acción directa** (ej: `+` o `Pagar`) y condensar el resto en un `DropdownMenu` accesible activado por un botón `MoreVertical` de mínimo 36-40px.
+- Si una entidad tiene más de 1 acción (ej: editar, archivar, reasignar, borrar), mantener **1 botón de acción directa** (ej: `+` o `Continuar`) y condensar el resto en un `DropdownMenu` accesible activado por un botón `MoreVertical` de mínimo 36-40px.
 
 ---
 
@@ -101,7 +101,7 @@ En pantallas de 375px a 390px de ancho, queda terminantemente prohibido colocar 
 
 ## 6. Feedback Táctil y Haptics
 
-Cuando se realicen acciones críticas (eliminación destructiva, check-in exitoso, guardado confirmado), integrar feedback háptico con Capacitor:
+Cuando se realicen acciones críticas (eliminación destructiva, guardado confirmado), integrar feedback háptico si la plataforma lo soporta:
 
 ```ts
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
@@ -125,36 +125,36 @@ export const triggerWarningHaptic = async () => {
 
 ## 7. PWA Universal & Experiencia de Instalación (WebAPK / iOS / Desktop)
 
-Para permitir que los usuarios instalen admin-portal como una aplicación web progresiva independiente:
+Para permitir que los usuarios instalen la aplicación como una Progressive Web App (PWA) independiente:
 
 - **Hook de Instalación Centralizado (`usePWAInstall`):**
   - Capturar el evento `beforeinstallprompt` a nivel de ventana global y compartir el estado `isGuideOpen` y `promptAvailable` mediante un bus de listeners global para evitar instancias aisladas desincronizadas.
-  - Ocultar **estrictamente** cualquier banner o prompt de instalación en pantallas de Login (`/auth`) o para usuarios no autenticados.
+  - Ocultar **estrictamente** cualquier banner o prompt de instalación en pantallas de autenticación inicial o para usuarios no autenticados.
 - **Diferenciación por Plataforma en el Modal de Ayuda:**
   - **Android (Chrome/Edge):** Indicar el menú superior de tres puntos (⋮) $\rightarrow$ *Instalar aplicación* / *Agregar a la pantalla principal*. Recordar que en entornos de desarrollo por IP (`192.168.x.x`), Chrome requiere habilitar el origen en `chrome://flags` (*Insecure origins treated as secure*) para compilar el WebAPK nativo en vez de un marcador web.
   - **iOS / iPadOS (Safari):** Indicar el botón Compartir $\rightarrow$ *Agregar al inicio*.
   - **macOS / Desktop:** Indicar el menú *Archivo* $\rightarrow$ *Agregar al Dock...* o el botón de instalación en la barra de direcciones.
 - **Scroll Resiliente en Pantallas de Autenticación:**
-  - En formularios móviles (`Auth.tsx`), asegurar `overflow-y-auto min-h-full pb-12` sin spacers rígidos ni `overscroll-y-none` para que el botón de submit siempre sea accesible cuando el teclado virtual esté desplegado.
+  - En formularios móviles de acceso, asegurar `overflow-y-auto min-h-full pb-12` sin spacers rígidos ni `overscroll-y-none` para que el botón de submit siempre sea accesible cuando el teclado virtual esté desplegado.
 
 ---
 
 ## 8. Experiencia en Tablets (768px a 1024px) y Botoneras Simétricas
 
-En dispositivos intermedios (iPads, tablets Android, puestos de recepción táctiles y pantallas con sidebar expandido):
+En dispositivos intermedios (iPads, tablets Android, pantallas con sidebar expandible):
 
 ### A. Desacople Estructural de Cabeceras (Zero-Truncate Rule)
-- **Prohibido colocar `<Sheet>` envolviendo botones de acción:** Los componentes de diálogo/sheet deben vivir fuera del `<div>` que contiene los botones (`Button`, `UniversalImport`, export dropdown). De lo contrario, rompen el flujo `flex-wrap` natural.
-- **Evitar `truncate` en títulos `h1`:** Los títulos principales (*Reuniones y servicios*, *Ministerios y grupos*, etc.) deben fluir de manera natural para acomodarse en dos líneas si es necesario, sin truncarse con puntos suspensivos ("Reunione...", "Mini...").
+- **Prohibido colocar `<Sheet>` envolviendo botones de acción:** Los componentes de diálogo/sheet deben vivir fuera del `<div>` que contiene los botones (`Button`, export dropdown). De lo contrario, rompen el flujo `flex-wrap` natural.
+- **Evitar `truncate` en títulos `h1`:** Los títulos principales de vista deben fluir de manera natural para acomodarse en dos líneas si es necesario, sin truncarse con puntos suspensivos ("Gestión...", "Config...").
 
 ### B. Patrón Canónico de Botoneras Simétricas (`.btn-action-label`)
-- **Problema:** Al expandir la barra lateral en tablet (768px), el sidebar roba 256px de ancho, apretando la cabecera. Si un botón de creación tiene texto largo (*"Registrar Reunión"*) mientras los de Importar/Exportar son solo icono, el layout queda desbalanceado y asimétrico.
+- **Problema:** Al expandir la barra lateral en tablet (768px), el sidebar roba 256px de ancho, apretando la cabecera. Si un botón de creación tiene texto largo (*"Crear Elemento"*) mientras los de Importar/Exportar son solo icono, el layout queda desbalanceado y asimétrico.
 - **Solución Canónica:**
   1. Envolver el texto de todo botón de creación principal con `<span className="btn-action-label whitespace-nowrap">...</span>`:
      ```tsx
-     <Button className="vibrant-gradient-primary shadow-md h-10 px-3.5">
+     <Button className="bg-primary text-primary-foreground shadow-md h-10 px-3.5">
        <Plus className="mr-1.5 h-4 w-4" />
-       <span className="btn-action-label whitespace-nowrap">{t("pages.groups.add")}</span>
+       <span className="btn-action-label whitespace-nowrap">{t("common.create")}</span>
      </Button>
      ```
   2. En CSS, el selector reactivo del sidebar expandido en tablet colapsa automáticamente todas las etiquetas a modo icono cuadrado `40px × 40px` (`min-width: 2.5rem; height: 2.5rem;`) con icono perfectamente centrado (`margin: 0 !important;`):
@@ -184,13 +184,13 @@ En dispositivos intermedios (iPads, tablets Android, puestos de recepción táct
 
 ## 9. Viewports Móviles Estrechos (375px) & Resiliencia en Modales
 
-Para garantizar que ningún elemento quede cortado o inaccesible en teléfonos compactos (iPhone SE, Galaxy A, etc.):
+Para garantizar que ningún elemento quede cortado o inaccesible en teléfonos compactos:
 
 ### A. Regla de Altura Segura en Diálogos y Modales
 - **`max-h-[85dvh] overflow-y-auto` obligatorio:** Todo `DialogContent` que contenga formularios, instrucciones o listas debe incluir `max-h-[85dvh] overflow-y-auto`. Esto previene que los diálogos se corten con la barra de navegación del navegador, notches o con el teclado virtual desplegado.
 
-### B. Footers de Acciones Responsivos (`MeetingDetailModal`, Modales de Detalle)
-- En mobile (`< 640px`), los footers con múltiples acciones nunca deben forzarse en una sola fila (`flex-row`). Deben usar `flex-col-reverse sm:flex-row` con `grid grid-cols-1 sm:flex` para que botones como *Check-in QR*, *Gestionar Asistencia* o *Editar* nunca queden fuera del viewport visible.
+### B. Footers de Acciones Responsivos (Modales de Detalle y Formularios)
+- En mobile (`< 640px`), los footers con múltiples acciones nunca deben forzarse en una sola fila (`flex-row`). Deben usar `flex-col-reverse sm:flex-row` con `grid grid-cols-1 sm:flex` para que botones como *Acciones secundarias*, *Descartar* o *Confirmar* nunca queden fuera del viewport visible.
 
 ### C. Consistencia Temática (Light/Dark Tokens)
 - **Prohibido hardcodear fondos oscuros (`bg-slate-900`, `text-white`):** Todo componente flotante, banner o modal debe utilizar tokens temáticos de Tailwind (`bg-card/95 text-foreground border-border/80 bg-muted/40`) para que cambie armoniosamente al alternar entre modo claro y modo oscuro.

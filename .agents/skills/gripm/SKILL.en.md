@@ -50,7 +50,7 @@ gripm includes a standalone MCP server over `stdio` (`bin/gripm-mcp.js` with bac
 
 ---
 
-## 2. Available MCP Tools (with backward-compatible `devboard_*` aliases)
+## 2. Available MCP Tools
 
 | Tool | Purpose | Key Parameters |
 | :--- | :--- | :--- |
@@ -66,5 +66,5 @@ gripm includes a standalone MCP server over `stdio` (`bin/gripm-mcp.js` with bac
 ## 3. Agent Interaction Rules
 1. Dogfooding: Every code modification must be linked to a task in `backlog/tasks/`.
 2. Move task to `doing` before writing code.
-3. Check acceptance criteria step by step with `devboard_update_task`.
+3. Check acceptance criteria step by step with `gripm_update_task`.
 4. Terminal development state is `ready` (never promote to `done` autonomously).

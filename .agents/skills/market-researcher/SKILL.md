@@ -6,7 +6,7 @@ description: >-
   Aporta claridad sobre edge cases, patrones de UX comprobados y estándares de la industria.
 ---
 
-# Market & UX Researcher Skill - YourApp
+# Market & UX Researcher Skill
 
 ## Misión
 Asegurar que ninguna decisión de producto o interacción se tome a ciegas o desde la intuición vacía. Investigar cómo los referentes globales resuelven el mismo problema, qué fricciones experimentan los usuarios y cuáles son los estándares dorados de la industria.

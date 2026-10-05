@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pablojavierrodriguez/agentic-team-playbook"><img src="https://img.shields.io/badge/Methodology-Agentic%20Team%20Playbook-purple.svg" alt="Methodology: Agentic Team Playbook" /></a>
+  <a href="https://github.com/pablojavierrodriguez/gripm-playbook"><img src="https://img.shields.io/badge/Methodology-gripm%20Playbook-purple.svg" alt="Methodology: gripm Playbook" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocol%20Ready-6366f1.svg" alt="MCP Protocol: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.6.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=22.6.0" /></a>
@@ -21,7 +21,7 @@
 
 **gripm** (*"grip-em"*) is a self-contained agile engineering and product management cockpit designed to eliminate the friction of managing issues, technical debt, sprint backlogs, and releases directly alongside your code. It provides the firm **grip** and traction needed to guide AI agents (Cursor, Claude Code, Copilot, Antigravity) with structured specifications, acceptance criteria, and sovereign local-first release packaging.
 
-Built with **React 18**, **Vite**, **TypeScript**, and **Tailwind CSS**. Designed to operationalize the [**Agentic Team Playbook**](https://github.com/pablojavierrodriguez/agentic-team-playbook) methodology.
+Built with **React 18**, **Vite**, **TypeScript**, and **Tailwind CSS**. Designed to operationalize the [**gripm Playbook**](https://github.com/pablojavierrodriguez/gripm-playbook) methodology.
 
 ---
 
@@ -334,7 +334,7 @@ npm run build
 
 ---
 
-## ✨ Features Overview (v1.0.0)
+## ✨ Features Overview (v1.0.1)
 
 - **🌐 Comprehensive Bilingual Internationalization (i18n)**: Language selector in CLI onboarding (`--init`), full dictionary coverage across all Cockpit UI views and modals, and bilingual templates (`DEV-114`).
 - **🚀 Automatic Browser Launch**: `npm run dev` and `npm run board` automatically launch the cockpit in the default system browser with `--no-open` flag support (`DEV-145`).
@@ -344,7 +344,7 @@ npm run build
 - **🔒 Non-Mutating Pre-Commit Hook**: Rigorous backlog validation that checks without mutating the Git index, preserving selective staging (`DEV-125`).
 - **🪟 Portal-Mounted Overlays**: Portals rendered on `document.body` for modals and context menus, eliminating stacking context and containing block flickering (`DEV-129`, `DEV-130`).
 - **🎨 ItemModal Ergonomics**: Dynamic contextual AC placeholders by item type, unified typography, and zero-flash hydration (`DEV-126`).
-- **🛠️ Open-Source Tooling & CI/CD**: GitHub Actions CI, community templates, ESLint flat config, Prettier, EditorConfig, and Node engines (`DEV-121`, `DEV-122`, `DEV-123`, `DEV-140`, `DEV-141`).
+- **🛠️ Open-Source Tooling & CI/CD**: GitHub Actions CI, community templates, Prettier, EditorConfig, and Node engines (`DEV-121`, `DEV-122`, `DEV-123`, `DEV-140`, `DEV-141`).
 - **📐 Canonical Sprint vs Release Governance**: Releases packaged strictly by delivered value and agile timeboxing decoupled from sprint closures (`DEV-146`).
 - **⚡ Zero-Install & Scaffolding Resilience**: Resilient `prepare` npm lifecycle script and smart fallback scripts in scaffolded projects (`gripm 2>/dev/null || npx -y @gripm/board`), guaranteeing zero aborts on `npx` and immediate `npm run board` execution without requiring global installs (`DEV-112`, `DEV-113`).
 - **📦 Global CLI Distribution & Packaging**: Native `gripm` and `gripm-mcp` executable binaries with absolute path resolution in Tailwind CSS and Vite bundler (`DEV-108`, `DEV-144`).
@@ -379,7 +379,7 @@ npm run build
 
 gripm uses gripm to manage its own development. 
 
-This repository itself contains a [`backlog/tasks/`](backlog/tasks/) folder managed in `backlog-md` mode, tracking real features, UX polish, and releases across **150+ tasks** (`DEV-001` through `DEV-150`), 8 sprints and formal releases (`v0.2.0` through `v1.0.0`).
+This repository itself contains a [`backlog/tasks/`](backlog/tasks/) folder managed in `backlog-md` mode, tracking real features, UX polish, and releases across **180+ tasks** (`DEV-001` through `DEV-181`), 9 sprints and 9 formal releases (`v0.2.0` through `v1.0.1`).
 
 ---
 

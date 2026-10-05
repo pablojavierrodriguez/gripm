@@ -51,7 +51,7 @@ gripm incluye un servidor MCP autónomo empaquetado sobre `stdio` (`bin/gripm-mc
 
 ---
 
-## 2. Herramientas MCP Disponibles (con alias retrocompatibles `devboard_*`)
+## 2. Herramientas MCP Disponibles
 
 | Tool | Propósito | Parámetros Clave |
 | :--- | :--- | :--- |
@@ -73,19 +73,19 @@ gripm incluye un servidor MCP autónomo empaquetado sobre `stdio` (`bin/gripm-mc
 ## 3. Consulta, Análisis y Mutaciones Eficientes (Token-Efficient)
 
 > [!IMPORTANT]
-> **REGLA DE ORO ESTRICTA:** **NUNCA ejecutes scripts de terminal ad-hoc como `node -e 'fs.readFileSync(...)'` ni comandos destructivos de bash (`mv`, `rm` sobre `backlog/`)** para inspeccionar o actualizar `.devboard/backlog.json` o `backlog/tasks/`.
-> Cualquier operación sobre tareas, estados o consolidación debe realizarse a través de las herramientas MCP provistas (`devboard_update_task`, `devboard_sync_backlog`, etc.). Esto garantiza desacoplamiento, integridad de archivos Markdown y previene saturación de tokens en la ventana de contexto.
+> **REGLA DE ORO ESTRICTA:** **NUNCA ejecutes scripts de terminal ad-hoc como `node -e 'fs.readFileSync(...)'` ni comandos destructivos de bash (`mv`, `rm` sobre `backlog/`)** para inspeccionar o actualizar `backlog/` o archivos de configuración.
+> Cualquier operación sobre tareas, estados o consolidación debe realizarse a través de las herramientas MCP provistas (`gripm_update_task`, `gripm_sync_backlog`, etc.). Esto garantiza desacoplamiento, integridad de archivos Markdown y previene saturación de tokens en la ventana de contexto.
 
 ### A. Obtener Métricas y Salud del Backlog
 Para ver el estado general y desglose por prefijos (`FEAT`, `BUG`, `SPEC`, `CORE`, etc.):
-* **MCP:** `devboard_get_stats`
+* **MCP:** `gripm_get_stats`
 * **CLI:** `npm run tasks -- --stats`
 
 ### B. Listar Tareas con Mínimo Consumo de Tokens
 Para listar tareas abiertas sin saturar la ventana de contexto:
 ```json
 {
-  "name": "devboard_list_tasks",
+  "name": "gripm_list_tasks",
   "arguments": {
     "openOnly": true,
     "limit": 30,
@@ -96,7 +96,7 @@ Para listar tareas abiertas sin saturar la ventana de contexto:
 O filtrar por prefijo o IDs específicos:
 ```json
 {
-  "name": "devboard_list_tasks",
+  "name": "gripm_list_tasks",
   "arguments": {
     "prefix": "BUG-",
     "openOnly": true
@@ -108,7 +108,7 @@ O filtrar por prefijo o IDs específicos:
 Para pasar decenas de épicas o specs históricas a `done` o cambiarles el milestone:
 ```json
 {
-  "name": "devboard_bulk_update_tasks",
+  "name": "gripm_bulk_update_tasks",
   "arguments": {
     "filterPrefix": "EPIC-",
     "updates": {
@@ -121,7 +121,7 @@ Para pasar decenas de épicas o specs históricas a `done` o cambiarles el miles
 Para auditar qué tareas pertenecen a una versión publicada o contrastar contra notas de release sin parsear manualmente archivos:
 ```json
 {
-  "name": "devboard_list_releases",
+  "name": "gripm_list_releases",
   "arguments": {
     "version": "v1.2.0"
   }
@@ -135,7 +135,7 @@ Para auditar qué tareas pertenecen a una versión publicada o contrastar contra
 Cuando un usuario te pida implementar una tarea del backlog o avanzar con un requerimiento:
 
 ### Paso 1: Localizar la Tarea
-Usa `devboard_get_task` (o lee directamente el archivo `backlog/tasks/<ID> - <Título>.md`).
+Usa `gripm_get_task` (o lee directamente el archivo `backlog/tasks/<ID> - <Título>.md`).
 Revisa:
 - Requerimiento en `<!-- SECTION:DESCRIPTION:BEGIN -->`.
 - Criterios de Aceptación (AC) en `<!-- AC:BEGIN -->`.
@@ -144,7 +144,7 @@ Revisa:
 Antes de comenzar a escribir código, actualiza el estado de la tarea a `doing`:
 ```json
 {
-  "name": "devboard_update_task",
+  "name": "gripm_update_task",
   "arguments": {
     "taskId": "DEV-002",
     "status": "doing"
@@ -202,16 +202,16 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 
 ### Reglas Clave para Agentes de IA:
 1. **Respetar `.gitignore`:** Si el proyecto incluye `.devboard/` o `backlog/` en `.gitignore`, **NUNCA ejecutes `git add -f`** para forzar el versionado del backlog.
-2. **Backlog Local Soberano:** En repositorios públicos donde la planificación sea confidencial, el backlog se mantiene localmente en la máquina. Las herramientas MCP (`devboard_create_task`, `devboard_update_task`, etc.) funcionan perfectamente sin requerir `git push`.
+2. **Backlog Local Soberano:** En repositorios públicos donde la planificación sea confidencial, el backlog se mantiene localmente en la máquina. Las herramientas MCP (`gripm_create_task`, `gripm_update_task`, etc.) funcionan perfectamente sin requerir `git push`.
 3. **Cero Secretos en Tareas:** Nunca agregues claves de API, contraseñas, URLs privadas con tokens o datos sensibles de clientes en títulos, descripciones o planes de tareas.
-4. **Trazabilidad y No Destrucción:** NUNCA elimines físicamente archivos de tareas resueltas (`done`). Las tareas completadas son la justificación histórica de los cambios en el código. Si una tarea es descartada, márcala como `dismissed` (DevBoard la preservará automáticamente en `backlog/archive/`).
+4. **Trazabilidad y No Destrucción:** NUNCA elimines físicamente archivos de tareas resueltas (`done`). Las tareas completadas son la justificación histórica de los cambios en el código. Si una tarea es descartada, márcala como `dismissed` (gripm la preservará automáticamente en `backlog/archive/`).
 
 ---
 
 ## 8. Gotchas Conocidos del MCP — Errores Detectados en Producción
 
 > [!CAUTION]
-> **`devboard_update_task` — El campo `status` DEBE ser top-level, nunca dentro de `updates`**
+> **`gripm_update_task` — El campo `status` DEBE ser top-level, nunca dentro de `updates`**
 >
 > El wrapper `updates: { status: "ready" }` se ignora silenciosamente. El task mantiene su estado anterior sin error visible.
 > ```json
@@ -231,13 +231,13 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 > **Regla:** Llamadas secuenciales para el mismo task, paralelas OK entre tasks distintos.
 
 > [!NOTE]
-> **`devboard_list_tasks` con filtro `sprint` puede no filtrar correctamente**
+> **`gripm_list_tasks` con filtro `sprint` puede no filtrar correctamente**
 >
-> El parámetro `{ "sprint": "Sprint 3" }` en `devboard_list_tasks` puede devolver todos los tasks
+> El parámetro `{ "sprint": "Sprint 3" }` en `gripm_list_tasks` puede devolver todos los tasks
 > del proyecto en lugar de filtrar por sprint. No confiar en este filtro para auditorías críticas.
 >
-> **Alternativa segura:** Usar `devboard_get_task` por ID individual para verificar tareas concretas,
-> o parsear manualmente el resultado de `devboard_list_tasks` buscando el campo `sprint` en el output.
+> **Alternativa segura:** Usar `gripm_get_task` por ID individual para verificar tareas concretas,
+> o parsear manualmente el resultado de `gripm_list_tasks` buscando el campo `sprint` en el output.
 
 > [!TIP]
 > **Browser subagent tiene cuota separada — usar con moderación**
