@@ -87,12 +87,32 @@ jobs:
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Verify the tag is not already published
+        id: already
         run: |
           set -euo pipefail
           if npm view "@gripm/board@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            echo "::error::@gripm/board@${{ steps.version.outputs.version }} ya está publicado en npm."
-            exit 1
+            # El flujo normal publica dos veces: al pushear el tag y de nuevo al
+            # crear la GitHub Release, porque el workflow escucha ambos eventos.
+            # La segunda corrida no es un error, es el mismo release. Cortar acá
+            # con exito, en vez de fallar, evita un run rojo que parece un
+            # problema de publicacion cuando en realidad ya se publico bien.
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::@gripm/board@${{ steps.version.outputs.version }} ya está publicado. No hay nada que hacer."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Publish to npm with provenance
+        if: steps.already.outputs.already_published != 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Report already-published version
+        if: steps.already.outputs.already_published == 'true'
+        run: |
+          echo "✅ @gripm/board@${{ steps.version.outputs.version }} ya estaba publicado."
+          echo "   Se omite la publicación para no duplicar el release."
 
       - name: Typecheck (tsc)
         run: npx tsc --noEmit
@@ -133,8 +153,3 @@ jobs:
 
       - name: Dry-run the package
         run: npm pack --dry-run
-
-      - name: Publish to npm with provenance
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

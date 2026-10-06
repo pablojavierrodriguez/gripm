@@ -1,7 +1,7 @@
 ---
 id: DEV-190
 title: "Corregir el cuelgue real de npm test en Linux: watchers de archivo sin cerrar"
-status: review
+status: done
 created_date: '2026-10-06'
 updated_date: '2026-10-06'
 labels:
