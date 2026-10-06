@@ -42,6 +42,14 @@ El test que disparaba el sondeo es DEV-177 en `scripts/verify-integration.js`, q
 ### El error que cometí en el primer intento
 
 La primera corrección añadió el timer guard con `guard.unref()`. Eso anula **justo el timer que debe resolver la promesa**: si es lo único que mantiene vivo el loop, Node sale antes de dispararlo y la promesa queda sin resolver. El síntoma pasó de "cuelgue silencioso" a `Detected unsettled top-level await`, que es el mismo bug con otro mensaje.
+
+### Corrección posterior: esta tarea no era la causa del cuelgue de CI
+
+Marqué el AC #5 (`npm test` sale con código 0 sin depender del sistema operativo) basándome en que la fuga del `TCPConnectWrap` era real y quedaba visible en macOS. **Eso fue una inferencia, no una verificación**, y estaba mal.
+
+La fuga existía, pero había una segunda, mucho mayor, que solo se manifestaba en Linux: 207 `fs.FSWatcher` abiertos por `vite.config.ts`. La causa raíz real se documenta en DEV-190.
+
+Dejé el AC #5 sin tildar a propósito. Un AC en verde sin aserción ejecutable es exactamente el tipo de mentira que hace inservible la pirámide de verificación.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -51,7 +59,7 @@ La primera corrección añadió el timer guard con `guard.unref()`. Eso anula **
 - [x] #2 El timer guard no está `unref`'d y el socket se destruye en todas las rutas de salida
 - [x] #3 Existe test de regresión que reproduce el SYN descartado de forma determinista, para que el bug no vuelva en silencio en macOS o Windows
 - [x] #4 El test cubre también el comportamiento normal: puerto ocupado se reporta ocupado, puerto libre se reporta libre
-- [x] #5 `npm test` sale con código 0 sin depender del sistema operativo
+- [ ] #5 `npm test` sale con código 0 sin depender del sistema operativo — **no cumplido: este fix no resolvió el cuelgue de CI. La causa real está en DEV-190**
 <!-- AC:END -->
 
 ## Implementation Plan

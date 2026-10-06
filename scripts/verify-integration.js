@@ -743,6 +743,7 @@ try {
   const originalCi = process.env.CI;
   delete process.env.CI;
 
+  let pluginRef = null;
   try {
     const viteConfigMod = await import('../vite.config.ts?dev177=' + Date.now());
     const rawViteConfig = viteConfigMod.default;
@@ -757,9 +758,13 @@ try {
     // 3. configureServer hook updates server.resolvedUrls.local to localhost
     const plugin = resolvedConfig.plugins.find(p => p && p.name === 'vite-plugin-dev-board-api');
     assert.ok(plugin, 'DEV-177: devBoardApi plugin must be present');
+    pluginRef = plugin;
 
     let listenCalled = false;
     const testServer = {
+      // DEV-190: configureServer registers a close listener to release the
+      // watchers, so the mock needs somewhere to register it.
+      httpServer: { once: () => {} },
       middlewares: { use: () => {} },
       resolvedUrls: {
         local: ['http://127.0.0.1:4100/'],
@@ -783,6 +788,11 @@ try {
 
     console.log('✅ DEV-177: User-friendly localhost default URL with IPv4 loopback socket verified');
   } finally {
+    // DEV-190: configureServer() opens real fs.watch handles. FSWatcher has no
+    // unref(), so they keep the event loop alive and the process never exits.
+    // On Linux that left `npm test` hanging until the job timeout, after every
+    // assertion had already passed.
+    try { pluginRef?.closeWatchers?.(); } catch {}
     delete process.env.GRIPM_HOST;
     if (originalCi !== undefined) process.env.CI = originalCi;
   }

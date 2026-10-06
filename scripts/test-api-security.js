@@ -17,6 +17,7 @@ if (!devBoardPlugin || typeof devBoardPlugin.configureServer !== 'function') {
 
 let middlewareHandler = null;
 const mockServer = {
+  httpServer: { once: () => {} },
   middlewares: {
     use: (fn) => {
       middlewareHandler = fn;
@@ -29,6 +30,11 @@ devBoardPlugin.configureServer(mockServer);
 if (!middlewareHandler) {
   throw new Error('configureServer no registró apiMiddleware');
 }
+
+// DEV-190: release the fs.watch handles this hook opened. They are real watches
+// on real directories and, since FSWatcher cannot be unref'd, they kept the
+// process alive after the assertions finished.
+try { devBoardPlugin.closeWatchers?.(); } catch {}
 
 class MockResponse extends EventEmitter {
   constructor() {

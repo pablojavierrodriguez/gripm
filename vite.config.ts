@@ -1137,7 +1137,11 @@ function writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog) {
   }
 }
 
-function devBoardApi(): PluginOption {
+/** DEV-190: the plugin exposes `closeWatchers` so callers can release the
+ *  `fs.watch` handles, which cannot be unref'd. */
+type DevBoardPlugin = PluginOption & { closeWatchers?: () => void };
+
+function devBoardApi(): DevBoardPlugin {
   // SSE clients connection pool for real-time live sync (DEV-014)
   const sseClients = new Set<any>();
 
@@ -1154,11 +1158,25 @@ function devBoardApi(): PluginOption {
 
   let activeWatchers: fs.FSWatcher[] = [];
 
-  function setupProjectWatchers() {
+  /**
+   * Releases every filesystem watcher opened by setupProjectWatchers().
+   *
+   * `fs.watch()` returns an FSWatcher, which has no `unref()` method, so these
+   * handles stay referenced and keep the event loop alive. That is why the suite
+   * printed its final success line and then never exited on Linux.
+   *
+   * It also matters at runtime: Linux caps inotify watches per user, so leaking
+   * them across dev-server restarts eventually breaks the watcher outright.
+   */
+  function closeWatchers() {
     for (const w of activeWatchers) {
       try { w.close(); } catch {}
     }
     activeWatchers = [];
+  }
+
+  function setupProjectWatchers() {
+    closeWatchers();
 
     const registry = getRegistry();
     const dirsToWatch = new Set<string>();
@@ -1201,7 +1219,9 @@ function devBoardApi(): PluginOption {
           }
           notifyChange(dir, filename);
         });
-        if (typeof watcher.unref === 'function') watcher.unref();
+        // DEV-190: no `unref()` call here on purpose. FSWatcher has no such
+        // method, so the previous `typeof watcher.unref === 'function'` guard
+        // was silently dead code. Cleanup goes through closeWatchers().
         activeWatchers.push(watcher);
       } catch (err: any) {
         console.warn(`[DevBoard Watcher] Could not watch ${dir}:`, err.message);
@@ -2567,9 +2587,20 @@ ${Array.isArray(r.actions) && r.actions.length > 0
 
   return {
     name: 'vite-plugin-dev-board-api',
+    // DEV-190: exposed so tests (and embedders) can release the filesystem
+    // watchers without waiting for a server close event. `fs.watch()` handles
+    // cannot be unref'd, so an explicit release is the only way out.
+    closeWatchers,
     configureServer(server: any) {
       setupProjectWatchers();
       server.middlewares.use(apiMiddleware);
+
+      // DEV-190: release watchers when the dev server shuts down, otherwise they
+      // survive the process and leak inotify watches across restarts.
+      const httpServer = server.httpServer;
+      if (httpServer && typeof httpServer.once === 'function') {
+        httpServer.once('close', () => closeWatchers());
+      }
 
       // DEV-177: Present user-friendly localhost in console output and CLI shortcuts
       if (typeof server.listen === 'function') {

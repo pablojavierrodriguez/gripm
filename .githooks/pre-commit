@@ -32,4 +32,27 @@ if [ $RESULT -ne 0 ]; then
 fi
 
 echo "✅ Coherencia verificada."
+
+# --- Gate de clases de defecto que la pirámide no cubre (DEV-190) -----------
+#
+# YAML inválido, import() con rutas crudas (rompe en Windows), corrupción de
+# codificación e IDs de tarea que no coinciden con el nombre del archivo.
+# Corre solo sobre lo stageado y no muta el índice.
+
+echo ""
+echo "🔍 [gripm Pre-Commit] Verificando clases de defecto no cubiertas por la pirámide..."
+
+node scripts/verify-changes.js
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo ""
+  echo "❌ Commit rechazado: defecto que la pirámide local no detecta."
+  echo "   Estos fallos llegan a main y se descubren en CI, en el SO equivocado."
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "✅ Archivos stageados verificados."
 exit 0

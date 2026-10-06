@@ -51,6 +51,62 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
+### 🔍 Review & QA (1)
+
+#### [DEV-190] Corregir el cuelgue real de npm test en Linux: watchers de archivo sin cerrar
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`npm test` se colgaba en `ubuntu-latest` y mataba el job por `timeout-minutes`, con todos los asserts ya pasando. El log siempre terminaba igual:
+
+```
+🧹 Cleaned up test directory
+🎉 Full verification passed successfully!
+##[error]The operation was canceled.
+```
+
+El proceso terminaba el trabajo y nunca salía, así que el `&&` de la cadena nunca avanzaba al script siguiente.
+
+### Lo que NO era
+
+Durante varias iteraciones estuve persiguiendo la fuga equivocada. La fuga del sondeo de puertos de DEV-189 (`TCPConnectWrap` al 4100) **era real**, pero no era la causa: era un handle entre unos 200.
+
+### La causa raíz
+
+`vite.config.ts` abre un `fs.watch()` recursivo por cada directorio del registro. El código intentaba soltarlos así:
+
+```ts
+if (typeof watcher.unref === 'function') watcher.unref();
+```
+
+**`fs.watch()` devuelve un `FSWatcher`, y `FSWatcher` no tiene método `unref()`.** El guard era código muerto: la condición nunca era cierta y nadie lo notó porque no hay error, simplemente no hace nada.
+
+Los watchers quedaban referenciados, mantenían vivo el event loop y en Linux impedían que el proceso terminara. En macOS el proceso salía igual, lo que escondía el bug por completo.
+
+Dos scripts los abrían:
+
+- `scripts/verify-integration.js` (DEV-177, vía `plugin.configureServer` con un server mock): 207 watchers
+- `scripts/test-api-security.js`: 200 watchers
+
+El segundo estaba **tapado**: el primero colgaba antes y la cadena `&&` nunca llegaba al segundo. Cada vez que se arreglaba uno, aparecía el siguiente.
+
+### El patrón que fallaba
+
+Todos los servidores de prueba eran mocks sin ciclo de vida. `configureServer` no tenía dónde registrar una limpieza, y el test no tenía con qué cerrarlos.
+
+**Criterios de Aceptación:**
+- [x] #1 `closeWatchers()` existe y cierra todos los watchers abiertos por `setupProjectWatchers()`
+- [x] #2 Los watchers se liberan cuando el servidor HTTP se cierra, para que el dev server no los filtre en caliente
+- [x] #3 `verify-integration.js` y `test-api-security.js` liberan los watchers en su cleanup
+- [x] #4 Un watchdog nombra los handles vivos si cualquier paso se cuelga, sin depender del SO
+- [x] #5 `npm test` reporta duración por paso y falla nombrando el paso culpable
+- [x] #6 La suite completa pasa en Linux dentro de un contenedor: 15 pasos, 13.4s, código 0
+- [x] #7 La suite sigue pasando en macOS
+- [x] #8 Existe un gate en pre-commit que rechaza YAML inválido, `import()` con rutas crudas, corrupción de codificación y tareas con id descuadrado
+- [x] #9 Cada check del gate se validó reintroduciendo el bug original y confirmando que lo rechaza
+- [x] #10 El gate no produce falsos positivos sobre el árbol correcto
+
+---
+
 ### 🚀 Ready for Deploy (1)
 
 #### [DEV-189] Corregir el cuelgue del sondeo de puertos que bloqueaba npm test en CI
@@ -82,12 +138,20 @@ El test que disparaba el sondeo es DEV-177 en `scripts/verify-integration.js`, q
 
 La primera corrección añadió el timer guard con `guard.unref()`. Eso anula **justo el timer que debe resolver la promesa**: si es lo único que mantiene vivo el loop, Node sale antes de dispararlo y la promesa queda sin resolver. El síntoma pasó de "cuelgue silencioso" a `Detected unsettled top-level await`, que es el mismo bug con otro mensaje.
 
+### Corrección posterior: esta tarea no era la causa del cuelgue de CI
+
+Marqué el AC #5 (`npm test` sale con código 0 sin depender del sistema operativo) basándome en que la fuga del `TCPConnectWrap` era real y quedaba visible en macOS. **Eso fue una inferencia, no una verificación**, y estaba mal.
+
+La fuga existía, pero había una segunda, mucho mayor, que solo se manifestaba en Linux: 207 `fs.FSWatcher` abiertos por `vite.config.ts`. La causa raíz real se documenta en DEV-190.
+
+Dejé el AC #5 sin tildar a propósito. Un AC en verde sin aserción ejecutable es exactamente el tipo de mentira que hace inservible la pirámide de verificación.
+
 **Criterios de Aceptación:**
 - [x] #1 `isPortAvailable` resuelve aunque el connect nunca se complete, mediante un timer guard independiente del estado del socket
 - [x] #2 El timer guard no está `unref`'d y el socket se destruye en todas las rutas de salida
 - [x] #3 Existe test de regresión que reproduce el SYN descartado de forma determinista, para que el bug no vuelva en silencio en macOS o Windows
 - [x] #4 El test cubre también el comportamiento normal: puerto ocupado se reporta ocupado, puerto libre se reporta libre
-- [x] #5 `npm test` sale con código 0 sin depender del sistema operativo
+- [ ] #5 `npm test` sale con código 0 sin depender del sistema operativo — **no cumplido: este fix no resolvió el cuelgue de CI. La causa real está en DEV-190**
 
 ---
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * Regression test for the port probe hang (DEV-189).
@@ -21,7 +21,12 @@ import { fileURLToPath } from 'node:url';
  */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT_UTILS = path.join(ROOT, 'scripts', 'portUtils.js');
+const PORT_UTILS_PATH = path.join(ROOT, 'scripts', 'portUtils.js');
+// `import()` needs a file:// URL, not a filesystem path. On Windows a raw
+// absolute path such as `D:\a\gripm\scripts\portUtils.js` is parsed as a URL
+// with protocol `d:` and throws ERR_UNSUPPORTED_ESM_URL_SCHEME, which only
+// newer Node releases reject.
+const PORT_UTILS = pathToFileURL(PORT_UTILS_PATH).href;
 
 const realConnect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function droppedSyn() {
@@ -58,7 +63,7 @@ try {
 // --- The guard must not be unref'd ----------------------------------------
 
 {
-  const source = fs.readFileSync(PORT_UTILS, 'utf8');
+  const source = fs.readFileSync(PORT_UTILS_PATH, 'utf8');
   assert.ok(
     /setTimeout\(\(\) => \{[\s\S]{0,120}resolve\(true\)/.test(source),
     'DEV-189: debe existir una promesa de tiempo que resuelva el sondeo descartado',
@@ -76,6 +81,23 @@ try {
     'DEV-189: el socket debe destruirse en todas las rutas de salida',
   );
   console.log('✅ DEV-189: el guard no está unref\u2019d y el socket se destruye siempre');
+}
+
+// --- This test file must stay importable on Windows ------------------------
+
+{
+  const self = fs.readFileSync(new URL(import.meta.url), 'utf8');
+  assert.ok(
+    /pathToFileURL/.test(self),
+    'DEV-189: el import() dinamico debe usar pathToFileURL. Con una ruta absoluta cruda, ' +
+      'Windows la interpreta como URL con protocolo `d:` y lanza ERR_UNSUPPORTED_ESM_URL_SCHEME ' +
+      '(Node 22.23+; en 22.6.0 pasaba y el bug llego a CI sin que nadie lo viera)',
+  );
+  assert.ok(
+    !/import\(\s*PORT_UTILS_PATH\s*\)/.test(self),
+    'DEV-189: no importar la ruta del sistema de archivos directamente, solo su URL file://',
+  );
+  console.log('✅ DEV-189: los import() dinamicos usan file:// y son portables a Windows');
 }
 
 // --- Normal behaviour is preserved ----------------------------------------
