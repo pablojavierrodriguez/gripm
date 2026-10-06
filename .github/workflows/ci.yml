@@ -14,11 +14,12 @@ jobs:
   verify:
     name: Verify (${{ matrix.os }}, Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
-    # 25 min: la suite son 15 pasos y en runners Windows/macOS el npm install +
-# compilación de binarios consumen bastante. Antes en 15 y el job de ubuntu
-# moría por timeout; la causa real (el sondeo de puertos colgado) está corregida
-# en DEV-189, pero el margen evita que un runner lento se lea como un fallo.
-timeout-minutes: 25
+    # 25 min: la suite son 15 pasos y en runners Windows/macOS el npm install y la
+    # compilación de binarios consumen bastante. Antes en 15, y el job de ubuntu moría
+    # por timeout; la causa real (el sondeo de puertos que colgaba el proceso) está
+    # corregida en DEV-189, pero el margen evita que un runner lento se lea como un
+    # fallo de código.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
