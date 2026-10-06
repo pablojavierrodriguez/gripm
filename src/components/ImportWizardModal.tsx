@@ -14,6 +14,7 @@ import type { Project } from '../types';
 import { parseLegacyMarkdown, type ParsedLegacyItem } from '../utils/legacyParser';
 import { importLegacyBacklog } from '../api';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ImportWizardModalProps {
   isOpen: boolean;
@@ -122,9 +123,15 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
 
   const currentProj = projects.find(p => p.id === selectedProjectId);
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100 animate-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >

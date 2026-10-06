@@ -14,6 +14,7 @@ import {
 import { browseDirectory, type FsBrowseResult } from '../api';
 import type { StorageType } from '../types';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface FolderPickerModalProps {
   isOpen: boolean;
@@ -74,9 +75,15 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
     onClose();
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-2xl bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -206,7 +213,7 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <Folder className="w-4 h-4 text-amber-500/90 shrink-0 group-hover:scale-110 transition-transform" />
-                {/* audit-ux:allow-UX-009 Nombre de carpeta: etiqueta identificatoria de una línea, la elipsis es el comportamiento correcto. */}
+                {/* audit-ux:allow-ENV-002 Nombre de carpeta: etiqueta identificatoria de una línea, la elipsis es el comportamiento correcto. */}
                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
                   {folder.name}
                 </span>
@@ -238,7 +245,7 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
               <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
                 {t('folderPicker.selectedFolder')}
               </div>
-              {/* audit-ux:allow-UX-009 Ruta de carpeta: identificador técnico de una línea. Envolver una ruta larga en varias líneas rompe la lectura de la jerarquía del path. */}
+              {/* audit-ux:allow-ENV-002 Ruta de carpeta: identificador técnico de una línea. Envolver una ruta larga en varias líneas rompe la lectura de la jerarquía del path. */}
               <div className="font-mono text-slate-700 dark:text-slate-300 truncate text-[11px]">
                 {data.currentPath}
               </div>

@@ -644,7 +644,18 @@ export const SprintView: FC<SprintViewProps> = ({
                 className="px-4 py-3 bg-slate-50/80 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06] flex items-center justify-between cursor-pointer select-none hover:bg-slate-100/80 dark:hover:bg-white/[0.04] transition-colors gap-3"
               >
                 <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-                  <button className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                  {/* Real control: the header row itself stays a plain div because it
+                      hosts action buttons, which must not be nested inside a button.
+                      This toggle carries the keyboard and screen-reader contract. */}
+                  <button
+                    type="button"
+                    aria-expanded={!isCollapsed}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCollapse(group.key);
+                    }}
+                    className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                  >
                     {isCollapsed ? (
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     ) : (
@@ -1310,7 +1321,7 @@ export const SprintView: FC<SprintViewProps> = ({
                 className="px-4 py-2 text-xs font-medium rounded-xl bg-slate-200 dark:bg-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/[0.12] transition-colors"
               >
                 {t('common.close')}
-              </button>
+              </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
             </div>
           </div>
         </div>

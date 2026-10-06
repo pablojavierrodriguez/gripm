@@ -2,6 +2,7 @@ import { useEffect, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, Trash2, X, Rocket } from 'lucide-react';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const ConfirmModal: FC<ConfirmModalProps> = ({
   const resolvedConfirmText = confirmText || t('common.confirm');
   const resolvedCancelText = cancelText || t('common.cancel');
   const [loading, setLoading] = useState(false);
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) {
@@ -38,9 +40,8 @@ export const ConfirmModal: FC<ConfirmModalProps> = ({
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter' && !loading) {
+      // Escape is owned by useFocusTrap, which also restores focus on close.
+      if (e.key === 'Enter' && !loading) {
         handleConfirm();
       }
     };
@@ -112,7 +113,11 @@ export const ConfirmModal: FC<ConfirmModalProps> = ({
   // consumidores del componente.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-md bg-white dark:bg-[#0f172a] rounded-t-2xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200 dark:border-white/10 overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >

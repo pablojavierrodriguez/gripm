@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { Sprint, BacklogItem } from '../types';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface RetroData {
   whatWentWell: string;
@@ -96,9 +97,15 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.08] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
@@ -220,21 +227,27 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
 
           {/* Retrospectiva Integrada (DEV-070) */}
           <div className="border border-indigo-200/70 dark:border-indigo-900/40 rounded-xl bg-indigo-50/30 dark:bg-indigo-950/10 p-3.5 space-y-3">
-            <div className="flex items-center justify-between cursor-pointer" onClick={() => setRetroExpanded(!retroExpanded)}>
-              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-semibold">
+            <button
+              type="button"
+              onClick={() => setRetroExpanded(!retroExpanded)}
+              aria-expanded={retroExpanded}
+              aria-controls="complete-sprint-retro-section"
+              className="w-full flex flex-wrap items-center justify-between gap-2 cursor-pointer text-left rounded active:scale-[0.995] transition-transform"
+            >
+              <span className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-semibold">
                 <Sparkles className="w-4 h-4 text-indigo-500" />
                 <span>{t('completeSprint.retroTitle')}</span>
                 <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
                   {t('completeSprint.recommended')}
                 </span>
-              </div>
-              <button type="button" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              </span>
+              <span className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 {retroExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
+              </span>
+            </button>
 
             {retroExpanded && (
-              <div className="space-y-3 pt-2">
+              <div id="complete-sprint-retro-section" className="space-y-3 pt-2">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -376,7 +389,7 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
               className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting ? t('completeSprint.completing') : t('completeSprint.completeBtn')}
-            </button>
+            </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
           </div>
         </div>
       </div>

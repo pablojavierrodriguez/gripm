@@ -4,6 +4,7 @@ import type { Project, StorageType } from '../types';
 import { detectPathStorage } from '../api';
 import { FolderPickerModal } from './FolderPickerModal';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -90,10 +91,16 @@ export const ProjectModal: FC<ProjectModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-        <div 
+        <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
           className="w-full max-w-lg glass-panel rounded-t-2xl sm:rounded-2xl border-t sm:border shadow-2xl overflow-hidden max-h-[92vh] sm:max-h-none flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >

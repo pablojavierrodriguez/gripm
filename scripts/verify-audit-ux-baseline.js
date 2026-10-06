@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const AUDITOR = path.join(ROOT, 'scripts', 'audit-ux-code.cjs');
+const RULES = path.join(ROOT, 'scripts', 'ux-rules.json');
 const BASELINE = path.join(ROOT, 'scripts', 'audit-ux-baseline.json');
 
 /**
@@ -32,6 +33,9 @@ function auditorFor(baselineEntries) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-ux-baseline-'));
   const scriptPath = path.join(dir, 'audit-ux-code.cjs');
   fs.copyFileSync(AUDITOR, scriptPath);
+  // The engine loads its rule catalog from its own directory, so a scratch copy
+  // needs the catalog alongside it.
+  fs.copyFileSync(RULES, path.join(dir, 'ux-rules.json'));
   fs.writeFileSync(
     path.join(dir, 'audit-ux-baseline.json'),
     JSON.stringify({ version: 1, generatedAt: 'test', entries: baselineEntries }),
@@ -49,7 +53,7 @@ function runAuditor(scriptPath, projectDir, args = []) {
 
 /**
  * A valid index.css, so fixtures only exercise the rules under test.
- * UX-010 is an ERROR raised when src/index.css is absent or lacks the
+ * ENV-001 is an ERROR raised when src/index.css is absent or lacks the
  * scrollbar-gutter contract; case 4 deletes it on purpose.
  */
 const HEALTHY_CSS = 'html {\n  overflow-y: scroll;\n  scrollbar-gutter: stable;\n}\n';
@@ -151,8 +155,9 @@ function makeProject(files, { withCss = true } = {}) {
 
   const after = runAuditor(scratch.scriptPath, project);
   assert.equal(after.code, 0, 'an INFO regression alone must not fail the build');
-  assert.match(after.stdout, /\[UX-006\] src\/Widget\.tsx:2/, 'regression must report file and line');
-  assert.match(after.stdout, /1 sugerencias/, 'exactly the new observation must be reported');
+  // UX-011 is the canonical id for an arbitrary font size outside the scale.
+  assert.match(after.stdout, /\[UX-011\] src\/Widget\.tsx:2/, 'regression must report file and line');
+  assert.match(after.stdout, /1 finding\(s\)/, 'exactly the new observation must be reported');
 
   fs.rmSync(project, { recursive: true, force: true });
   fs.rmSync(scratch.dir, { recursive: true, force: true });
@@ -170,10 +175,10 @@ function makeProject(files, { withCss = true } = {}) {
     encoding: 'utf8',
   });
 
-  // No index.css at all: UX-010 is an ERROR and must stay visible.
+  // No index.css at all: the scrollbar-gutter invariant is an ERROR and must stay visible.
   const after = runAuditor(scratch.scriptPath, project);
   assert.equal(after.code, 1, 'an ERROR must fail the audit');
-  assert.match(after.stdout, /\[UX-010\]/, 'the baseline must never absorb an ERROR');
+  assert.match(after.stdout, /\[ENV-001\]/, 'the baseline must never absorb an ERROR');
 
   fs.rmSync(project, { recursive: true, force: true });
   fs.rmSync(scratch.dir, { recursive: true, force: true });

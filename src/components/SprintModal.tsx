@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Target, Clock, Sparkles } from 'lucide-react';
 import type { Sprint } from '../types';
 import { useTranslation, type TranslationKey } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface SprintModalProps {
   isOpen: boolean;
@@ -123,9 +124,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.08] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >

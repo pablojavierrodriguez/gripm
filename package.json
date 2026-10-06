@@ -67,7 +67,7 @@
     "build:bin": "node scripts/build-binaries.js",
     "preview": "vite preview",
     "import:docs": "node scripts/import-docs.js",
-    "test": "node --experimental-strip-types scripts/test-parser.js && node --experimental-strip-types scripts/verify-integration.js && node scripts/test-api-security.js && node scripts/test-package-smoke.js && node --experimental-strip-types scripts/verify-optimistic-locking.js && node --experimental-strip-types scripts/verify-sse.js && node --experimental-strip-types scripts/verify-legacy-import.js && node scripts/verify-mcp-binary.js && node --experimental-strip-types scripts/verify-resilience-and-cli.js && node --experimental-strip-types scripts/verify-audit-ux-baseline.js && node scripts/verify-dist.js",
+    "test": "node --experimental-strip-types scripts/test-parser.js && node --experimental-strip-types scripts/verify-integration.js && node scripts/test-api-security.js && node scripts/test-package-smoke.js && node --experimental-strip-types scripts/verify-optimistic-locking.js && node --experimental-strip-types scripts/verify-sse.js && node --experimental-strip-types scripts/verify-legacy-import.js && node scripts/verify-mcp-binary.js && node --experimental-strip-types scripts/verify-resilience-and-cli.js && node --experimental-strip-types scripts/verify-audit-ux-baseline.js && node scripts/verify-status-contrast.js && node scripts/verify-focus-trap.js && node scripts/verify-kanban-reorder.js && node scripts/verify-dist.js",
     "test:backlog": "node --experimental-strip-types scripts/verify-integration.js",
     "verify:dist": "node scripts/verify-dist.js",
     "mcp": "node bin/gripm-mcp.js",

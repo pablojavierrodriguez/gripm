@@ -459,6 +459,49 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     });
   };
 
+  /**
+   * Moves a card one slot up or down inside its column without a pointer (DEV-173,
+   * AC #3). Reordering is otherwise drag-and-drop only, which WCAG 2.5.7 forbids
+   * when a non-dragging alternative exists.
+   *
+   * Uses the same fractional `order` scheme as the drop handler: the card lands
+   * between the item it displaces and the one beyond it, so no other card has to
+   * be rewritten and a single update persists the move.
+   */
+  const handleMoveWithinColumn = (
+    item: BacklogItem,
+    col: ColumnConfig,
+    colItems: BacklogItem[],
+    direction: 'up' | 'down'
+  ) => {
+    const idx = colItems.findIndex((i) => i.id === item.id);
+    const neighbourIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx < 0 || neighbourIdx < 0 || neighbourIdx >= colItems.length) return;
+
+    const neighbour = colItems[neighbourIdx];
+    const beyondIdx = direction === 'up' ? idx - 2 : idx + 2;
+    const beyond = beyondIdx >= 0 && beyondIdx < colItems.length ? colItems[beyondIdx] : null;
+
+    const neighbourOrder = neighbour.order ?? (neighbourIdx + 1) * 10;
+    let nextOrder: number;
+
+    if (beyond) {
+      const beyondOrder = beyond.order ?? (beyondIdx + 1) * 10;
+      nextOrder =
+        direction === 'up'
+          ? (beyondOrder < neighbourOrder
+              ? beyondOrder + (neighbourOrder - beyondOrder) / 2
+              : neighbourOrder + 5)
+          : (beyondOrder > neighbourOrder
+              ? neighbourOrder + (beyondOrder - neighbourOrder) / 2
+              : neighbourOrder - 5);
+    } else {
+      nextOrder = direction === 'up' ? neighbourOrder - 10 : neighbourOrder + 10;
+    }
+
+    onUpdateStatus(item.id, item.status, col.id, undefined, nextOrder);
+  };
+
   const handleDrop = (
     e: React.DragEvent, 
     col: ColumnConfig, 
@@ -618,8 +661,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 className="px-1.5 py-0.5 text-xs font-semibold rounded bg-white dark:bg-slate-800 border border-indigo-500 text-slate-900 dark:text-white outline-none w-28 shadow-xs"
               />
             ) : (
-              <div 
-                className="group/coltitle flex items-center gap-1.5 cursor-pointer py-0.5"
+              <button
+                type="button"
+                className="group/coltitle flex items-center gap-1.5 cursor-pointer py-0.5 text-left rounded hover:bg-slate-100/70 dark:hover:bg-white/[0.04] active:scale-[0.98] transition-transform"
                 onClick={() => {
                   setEditingColId(col.id);
                   setEditColTitle(col.title);
@@ -637,7 +681,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   )}
                 </div>
                 <Pencil className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover/coltitle:opacity-100 transition-opacity" />
-              </div>
+              </button>
             )}
             {limit > 0 ? (
               <span
@@ -802,6 +846,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onDragEnd={handleDragEnd}
                     onShowToast={onShowToast}
                     customItemTypes={config?.customItemTypes}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < colItems.length - 1}
+                    onMoveWithinColumn={(direction) =>
+                      handleMoveWithinColumn(item, col, colItems, direction)
+                    }
                   />
                 </div>
 

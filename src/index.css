@@ -92,6 +92,21 @@ html.theme-transitioning .kanban-col {
   .animate-pulse-subtle {
     animation: none !important;
   }
+
+  /* Pulsos decorativos: indicadores de carga viva y "suelta aqui para asignar".
+     No aportan informacion que el texto de al lado no exprese ya, asi que
+     congelarlos no deja al usuario sin nada. */
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
+
+  /* animate-spin se atenua en lugar de detenerse: es la unica senal de que algo
+     esta cargando, y una interfaz congelada sin feedback es peor que el
+     movimiento. WCAG 2.3.3 exime el movimiento esencial. */
+  .animate-spin {
+    animation-duration: 2s !important;
+  }
 }
 
 /* Custom minimal scrollbars */

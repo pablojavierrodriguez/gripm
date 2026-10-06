@@ -197,22 +197,39 @@ console.log('✅ DEV-117: Canonical project identity resolution & priority verif
 // 6. DEV-101: el auditor estático debe detectar realmente los anti-patrones.
 //
 // Un linter que no reporta nada también "pasa" cuando no mira nada. Estos checks
-// verifican que las reglas UX-009 y UX-010 están conectadas y disparan, no que el
-// código actual esté limpio (eso lo comprueba `npm run audit:ux`).
+// verifican que las reglas están conectadas y disparan, no que el código actual
+// esté limpio (eso lo comprueba `npm run audit:ux`).
+//
+// Desde DEV-173 el auditor consume el catálogo canónico `scripts/ux-rules.json`
+// —el mismo que documenta el skill `code-level-ux-auditor`— en vez de llevar las
+// reglas hardcodeadas. Por eso las firmas se verifican contra el catálogo.
 {
   const ROOT_DIR = path.resolve(process.cwd());
   const fsSync = fs.readFileSync(path.join(ROOT_DIR, 'scripts', 'audit-ux-code.cjs'), 'utf8');
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(ROOT_DIR, 'scripts', 'ux-rules.json'), 'utf8'),
+  );
+  const ruleById = new Map(catalog.rules.map((rule) => [rule.id, rule]));
 
-  // 6.1 UX-009: detección de "truncate" en componentes de diálogo + opt-out.
-  assert.ok(fsSync.includes("code: 'UX-009'"), 'DEV-101: la regla UX-009 debe existir en el auditor');
+  // 6.1 ENV-002: "truncate" en componentes de diálogo + opt-out documentado.
+  //    El catálogo canónico no cubre esta regla, así que vive en el motor.
+  assert.ok(fsSync.includes("ENV_TRUNCATE = 'ENV-002'"), 'DEV-101: el invariante ENV-002 debe existir');
+  assert.ok(/\\btruncate\\b/.test(fsSync), 'DEV-101: ENV-002 debe detectar "truncate"');
+  assert.ok(/Modal\|Dialog/.test(fsSync), 'DEV-101: ENV-002 debe acotarse a componentes de diálogo');
+  assert.ok(
+    fsSync.includes('audit-ux:allow-${ENV_TRUNCATE}'),
+    'DEV-101: ENV-002 debe admitir opt-out documentado',
+  );
   assert.ok(fsSync.includes("audit-ux:allow-"), 'DEV-101: UX-009 debe admitir opt-out documentado');
   assert.ok(/Modal\|Dialog/.test(fsSync), 'DEV-101: UX-009 debe acotarse a componentes de diálogo');
 
-  // 6.2 UX-010: verificación del gutter de scroll en el bloque html de index.css.
-  assert.ok(fsSync.includes("code: 'UX-010'"), 'DEV-101: la regla UX-010 debe existir en el auditor');
-  assert.ok(fsSync.includes('overflow-y: scroll'), 'DEV-101: UX-010 debe verificar overflow-y: scroll');
-  assert.ok(fsSync.includes('scrollbar-gutter: stable'), 'DEV-101: UX-010 debe verificar scrollbar-gutter: stable');
-  assert.ok(fsSync.includes('auditGlobalCss'), 'DEV-101: UX-010 debe ejecutarse sobre el CSS global');
+  // 6.2 Invariante de gutter de scrollbar (ENV-001) sobre el CSS global. No es
+  // una regla del catálogo UX: es un contrato de layout declarado en AGENTS.md,
+  // por eso vive en el motor y no en ux-rules.json.
+  assert.ok(fsSync.includes("ENV_GUTTER = 'ENV-001'"), 'DEV-101: el invariante ENV-001 debe existir');
+  assert.ok(fsSync.includes('overflow-y: scroll'), 'DEV-101: debe verificar overflow-y: scroll');
+  assert.ok(fsSync.includes('scrollbar-gutter: stable'), 'DEV-101: debe verificar scrollbar-gutter: stable');
+  assert.ok(fsSync.includes('auditEnvInvariants'), 'DEV-101: el invariante debe ejecutarse sobre el CSS global');
 
   // 6.3 El código real cumple ambas reglas (si esto falla, audit:ux también).
   const cssNow = fs.readFileSync(path.join(ROOT_DIR, 'src', 'index.css'), 'utf8');
@@ -221,7 +238,7 @@ console.log('✅ DEV-117: Canonical project identity resolution & priority verif
   assert.ok(htmlBlock[2].includes('overflow-y: scroll'), 'DEV-101: html debe declarar overflow-y: scroll');
   assert.ok(htmlBlock[2].includes('scrollbar-gutter: stable'), 'DEV-101: html debe declarar scrollbar-gutter: stable');
 }
-console.log('✅ DEV-101: Static UX auditor rules UX-009 and UX-010 wired and enforced');
+console.log('✅ DEV-101: static UX catalog wired, ENV-002 truncate rule and ENV-001 gutter enforced');
 
 // 5. DEV-127: El serializador NUNCA debe fabricar contenido que el usuario no escribió.
 //

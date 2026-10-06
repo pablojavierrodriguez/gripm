@@ -2,6 +2,7 @@ import { useState, type FC } from 'react';
 import { AlertCircle, Bot, CheckCircle, X, Copy } from 'lucide-react';
 import type { BacklogItem } from '../types';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface PlanGuardModalProps {
   isOpen: boolean;
@@ -86,9 +87,15 @@ export const PlanGuardModal: FC<PlanGuardModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-xl glass-panel bg-white dark:bg-[#0d1322] rounded-2xl border border-amber-500/30 dark:border-amber-500/30 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >

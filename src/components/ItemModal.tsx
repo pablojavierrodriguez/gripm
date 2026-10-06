@@ -24,6 +24,7 @@ import {
 import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, DevBoardConfig, Sprint, Release } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -283,9 +284,8 @@ export const ItemModal: FC<ItemModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showDeleteConfirm) {
-        onClose();
-      }
+      // Escape is owned by useFocusTrap. ConfirmModal renders on top of this
+      // dialog, so a second handler would close both on a single keypress.
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         handleFormSubmit();
@@ -413,12 +413,18 @@ export const ItemModal: FC<ItemModalProps> = ({
     ? `1. Modificar ${impactedFile.trim()}...&#10;2. Ajustar tipos, contrato de datos y tests...&#10;3. Ejecutar tsc, npm test y backlog:check...`
     : '1. Modificar el archivo afectado...&#10;2. Ajustar tipos, contrato de datos y tests...&#10;3. Ejecutar tsc, npm test y backlog:check...';
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in"
       onClick={onClose}
     >
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="w-full max-w-6xl glass-panel rounded-t-2xl sm:rounded-2xl border-t sm:border shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >

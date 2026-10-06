@@ -1232,7 +1232,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               setWipLimits(next);
                             }}
                             className="w-24 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
-                          />
+                          />{/* ux-audit-ignore UX-001: integer WIP counter bounded 0-50, not a monetary amount, so a regional decimal comma cannot occur */}
                         </div>
 
                         <div className="flex items-center gap-2 sm:justify-end">

@@ -13,6 +13,8 @@ import {
   Ban, 
   Trash2, 
   ChevronRight,
+  ArrowUp,
+  ArrowDown,
   Edit3,
   Bot,
   Layers,
@@ -51,6 +53,14 @@ interface ItemCardProps {
   // DEV-047: Progress rollup for epics/initiatives
   epicProgress?: { done: number; total: number };
   customItemTypes?: CustomItemTypeConfig[];
+  /**
+   * Keyboard-accessible reordering (DEV-173, AC #3). Without it, moving a card
+   * inside its column is drag-and-drop only, which a keyboard cannot perform.
+   * Omitted where the card is not rendered inside a column list.
+   */
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveWithinColumn?: (direction: 'up' | 'down') => void;
 }
 
 export const LUCIDE_ICONS_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -198,7 +208,10 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   onDragEnd,
   onShowToast,
   epicProgress,
-  customItemTypes
+  customItemTypes,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveWithinColumn
 }) => {
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
@@ -338,10 +351,19 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   return (
     <div
       draggable
+      role="button"
+      tabIndex={0}
+      aria-label={item.title}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClickInternal(e as unknown as React.MouseEvent);
+        }
+      }}
       onDragStart={handleDragStartInternal}
       onDragEnd={handleDragEndInternal}
       onClick={handleClickInternal}
-      className={`group relative glass-card p-3 rounded-xl cursor-grab active:cursor-grabbing select-none transition-all duration-150 ${
+      className={`group relative glass-card p-3 rounded-xl cursor-grab active:cursor-grabbing select-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
         isDragging ? 'is-dragging' : ''
       }`}
     >
@@ -443,6 +465,39 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                 </div>
 
                 <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+
+                {/* DEV-173 AC #3: reordering without a pointer. Disabled at the
+                    column edges rather than hidden, so the position in the menu
+                    stays stable while arrowing through it. */}
+                {onMoveWithinColumn && (canMoveUp || canMoveDown) && (
+                  <>
+                    <button
+                      onClick={() => {
+                        onMoveWithinColumn('up');
+                        setMenuOpen(false);
+                      }}
+                      disabled={!canMoveUp}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                      <span>{t('card.moveUp')}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        onMoveWithinColumn('down');
+                        setMenuOpen(false);
+                      }}
+                      disabled={!canMoveDown}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                      <span>{t('card.moveDown')}</span>
+                    </button>
+
+                    <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+                  </>
+                )}
 
                 <button
                   onClick={() => {

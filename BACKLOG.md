@@ -51,6 +51,42 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
+### 🔍 Review & QA (1)
+
+#### [DEV-173] Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
+
+### El proyecto ya tiene la herramienta y no la usó
+
+`.agents/skills/code-level-ux-auditor/` está instalado en el repo y audita anti-patrones de UX móvil, colisiones de gestos, scroll, teclado virtual y jank de render. Está orientado a móvil, pero cubre varias de las categorías que importan acá. Nunca se ejecutó como auditoría del codebase.
+
+### Superficie de riesgo
+
+El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
+
+1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
+2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
+3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
+
+### Objetivo
+
+Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo que se encuentre, y decidir si queda incorporateda al gate de CI o es una tarea recurrente de release.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
+- [x] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
+- [x] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
+- [ ] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
+- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
+- [x] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
+- [x] #7 Existe `prefers-reduced-motion` respetado en las animaciones existentes (splash, transiciones de tema, dots de estado)
+- [x] #8 La decisión queda registrada: la accesibilidad se incorpora como paso de `npm run audit:ux` y CI, o se declara como tarea recurrente de release con la razón
+- [x] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
+
+---
+
 ### 🚀 Ready for Deploy (3)
 
 #### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
@@ -499,40 +535,6 @@ Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar 
 
 ---
 
-#### [DEV-173] Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
-
-### El proyecto ya tiene la herramienta y no la usó
-
-`.agents/skills/code-level-ux-auditor/` está instalado en el repo y audita anti-patrones de UX móvil, colisiones de gestos, scroll, teclado virtual y jank de render. Está orientado a móvil, pero cubre varias de las categorías que importan acá. Nunca se ejecutó como auditoría del codebase.
-
-### Superficie de riesgo
-
-El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
-
-1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
-2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
-3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
-
-### Objetivo
-
-Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo que se encuentre, y decidir si queda incorporateda al gate de CI o es una tarea recurrente de release.
-
-**Criterios de Aceptación:**
-- [ ] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
-- [ ] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
-- [ ] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
-- [ ] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
-- [ ] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
-- [ ] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
-- [ ] #7 Existe `prefers-reduced-motion` respetado en las animaciones existentes (splash, transiciones de tema, dots de estado)
-- [ ] #8 La decisión queda registrada: la accesibilidad se incorpora como paso de `npm run audit:ux` y CI, o se declara como tarea recurrente de release con la razón
-- [ ] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
-
----
-
 #### [DEV-180] Evaluación y Migración Arquitectónica de Dependencias Core a React 19 y Tooling Moderno
 - **Prioridad**: `medium` | **Tipo**: `improvement`
 
@@ -592,6 +594,67 @@ Renombrar la interfaz canónica DevBoardConfig a GripmConfig en src/types.ts y p
 - [ ] #3 Actualizar las referencias e importaciones en src/App.tsx, src/components/SettingsView.tsx, src/api.ts y demás módulos hacia GripmConfig
 - [ ] #4 Verificar que npx tsc --noEmit pase con 0 errores en modo estricto
 - [ ] #5 Validar que npm test y npm run backlog:check pasen con código 0
+
+---
+
+#### [DEV-188] Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Dar de baja el fork local de `scripts/audit-ux-code.cjs` y adoptar el motor de
+`@gripm/playbook` como consumidora común. Es la última pieza de la deuda que dejó
+DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
+upstream.
+
+### Estado actual del fork
+
+`gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
+(`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
+
+- **270 líneas** que solo existen en `gripm`
+- **358 líneas** que solo existen en upstream
+
+La divergencia no es cosmética: el fork tiene el sistema de baselining completo
+(`fingerprint`, multiplicidad, ERROR-nunca-absorbido) y los invariantes `ENV-001` y
+`ENV-002`, ninguno de los cuales existe upstream todavía.
+
+El riesgo del fork no es técnico sino de contrato: **`.agents/skills/` sí se sincroniza,
+así que el skill documenta un comportamiento que el motor que corre no tiene.** Un
+fork se salta por construcción el control que `validate-repo.mjs` upstream existe para
+aplicar.
+
+### Qué resuelve upstream
+
+`@gripm/playbook` ya aterrizo las tres piezas:
+
+1. **Rediseño de `buildUnits`** con anidamiento real y tres granularidades por unidad (`text`, `ownContent`, `scopeText`). Resuelve la causa raíz de UX-010: el segmentador viejo contaba `<` contra `>` como caracteres y no distinguía un self-closing de un elemento con hijos.
+2. **Eliminación del `break` por archivo.** Resultó ser la causa del bug de `needsContent`: cortaba el recorrido antes del segundo caso, lo que hacía el fixture de 2 casos incomprobable.
+3. **Baselining como capacidad del auditor**, con `fingerprint` idéntico al local.
+
+### Decisión tomada con upstream
+
+- `ENV-001` (gutter de scrollbar) **no se promueve**: ya está cubierto por el test 6.3 de `scripts/test-parser.js`, que lee `src/index.css` directamente y es independiente del fork. Solo hay que desacoplar los 4 asserts de 6.2 que sí dependen del archivo bifurcado.
+- `ENV-002` (`truncate` en diálogo) queda en discusión upstream; se promueve a firma propia cuando lo decidan.
+- **La Tarea 1 (dejar de preservar el archivo) NO está bloqueada por `ENV-002`.** Está bloqueada porque el auditor upstream no expone API, así que no hay forma de componer sin bifurcar. Upstream libera la extensión en **2.2.0**.
+- **Mientras tanto: seguir bifurcado, con fecha de fin.**
+
+### Riesgo de la migración
+
+El baseline actual quedó construido sobre una señal no confiable: UX-010 tenía
+~101 falsos positivos sobre 191 candidatos. Esas entradas están lockeadas y
+`audit:ux` reporta 0, así que nadie las va a limpiar jamás.
+
+**No se debe correr `--update-baseline` a ciegas sobre las 487 observaciones.** Eso
+dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
+
+**Criterios de Aceptación:**
+- [ ] #1 Registrar la fecha de fin del fork: dejar de preservar `scripts/audit-ux-code.cjs` en `sync-playbook.mjs` cuando `@gripm/playbook@2.2.0` esté publicado, y quitar la nota que lo justifica
+- [ ] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
+- [ ] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
+- [ ] #4 Desacoplar los 4 asserts de la sección 6.2 de `scripts/test-parser.js` que dependen de la existencia de `ENV_GUTTER` y `auditEnvInvariants`, conservando 6.1 (UX-009 acotado a diálogos) y 6.3 (gutter leído del CSS)
+- [ ] #5 Regenerar el baseline **con revisión manual de los hallazgos**, no con `--update-baseline` ciego: separar lo genuino de los falsos positivos de UX-010 antes de snapshotear
+- [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
+- [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
+- [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
 
 ---
 

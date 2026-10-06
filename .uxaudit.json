@@ -1,0 +1,7 @@
+{
+  "$comment": "Project-level configuration for scripts/audit-ux-code.cjs (DEV-173).",
+  "disableRules": ["UX-010"],
+  "disableReason": {
+    "UX-010": "Disabled pending an upstream fix in @gripm/playbook. The rule has two defects: (1) `needsContent` is evaluated against the whole file instead of the logical unit, so any file mentioning an Icon component flags every one of its buttons as icon-only; (2) it only accepts attribute escapes (aria-label, title=, aria-labelledby, sr-only) and ignores a visible text label inside the button. Measured on this repo: ~101 of 191 candidates are false positives. Re-enable once the catalog ships the fix; see the audit note in DEV-173."
+  }
+}

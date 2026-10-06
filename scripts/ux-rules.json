@@ -1,0 +1,209 @@
+{
+  "version": 2,
+  "authoring": {
+    "purpose": "Canonical catalog of static UX signatures. The runner (audit-ux-code.cjs) is a generic engine; all detection knowledge lives here.",
+    "canonicalIds": "UX-001..UX-008 are the historical signatures documented in .agents/skills/code-level-ux-auditor/SKILL.md. Never renumber them. New rules append from UX-009.",
+    "severities": {
+      "ERROR": "Breaks core functionality on touch devices. Fails the audit even without --strict.",
+      "WARNING": "Degrades UX, correctness or performance. Fails only with --strict.",
+      "INFO": "Hygiene and consistency suggestion."
+    },
+    "checkSemantics": {
+      "line": "Substring matchers. The rule fires when ANY is present in the candidate line.",
+      "alsoLine": "When present, at least one of these must ALSO appear in the same candidate line.",
+      "unlessLine": "Suppress the finding when ANY is present in the same line.",
+      "unlessNearby": "Suppress the finding when ANY is present within +/- window lines of the candidate line.",
+      "nearby": "Fire only when at least one of these is present within +/- window lines of the candidate line.",
+      "needsContent": "Fire only when at least one of these exists somewhere in the file.",
+      "unlessContent": "Disable the whole rule when ANY of these exists somewhere in the file.",
+      "unlessFile": "Disable the whole rule when the file path contains ANY of these substrings.",
+      "requires.deps": "Fire only when the dependency exists in the target package.json. Omit for stack-agnostic rules. Rules with no dependency gate run everywhere.",
+      "window": "Line radius used by nearby / unlessNearby. Defaults to 6."
+    },
+    "suppression": "Inline '// ux-audit-ignore' disables every rule on that line. '// ux-audit-ignore UX-004' disables only that rule. Project-level opt-out lives in .uxaudit.json (disableRules / exclude)."
+  },
+  "rules": [
+    {
+      "id": "UX-001",
+      "title": "Regional decimal comma blocker (input[type=number])",
+      "severity": "ERROR",
+      "signature": "<input type=\"number\"> used to capture monetary amounts or balances.",
+      "impact": "On LATAM mobile keyboards the native numeric pad often exposes only ',' and disables '.', while HTML5 type=\"number\" rejects ',' in WebKit/Blink, yielding an empty value or a silent error.",
+      "fix": "Replace with inputMode=\"decimal\" plus locale-aware format/parse helpers.",
+      "check": {
+        "line": ["type=\"number\"", "type='number'"],
+        "unlessLine": ["inputMode=\"decimal\"", "inputMode='decimal'", "parseThousandsInput", "step=\"any\""],
+        "unlessFile": ["Otp", "otp"]
+      },
+      "message": "type=\"number\" input breaks regional decimal commas on mobile. Use inputMode=\"decimal\" with a locale-aware parser."
+    },
+    {
+      "id": "UX-002",
+      "title": "Physical keyboard shortcuts leaking into touch layouts",
+      "severity": "INFO",
+      "signature": "<kbd> chips, the command glyph or 'Ctrl+' strings rendered without responsive hiding.",
+      "impact": "Smartphones have no physical keyboard or Command key, so these elements pollute mobile headers and action bars.",
+      "fix": "Wrap the shortcut in 'hidden sm:inline-flex' or gate it behind a useIsMobile() branch.",
+      "check": {
+        "line": ["<kbd", "⌘", "Ctrl+"],
+        "unlessLine": ["hidden", "useIsMobile", "sm:inline", "md:inline"]
+      },
+      "message": "Physical keyboard shortcut rendered without a responsive hiding class such as 'hidden sm:inline-flex'."
+    },
+    {
+      "id": "UX-003",
+      "title": "Drag gesture colliding with a scroll container",
+      "severity": "WARNING",
+      "signature": "<Reorder.Group> or drag=\"y\" mounted inside an overflow-y-auto container without scroll compensation.",
+      "impact": "The mobile browser reads vertical movement as native scroll intent and fires pointercancel, freezing the drag halfway. Prior scroll also desynchronises coordinate math, making items jump.",
+      "fix": "Use native Pointer Events with setPointerCapture, GPU-only transforms, parent scroll detection and edge auto-scroll. Always keep accessible move up/down controls.",
+      "requires": { "deps": ["framer-motion", "motion"] },
+      "check": {
+        "line": ["<Reorder.Group", "drag=\"y\"", "drag={'y'}", "drag={\"y\""],
+        "unlessContent": ["setPointerCapture", "autoScroll"]
+      },
+      "message": "Drag/reorder element without setPointerCapture compensation. Verify it is not nested inside an overflow-y-auto container."
+    },
+    {
+      "id": "UX-004",
+      "title": "Temporal localisation leak (month/day names without locale)",
+      "severity": "WARNING",
+      "signature": "format(date, \"MMM yyyy\") or format(date, \"EEEE\") without a locale argument.",
+      "impact": "Produces mixed-language UI such as \"January 2026\" inside an otherwise localised product.",
+      "fix": "Always import the locale and pass it: format(date, 'MMMM yyyy', { locale: activeLocale }).",
+      "requires": { "deps": ["date-fns"] },
+      "check": {
+        "line": ["format("],
+        "needsContent": ["MMMM", "\"MMM\"", "'MMM'", "EEEE"],
+        "unlessLine": ["locale"]
+      },
+      "message": "date-fns format() with month/day names but no locale argument. Pass { locale: activeLocale }."
+    },
+    {
+      "id": "UX-005",
+      "title": "Autocapitalise / autocorrect trap on identity inputs",
+      "severity": "ERROR",
+      "signature": "<input type=\"email\"> without autoCapitalize=\"none\" and value normalisation.",
+      "impact": "iOS/Android keyboards force an uppercase first letter or append a trailing space after autofill, producing recurring invalid-credentials errors.",
+      "fix": "Add inputMode=\"email\" autoCapitalize=\"none\" autoCorrect=\"off\" spellCheck={false} and normalise with .trim().toLowerCase().",
+      "check": {
+        "line": ["type=\"email\"", "type='email'"],
+        "unlessLine": ["autoCapitalize=\"none\"", "autoCapitalize='none'"],
+        "unlessContent": ["autoCapitalize=\"none\"", "autoCapitalize='none'"]
+      },
+      "message": "Email input without autoCapitalize=\"none\" / autoCorrect=\"off\". Causes login failures on mobile keyboards."
+    },
+    {
+      "id": "UX-006",
+      "title": "Fixed bottom UI occluding scrollable content",
+      "severity": "WARNING",
+      "signature": "Main scroll views padded with pb-16 / pb-20 / pb-24 while a fixed bottom bar or FAB is present, instead of pb-32 plus safe-area-inset-bottom.",
+      "impact": "The last rows of a list are physically hidden behind the bottom navigation or FAB, making them unreachable.",
+      "fix": "Use pb-32 (or a CSS variable derived from the bar height) plus env(safe-area-inset-bottom) on the scroll container.",
+      "check": {
+        "line": ["pb-16", "pb-20", "pb-24"],
+        "needsContent": ["bottom-0", "BottomNav", "BottomBar", "BottomSheet", "fixed bottom"],
+        "unlessLine": ["pb-32", "pb-36", "pb-40", "safe-area", "pb-[calc"]
+      },
+      "message": "Insufficient bottom padding (pb-16/pb-20/pb-24) for a fixed bottom bar. Use pb-32 plus safe-area-inset-bottom."
+    },
+    {
+      "id": "UX-007",
+      "title": "Horizontal crowding on mobile cards (< 640px)",
+      "severity": "INFO",
+      "signature": "A justify-between flex row packing three or more complex nodes (icon + category + account + badge + amount) without truncate or wrap.",
+      "impact": "Long titles overlap or push the amount out of a 375px viewport.",
+      "fix": "Enforce the two-level invariant: row 1 for identity and amount, row 2 for context chips. Add min-w-0 to flex children and collapse secondary actions into a menu.",
+      "check": {
+        "line": ["flex items-center justify-between", "justify-between items-center"],
+        "unlessLine": ["min-w-0", "flex-wrap", "truncate", "shrink-0"],
+        "unlessContent": ["min-w-0"]
+      },
+      "message": "Mobile card flex row without min-w-0 / truncate. Risk of overflow and horizontal push at 375px."
+    },
+    {
+      "id": "UX-008",
+      "title": "Micro-Jank: synchronous I/O or heavy compute per frame",
+      "severity": "WARNING",
+      "signature": "localStorage writes or fetch() inside scroll/drag/pointermove handlers.",
+      "impact": "Frame rate collapses from 60 to under 15 FPS, producing visible lag during touch interaction.",
+      "fix": "Keep gesture state in memory and persist with a debounce on release. (Heuristic static detection: review every hit manually.)",
+      "check": {
+        "line": ["localStorage.setItem", "sessionStorage.setItem", "JSON.stringify", "fetch("],
+        "nearby": ["onScroll", "onPointerMove", "onTouchMove", "onDrag", "onWheel", "requestAnimationFrame"],
+        "unlessNearby": ["debounce", "throttle", "useDeferredValue", "startTransition"],
+        "window": 8
+      },
+      "message": "Synchronous I/O (localStorage/fetch) near a per-frame handler. Debounce persistence or move it to the release event."
+    },
+    {
+      "id": "UX-009",
+      "title": "Sub-44px touch target",
+      "severity": "WARNING",
+      "signature": "Interactive element with an explicit size below 36px (h-6/h-7/h-8, w-6..w-8, size-6..size-8) and no compensating padding, hit-slop or minimum size.",
+      "impact": "Below roughly 36px the tap target falls short of the 44x44px accessibility minimum and causes mis-taps.",
+      "fix": "Add min-h-[44px] min-w-[44px], padding, or a hitSlop of at least 8px per axis.",
+      "check": {
+        "line": ["<button", "<Button", "motion.button", "role=\"button\"", "onClick="],
+        "alsoLine": ["h-5 ", "h-6 ", "h-7 ", "h-8 ", "w-5 ", "w-6 ", "w-7 ", "w-8 ", "size-6 ", "size-7 ", "size-8 "],
+        "unlessLine": ["p-1", "p-2", "p-3", "p-4", "p-5", "p-6", "min-h-[44px]", "min-w-[44px]", "hitSlop", "hit-slop", "min-h-11", "min-w-11"]
+      },
+      "message": "Interactive element below 36px with no padding, hit-slop or min-size compensation. Minimum effective target is 44x44px."
+    },
+    {
+      "id": "UX-010",
+      "title": "Icon-only button without an accessible name",
+      "severity": "WARNING",
+      "signature": "Icon-only button with no aria-label, no title and no visually hidden text.",
+      "impact": "Screen readers announce an unnamed button, making the control unusable.",
+      "fix": "Add aria-label (preferred) or a visually hidden text span.",
+      "check": {
+        "line": ["<button", "<Button", "motion.button"],
+        "needsContent": ["Icon", "Trash", "Pencil", "Plus", "Search", "Settings", "MoreVertical", "Ellipsis", "XIcon", "XCircle"],
+        "unlessLine": ["aria-label", "title=", "aria-labelledby", "sr-only"]
+      },
+      "message": "Icon-only button without aria-label / title / sr-only text. Add an accessible name for screen readers."
+    },
+    {
+      "id": "UX-011",
+      "title": "Arbitrary font size outside the canonical type scale",
+      "severity": "INFO",
+      "signature": "text-[Npx] with a value outside the design-system scale.",
+      "impact": "Typography drift: two components render the same semantic size at different pixel values.",
+      "fix": "Stick to the canonical scale (text-xs, text-sm, text-base, text-lg) or promote the value to a documented token.",
+      "check": {
+        "line": ["text-[8px]", "text-[9px]", "text-[10px]", "text-[11px]", "text-[13px]", "text-[13.5px]", "text-[15px]", "text-[17px]"],
+        "unlessLine": ["var(--", "fontSize"]
+      },
+      "message": "Arbitrary pixel font size outside the canonical Tailwind scale."
+    },
+    {
+      "id": "UX-012",
+      "title": "Clickable element without tactile feedback",
+      "severity": "INFO",
+      "signature": "Element with onClick and cursor-pointer but no active or hover state transition.",
+      "impact": "Touch devices have no hover, so the user gets zero confirmation that the tap registered.",
+      "fix": "Add an active state such as active:scale-[0.98] or active:bg-secondary, ideally with a transition.",
+      "check": {
+        "line": ["cursor-pointer"],
+        "unlessLine": ["active:scale-", "active:bg-", "hover:bg-", "whileTap", "motion.", "transition"]
+      },
+      "message": "Clickable element with cursor-pointer but no active/hover feedback. Add active:scale-[0.98] or active:bg-secondary."
+    },
+    {
+      "id": "UX-013",
+      "title": "Monetary value without tabular numerals",
+      "severity": "INFO",
+      "signature": "Currency values rendered through a number/currency formatter without tabular-nums or a monospace data font.",
+      "impact": "Proportional digits cause horizontal micro-jumps as amounts change between renders.",
+      "fix": "Apply tabular-nums (or the project's monospace data token) to every numeric column.",
+      "check": {
+        "line": ["toLocaleString", "Intl.NumberFormat", "formatCurrency", "formatAmount", "currencyFormatter"],
+        "unlessLine": ["tabular-nums", "font-mono", "fontMono"],
+        "unlessNearby": ["tabular-nums", "font-mono", "fontMono"],
+        "window": 3
+      },
+      "message": "Currency value without tabular-nums / monospace data font. May cause horizontal text jitter."
+    }
+  ]
+}

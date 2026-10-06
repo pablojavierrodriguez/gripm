@@ -699,6 +699,8 @@
   "card.editDetail": "Editar detalle",
   "card.copyAiPrompt": "Copiar Prompt IA 🤖",
   "card.changeStatus": "Cambiar estado",
+  "card.moveUp": "Subir",
+  "card.moveDown": "Bajar",
   "card.protected": "Protegido",
   "kanban.continuousFlow": "Flujo Continuo (Kanban)",
   "kanban.sprintBoard": "Sprint Board (Scrumban)",
