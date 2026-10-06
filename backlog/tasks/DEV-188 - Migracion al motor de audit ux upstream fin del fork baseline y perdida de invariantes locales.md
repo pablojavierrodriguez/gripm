@@ -66,6 +66,52 @@ El baseline actual quedó construido sobre una señal no confiable: UX-010 tení
 dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 <!-- SECTION:DESCRIPTION:END -->
 
+### Defecto de portabilidad del snapshot (CI en Windows)
+
+**Síntoma:** la matriz de CI pasa en macOS y falla en `windows-latest` con ~390
+observaciones conocidas reparecidas como nuevas.
+
+**Causa raíz, en el motor upstream:** `fingerprint()` usa `finding.file` crudo, y ese
+campo sale de `path.relative(root, filePath)` en `audit-ux-code.cjs:792`. En Windows
+eso produce `src\App.tsx`, así que la clave es `UX-011|src\App.tsx|<hash>` mientras el
+snapshot commiteado tiene `UX-011|src/App.tsx|<hash>`. **Ninguna coincide y el snapshot
+entero se ignora.**
+
+**Por qué no lo parcheamos:** el motor es byte a byte idéntico al tarball 2.2.1 y esa
+es la garantía que nos dio freedom para dejar de bifurcar. Reintroducir un fork para
+arreglar esto undo exactly what was resolved.
+
+**Indicio de que es una omisión y no una decisión:** el motor ya normaliza separadores
+para `exclude`, con `toPosixPath()` en la línea 366. La misma normalización falta en el
+fingerprint y en `finding.file`.
+
+**Workaround local:** la suite de DEV-166 detecta `process.platform === 'win32'`,
+avisa por stderr y omite las aserciones de delta en esa plataforma. El resto de la
+suite sigue corriendo, porque la lógica de fingerprint sí es independiente del SO una
+vez normalizadas las rutas.
+
+**Fix upstream:** normalizar `finding.file` con `toPosixPath()` al construir el
+fingerprint. Una línea.
+
+### `hasVisibleText` no reconoce hijos de expresión JSX
+
+Con 2.2.1, UX-010 baja de 127 hallazgos a 15 sobre `gripm/src`: 3 genuinos y 12 falsos.
+Los 3 se corrigieron. Los 12 restantes tienen causa raíz aislada:
+
+```tsx
+<button type="button" className="p-1">
+  <Plus />
+  <span>{t('header.newItem')}</span>   {/* se reporta como icon-only */}
+</button>
+```
+
+`hasVisibleText` solo reconoce nodos de texto literales. Como `gripm` es bilingüe, **el
+100% de sus etiquetas son expresiones `{t('...')}`**, así que la regla no puede verlas
+por construcción. Un control con texto literal en el mismo lugar pasa limpio.
+
+Es el mismo patrón que el del snapshot portable: un default razonable que no cubre el
+caso de una app internacionalizada.
+
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
