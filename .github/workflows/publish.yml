@@ -62,9 +62,21 @@ jobs:
             exit 1
           fi
 
-          # Exigir annotated tag: un tag lightweight no lleva mensaje y aun así
+          # Exigir annotated tag: un tag lightweight no lleva mensaje y aun asi
           # se publica, dejando la release de GitHub sin contexto.
-          if [ "$(git cat-file -t "v$PKG_VERSION")" != "tag" ]; then
+          #
+          # En un evento de push de tag, actions/checkout deja HEAD detached en
+          # el commit y el ref del tag no queda disponible para cat-file. Por eso
+          # se consulta el objeto etiquetado en el remoto en lugar del ref local.
+          TAG_OBJECT="$(git ls-remote --tags origin "refs/tags/v$PKG_VERSION" | cut -f1)"
+          if [ -z "$TAG_OBJECT" ]; then
+            echo "::error::No se encuentra el tag v$PKG_VERSION en el remoto."
+            exit 1
+          fi
+
+          # Un tag annotated expone una segunda linea "refs/tags/<tag>^{}" que
+          # desreferencia al commit. Un lightweight expone solo una.
+          if ! git ls-remote --tags origin "refs/tags/v$PKG_VERSION^{}" | grep -q .; then
             echo "::error::El tag v$PKG_VERSION no es annotated. Recrealo con 'git tag -a'."
             exit 1
           fi
