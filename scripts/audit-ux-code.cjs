@@ -2,7 +2,7 @@
 
 /**
  * scripts/audit-ux-code.cjs
- * DevBoard — Static Code-Level UX & Ergonomics Auditor
+ * gripm — Static Code-Level UX & Ergonomics Auditor
  *
  * Escanea archivos en src/ para detectar firmas estáticas de errores de UX,
  * touch targets deficientes (< 44px), colisiones de scroll horizontal,
@@ -19,15 +19,33 @@
  *
  * El opt-out exige motivo escrito a propósito. No es un mecanismo para tapar
  * hallazgos: es un registro de por qué el hallazgo no aplica en ese punto.
+ *
+ * Baseline (DEV-166): el proyecto arrastra cientos de observaciones INFO de
+ * micro-tipografía deliberada. Emitirlas siempre entrena al equipo a ignorar la
+ * salida. `scripts/audit-ux-baseline.json` registra el conjunto aceptado y-known
+ * y el auditor solo reporta el delta. Los ERROR nunca se silencian: el baseline
+ * aplica exclusivamente a WARNING e INFO.
  */
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
-const ROOT = path.resolve(__dirname, '..');
+// ROOT is the project being audited. __dirname/.. is correct for the repo and
+// for consumers that install the script alongside their source. AUDIT_UX_ROOT
+// points the auditor at another project explicitly, which is what the baseline
+// regression suite uses to exercise snapshots without touching this repo.
+const ROOT = process.env.AUDIT_UX_ROOT
+  ? path.resolve(process.env.AUDIT_UX_ROOT)
+  : path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
+// The baseline lives next to the script, not inside the audited project: it
+// describes this auditor's accepted findings, not the consumer's.
+const BASELINE_PATH = path.join(__dirname, 'audit-ux-baseline.json');
+const BASELINE_VERSION = 1;
 
 const isStrict = process.argv.includes('--strict');
+const updateBaseline = process.argv.includes('--update-baseline');
 const findings = [];
 
 /** ¿La línea o la anterior silencian este código de regla? Exige motivo escrito. */
@@ -232,23 +250,159 @@ function auditGlobalCss() {
 }
 
 console.log('\n=====================================================');
-console.log('🔍 DEVBOARD: STATIC UX & ERGONOMICS AUDITOR');
+console.log('🔍 GRIPM: STATIC UX & ERGONOMICS AUDITOR');
 console.log('=====================================================\n');
 
 walk(SRC);
 auditGlobalCss();
 
-const errors = findings.filter(f => f.severity === 'ERROR');
-const warnings = findings.filter(f => f.severity === 'WARNING');
-const infos = findings.filter(f => f.severity === 'INFO');
+// ---------------------------------------------------------------------------
+// Baseline (DEV-166)
+// ---------------------------------------------------------------------------
 
-if (findings.length === 0) {
-  console.log('✅ CERO anti-patrones estáticos de UX detectados en src/.');
-  console.log('🎉 El código cumple con las directivas de ergonomía y robustez visual.\n');
+/**
+ * Adjunta la línea fuente a cada hallazgo para poder fingerprintearlo.
+ *
+ * Lee cada archivo una sola vez: el auditor recorre el árbol entero en cada
+ * corrida y un `readFileSync` por hallazgo sería O(n) en disco.
+ */
+function attachSource(all) {
+  const cache = new Map();
+
+  for (const finding of all) {
+    if (!cache.has(finding.file)) {
+      const full = path.join(ROOT, finding.file);
+      try {
+        cache.set(finding.file, fs.readFileSync(full, 'utf8').split('\n'));
+      } catch {
+        cache.set(finding.file, null);
+      }
+    }
+
+    const lines = cache.get(finding.file);
+    finding.source = lines && finding.line > 0 ? lines[finding.line - 1] : '';
+  }
+
+  return all;
+}
+
+/**
+ * Identidad estable de un hallazgo, invariante a la posición en el archivo.
+ *
+ * Usa el código de regla, la ruta y la línea fuente normalizada en lugar del
+ * número de línea: insertar una línea arriba no debe volver obsoleto el
+ * snapshot, pero cambiar el código que produce el hallazgo sí debe.
+ */
+function fingerprint(finding) {
+  const source = finding.source || '';
+  const normalized = source.replace(/\s+/g, ' ').trim();
+  const digest = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+
+  return `${finding.code}|${finding.file}|${digest}`;
+}
+
+function loadBaseline() {
+  if (!fs.existsSync(BASELINE_PATH)) return { version: BASELINE_VERSION, entries: {} };
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+    if (parsed.version !== BASELINE_VERSION) {
+      console.warn(
+        `⚠️  Baseline con formato v${parsed.version}, el auditor espera v${BASELINE_VERSION}. ` +
+        'Regeneralo con: npm run audit:ux -- --update-baseline',
+      );
+      return { version: BASELINE_VERSION, entries: {} };
+    }
+    return parsed;
+  } catch (err) {
+    console.error(`❌ audit-ux: no se pudo leer ${BASELINE_PATH}: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function writeBaseline(baselinable) {
+  const entries = {};
+  for (const finding of baselinable) {
+    const key = fingerprint(finding);
+    entries[key] = (entries[key] || 0) + 1;
+  }
+
+  const sorted = {};
+  for (const key of Object.keys(entries).sort()) sorted[key] = entries[key];
+
+  const payload = {
+    $comment:
+      'Snapshot de observaciones UX conocidas y aceptadas (DEV-166). ' +
+      'Regenerar deliberadamente con: npm run audit:ux -- --update-baseline',
+    version: BASELINE_VERSION,
+    generatedAt: new Date().toISOString(),
+    total: baselinable.length,
+    entries: sorted,
+  };
+
+  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(payload, null, 2)}\n`);
+  return payload;
+}
+
+/**
+ * Separa los hallazgos en los ya aceptados por el baseline y los nuevos.
+ * Un ERROR jamás se silencia: el baseline solo absorbe WARNING e INFO.
+ */
+function diffAgainstBaseline(all) {
+  const baseline = loadBaseline();
+  const accepted = new Set(Object.keys(baseline.entries || {}));
+  const remaining = new Map(Object.entries(baseline.entries || {}));
+
+  const baselinable = all.filter(f => f.severity !== 'ERROR');
+  const regressions = [];
+  const carriedOver = [];
+
+  for (const finding of all) {
+    if (finding.severity === 'ERROR' || !accepted.has(fingerprint(finding))) {
+      regressions.push(finding);
+      continue;
+    }
+
+    const key = fingerprint(finding);
+    const left = remaining.get(key) || 0;
+    if (left > 0) {
+      remaining.set(key, left - 1);
+      carriedOver.push(finding);
+    } else {
+      // Más ocurrencias que el snapshot: la primera ya estaba, las extras son nuevas.
+      regressions.push(finding);
+    }
+  }
+
+  return { baseline, baselinable, regressions, carriedOver };
+}
+
+const { baselinable, regressions, carriedOver } = diffAgainstBaseline(attachSource(findings));
+
+if (updateBaseline) {
+  const written = writeBaseline(baselinable);
+  console.log(
+    `📸 Baseline actualizado: ${written.total} observaciones conocidas registradas en ` +
+    `${path.relative(ROOT, BASELINE_PATH)} (${Object.keys(written.entries).length} firmas únicas).`,
+  );
+}
+
+const reported = updateBaseline ? [] : regressions;
+const knownCount = updateBaseline ? 0 : carriedOver.length;
+
+const errors = reported.filter(f => f.severity === 'ERROR');
+const warnings = reported.filter(f => f.severity === 'WARNING');
+const infos = reported.filter(f => f.severity === 'INFO');
+
+if (reported.length === 0) {
+  console.log('✅ CERO observaciones nuevas de UX en src/.');
+  console.log(
+    `🎉 Sin regresiones contra el baseline (${knownCount} observaciones conocidas y aceptadas).\n`,
+  );
   process.exit(0);
 } else {
-  console.log(`Se encontraron ${findings.length} observaciones de UX en el código:\n`);
-  findings.forEach(f => {
+  console.log(`Se encontraron ${reported.length} observaciones de UX en el código:\n`);
+  reported.forEach(f => {
     const icon = f.severity === 'ERROR' ? '❌' : f.severity === 'WARNING' ? '⚠️' : 'ℹ️';
     console.log(`${icon} [${f.code}] ${f.file}:${f.line}`);
     console.log(`   ${f.message}\n`);
@@ -256,6 +410,7 @@ if (findings.length === 0) {
 
   console.log('=====================================================');
   console.log(`Resumen: ${errors.length} errores, ${warnings.length} advertencias, ${infos.length} sugerencias.`);
+  console.log(`Baseline: ${knownCount} observaciones conocidas omitidas.`);
   console.log('=====================================================\n');
 
   if (isStrict && (errors.length > 0 || warnings.length > 0)) {

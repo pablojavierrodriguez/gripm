@@ -43,7 +43,11 @@ baratos y cubren la mayoría de los errores:
 
 ```bash
 npx tsc --noEmit        # 1. Tipado estricto. Debe salir con código 0.
-npm test                # 2. Parser + integración. ~300ms.
+npm test                # 2. Suite unificada: 11 pasos secuenciales (parser,
+                        #    integración, seguridad de API, smoke de paquete,
+                        #    locking optimista, SSE, import legacy, binario
+                        #    MCP, resiliencia y CLI, baseline de audit:ux,
+                        #    bundle dist).
 npm run backlog:check   # 3. Integridad del backlog. Debe salir con código 0.
 ```
 
@@ -81,17 +85,45 @@ npx -p @gripm/board gripm-mcp
 # npm run mcp (o gripm mcp)
 ```
 
-Herramientas MCP disponibles:
+Las 12 herramientas MCP disponibles:
 
 | Herramienta | Uso |
 |---|---|
 | `gripm_list_tasks` | Lista y filtra tareas de forma token-efficient. |
 | `gripm_get_task` | Lee detalles y criterios de aceptación. |
+| `gripm_create_task` | Crea una tarea y su archivo Markdown en `backlog/tasks/`. |
 | `gripm_update_task` | Actualiza estado, plan y tilda ACs. |
-| `gripm_bulk_update_tasks` | Actualiza decenas de tareas en una llamada. |
+| `gripm_bulk_update_tasks` | Actualiza decenas de tareas en una llamada atómica. |
 | `gripm_get_stats` | Métricas de salud y avance del proyecto. |
 | `gripm_list_releases` | Versiones en preparación y liberadas. |
+| `gripm_list_projects` | Proyectos registrados, sus rutas y motor de almacenamiento. |
+| `gripm_list_retros` | Retrospectivas guardadas en `backlog/retros/`. |
+| `gripm_create_retro` | Persiste una retrospectiva estructurada en Markdown. |
 | `gripm_sync_backlog` | Reconcilia tareas desfasadas y regenera `BACKLOG.md`. |
+| `gripm_export_backlog` | Genera o actualiza el documento consolidado `BACKLOG.md`. |
+
+### Publicar un release
+
+La publicación es automática: `.github/workflows/publish.yml` dispara con la
+publicación de una GitHub Release etiquetada `v*` (o con el push de ese tag) y
+publica `@gripm/board` con provenance. Para un release hay que:
+
+1. Verificar la pirámide completa en local.
+2. Regenerar el changelog con `npm run changelog` y commitearlo. El workflow
+   corta si `CHANGELOG.md` no refleja `backlog/releases.json`.
+3. Subir `package.json` con la versión destino y `git tag -a vX.Y.Z -m "..."`.
+   El tag debe coincidir con `package.json` y ser *annotated*: el workflow
+   rechaza cualquier otra cosa.
+4. Publicar la GitHub Release. Eso dispara el publish.
+
+Aprovisionamiento, una sola vez por repositorio:
+
+- Crear un token npm **Automation** en npmjs.com con scope de publicación sobre
+  `@gripm/board` y guardarlo como secret **`NPM_TOKEN`** en el repositorio
+  (Settings → Secrets and variables → Actions).
+- Publicar provenance requiere el permiso OIDC `id-token: write`, que el
+  workflow ya declara a nivel de job. Si la cuenta de npm tiene Trusted
+  Publishing configurado, `NPM_TOKEN` puede omitirse.
 
 ### El ciclo de una contribución
 

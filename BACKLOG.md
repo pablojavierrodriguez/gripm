@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-05 por DevBoard ⚡
+> Consolidado generado el 2026-10-06 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -51,7 +51,78 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 📋 Backlog / Draft (18)
+### 🔍 Review & QA (3)
+
+#### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+El auditor estático de ergonomía y UX `npm run audit:ux` (`scripts/audit-ux-code.cjs`) analiza el código fuente en busca de problemas de touch targets, colisiones de scroll y legibilidad.
+
+### Diagnóstico de Causa Raíz
+
+Actualmente el paso en CI produce:
+`Resumen: 0 errores, 0 advertencias, 313 sugerencias.`
+La gran mayoría de estas 313 sugerencias corresponden a micro-tipografías deliberadas (`text-[10px]` y `text-[11px]`) utilizadas en badges, metadatos y vistas de densidad compacta.
+
+### Problema
+
+El pipeline de integración continua (`.github/workflows/ci.yml`) ejecuta `npm run audit:ux`. Al emitir sistemáticamente más de 300 observaciones y finalizar siempre con código 0, la herramienta pierde su valor informativo: acostumbra al equipo a ignorar la salida y sepulta posibles regresiones reales introducidas en PRs entre cientos de líneas de ruido.
+
+### Objetivo
+
+Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
+1. Permitir registrar o cargar un baseline de observaciones conocidas y aceptadas (ej. `scripts/audit-ux-baseline.json`).
+2. En ejecución estándar (CI y local), comparar los hallazgos contra el baseline y reportar únicamente las diferencias (nuevas violaciones).
+3. Proveer una bandera CLI `--update-baseline` para renovar deliberadamente el snapshot cuando se agreguen o modifiquen componentes intencionalmente.
+4. Convertir el linter en un gate de calidad estricto que alerte ante regresiones genuinas sin requerir silenciadores manuales invasivos en cada línea.
+
+**Criterios de Aceptación:**
+- [x] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
+- [x] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
+- [x] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
+- [x] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
+- [x] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
+
+---
+
+#### [DEV-182] Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Configurar e implementar el workflow automatizado de despliegue continuo (CD) para la publicación en el registro público de npm (`@gripm/board` y `@gripm/playbook`) ante la creación de releases o tags en GitHub, eliminando la necesidad de publicación manual desde terminales locales.
+
+**Puntos clave identificados en auditoría (R19):**
+1. **Disparador:** Ejecución automática en eventos `release: [published]` o push de tags `v*`.
+2. **Seguridad y Provenance:** Publicación con flag `--provenance` mediante permisos OIDC (`id-token: write`, `contents: read`).
+3. **Validación previa:** Ejecutar `prepublishOnly` verificando build y `publish:check` sin fugas antes de publicar.
+
+**Criterios de Aceptación:**
+- [x] #1 Crear workflow .github/workflows/publish.yml en gripm con trigger de release/tag
+- [x] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
+- [x] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
+- [x] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
+
+---
+
+#### [DEV-183] Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+Ejecutar la limpieza y actualización de documentación técnica secundaria y residuos de logs internos identificados en el informe de auditoría técnica (R11):
+
+1. **Logs y Fallbacks de UI:** Erradicar cadenas residuales `[DevBoard]` en `App.tsx` y fallbacks `|| 'dev-board'` en `ReleaseAssembler.tsx`.
+2. **Endpoints en Arquitectura:** Corregir menciones obsoletas de endpoints en `docs/ARCHITECTURE.md` (`/api/backlog`, `/api/tasks` por los reales `/api/data`, `/api/items`).
+3. **Métricas en Docs:** Sincronizar recuentos de herramientas MCP en `CONTRIBUTING.md` (12 tools) y tiempos reales de tests.
+4. **Metadata de Repositorio:** Configurar topics de GitHub oficiales para gripm basados en las palabras clave del paquete.
+
+**Criterios de Aceptación:**
+- [x] #1 Erradicar prefijos de log residuales [DevBoard] en App.tsx reemplazando por [gripm]
+- [x] #2 Actualizar fallbacks de proyecto en ReleaseAssembler.tsx
+- [x] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
+- [x] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
+- [x] #5 Verificar que la suite de tests y backlog:check pasen con código 0
+
+---
+
+### 📋 Backlog / Draft (15)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -353,38 +424,6 @@ Extraer la capa de backend a módulos dedicados bajo un directorio `server/` (o 
 
 ---
 
-#### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-El auditor estático de ergonomía y UX `npm run audit:ux` (`scripts/audit-ux-code.cjs`) analiza el código fuente en busca de problemas de touch targets, colisiones de scroll y legibilidad.
-
-### Diagnóstico de Causa Raíz
-
-Actualmente el paso en CI produce:
-`Resumen: 0 errores, 0 advertencias, 313 sugerencias.`
-La gran mayoría de estas 313 sugerencias corresponden a micro-tipografías deliberadas (`text-[10px]` y `text-[11px]`) utilizadas en badges, metadatos y vistas de densidad compacta.
-
-### Problema
-
-El pipeline de integración continua (`.github/workflows/ci.yml`) ejecuta `npm run audit:ux`. Al emitir sistemáticamente más de 300 observaciones y finalizar siempre con código 0, la herramienta pierde su valor informativo: acostumbra al equipo a ignorar la salida y sepulta posibles regresiones reales introducidas en PRs entre cientos de líneas de ruido.
-
-### Objetivo
-
-Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
-1. Permitir registrar o cargar un baseline de observaciones conocidas y aceptadas (ej. `scripts/audit-ux-baseline.json`).
-2. En ejecución estándar (CI y local), comparar los hallazgos contra el baseline y reportar únicamente las diferencias (nuevas violaciones).
-3. Proveer una bandera CLI `--update-baseline` para renovar deliberadamente el snapshot cuando se agreguen o modifiquen componentes intencionalmente.
-4. Convertir el linter en un gate de calidad estricto que alerte ante regresiones genuinas sin requerir silenciadores manuales invasivos en cada línea.
-
-**Criterios de Aceptación:**
-- [ ] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
-- [ ] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
-- [ ] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
-- [ ] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
-- [ ] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
-
----
-
 #### [DEV-167] Erradicación de 52 any en src/ y Alineación Estricta con Skill Principal Engineer
 - **Prioridad**: `low` | **Tipo**: `refactor`
 
@@ -521,44 +560,6 @@ Durante el monitoreo automatizado de dependencias (DEV-175), Dependabot intentó
 - [ ] #3 Actualizar vite.config.ts y @vitejs/plugin-react garantizando compilación estricta (npx tsc --noEmit con 0 errores)
 - [ ] #4 Verificar suite de pruebas completa (npm test), build de producción y empaquetado standalone (binarios bin/)
 - [ ] #5 Remover los ignores de semver-major en .github/dependabot.yml para React y sus tipos
-
----
-
-#### [DEV-182] Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance
-- **Prioridad**: `medium` | **Tipo**: `improvement`
-
-Configurar e implementar el workflow automatizado de despliegue continuo (CD) para la publicación en el registro público de npm (`@gripm/board` y `@gripm/playbook`) ante la creación de releases o tags en GitHub, eliminando la necesidad de publicación manual desde terminales locales.
-
-**Puntos clave identificados en auditoría (R19):**
-1. **Disparador:** Ejecución automática en eventos `release: [published]` o push de tags `v*`.
-2. **Seguridad y Provenance:** Publicación con flag `--provenance` mediante permisos OIDC (`id-token: write`, `contents: read`).
-3. **Validación previa:** Ejecutar `prepublishOnly` verificando build y `publish:check` sin fugas antes de publicar.
-
-**Criterios de Aceptación:**
-- [ ] #1 Crear workflow .github/workflows/publish.yml en gripm con trigger de release/tag
-- [ ] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
-- [ ] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
-- [ ] #4 Replicar el workflow automatizado en el repositorio de gripm-playbook
-- [ ] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
-
----
-
-#### [DEV-183] Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-Ejecutar la limpieza y actualización de documentación técnica secundaria y residuos de logs internos identificados en el informe de auditoría técnica (R11):
-
-1. **Logs y Fallbacks de UI:** Erradicar cadenas residuales `[DevBoard]` en `App.tsx` y fallbacks `|| 'dev-board'` en `ReleaseAssembler.tsx`.
-2. **Endpoints en Arquitectura:** Corregir menciones obsoletas de endpoints en `docs/ARCHITECTURE.md` (`/api/backlog`, `/api/tasks` por los reales `/api/data`, `/api/items`).
-3. **Métricas en Docs:** Sincronizar recuentos de herramientas MCP en `CONTRIBUTING.md` (12 tools) y tiempos reales de tests.
-4. **Metadata de Repositorio:** Configurar topics de GitHub oficiales para gripm basados en las palabras clave del paquete.
-
-**Criterios de Aceptación:**
-- [ ] #1 Erradicar prefijos de log residuales [DevBoard] en App.tsx reemplazando por [gripm]
-- [ ] #2 Actualizar fallbacks de proyecto en ReleaseAssembler.tsx
-- [ ] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
-- [ ] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
-- [ ] #5 Verificar que la suite de tests y backlog:check pasen con código 0
 
 ---
 

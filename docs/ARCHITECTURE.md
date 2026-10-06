@@ -43,7 +43,7 @@ gripm es un tablero ágil de gestión de producto e ingeniería *embedded-first*
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │                    BACKEND EMBEBIDO & MIDDLEWARE                       │
 │                                                                        │
-│  vite.config.ts (Middleware de endpoints API /api/backlog, /api/tasks) │
+│  vite.config.ts (Middleware de endpoints API /api/data, /api/items)  │
 │  scripts/backlogMdParser.ts (Parser y serializador Markdown/YAML)      │
 │  scripts/verify-backlog-sync.js (Guard de sincronización viva)         │
 └───────────────────────────────────┬────────────────────────────────────┘

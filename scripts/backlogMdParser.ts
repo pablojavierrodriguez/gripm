@@ -164,7 +164,7 @@ export function formatPriorityForMd(p: 'p0' | 'p1' | 'p2' | 'p3' | string): stri
 }
 
 /**
- * Normaliza el tipo de tarea al vocabulario estándar de DevBoard
+ * Normaliza el tipo de tarea al vocabulario estándar de gripm
  * (bug, feature, tech_debt, ux, epic, initiative)
  */
 export function normalizeType(raw: string | undefined | null): string {
@@ -718,7 +718,7 @@ export function generateMonolithicBacklogMd(projectName: string, items: BacklogM
   const now = new Date().toISOString().slice(0, 10);
   const lines: string[] = [
     `# Backlog: ${projectName}`,
-    `> Consolidado generado el ${now} por DevBoard ⚡`,
+    `> Consolidado generado el ${now} por gripm ⚡`,
     '',
     '## Resumen de Estados',
     ''

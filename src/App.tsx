@@ -215,7 +215,7 @@ export function App() {
         }
       }
     } catch (err: any) {
-      console.warn('[DevBoard] Failed to load config:', err.message);
+      console.warn('[gripm] Failed to load config:', err.message);
     }
   }, [setLanguage]);
 

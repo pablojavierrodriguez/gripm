@@ -36,6 +36,28 @@ interface ReleaseAssemblerProps {
 type TabFilter = 'all' | 'unreleased' | 'released';
 type DrawerTab = 'details' | 'tasks' | 'changelog';
 
+/**
+ * Project id used when the view is in "all projects" mode and no item carries
+ * one. Single source of truth so a release is never stamped with a legacy
+ * brand name (DEV-183).
+ */
+const DEFAULT_PROJECT_ID = 'gripm';
+
+/**
+ * Resolves the project a release belongs to. A release must be stamped with a
+ * concrete project: it is filtered by project in the board, so an empty or
+ * legacy id would make the release invisible.
+ */
+const resolveReleaseProjectId = (
+  explicit: string | undefined,
+  projectId: string,
+  items: BacklogItem[]
+): string => {
+  if (explicit) return explicit;
+  if (projectId !== 'all') return projectId;
+  return items[0]?.projectId || DEFAULT_PROJECT_ID;
+};
+
 export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
   items,
   releases,
@@ -253,7 +275,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     }
 
     const newRel: Partial<Release> = {
-      projectId: projectId === 'all' ? (items[0]?.projectId || 'dev-board') : projectId,
+      projectId: resolveReleaseProjectId(undefined, projectId, items),
       version: v,
       title: newTitle.trim() || `En Preparación: v${v}`,
       targetDate: newTargetDate,
@@ -287,7 +309,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
       await onArchiveRelease(
         {
           id: activeRelease.id,
-          projectId: activeRelease.projectId || (projectId === 'all' ? (items[0]?.projectId || 'dev-board') : projectId),
+          projectId: resolveReleaseProjectId(activeRelease.projectId, projectId, items),
           version: activeRelease.version,
           title: editTitle.trim(),
           date: editDate,
@@ -316,7 +338,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
       await onArchiveRelease(
         {
           id: rel.id,
-          projectId: rel.projectId || (projectId === 'all' ? (items[0]?.projectId || 'dev-board') : projectId),
+          projectId: resolveReleaseProjectId(rel.projectId, projectId, items),
           version: rel.version,
           title: rel.title.replace(/^En Preparación:\s*/i, ''),
           date: todayStr,

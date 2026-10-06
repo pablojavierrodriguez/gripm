@@ -1,7 +1,7 @@
 ---
 id: DEV-166
 title: "Implementación de Baseline en audit:ux para Detección de Regresiones en CI"
-status: draft
+status: review
 created_date: '2026-10-04'
 updated_date: '2026-10-04 20:00'
 labels:
@@ -42,11 +42,11 @@ Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
-- [ ] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
-- [ ] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
-- [ ] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
-- [ ] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
+- [x] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
+- [x] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
+- [x] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
+- [x] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
+- [x] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -63,4 +63,35 @@ Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
 
 <!-- SECTION:NOTES:BEGIN -->
 Invariante: Errores críticos de accesibilidad o layout (como UX-010 en scrollbars) nunca deben ser silenciados por el baseline; este solo debe aplicar a advertencias y sugerencias de micro-diseño auditadas.
+
+### Resolución aplicada
+
+- **Fingerprint invariante a la posición.** La identidad de un hallazgo es
+  `code|file|sha256( línea fuente normalizada )[0:12]`, no el número de línea.
+  Insertar código arriba no invalida el snapshot; cambiar la línea que produce
+  el hallazgo sí. Las ocurrencias repetidas se cuentan por multiplicidad, de modo
+  que una quinta aparición de algo que el snapshot aceptaba cuatro veces se
+  reporta como nueva.
+- **Los ERROR nunca pasan por el baseline.** `baselinable` excluye explícitamente
+  `severity === 'ERROR'`, así que UX-010 sigue cortando la build con código 1
+  aunque el snapshot esté desactualizado.
+- **`AUDIT_UX_ROOT` agregado al auditor.** `ROOT` pasó a ser configurable por
+  variable de entorno para que la suite pueda ejercitar snapshots arbitrarios
+  contra proyectos de descarte sin tocar el repositorio. El baseline sigue
+  anclado a `__dirname`: describe los hallazgos aceptados de este auditor, no
+  los del consumidor.
+- **Suite de regresión en `npm test`.** `scripts/verify-audit-ux-baseline.js`
+  (paso 10 de 11) cubre los cuatro contratos: baseline commiteado en verde,
+  fingerprint estable ante desplazamiento de líneas, regresión nueva reportada
+  con archivo y línea, y ERROR no absorbible.
+- **Snapshot generado:** 313 observaciones, 269 firmas únicas. Todas INFO
+  (294 UX-006, 9 UX-005, 5 UX-004, 5 UX-001); 0 WARNING y 0 ERROR.
+
+### Verificación ejecutable
+
+```bash
+npm run audit:ux                           # 0 nuevas, 313 conocidas, exit 0
+npm run audit:ux -- --update-baseline      # regenera el snapshot
+node scripts/verify-audit-ux-baseline.js   # 4/4 contratos del gate
+```
 <!-- SECTION:NOTES:END -->

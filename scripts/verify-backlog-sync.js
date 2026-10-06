@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * DevBoard Backlog Live Synchronization & Pre-commit Guard
+ * gripm Backlog Live Synchronization & Pre-commit Guard
  * 
  * Verifica la coherencia entre el estado del código fuente y las tareas en backlog/.
  * Impide commits con tareas desactualizadas o sin reflejo en el backlog (Dogfooding).
@@ -234,12 +234,12 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
     const mcpToolsMatch = readmeContent.match(/Available MCP Tools \((\d+)\s+Tools\)/i);
     if (mcpToolsMatch) {
       const toolsInDoc = parseInt(mcpToolsMatch[1], 10);
-      const mcpBinPath = path.join(ROOT_DIR, 'bin/devboard-mcp.js');
+      const mcpBinPath = path.join(ROOT_DIR, 'bin/gripm-mcp.js');
       if (fs.existsSync(mcpBinPath)) {
         const mcpBinContent = fs.readFileSync(mcpBinPath, 'utf8');
-        const toolDefs = (mcpBinContent.match(/name:\s*['"]devboard_[a-z0-9_]+['"]/g) || []).length;
+        const toolDefs = (mcpBinContent.match(/name:\s*['"]gripm_[a-z0-9_]+['"]/g) || []).length;
         if (toolDefs > 0 && toolsInDoc < toolDefs) {
-          console.warn(`⚠️  [Documentación Desfasada] README.md declara ${toolsInDoc} herramientas MCP, pero devboard-mcp expone ${toolDefs} herramientas.`);
+          console.warn(`⚠️  [Documentación Desfasada] README.md declara ${toolsInDoc} herramientas MCP, pero gripm-mcp expone ${toolDefs} herramientas.`);
         }
       }
     }
@@ -290,7 +290,7 @@ if (fs.existsSync(releasesJsonPath)) {
 }
 
 if (errorsFound > 0) {
-  console.error('\n🛑 [DevBoard Commit Guard] El commit fue bloqueado para evitar desactualización del backlog.');
+  console.error('\n🛑 [gripm Commit Guard] El commit fue bloqueado para evitar desactualización del backlog.');
   console.error(`   Se detectaron ${errorsFound} tarea(s) desfasadas respecto al código.`);
   console.error('   💡 Para solucionarlo automáticamente ejecuta: npm run backlog:sync\n');
   process.exit(1);

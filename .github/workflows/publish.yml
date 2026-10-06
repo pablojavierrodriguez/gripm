@@ -1,0 +1,118 @@
+name: Publish
+
+# DEV-182: publicar @gripm/board en el registro público de npm desde CI.
+#
+# El disparador es la publicación de una GitHub Release con tag `v*`. Ese tag
+# es la única fuente de verdad del versionado: package.json y CHANGELOG.md se
+# validan contra él antes de publicar, de modo que un tag mal cortado no llega
+# al registro.
+
+on:
+  release:
+    types: [published]
+  push:
+    tags: ['v*']
+
+# Cancelar una corrida anterior del mismo tag evita publicar dos veces si se
+# re-lanza el job.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Verify and publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      # OIDC: obligatorio para que npm pueda verificar la identidad del workflow
+      # y emitir la attestation de provenance (DEV-182).
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.6.0'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve the version to publish
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+
+          if [ "$TAG" != "v$PKG_VERSION" ]; then
+            echo "::error::Tag $TAG no coincide con package.json ($PKG_VERSION)."
+            exit 1
+          fi
+
+          # Exigir annotated tag: un tag lightweight no lleva mensaje y aun así
+          # se publica, dejando la release de GitHub sin contexto.
+          if [ "$(git cat-file -t "v$PKG_VERSION")" != "tag" ]; then
+            echo "::error::El tag v$PKG_VERSION no es annotated. Recrealo con 'git tag -a'."
+            exit 1
+          fi
+
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the tag is not already published
+        run: |
+          set -euo pipefail
+          if npm view "@gripm/board@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "::error::@gripm/board@${{ steps.version.outputs.version }} ya está publicado en npm."
+            exit 1
+          fi
+
+      - name: Typecheck (tsc)
+        run: npx tsc --noEmit
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Verify backlog integrity & sync
+        run: npm run backlog:check
+
+      - name: Run UX static audit
+        run: npm run audit:ux
+
+      - name: Guard publish surface (no local data in npm tarball)
+        run: npm run publish:check
+
+      - name: Regenerate CHANGELOG from releases.json
+        run: npm run changelog
+
+      - name: Fail if the changelog is out of date
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- CHANGELOG.md; then
+            echo "::error::CHANGELOG.md no refleja backlog/releases.json. Ejecutá 'npm run changelog' y commiteá."
+            git diff -- CHANGELOG.md
+            exit 1
+          fi
+
+      - name: Build and dry-run the package
+        run: |
+          set -euo pipefail
+          npm run build
+          npm pack --dry-run
+
+      - name: Publish to npm with provenance
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

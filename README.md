@@ -328,6 +328,10 @@ npm run backlog:sync
 # Static UX & Performance audit (zero CLS, layout shifts, touch targets)
 npm run audit:ux
 
+# Refresh the baseline after an intentional UX change, so CI only flags new
+# regressions instead of the known cosmetic observations
+npm run audit:ux -- --update-baseline
+
 # Production TypeScript, Vite bundle and standalone binaries packaging
 npm run build
 ```
