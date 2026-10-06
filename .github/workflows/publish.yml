@@ -2,14 +2,20 @@ name: Publish
 
 # DEV-182: publicar @gripm/board en el registro público de npm desde CI.
 #
-# El disparador es la publicación de una GitHub Release con tag `v*`. Ese tag
-# es la única fuente de verdad del versionado: package.json y CHANGELOG.md se
-# validan contra él antes de publicar, de modo que un tag mal cortado no llega
-# al registro.
+# El disparador es el push del tag `v*`. Ese tag es la única fuente de verdad del
+# versionado: package.json y CHANGELOG.md se validan contra él antes de publicar,
+# de modo que un tag mal cortado no llega al registro.
+#
+# Por qué NO se escucha `release: published`: con ambos disparadores, publicar el
+# tag ya publica el package y después crear la GitHub Release dispara el workflow
+# por segunda vez. Peor aún, en un evento `release` GitHub ejecuta la versión del
+# workflow que está en el commit del tag, no la de `main`, así que cualquier
+# arreglo posterior del workflow es invisible para esa corrida. El tag ya
+# publicado no se puede mover. O sea: esa segunda corrida no se puede arreglar, solo
+# evitar. Por eso el tag es el único disparador, y la GitHub Release se crea
+# después como documentación.
 
 on:
-  release:
-    types: [published]
   push:
     tags: ['v*']
 
