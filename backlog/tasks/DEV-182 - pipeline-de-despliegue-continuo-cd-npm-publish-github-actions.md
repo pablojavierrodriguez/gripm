@@ -1,17 +1,17 @@
 ---
 id: DEV-182
 title: "Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance"
-status: review
+status: ready
 created_date: '2026-10-05'
-updated_date: '2026-10-06'
+updated_date: '2026-10-06 01:47'
 labels:
   - "ci-cd"
   - "devops"
   - "npm"
   - "automation"
 dependencies:
-  - DEV-174
-  - DEV-181
+  - "DEV-174"
+  - "DEV-181"
 priority: medium
 type: improvement
 ---
@@ -34,11 +34,7 @@ Configurar e implementar el workflow automatizado de despliegue continuo (CD) pa
 - [x] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
 - [x] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
 - [x] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
-- [-] #4 Replicar el workflow automatizado en el repositorio de gripm-playbook
-      → **Reasignado a upstream.** `@gripm/playbook` es un paquete distinto, con su
-      propio registro y su propio ciclo de release. El plan de entrega lo mueve
-      explícitamente fuera del alcance de este repo (`Fase 1: 100% @gripm/board`).
-      Corresponde al repo `pablojavierrodriguez/gripm-playbook`.
+- [-] #4 Replicar el workflow automatizado en el repositorio de gripm-playbook (Reasignado a upstream)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -48,6 +44,7 @@ Configurar e implementar el workflow automatizado de despliegue continuo (CD) pa
 2. Añadir paso de verificación de tests, build y surface check.
 3. Añadir comando `npm publish --access public --provenance` condicionado al environment de release.
 4. Documentar los pasos de aprovisionamiento del token en GitHub Secrets.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
@@ -94,4 +91,3 @@ variables → Actions. Está documentado en `CONTRIBUTING.md`, sección *Publica
 release*. Hasta que exista, el job fallará en el último paso; es un acto de
 configuración del repositorio, no de código.
 <!-- SECTION:NOTES:END -->
-<!-- SECTION:PLAN:END -->

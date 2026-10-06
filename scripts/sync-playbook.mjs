@@ -35,7 +35,8 @@ export const CANONICAL_FRAMEWORK_FILES = [
   '.agents/skills/pwa-assets-audit/SKILL.md',
   '.agents/skills/recharts-reporting/SKILL.md',
   '.agents/skills/ui-radix-tailwind/SKILL.md',
-  'scripts/audit-ux-code.cjs',
+  // NOTA: scripts/audit-ux-code.cjs se preserva localmente en gripm para proteger
+  // el motor de baselining y filtrado diff (DEV-166) frente al sync de upstream.
   'docs/sprints/SPRINT_SPEC_TEMPLATE.md'
 ];
 

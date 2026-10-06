@@ -1,16 +1,16 @@
 ---
 id: DEV-183
 title: "Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata"
-status: review
+status: ready
 created_date: '2026-10-05'
-updated_date: '2026-10-06'
+updated_date: '2026-10-06 01:47'
 labels:
   - "documentation"
   - "branding"
   - "dx"
 dependencies:
-  - DEV-176
-  - DEV-181
+  - "DEV-176"
+  - "DEV-181"
 priority: low
 type: chore
 ---
@@ -43,6 +43,7 @@ Ejecutar la limpieza y actualización de documentación técnica secundaria y re
 2. Actualizar las referencias de rutas API en `docs/ARCHITECTURE.md`.
 3. Ajustar `CONTRIBUTING.md` con las 12 herramientas MCP canónicas.
 4. Ejecutar `npm test` y sincronizar backlog.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
@@ -98,4 +99,3 @@ npx tsc --noEmit && npm test && npm run backlog:check \
   && npm run publish:check && npm run build   # todos exit 0
 ```
 <!-- SECTION:NOTES:END -->
-<!-- SECTION:PLAN:END -->

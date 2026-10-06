@@ -51,7 +51,7 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 🔍 Review & QA (3)
+### 🚀 Ready for Deploy (3)
 
 #### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
 - **Prioridad**: `low` | **Tipo**: `chore`
@@ -122,7 +122,7 @@ Ejecutar la limpieza y actualización de documentación técnica secundaria y re
 
 ---
 
-### 📋 Backlog / Draft (15)
+### 📋 Backlog / Draft (16)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -578,6 +578,20 @@ Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm
 - [ ] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
 - [ ] #4 Agregar test fixture multilínea en la suite de tests del playbook
 - [ ] #5 Validar que npm run check:all pase en verde en gripm-playbook
+
+---
+
+#### [DEV-186] Refactor de Tipos Core: Renombrar DevBoardConfig a GripmConfig y Unificar Interfaces
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Renombrar la interfaz canónica DevBoardConfig a GripmConfig en src/types.ts y propagar el cambio en los ~10 módulos consumidores (src/App.tsx, SettingsView.tsx, api.ts, etc.) manteniendo retrocompatibilidad mediante un type alias deprecated export type DevBoardConfig = GripmConfig;. Esto completa la unificación de identidad de tipos post-rebranding sin romper contratos externos.
+
+**Criterios de Aceptación:**
+- [ ] #1 Definir GripmConfig como la interfaz canónica de configuración en src/types.ts
+- [ ] #2 Exportar export type DevBoardConfig = GripmConfig como alias con anotación @deprecated para retrocompatibilidad total
+- [ ] #3 Actualizar las referencias e importaciones en src/App.tsx, src/components/SettingsView.tsx, src/api.ts y demás módulos hacia GripmConfig
+- [ ] #4 Verificar que npx tsc --noEmit pase con 0 errores en modo estricto
+- [ ] #5 Validar que npm test y npm run backlog:check pasen con código 0
 
 ---
 
