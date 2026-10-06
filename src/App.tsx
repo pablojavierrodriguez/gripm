@@ -166,7 +166,7 @@ export function App() {
   // Modals & Popups
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BacklogItem | null>(null);
-  const [defaultNewStatus, setDefaultNewStatus] = useState<ItemStatus>('backlog');
+  const [defaultNewStatus, setDefaultNewStatus] = useState<ItemStatus>('draft');
   const [defaultNewSprint, setDefaultNewSprint] = useState<string>('');
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
