@@ -51,6 +51,46 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-189] Corregir el cuelgue del sondeo de puertos que bloqueaba npm test en CI
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`npm test` se colgaba en `ubuntu-latest` y mataba el job por `timeout-minutes`, con todos los asserts ya pasando. MacOS y Windows terminaban bien, lo que hacía el fallo parecer de infraestructura en lugar de un bug.
+
+### Síntoma en CI
+
+El log del job muestra la suite completa en verde y después nada:
+
+```
+🧹 Cleaned up test directory
+🎉 Full verification passed successfully!
+##[error]The operation was canceled.
+```
+
+El proceso terminó de trabajar pero nunca salió, así que el `&&` de `npm test` nunca avanzó al paso siguiente. Local el mismo script tarda 2s y sale con código 0.
+
+### Causa raíz
+
+`scripts/portUtils.js`, en `isPortAvailable`, sondea el puerto conectándose a él. El timeout del socket se fijaba con `socket.setTimeout(150)`, que **solo empieza a correr cuando el socket está establecido**. Un SYN descartado en vez de rechazado nunca llega a ese estado, así que la promesa nunca se resuelve.
+
+En macOS el sistema operativo rechaza la conexión de inmediato y el proceso sale. En un runner Linux el puerto está filtrado, el SYN se descarta, y el `TCPConnectWrap` queda pendiente para siempre: mantiene vivo el event loop y Node nunca termina.
+
+El test que disparaba el sondeo es DEV-177 en `scripts/verify-integration.js`, que resuelve la configuración real de Vite, y esa resolución llama a `findAvailablePort`.
+
+### El error que cometí en el primer intento
+
+La primera corrección añadió el timer guard con `guard.unref()`. Eso anula **justo el timer que debe resolver la promesa**: si es lo único que mantiene vivo el loop, Node sale antes de dispararlo y la promesa queda sin resolver. El síntoma pasó de "cuelgue silencioso" a `Detected unsettled top-level await`, que es el mismo bug con otro mensaje.
+
+**Criterios de Aceptación:**
+- [x] #1 `isPortAvailable` resuelve aunque el connect nunca se complete, mediante un timer guard independiente del estado del socket
+- [x] #2 El timer guard no está `unref`'d y el socket se destruye en todas las rutas de salida
+- [x] #3 Existe test de regresión que reproduce el SYN descartado de forma determinista, para que el bug no vuelva en silencio en macOS o Windows
+- [x] #4 El test cubre también el comportamiento normal: puerto ocupado se reporta ocupado, puerto libre se reporta libre
+- [x] #5 `npm test` sale con código 0 sin depender del sistema operativo
+
+---
+
 ### 📋 Backlog / Draft (16)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases

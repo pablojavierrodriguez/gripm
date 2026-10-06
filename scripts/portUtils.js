@@ -19,20 +19,31 @@ export async function isPortAvailable(port, host = 'localhost') {
     const cleanup = () => {
       if (!settled) {
         settled = true;
+        // Destroy before clearing the timer: `socket.destroy()` is what actually
+        // tears down a pending connect, so it must run on every exit path.
         socket.destroy();
+        clearTimeout(guard);
       }
     };
 
-    socket.setTimeout(150);
+    // `socket.setTimeout()` only fires once the socket is *established*. A connect
+    // that never completes (a filtered port that drops the SYN instead of
+    // refusing it, common on Linux CI) never reaches that state, so the timer
+    // alone leaves the request pending and the process never exits.
+    //
+    // This guard must NOT be unref'd: it is frequently the only thing keeping the
+    // loop alive, and an unref'd timer would let Node exit before firing, which
+    // leaves the promise unsettled ("Detected unsettled top-level await").
+    const guard = setTimeout(() => {
+      cleanup();
+      resolve(true); // No response / timed out
+    }, 150);
+
     socket.once('connect', () => {
       cleanup();
       resolve(false); // Port is occupied!
     });
-    socket.once('timeout', () => {
-      cleanup();
-      resolve(true); // No response / timed out
-    });
-    socket.once('error', (err) => {
+    socket.once('error', () => {
       cleanup();
       // ECONNREFUSED or EADDRNOTAVAIL indicates no service is listening
       resolve(true);

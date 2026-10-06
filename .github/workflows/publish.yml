@@ -26,7 +26,10 @@ jobs:
   publish:
     name: Verify and publish to npm
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30 min: este job encadena los mismos 15 pasos de verificación más el
+    # build, el dry-run y la publicación. Con 20 el margen era demasiado
+    # ajustado para un runner lento.
+    timeout-minutes: 30
 
     permissions:
       contents: read
