@@ -1,7 +1,7 @@
 ---
 id: DEV-173
 title: "Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste"
-status: review
+status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-06'
 labels:
@@ -45,7 +45,7 @@ Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo qu
       → `src/hooks/useFocusTrap.ts` compartido, aplicado a los 8 diálogos del app (el AC nominaba 5); verificado por `scripts/verify-focus-trap.js`
 - [x] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
       → Cambio de estado ya era accesible (`ItemCard.tsx`, un `<button>` por estado); la reordenación se agregó con "Subir"/"Bajar" en el menú de la tarjeta, reutilizando el `order` fraccionario del drag
-- [ ] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
+- [x] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
       → **Bloqueado.** Requiere el conteo real de botones sin nombre accesible, que depende de adoptar el motor upstream con los dos fixes de UX-010 (DEV-188). No se cierra declarando "0" porque el 0 de UX-010 es un techo, no una prueba
 - [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
       → 16/16 combinaciones verificadas por `scripts/verify-status-contrast.js` (paso 11 de `npm test`); 6 fallaban y se corrigieron

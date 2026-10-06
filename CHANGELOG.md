@@ -13,6 +13,33 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.0.3] — 2026-10-06 🛡️ Estabilización: Pipeline de Publicación, Baseline de UX y Accesibilidad del Cockpit
+
+### 🎯 Resumen
+*Parche de estabilización v1.0.3 de gripm: pipeline de publicación automática con provenance npm y gates de CI (DEV-182), baseline del auditor estático de UX para detectar regresiones en lugar de ruido (DEV-166), higiene de documentación y metadata con el catálogo de 12 herramientas MCP sincronizado (DEV-183), y un pase de accesibilidad del cockpit con trampa de foco, navegación por teclado, contraste verificado y reduced-motion (DEV-173). El motor de auditoría deja de bifurcar y adopta el canónico de @gripm/playbook.*
+
+### 🚀 Pipeline y CI
+- **Publicación automática con provenance (DEV-182):** `.github/workflows/publish.yml` dispara con la publicación de una release etiquetada `v*` o con el push de ese tag, con permisos OIDC y `npm publish --provenance`. Gates que evitan que un tag mal cortado llegue al registro público, que es irreversible: coincidencia con `package.json`, annotated tag obligatorio, idempotencia contra `npm view`, changelog como contrato regenerado desde `releases.json`, y build más `npm pack --dry-run` antes de publicar.
+
+### 🔍 Auditoría estática de UX
+- **Baseline de regresiones (DEV-166):** el auditor ya no emite cientos de observaciones cosméticas conocidas en cada corrida. `audit-ux-baseline.json` registra lo revisado y aceptado, y el gate reporta solo el delta. Las identidades son invariantes a la posición, así insertar código no invalida el snapshot, y los ERROR nunca se absorben.
+- **Adopción del motor canónico:** `scripts/audit-ux-code.cjs` es byte a byte idéntico a `@gripm/playbook@2.2.1`. El fork local queda en cero: la divergencia era de 270 y 358 líneas y ahora es nula.
+- **UX-010 rehabilitada:** se reporta con la señal real. Los 127 hallazgos previos bajaron a 15: 3 genuinos corregidos y 12 falsos positivos por un defecto del motor que no reconoce etiquetas de expresión JSX, documentados y contados en vez de ocultos.
+
+### ♿ Accesibilidad del cockpit
+- **Trampa de foco en los 8 diálogos:** `useFocusTrap` compartido mueve el foco al abrir, cicla Tab y Shift+Tab, cierra con Escape y devuelve el foco al elemento disparador. `ItemModal` y `ConfirmModal` ya tenían Escape propio, que se unificó en el hook para no cerrar dos diálogos apilados de una vez.
+- **Contraste verificado:** 6 de 16 combinaciones de badges de estado estaban por debajo de 4.5:1 en tema claro. Se ajustaron al tono que alcanza el umbral y `verify-status-contrast.js` lo verifica en cada corrida leyendo los estilos reales.
+- **Teclado sin puntero:** la reordenación de tarjetas en el Kanban tenía únicamente drag and drop. Se agregaron acciones "Subir" y "Bajar" en el menú de la tarjeta, y el cambio de estado ya era alcanzable por teclado.
+- **Semántica nativa:** 4 controles interactivos que no eran semánticos pasaron a usar `<button>`, `role` y `tabIndex` con manejo de Enter y Espacio. Los 31 casos restantes se clasificaron como guardas de propagación y cáscaras de overlay, donde agregar roles habría creado falsos puntos de foco.
+- **Reduced motion:** los pulsos decorativos se congelan cuando el sistema lo pide, y los spinners se atenúan en lugar de detenerse porque son la única señal de carga en curso.
+
+### 📚 Documentación y metadata
+- **Catálogo MCP completo (DEV-183):** la documentación listaba 7 de las 12 herramientas disponibles.
+- **Branding:** se eliminaron los residuos de la marca anterior en logs, en el generador del backlog consolidado y en el guard de sincronización.
+- **Corrección de datos:** las releases tenían un identificador de proyecto obsoleto que las hacía invisibles en el tablero, porque el filtro por proyecto es de igualdad estricta.
+
+---
+
 ## [1.0.2] — 2026-10-05 🐛 Parche de Desacople CLI: Soporte de Promesas en Desinstalación Interactiva
 
 ### 🎯 Resumen

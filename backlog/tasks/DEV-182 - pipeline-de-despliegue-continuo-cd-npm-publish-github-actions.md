@@ -1,7 +1,7 @@
 ---
 id: DEV-182
 title: "Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance"
-status: ready
+status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-06 01:47'
 labels:

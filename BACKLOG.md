@@ -51,113 +51,6 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 🔍 Review & QA (1)
-
-#### [DEV-173] Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
-
-### El proyecto ya tiene la herramienta y no la usó
-
-`.agents/skills/code-level-ux-auditor/` está instalado en el repo y audita anti-patrones de UX móvil, colisiones de gestos, scroll, teclado virtual y jank de render. Está orientado a móvil, pero cubre varias de las categorías que importan acá. Nunca se ejecutó como auditoría del codebase.
-
-### Superficie de riesgo
-
-El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
-
-1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
-2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
-3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
-
-### Objetivo
-
-Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo que se encuentre, y decidir si queda incorporateda al gate de CI o es una tarea recurrente de release.
-
-**Criterios de Aceptación:**
-- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
-- [x] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
-- [x] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
-- [ ] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
-- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
-- [x] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
-- [x] #7 Existe `prefers-reduced-motion` respetado en las animaciones existentes (splash, transiciones de tema, dots de estado)
-- [x] #8 La decisión queda registrada: la accesibilidad se incorpora como paso de `npm run audit:ux` y CI, o se declara como tarea recurrente de release con la razón
-- [x] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
-
----
-
-### 🚀 Ready for Deploy (3)
-
-#### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-El auditor estático de ergonomía y UX `npm run audit:ux` (`scripts/audit-ux-code.cjs`) analiza el código fuente en busca de problemas de touch targets, colisiones de scroll y legibilidad.
-
-### Diagnóstico de Causa Raíz
-
-Actualmente el paso en CI produce:
-`Resumen: 0 errores, 0 advertencias, 313 sugerencias.`
-La gran mayoría de estas 313 sugerencias corresponden a micro-tipografías deliberadas (`text-[10px]` y `text-[11px]`) utilizadas en badges, metadatos y vistas de densidad compacta.
-
-### Problema
-
-El pipeline de integración continua (`.github/workflows/ci.yml`) ejecuta `npm run audit:ux`. Al emitir sistemáticamente más de 300 observaciones y finalizar siempre con código 0, la herramienta pierde su valor informativo: acostumbra al equipo a ignorar la salida y sepulta posibles regresiones reales introducidas en PRs entre cientos de líneas de ruido.
-
-### Objetivo
-
-Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
-1. Permitir registrar o cargar un baseline de observaciones conocidas y aceptadas (ej. `scripts/audit-ux-baseline.json`).
-2. En ejecución estándar (CI y local), comparar los hallazgos contra el baseline y reportar únicamente las diferencias (nuevas violaciones).
-3. Proveer una bandera CLI `--update-baseline` para renovar deliberadamente el snapshot cuando se agreguen o modifiquen componentes intencionalmente.
-4. Convertir el linter en un gate de calidad estricto que alerte ante regresiones genuinas sin requerir silenciadores manuales invasivos en cada línea.
-
-**Criterios de Aceptación:**
-- [x] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
-- [x] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
-- [x] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
-- [x] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
-- [x] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
-
----
-
-#### [DEV-182] Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance
-- **Prioridad**: `medium` | **Tipo**: `improvement`
-
-Configurar e implementar el workflow automatizado de despliegue continuo (CD) para la publicación en el registro público de npm (`@gripm/board` y `@gripm/playbook`) ante la creación de releases o tags en GitHub, eliminando la necesidad de publicación manual desde terminales locales.
-
-**Puntos clave identificados en auditoría (R19):**
-1. **Disparador:** Ejecución automática en eventos `release: [published]` o push de tags `v*`.
-2. **Seguridad y Provenance:** Publicación con flag `--provenance` mediante permisos OIDC (`id-token: write`, `contents: read`).
-3. **Validación previa:** Ejecutar `prepublishOnly` verificando build y `publish:check` sin fugas antes de publicar.
-
-**Criterios de Aceptación:**
-- [x] #1 Crear workflow .github/workflows/publish.yml en gripm con trigger de release/tag
-- [x] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
-- [x] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
-- [x] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
-
----
-
-#### [DEV-183] Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-Ejecutar la limpieza y actualización de documentación técnica secundaria y residuos de logs internos identificados en el informe de auditoría técnica (R11):
-
-1. **Logs y Fallbacks de UI:** Erradicar cadenas residuales `[DevBoard]` en `App.tsx` y fallbacks `|| 'dev-board'` en `ReleaseAssembler.tsx`.
-2. **Endpoints en Arquitectura:** Corregir menciones obsoletas de endpoints en `docs/ARCHITECTURE.md` (`/api/backlog`, `/api/tasks` por los reales `/api/data`, `/api/items`).
-3. **Métricas en Docs:** Sincronizar recuentos de herramientas MCP en `CONTRIBUTING.md` (12 tools) y tiempos reales de tests.
-4. **Metadata de Repositorio:** Configurar topics de GitHub oficiales para gripm basados en las palabras clave del paquete.
-
-**Criterios de Aceptación:**
-- [x] #1 Erradicar prefijos de log residuales [DevBoard] en App.tsx reemplazando por [gripm]
-- [x] #2 Actualizar fallbacks de proyecto en ReleaseAssembler.tsx
-- [x] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
-- [x] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
-- [x] #5 Verificar que la suite de tests y backlog:check pasen con código 0
-
----
-
 ### 📋 Backlog / Draft (16)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -658,7 +551,7 @@ dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 
 ---
 
-### ✅ Done / Deployed (161)
+### ✅ Done / Deployed (165)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -3841,6 +3734,38 @@ Cierre de los dos últimos residuos identificados en la auditoría final de lanz
 
 ---
 
+#### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+El auditor estático de ergonomía y UX `npm run audit:ux` (`scripts/audit-ux-code.cjs`) analiza el código fuente en busca de problemas de touch targets, colisiones de scroll y legibilidad.
+
+### Diagnóstico de Causa Raíz
+
+Actualmente el paso en CI produce:
+`Resumen: 0 errores, 0 advertencias, 313 sugerencias.`
+La gran mayoría de estas 313 sugerencias corresponden a micro-tipografías deliberadas (`text-[10px]` y `text-[11px]`) utilizadas en badges, metadatos y vistas de densidad compacta.
+
+### Problema
+
+El pipeline de integración continua (`.github/workflows/ci.yml`) ejecuta `npm run audit:ux`. Al emitir sistemáticamente más de 300 observaciones y finalizar siempre con código 0, la herramienta pierde su valor informativo: acostumbra al equipo a ignorar la salida y sepulta posibles regresiones reales introducidas en PRs entre cientos de líneas de ruido.
+
+### Objetivo
+
+Implementar un mecanismo de baselining para `scripts/audit-ux-code.cjs`:
+1. Permitir registrar o cargar un baseline de observaciones conocidas y aceptadas (ej. `scripts/audit-ux-baseline.json`).
+2. En ejecución estándar (CI y local), comparar los hallazgos contra el baseline y reportar únicamente las diferencias (nuevas violaciones).
+3. Proveer una bandera CLI `--update-baseline` para renovar deliberadamente el snapshot cuando se agreguen o modifiquen componentes intencionalmente.
+4. Convertir el linter en un gate de calidad estricto que alerte ante regresiones genuinas sin requerir silenciadores manuales invasivos en cada línea.
+
+**Criterios de Aceptación:**
+- [x] #1 Diseñar el formato de snapshot y persistencia de baseline para `scripts/audit-ux-code.cjs`
+- [x] #2 Implementar la opción `--update-baseline` para capturar el conjunto actual de 313 observaciones
+- [x] #3 En ejecución normal sin argumentos, `npm run audit:ux` debe reportar 0 observaciones no baselineadas y terminar con código 0
+- [x] #4 Si se introduce una regresión no catalogada en el baseline, el script debe reportarla con precisión de archivo y línea
+- [x] #5 La suite completa `npm test` y el workflow de CI ejecutan limpiamente sin advertencias espurias
+
+---
+
 #### [DEV-168] Migración de Claves de localStorage a Prefijo Canónico gripm con Retrocompatibilidad
 - **Prioridad**: `low` | **Tipo**: `chore`
 
@@ -4044,6 +3969,40 @@ Que el tarball contenga los artefactos que el producto promete instalar, y que l
 
 ---
 
+#### [DEV-173] Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
+
+### El proyecto ya tiene la herramienta y no la usó
+
+`.agents/skills/code-level-ux-auditor/` está instalado en el repo y audita anti-patrones de UX móvil, colisiones de gestos, scroll, teclado virtual y jank de render. Está orientado a móvil, pero cubre varias de las categorías que importan acá. Nunca se ejecutó como auditoría del codebase.
+
+### Superficie de riesgo
+
+El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
+
+1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
+2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
+3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
+
+### Objetivo
+
+Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo que se encuentre, y decidir si queda incorporateda al gate de CI o es una tarea recurrente de release.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
+- [x] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
+- [x] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
+- [x] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
+- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
+- [x] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
+- [x] #7 Existe `prefers-reduced-motion` respetado en las animaciones existentes (splash, transiciones de tema, dots de estado)
+- [x] #8 La decisión queda registrada: la accesibilidad se incorpora como paso de `npm run audit:ux` y CI, o se declara como tarea recurrente de release con la razón
+- [x] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
+
+---
+
 #### [DEV-174] Matriz de CI: Múltiples Sistemas Operativos y la Versión Mínima de Node Declarada
 - **Prioridad**: `medium` | **Tipo**: `chore`
 
@@ -4222,6 +4181,43 @@ Ejecutar el saneamiento integral de frontera pública identificado en la auditor
 - [x] #5 Endurecer reglas de seguridad cuando se usa host 0.0.0.0 sin deshabilitar protecciones de Host ni reflejar Origin indiscriminadamente
 - [x] #6 Limpiar menciones de ESLint y actualizar conteos de tareas y sprints en README.md, README.es.md y CHANGELOG.md
 - [x] #7 Validar que la pirámide completa de verificación (tsc, npm test, backlog:check, publish:check, build) pase con código 0
+
+---
+
+#### [DEV-182] Pipeline de Despliegue Continuo (CD): Automatización de npm publish con GitHub Actions y Provenance
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Configurar e implementar el workflow automatizado de despliegue continuo (CD) para la publicación en el registro público de npm (`@gripm/board` y `@gripm/playbook`) ante la creación de releases o tags en GitHub, eliminando la necesidad de publicación manual desde terminales locales.
+
+**Puntos clave identificados en auditoría (R19):**
+1. **Disparador:** Ejecución automática en eventos `release: [published]` o push de tags `v*`.
+2. **Seguridad y Provenance:** Publicación con flag `--provenance` mediante permisos OIDC (`id-token: write`, `contents: read`).
+3. **Validación previa:** Ejecutar `prepublishOnly` verificando build y `publish:check` sin fugas antes de publicar.
+
+**Criterios de Aceptación:**
+- [x] #1 Crear workflow .github/workflows/publish.yml en gripm con trigger de release/tag
+- [x] #2 Configurar permisos OIDC id-token: write y contents: read para soporte de npm provenance
+- [x] #3 Documentar en docs o README el uso del secret NPM_TOKEN o Trusted Publishing
+- [x] #5 Validar que un dry-run de empaquetado y build ejecute exitosamente en CI antes del publish
+
+---
+
+#### [DEV-183] Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+Ejecutar la limpieza y actualización de documentación técnica secundaria y residuos de logs internos identificados en el informe de auditoría técnica (R11):
+
+1. **Logs y Fallbacks de UI:** Erradicar cadenas residuales `[DevBoard]` en `App.tsx` y fallbacks `|| 'dev-board'` en `ReleaseAssembler.tsx`.
+2. **Endpoints en Arquitectura:** Corregir menciones obsoletas de endpoints en `docs/ARCHITECTURE.md` (`/api/backlog`, `/api/tasks` por los reales `/api/data`, `/api/items`).
+3. **Métricas en Docs:** Sincronizar recuentos de herramientas MCP en `CONTRIBUTING.md` (12 tools) y tiempos reales de tests.
+4. **Metadata de Repositorio:** Configurar topics de GitHub oficiales para gripm basados en las palabras clave del paquete.
+
+**Criterios de Aceptación:**
+- [x] #1 Erradicar prefijos de log residuales [DevBoard] en App.tsx reemplazando por [gripm]
+- [x] #2 Actualizar fallbacks de proyecto en ReleaseAssembler.tsx
+- [x] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
+- [x] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
+- [x] #5 Verificar que la suite de tests y backlog:check pasen con código 0
 
 ---
 

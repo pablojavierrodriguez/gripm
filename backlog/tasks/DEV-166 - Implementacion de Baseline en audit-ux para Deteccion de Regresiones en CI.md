@@ -1,7 +1,7 @@
 ---
 id: DEV-166
 title: "Implementación de Baseline en audit:ux para Detección de Regresiones en CI"
-status: ready
+status: done
 created_date: '2026-10-04'
 updated_date: '2026-10-06 01:47'
 labels:

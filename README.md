@@ -338,7 +338,7 @@ npm run build
 
 ---
 
-## ✨ Features Overview (v1.0.2)
+## ✨ Features Overview (v1.0.3)
 
 - **🌐 Comprehensive Bilingual Internationalization (i18n)**: Language selector in CLI onboarding (`--init`), full dictionary coverage across all Cockpit UI views and modals, and bilingual templates (`DEV-114`).
 - **🚀 Automatic Browser Launch**: `npm run dev` and `npm run board` automatically launch the cockpit in the default system browser with `--no-open` flag support (`DEV-145`).
@@ -383,7 +383,7 @@ npm run build
 
 gripm uses gripm to manage its own development. 
 
-This repository itself contains a [`backlog/tasks/`](backlog/tasks/) folder managed in `backlog-md` mode, tracking real features, UX polish, and releases across **180+ tasks** (`DEV-001` through `DEV-185`), 9 sprints and 10 formal releases (`v0.2.0` through `v1.0.2`).
+This repository itself contains a [`backlog/tasks/`](backlog/tasks/) folder managed in `backlog-md` mode, tracking real features, UX polish, and releases across **180+ tasks** (`DEV-001` through `DEV-188`), 9 sprints and 11 formal releases (`v0.2.0` through `v1.0.3`).
 
 ---
 

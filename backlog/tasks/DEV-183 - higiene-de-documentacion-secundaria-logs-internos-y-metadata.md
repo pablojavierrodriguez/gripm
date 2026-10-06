@@ -1,7 +1,7 @@
 ---
 id: DEV-183
 title: "Higiene de Documentación Secundaria: Unificación de Logs Internos, Endpoints de Arquitectura y Metadata"
-status: ready
+status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-06 01:47'
 labels:
