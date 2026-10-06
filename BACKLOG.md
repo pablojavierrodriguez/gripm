@@ -51,7 +51,7 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 📋 Backlog / Draft (16)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -548,6 +548,70 @@ dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 - [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
 - [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
 - [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-191] Actualizar las GitHub Actions deprecadas que corren forzadas en Node 24
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Cada corrida de los workflows termina con este warning de GitHub:
+
+```
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but
+are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.
+```
+
+`actions/checkout@v4` y `actions/setup-node@v4` apuntan a Node 20, que GitHub ya no soporta. Hoy funcionan porque el runner los fuerza a Node 24, o sea que el runtime real no es el que la action pide. Eso es una dependencia implícita de un comportamiento que GitHub puede cambiar sin avisar, y el día que deje de forzarla, los jobs dejan de andar.
+
+Aparece en `ci.yml` y en `publish.yml`. El de `publish.yml` importa más: es el que publica a npm.
+
+Vale notar que esto no surfaced por una falla, sino por un warning al final de un run exitoso. Es exactamente la clase de cosa que se pierde si solo se leen los pasos con `failure`.
+
+**Criterios de Aceptación:**
+- [ ] #1 `actions/checkout` actualizado a la major que apunta a Node 24 o superior
+- [ ] #2 `actions/setup-node` actualizado a la major que apunta a Node 24 o superior
+- [ ] #3 Ningún otro action del repo queda apuntando a una versión de Node deprecada
+- [ ] #4 La matriz de CI sigue en verde en los 3 sistemas operativos y las 2 versiones de Node
+- [ ] #5 El workflow de publicación sigue funcionando: `npm view @gripm/board@<version>` responde tras un tag de prueba
+
+---
+
+#### [DEV-192] Normalizar los IDs de sprint: hay un prefijo duplicado y un ID basado en timestamp
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+`backlog/sprints.json` tiene 9 sprints y dos de sus IDs no siguen el patrón `sprint-<n>`:
+
+```
+sprint-0                 Sprint 0
+sprint-1                 Sprint 1
+sprint-2                 Sprint 2
+sprint-3                 Sprint 3
+sprint-4                 Sprint 4
+sprint-1790252674566     Sprint 5     <- ID basado en timestamp
+sprint-6                 Sprint 6
+sprint-sprint-7          Sprint 7     <- prefijo duplicado
+sprint-8                 Sprint 8
+```
+
+`sprint-sprint-7` tiene el prefijo `sprint-` duplicado, y `sprint-1790252674566` se generó con `Date.now()` en lugar de secuencia. Visualmente el nombre es correcto ("Sprint 7"), así que el defecto está oculto hasta que algo consume el ID.
+
+### Por qué importa aunque hoy no rompa nada
+
+Verificado: **ninguna tarea, release ni entrada de `BACKLOG.md` referencia estos dos IDs**. La migración no tiene costo de datos.
+
+El riesgo es latente, no activo. Los IDs son la clave de agrupación y de las queries del filtro de sprint; un ID con doble prefijo rompe cualquier comparación por `startsWith` o por regex que asuma el patrón, y un timestamp no ordena igual que el resto de la secuencia.
+
+### Origen probable
+
+El `sprint-sprint-7` sugiere que en algún momento el nombre ya venía prefijado y el código que genera el ID le agregó el prefijo otra vez. El timestamp sugiere un camino de creación alternative que no participa de la secuencia.
+
+**Criterios de Aceptación:**
+- [ ] #1 Los 9 IDs de `backlog/sprints.json` siguen el patrón `sprint-<n>`
+- [ ] #2 La secuencia es correlativa y coincide con el nombre del sprint
+- [ ] #3 El generador de IDs de sprint no puede producir un prefijo duplicado
+- [ ] #4 El generador de IDs de sprint no puede producir un ID basado en timestamp
+- [ ] #5 `npm run backlog:check` sigue en verde después de la migración
+- [ ] #6 La vista de Sprint y el filtro por sprint muestran los 9 sprints con el mismo nombre que antes de la migración
 
 ---
 
