@@ -123,7 +123,9 @@ function makeProject(files, { withCss = true } = {}) {
 
   const others = report.findings.filter((f) => f.rule !== 'UX-010');
   assert.deepEqual(
-    others.map((f) => `${f.rule} ${f.file}:${f.line}`),
+    // Normalize separators: the engine reports POSIX paths, but assertions built
+    // from `path.join` would use backslashes on Windows and fail on the same finding.
+    others.map((f) => `${f.rule} ${f.file.split('\\').join('/')}:${f.line}`),
     [],
     'no finding outside the documented UX-010 false positives may reach the gate',
   );
@@ -203,7 +205,13 @@ function makeProject(files, { withCss = true } = {}) {
   const findings = JSON.parse(after.stdout).findings;
   assert.equal(findings.length, 1, 'exactly the new observation must be reported');
   assert.equal(findings[0].rule, 'UX-011', 'regression must carry the canonical rule id');
-  assert.equal(findings[0].file, 'src/Widget.tsx', 'regression must report the file');
+  // POSIX-normalized: the engine always reports forward slashes, but a literal
+  // comparison would be fine while the path.join-based ones above would not.
+  assert.equal(
+    findings[0].file.split('\\').join('/'),
+    'src/Widget.tsx',
+    'regression must report the file',
+  );
   assert.equal(findings[0].line, 2, 'regression must report the line');
 
   fs.rmSync(project, { recursive: true, force: true });
