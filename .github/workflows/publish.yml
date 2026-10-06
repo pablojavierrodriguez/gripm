@@ -106,6 +106,16 @@ jobs:
       - name: Run UX static audit
         run: npm run audit:ux
 
+      # El guard de superficie empaqueta el tarball y exige `dist/index.html`.
+      # Por eso el build tiene que precederlo: antes el build estaba después del
+      # guard, así que en un runner limpio `dist/` no existía y el paso fallaba
+      # con "FALTA EN EL TARBALL". Localmente pasaba solo porque `dist/` ya
+      # estaba de una corrida anterior de `npm run build`. El paso nunca se
+      # había validado en CI porque las corridas previas morían antes, en el
+      # test suite.
+      - name: Build the package
+        run: npm run build
+
       - name: Guard publish surface (no local data in npm tarball)
         run: npm run publish:check
 
@@ -121,11 +131,8 @@ jobs:
             exit 1
           fi
 
-      - name: Build and dry-run the package
-        run: |
-          set -euo pipefail
-          npm run build
-          npm pack --dry-run
+      - name: Dry-run the package
+        run: npm pack --dry-run
 
       - name: Publish to npm with provenance
         run: npm publish --access public --provenance
