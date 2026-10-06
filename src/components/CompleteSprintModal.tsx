@@ -356,6 +356,7 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveAction(idx)}
+                                  aria-label={`${t('completeSprint.removeAction')} ${act}`}
                                   className="p-1 text-slate-400 hover:text-rose-500"
                                 >
                                   <Trash2 className="w-3 h-3" />

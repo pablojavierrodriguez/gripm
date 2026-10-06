@@ -7,7 +7,7 @@
  * from https://github.com/pablojavierrodriguez/gripm-playbook
  * 
  * Architecture Principle: Separation of Layers
- * - Framework Layer (Updated): .agents/skills/*, .agents/TEAM_PLAYBOOK.md, scripts/audit-ux-code.cjs
+ * - Framework Layer (Updated): .agents/skills/*, .agents/TEAM_PLAYBOOK.md
  * - Project Layer (Preserved): AGENTS.md, backlog/*, project-specific settings
  */
 
@@ -35,8 +35,6 @@ export const CANONICAL_FRAMEWORK_FILES = [
   '.agents/skills/pwa-assets-audit/SKILL.md',
   '.agents/skills/recharts-reporting/SKILL.md',
   '.agents/skills/ui-radix-tailwind/SKILL.md',
-  // NOTA: scripts/audit-ux-code.cjs se preserva localmente en gripm para proteger
-  // el motor de baselining y filtrado diff (DEV-166) frente al sync de upstream.
   'docs/sprints/SPRINT_SPEC_TEMPLATE.md'
 ];
 

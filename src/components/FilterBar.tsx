@@ -179,6 +179,7 @@ export const FilterBar: FC<FilterBarProps> = ({
                     setLocalSearch('');
                     onChangeFilters({ ...filters, search: '' });
                   }}
+                  aria-label={t('filters.clearSearch')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-white"
                 >
                   <X className="w-3 h-3" />

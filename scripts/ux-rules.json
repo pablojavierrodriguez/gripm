@@ -14,13 +14,17 @@
       "unlessLine": "Suppress the finding when ANY is present in the same line.",
       "unlessNearby": "Suppress the finding when ANY is present within +/- window lines of the candidate line.",
       "nearby": "Fire only when at least one of these is present within +/- window lines of the candidate line.",
-      "needsContent": "Fire only when at least one of these exists somewhere in the file.",
-      "unlessContent": "Disable the whole rule when ANY of these exists somewhere in the file.",
+      "needsContent": "Fire only when at least one of these exists in the element's own subtree (element + descendants).",
+      "unlessContent": "Disable the whole rule when ANY of these exists in the element's own subtree.",
+      "alsoContent": "Fire when the element's own content — excluding nested elements — matches. Use it when the element that renders a value is the one to report, rather than its wrapper.",
+      "unlessVisibleText": "true disables the rule when the element renders visible text. Tags, nested elements and {expressions} are excluded by construction.",
       "unlessFile": "Disable the whole rule when the file path contains ANY of these substrings.",
+      "onlyFile": "Run the rule only when the file path contains ANY of these substrings. The positive counterpart of unlessFile; without it a rule scoped by context cannot be expressed.",
       "requires.deps": "Fire only when the dependency exists in the target package.json. Omit for stack-agnostic rules. Rules with no dependency gate run everywhere.",
       "window": "Line radius used by nearby / unlessNearby. Defaults to 6."
     },
-    "suppression": "Inline '// ux-audit-ignore' disables every rule on that line. '// ux-audit-ignore UX-004' disables only that rule. Project-level opt-out lives in .uxaudit.json (disableRules / exclude)."
+    "suppression": "Inline '// ux-audit-ignore' disables every rule on that line. '// ux-audit-ignore UX-004' disables only that rule. Project-level opt-out lives in .uxaudit.json (disableRules / exclude).",
+    "localCatalog": "A project can add its own signatures without forking the engine: name a catalog of its own in .uxaudit.json under 'rules'. Its rules run alongside the canonical ones. UX-NNN is reserved for this file so that one id means one thing across every consumer; a local rule using that pattern is rejected with an error, not merged."
   },
   "rules": [
     {
@@ -74,8 +78,10 @@
       "requires": { "deps": ["date-fns"] },
       "check": {
         "line": ["format("],
+        "alsoContent": ["format("],
         "needsContent": ["MMMM", "\"MMM\"", "'MMM'", "EEEE"],
-        "unlessLine": ["locale"]
+        "unlessLine": ["locale"],
+        "unlessContent": ["locale"]
       },
       "message": "date-fns format() with month/day names but no locale argument. Pass { locale: activeLocale }."
     },
@@ -102,8 +108,9 @@
       "fix": "Use pb-32 (or a CSS variable derived from the bar height) plus env(safe-area-inset-bottom) on the scroll container.",
       "check": {
         "line": ["pb-16", "pb-20", "pb-24"],
-        "needsContent": ["bottom-0", "BottomNav", "BottomBar", "BottomSheet", "fixed bottom"],
-        "unlessLine": ["pb-32", "pb-36", "pb-40", "safe-area", "pb-[calc"]
+        "nearby": ["bottom-0", "BottomNav", "BottomBar", "BottomSheet", "fixed bottom"],
+        "unlessNearby": ["pb-32", "pb-36", "pb-40", "safe-area", "pb-[calc"],
+        "window": 8
       },
       "message": "Insufficient bottom padding (pb-16/pb-20/pb-24) for a fixed bottom bar. Use pb-32 plus safe-area-inset-bottom."
     },
@@ -158,9 +165,10 @@
       "impact": "Screen readers announce an unnamed button, making the control unusable.",
       "fix": "Add aria-label (preferred) or a visually hidden text span.",
       "check": {
-        "line": ["<button", "<Button", "motion.button"],
+        "line": ["<button", "<Button", "motion.button", "role=\"button\"", "role='button'"],
         "needsContent": ["Icon", "Trash", "Pencil", "Plus", "Search", "Settings", "MoreVertical", "Ellipsis", "XIcon", "XCircle"],
-        "unlessLine": ["aria-label", "title=", "aria-labelledby", "sr-only"]
+        "unlessLine": ["aria-label", "title=", "aria-labelledby", "sr-only"],
+        "unlessVisibleText": true
       },
       "message": "Icon-only button without aria-label / title / sr-only text. Add an accessible name for screen readers."
     },
@@ -199,6 +207,7 @@
       "fix": "Apply tabular-nums (or the project's monospace data token) to every numeric column.",
       "check": {
         "line": ["toLocaleString", "Intl.NumberFormat", "formatCurrency", "formatAmount", "currencyFormatter"],
+        "alsoContent": ["toLocaleString", "Intl.NumberFormat", "formatCurrency", "formatAmount", "currencyFormatter"],
         "unlessLine": ["tabular-nums", "font-mono", "fontMono"],
         "unlessNearby": ["tabular-nums", "font-mono", "fontMono"],
         "window": 3

@@ -41,6 +41,7 @@
   "files": [
     ".agents",
     ".githooks",
+    "audit-ux-baseline.json",
     "bin",
     "dist",
     "scripts",
@@ -78,6 +79,7 @@
     "backlog:purge-fabricated": "node scripts/purge-fabricated-task-sections.js",
     "publish:check": "node scripts/verify-publish-surface.js",
     "audit:ux": "node scripts/audit-ux-code.cjs",
+    "audit:ux:baseline": "node scripts/audit-ux-code.cjs --update-baseline",
     "changelog": "node scripts/generate-changelog.cjs",
     "lint": "tsc --noEmit",
     "format": "node scripts/verify-backlog-sync.js --fix",

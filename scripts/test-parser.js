@@ -194,51 +194,61 @@ try {
 }
 console.log('✅ DEV-117: Canonical project identity resolution & priority verified');
 
-// 6. DEV-101: el auditor estático debe detectar realmente los anti-patrones.
+// 6. DEV-101 / DEV-173: el auditor estatico debe detectar realmente los
+// anti-patrones, y los invariantes del proyecto deben estar cubiertos por tests.
 //
-// Un linter que no reporta nada también "pasa" cuando no mira nada. Estos checks
-// verifican que las reglas están conectadas y disparan, no que el código actual
-// esté limpio (eso lo comprueba `npm run audit:ux`).
-//
-// Desde DEV-173 el auditor consume el catálogo canónico `scripts/ux-rules.json`
-// —el mismo que documenta el skill `code-level-ux-auditor`— en vez de llevar las
-// reglas hardcodeadas. Por eso las firmas se verifican contra el catálogo.
+// Un linter que no reporta nada tambien "pasa" cuando no mira nada. Estos checks
+// verifican comportamiento observable, no la existencia de simbolos internos del
+// auditor: cuando gripm dejo de bifurcarlo (DEV-188), verificar ENV_GUTTER en el
+// fuente dejo de tener sentido porque ese simbolo ya no existe aca. Un test que ata
+// a la forma del motor rompe con cada refactor upstream sin proteger nada.
 {
   const ROOT_DIR = path.resolve(process.cwd());
-  const fsSync = fs.readFileSync(path.join(ROOT_DIR, 'scripts', 'audit-ux-code.cjs'), 'utf8');
-  const catalog = JSON.parse(
-    fs.readFileSync(path.join(ROOT_DIR, 'scripts', 'ux-rules.json'), 'utf8'),
-  );
-  const ruleById = new Map(catalog.rules.map((rule) => [rule.id, rule]));
+  const auditorPath = path.join(ROOT_DIR, 'scripts', 'audit-ux-code.cjs');
 
-  // 6.1 ENV-002: "truncate" en componentes de diálogo + opt-out documentado.
-  //    El catálogo canónico no cubre esta regla, así que vive en el motor.
-  assert.ok(fsSync.includes("ENV_TRUNCATE = 'ENV-002'"), 'DEV-101: el invariante ENV-002 debe existir');
-  assert.ok(/\\btruncate\\b/.test(fsSync), 'DEV-101: ENV-002 debe detectar "truncate"');
-  assert.ok(/Modal\|Dialog/.test(fsSync), 'DEV-101: ENV-002 debe acotarse a componentes de diálogo');
-  assert.ok(
-    fsSync.includes('audit-ux:allow-${ENV_TRUNCATE}'),
-    'DEV-101: ENV-002 debe admitir opt-out documentado',
-  );
-  assert.ok(fsSync.includes("audit-ux:allow-"), 'DEV-101: UX-009 debe admitir opt-out documentado');
-  assert.ok(/Modal\|Dialog/.test(fsSync), 'DEV-101: UX-009 debe acotarse a componentes de diálogo');
-
-  // 6.2 Invariante de gutter de scrollbar (ENV-001) sobre el CSS global. No es
-  // una regla del catálogo UX: es un contrato de layout declarado en AGENTS.md,
-  // por eso vive en el motor y no en ux-rules.json.
-  assert.ok(fsSync.includes("ENV_GUTTER = 'ENV-001'"), 'DEV-101: el invariante ENV-001 debe existir');
-  assert.ok(fsSync.includes('overflow-y: scroll'), 'DEV-101: debe verificar overflow-y: scroll');
-  assert.ok(fsSync.includes('scrollbar-gutter: stable'), 'DEV-101: debe verificar scrollbar-gutter: stable');
-  assert.ok(fsSync.includes('auditEnvInvariants'), 'DEV-101: el invariante debe ejecutarse sobre el CSS global');
-
-  // 6.3 El código real cumple ambas reglas (si esto falla, audit:ux también).
+  // 6.1 El invariante de gutter de scrollbar (ENV-001) es un contrato sobre
+  //     src/index.css, no una firma de JSX. El auditor no escanea CSS, asi que su
+  //     cobertura vive aca y no en el motor.
   const cssNow = fs.readFileSync(path.join(ROOT_DIR, 'src', 'index.css'), 'utf8');
   const htmlBlock = cssNow.match(/(^|[,\s}])html\s*\{([\s\S]*?)\}/);
   assert.ok(htmlBlock, 'DEV-101: debe existir un bloque "html { }" en index.css');
   assert.ok(htmlBlock[2].includes('overflow-y: scroll'), 'DEV-101: html debe declarar overflow-y: scroll');
   assert.ok(htmlBlock[2].includes('scrollbar-gutter: stable'), 'DEV-101: html debe declarar scrollbar-gutter: stable');
+
+  // 6.2 La convencion truncate en dialogos (ENV-002) tampoco es una firma del
+  //     catalogo: es una convencion de diseno. Se verifica contra el codigo real,
+  //     aceptando las supresiones justificadas que el propio motor documenta.
+  const modalDir = path.join(ROOT_DIR, 'src', 'components');
+  const truncateOffenders = [];
+  for (const file of fs.readdirSync(modalDir)) {
+    if (!/Modal|Dialog/.test(file)) continue;
+    const lines = fs.readFileSync(path.join(modalDir, file), 'utf8').split('\n');
+    lines.forEach((line, index) => {
+      if (!/\btruncate\b/.test(line)) return;
+      const window = lines.slice(Math.max(0, index - 1), index + 1).join(' ');
+      if (window.includes('audit-ux:allow-')) return;
+      truncateOffenders.push(`${file}:${index + 1}`);
+    });
+  }
+  assert.deepEqual(
+    truncateOffenders,
+    [],
+    `ENV-002: "truncate" en dialogos sin justificar en ${truncateOffenders.join(', ')}`,
+  );
+
+  // 6.3 El motor expone su API publica, asi que un consumidor puede componer sobre
+  //     el. Es lo que permitio dejar de bifurcarlo.
+  const auditorSrc = fs.readFileSync(auditorPath, 'utf8');
+  assert.ok(
+    /module\.exports\s*=\s*\{[\s\S]*auditProject/.test(auditorSrc),
+    'DEV-188: el auditor debe exponer una API publica (auditProject)',
+  );
+  assert.ok(
+    /require\.main\s*===\s*module/.test(auditorSrc),
+    'DEV-188: importar el modulo no debe disparar el CLI como efecto secundario',
+  );
 }
-console.log('✅ DEV-101: static UX catalog wired, ENV-002 truncate rule and ENV-001 gutter enforced');
+console.log('✅ DEV-101: gutter de scrollbar, convención truncate en diálogos y API pública del auditor verificados');
 
 // 5. DEV-127: El serializador NUNCA debe fabricar contenido que el usuario no escribió.
 //

@@ -28,16 +28,16 @@
  *   --list-rules       Print the rule catalog and exit
  *   --rule <ID>        Only run this rule (repeatable)
  *   --quiet            Only print the summary
- *   --update-baseline  Rewrite scripts/audit-ux-baseline.json with the current
- *                      WARNING/INFO findings and exit without reporting them
+ *   --update-baseline  Rewrite the accepted-observations snapshot and exit
+ *
+ * Programmatic use:
+ *
+ *   const { auditProject } = require('./audit-ux-code.cjs');
+ *   const { findings, summary } = auditProject({ root: process.cwd() });
+ *
+ * Importing this module does not run an audit; only executing it as a binary
+ * does. `auditProject` never prints or exits, so a consumer owns presentation.
  *   --help             Print usage
- *
- * Baseline (DEV-166): the snapshot records the observations already reviewed and
- * accepted, and a normal run reports only the delta. Errors are never absorbed,
- * so a11y and layout invariants keep blocking even if the snapshot is stale.
- *
- * The catalog in scripts/ux-rules.json is the same one that documents the
- * `code-level-ux-auditor` skill, so a UX-* id means exactly what the skill says.
  *
  * Exit codes:
  *   0  no blocking findings (or nothing to scan)
@@ -57,25 +57,8 @@ const ROOT = process.env.AUDIT_UX_ROOT
   : path.resolve(__dirname, '..');
 const RULES_PATH = path.join(__dirname, 'ux-rules.json');
 const CONFIG_NAME = '.uxaudit.json';
-
-// Baseline (DEV-166). The project carries hundreds of known cosmetic
-// observations; emitting them every run trains the team to ignore the output.
-// The snapshot records what was reviewed and accepted, and the auditor reports
-// only the delta. ERROR is never absorbed: a11y and layout invariants stay
-// blocking even when the snapshot is stale.
-const BASELINE_PATH = path.join(__dirname, 'audit-ux-baseline.json');
+const BASELINE_NAME = 'audit-ux-baseline.json';
 const BASELINE_VERSION = 1;
-
-// Project invariants that are not expressible as a source signature because
-// they live outside the scanned units. Kept as ERROR so the baseline can never
-// silence them, and prefixed to keep them clearly distinct from the canonical
-// UX-* catalog.
-const ENV_GUTTER = 'ENV-001';
-
-// AGENTS.md gotcha #12 forbids `truncate` in confirmations and detail boxes: the
-// ellipsis hides the very impact the user is being asked to confirm. The shared
-// catalog has no equivalent rule, so it lives here to keep the guarantee.
-const ENV_TRUNCATE = 'ENV-002';
 
 const SEVERITY_ORDER = ['ERROR', 'WARNING', 'INFO'];
 const SCAN_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
@@ -108,8 +91,8 @@ function parseArgs(argv) {
     listRules: false,
     rules: [],
     quiet: false,
-    updateBaseline: false,
     help: false,
+    updateBaseline: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -171,10 +154,89 @@ function loadRules() {
   return { version: parsed.version || 1, rules: parsed.rules };
 }
 
-function loadConfig(opts) {
+/**
+ * Loads a project-owned catalog and merges it with the canonical one.
+ *
+ * A project that needs its own signatures must not fork the engine to get them.
+ * It writes a catalog of its own and names it in `.uxaudit.json`; the canonical
+ * catalog stays untouched by the sync and the rules simply run alongside it.
+ *
+ * `UX-NNN` is reserved. Squatting a canonical id is what lets one project read
+ * "my UX-009 is touch target" while the skill documents something else, so a
+ * local catalog using that pattern is rejected rather than merged.
+ */
+function loadLocalRules(relativePath, root) {
+  const localPath = path.resolve(root, relativePath);
+
+  if (!fs.existsSync(localPath)) {
+    fatal(`Config "rules" points at ${localPath}, which does not exist.`);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+  } catch (err) {
+    fatal(`Local rule catalog ${localPath} is not valid JSON: ${err.message}`);
+  }
+
+  if (!Array.isArray(parsed.rules)) {
+    fatal(`Local rule catalog ${localPath} has no "rules" array.`);
+  }
+
+  for (const rule of parsed.rules) {
+    if (typeof rule.id === 'string' && /^UX-\d{3}$/.test(rule.id)) {
+      fatal(
+        `Local rule ${rule.id} uses the reserved canonical pattern. ` +
+        'UX-NNN belongs to scripts/ux-rules.json so that one id means one thing ' +
+        'across every consumer. Give the local rule its own prefix.',
+      );
+    }
+  }
+
+  return { version: parsed.version || 1, rules: parsed.rules, localPath };
+}
+
+function loadCatalog(config, root) {
+  const canonical = loadRules();
+  if (!config || !config.rules) return { ...canonical, localRules: [] };
+
+  const local = loadLocalRules(config.rules, root);
+
+  const canonicalIds = new Set(canonical.rules.map((rule) => rule.id));
+  for (const rule of local.rules) {
+    if (canonicalIds.has(rule.id)) {
+      fatal(
+        `Local rule ${rule.id} collides with a canonical signature. ` +
+        'A local catalog adds rules; it cannot redefine shared ones.',
+      );
+    }
+  }
+
+  const merged = [
+    ...canonical.rules.map((rule) => ({ ...rule, origin: 'canonical' })),
+    ...local.rules.map((rule) => ({ ...rule, origin: 'local' })),
+  ];
+
+  for (const rule of merged) {
+    for (const field of ['id', 'title', 'severity', 'message']) {
+      if (!rule[field]) fatal(`Rule is missing required field "${field}": ${JSON.stringify(rule)}`);
+    }
+    if (!SEVERITY_ORDER.includes(rule.severity)) {
+      fatal(`Rule ${rule.id} has invalid severity "${rule.severity}".`);
+    }
+    if (!rule.check || !Array.isArray(rule.check.line) || !rule.check.line.length
+      && !rule.check.alsoContent) {
+      fatal(`Rule ${rule.id} has no detection signature.`);
+    }
+  }
+
+  return { version: canonical.version, rules: merged, localRules: local.rules, localPath: local.localPath };
+}
+
+function loadConfig(opts, root = ROOT) {
   const configPath = opts.config
-    ? path.resolve(ROOT, opts.config)
-    : path.join(ROOT, CONFIG_NAME);
+    ? path.resolve(root, opts.config)
+    : path.join(root, CONFIG_NAME);
 
   if (!fs.existsSync(configPath)) return { configPath, config: {} };
 
@@ -186,29 +248,29 @@ function loadConfig(opts) {
   }
 }
 
-function detectSourceDir(explicit, config) {
+function detectSourceDir(explicit, config, root = ROOT) {
   if (explicit) {
-    const resolved = path.resolve(ROOT, explicit);
+    const resolved = path.resolve(root, explicit);
     if (!fs.existsSync(resolved)) fatal(`--src directory does not exist: ${resolved}`);
     return resolved;
   }
 
   if (config.src) {
-    const resolved = path.resolve(ROOT, config.src);
+    const resolved = path.resolve(root, config.src);
     if (!fs.existsSync(resolved)) fatal(`Config "src" directory does not exist: ${resolved}`);
     return resolved;
   }
 
   for (const candidate of ['src', 'app', 'frontend', 'web', 'client']) {
-    const resolved = path.join(ROOT, candidate);
+    const resolved = path.join(root, candidate);
     if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) return resolved;
   }
 
   return null;
 }
 
-function loadDependencies() {
-  const pkgPath = path.join(ROOT, 'package.json');
+function loadDependencies(root = ROOT) {
+  const pkgPath = path.join(root, 'package.json');
   if (!fs.existsSync(pkgPath)) return new Set();
 
   try {
@@ -298,10 +360,10 @@ function isExcluded(relPath, excludes) {
 }
 
 /** Drops excluded files before auditing so their paths never reach the report. */
-function applyExcludes(files, excludes) {
+function applyExcludes(files, excludes, root = ROOT) {
   if (excludes.length === 0) return files;
 
-  return files.filter((file) => !isExcluded(toPosixPath(path.relative(ROOT, file)), excludes));
+  return files.filter((file) => !isExcluded(toPosixPath(path.relative(root, file)), excludes));
 }
 
 /** Returns '*' for a blanket suppression or the list of suppressed rule ids. */
@@ -320,68 +382,328 @@ function buildWindow(lines, index, radius) {
 const TAG_OPEN = /<[A-Za-z][\w.]*/g;
 
 /**
- * Counts the `>` that actually close a JSX tag.
+ * Classifies the tags a chunk of text opens, closes and self-closes.
  *
- * A bare `>` is not a close: `=>` is an arrow function, not a tag terminator.
- * Counting it as a close ends a unit early, which splits a multiline JSX
- * element across units. When the escape hatch sits on a later line than the
- * handler, it lands outside the unit that carries the offending attribute and
- * becomes invisible to `unlessLine`:
+ * The three kinds have to be told apart for nesting depth to mean anything:
  *
- *     <input
- *       type="number"
- *       onChange={(event) => set(toCents(event))}   <-- counted as a close
- *       inputMode="decimal"                        <-- now in the next unit
- *     />
+ *     <button onClick={save}>     open       depth +1
+ *       <Icon />                  self-close depth  0   <- must NOT close the parent
+ *       <span>Guardar</span>      open + close      0
+ *     </button>                   close      depth -1
  *
- * A `>` inside a generic (`Array<string>`) or a comparison is still counted, so
- * this handles the case that actually produces false positives rather than
- * attempting to parse JSX.
+ * Counting bare `>` characters instead cannot tell a self-closing child from a
+ * parent with children, so `<button>` and its contents end up in different units
+ * and any rule asking for "the content of this element" sees an empty string.
  */
-function countTagCloses(text) {
-  const withoutArrows = text.replace(/=>/g, '');
-  return (withoutArrows.match(/>/g) || []).length;
+function countTagKinds(text) {
+  const open = (text.match(TAG_OPEN) || []).length;
+  const close = (text.match(/<\/[A-Za-z][\w.]*\s*>/g) || []).length;
+  const self = (text.match(/\/>/g) || []).length;
+  return { open, close, self };
 }
 
 /**
- * Groups lines into logical units.
+ * Offset of the `>` that terminates the opening tag at `from`, or -1.
  *
- * A JSX element whose attributes span several lines must be matched as ONE
- * unit, otherwise an escape hatch like inputMode="decimal" sitting on the next
- * line is invisible and the rule reports a false positive. That formatting is
- * what every formatter produces, so line-by-line matching is not enough.
+ * Scanning is needed because several `>` characters are not terminators: an arrow
+ * (`=>`), a comparison (`a > b`), a generic (`Array<string>`) and anything inside
+ * a string or an attribute expression. A multiline opening tag ends wherever its
+ * real terminator sits, which is what tells the attribute lines from the children.
+ */
+function findTagEnd(text, from) {
+  let i = from;
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quote = ch;
+      i += 1;
+      while (i < text.length && text[i] !== quote) {
+        if (text[i] === '\\') i += 1;
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (ch === '{') {
+      let depth = 0;
+      while (i < text.length) {
+        if (text[i] === '{') depth += 1;
+        else if (text[i] === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            i += 1;
+            break;
+          }
+        }
+        i += 1;
+      }
+      continue;
+    }
+
+    if (ch === '=' && text[i + 1] === '>') {
+      i += 2;
+      continue;
+    }
+
+    if (ch === '>') {
+      return i;
+    }
+
+    i += 1;
+  }
+
+  return -1;
+}
+
+/**
+ * Removes `{...}` expression containers, respecting nesting and quotes.
  *
- * A unit keeps growing while it holds more JSX tag openings than tag closes.
- * Comparison and arrow operators contribute no tag opening, so ordinary
- * statements always close their own unit and are never over-merged.
+ * A JSX expression renders whatever it evaluates to, not its own source, so the
+ * source cannot be read as visible text.
+ */
+function stripExpressions(source) {
+  let out = '';
+  let i = 0;
+
+  while (i < source.length) {
+    const ch = source[i];
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quote = ch;
+      i += 1;
+      while (i < source.length && source[i] !== quote) {
+        if (source[i] === '\\') i += 1;
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (ch === '{') {
+      let depth = 0;
+      while (i < source.length) {
+        if (source[i] === '{') depth += 1;
+        else if (source[i] === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            i += 1;
+            break;
+          }
+        }
+        i += 1;
+      }
+      continue;
+    }
+
+    out += ch;
+    i += 1;
+  }
+
+  return out;
+}
+
+/**
+ * Groups lines into JSX elements.
+ *
+ * Every element produces one unit carrying two granularities:
+ *
+ *   `text`       the opening tag and its attributes only. Rules that look for a
+ *                signature (`line`, `alsoLine`, `unlessLine`) match here, so a
+ *                finding points at the element that actually carries the
+ *                problem instead of at the outermost wrapper.
+ *
+ *   `scopeText`  the element plus every descendant. Rules that ask about
+ *                content (`needsContent`, `unlessContent`) match here, which is
+ *                what makes "this button contains an icon" a question that can
+ *                actually be answered.
+ *
+ * Nesting is tracked so a self-closing child does not end its parent, and
+ * statements outside JSX become their own units so they never over-merge.
  */
 function buildUnits(lines) {
   const units = [];
-  let current = null;
+  const allFrames = [];
+  const text = lines.join('\n');
+  const stack = [];
 
-  lines.forEach((line, index) => {
-    if (!current) {
-      current = { startLine: index + 1, parts: [line] };
-    } else {
-      current.parts.push(line);
-    }
-
-    const text = current.parts.join('\n');
-    const opens = (text.match(TAG_OPEN) || []).length;
-    const closes = countTagCloses(text);
-
-    if (opens <= closes) {
-      current.text = text;
-      units.push(current);
-      current = null;
-    }
-  });
-
-  if (current) {
-    current.text = current.parts.join('\n');
-    units.push(current);
+  const lineStarts = [];
+  let acc = 0;
+  for (const line of lines) {
+    lineStarts.push(acc);
+    acc += line.length + 1;
   }
 
+  const lineOf = (pos) => {
+    let lo = 0;
+    let hi = lineStarts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (lineStarts[mid] <= pos) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
+
+  const closeFrame = (frame, endLine, spanEnd, closeAt) => {
+    frame.endLine = endLine;
+    frame.spanEnd = spanEnd;
+    frame.closeAt = closeAt;
+
+    const start = Math.min(frame.startLine, endLine);
+    const unit = {
+      startLine: start + 1,
+      headEndLine: frame.headEndLine,
+      endLine: Math.max(start, endLine) + 1,
+      parts: lines.slice(frame.startLine, frame.headEndLine + 1),
+      // The opening tag itself, not the physical line. Several elements often
+      // share one line, and a self-closing `<Icon />` sitting next to a `<button`
+      // must not inherit the button's signature and be reported as one.
+      text: text.slice(frame.at, frame.tagEnd + 1),
+      scopeText: lines.slice(start, Math.max(start, endLine) + 1).join('\n'),
+      isElement: true,
+      spanStart: frame.at,
+      spanEnd,
+    };
+
+    units.push(unit);
+    allFrames.push(frame);
+    frame.unit = unit;
+    if (frame.parent) frame.parent.children.push(frame);
+    return unit;
+  };
+
+  let i = 0;
+
+  while (i < text.length) {
+    const at = text.indexOf('<', i);
+    if (at === -1) break;
+
+    // A `<` that cannot start a tag is a comparison or a generic.
+    const next = text[at + 1];
+    if (!next || !/[A-Za-z/>]/.test(next)) {
+      i = at + 1;
+      continue;
+    }
+
+    const tagEnd = findTagEnd(text, at);
+    if (tagEnd === -1) {
+      i = at + 1;
+      continue;
+    }
+
+    const tagText = text.slice(at, tagEnd + 1);
+    const headEndLine = lineOf(tagEnd);
+
+    if (tagText.startsWith('</')) {
+      const name = (tagText.match(/^<\/\s*([A-Za-z][\w.]*)?/) || [])[1] || '';
+      // A fragment close (`</>`) has no name and closes whatever is innermost.
+      const index = name
+        ? stack.map((frame) => frame.name).lastIndexOf(name)
+        : stack.length - 1;
+
+      if (index !== -1) {
+        // Anything still open above the match is markup the author left
+        // unbalanced. It is closed here rather than dropped, so an unclosed
+        // element never swallows the rest of the file and never hides a finding.
+        for (let n = stack.length - 1; n > index; n -= 1) {
+          closeFrame(stack[n], headEndLine, at - 1, at);
+        }
+
+        const frame = stack[index];
+        stack.length = index;
+        closeFrame(frame, headEndLine, tagEnd, at);
+      }
+
+      i = tagEnd + 1;
+      continue;
+    }
+
+    const name = (tagText.match(/^<\s*([A-Za-z][\w.]*)/) || [])[1] || '';
+    const parent = stack.length ? stack[stack.length - 1] : null;
+    const frame = {
+      name,
+      startLine: lineOf(at),
+      headEndLine,
+      at,
+      tagEnd,
+      parent,
+      children: [],
+    };
+
+    if (/\/>\s*$/.test(tagText)) {
+      closeFrame(frame, headEndLine, tagEnd, tagEnd + 1);
+    } else {
+      stack.push(frame);
+    }
+
+    i = tagEnd + 1;
+  }
+
+  // Unbalanced markup must not swallow the rest of the file.
+  while (stack.length) {
+    const frame = stack.pop();
+    closeFrame(frame, lineOf(text.length - 1), text.length - 1, text.length);
+  }
+
+  // An element's own content: its source minus the source of every nested
+  // element. Without this level a wrapper inherits its child's signature — a
+  // `<div>` around `<span>{format(date, "MMMM")}</span>` would report the date
+  // leak and point at the wrapper instead of the element rendering the value.
+  // Renderable text, bottom-up: an element's own text plus the text its
+  // descendants render. Attributes are excluded by construction (they live in
+  // the opening tag, which the segments skip) and `{...}` expressions are
+  // dropped because they render nothing on their own.
+  //
+  // Descendant text has to be included. A control labelled `<Icon /><span>
+  // Guardar</span>` shows "Guardar" to the user, so counting only the element's
+  // direct text nodes would call it unlabelled — which is how `unlessVisibleText`
+  // ended up inert for the most common button shape there is.
+  for (const frame of allFrames) {
+    const segments = [];
+    let cursor = frame.tagEnd + 1;
+
+    for (const child of frame.children) {
+      if (child.at > cursor) segments.push(text.slice(cursor, child.at));
+      cursor = Math.max(cursor, child.spanEnd + 1);
+    }
+    if (frame.closeAt > cursor) segments.push(text.slice(cursor, frame.closeAt));
+
+    frame.unit.ownContent =
+      text.slice(frame.at, frame.tagEnd + 1) + segments.join('') + text.slice(frame.closeAt, frame.spanEnd + 1);
+
+    frame.unit.textContent = stripExpressions(segments.join(''));
+  }
+
+  for (const frame of allFrames.slice().reverse()) {
+    if (!frame.children.length) continue;
+    frame.unit.textContent = frame.children.reduce(
+      (sum, child) => sum + child.unit.textContent,
+      frame.unit.textContent,
+    );
+  }
+
+  // Statements outside JSX are units too, so line-based rules still see them.
+  const covered = new Set();
+  for (const unit of units) {
+    for (let n = unit.startLine; n <= unit.endLine; n += 1) covered.add(n);
+  }
+  // `covered` holds 1-based line numbers, matching the units.
+  for (let n = 0; n < lines.length; n += 1) {
+    if (covered.has(n + 1) || !lines[n].trim()) continue;
+    units.push({
+      startLine: n + 1,
+      headEndLine: n,
+      endLine: n + 1,
+      parts: [lines[n]],
+      text: lines[n],
+      scopeText: lines[n],
+      isElement: false,
+    });
+  }
+
+  units.sort((a, b) => a.startLine - b.startLine || a.endLine - b.endLine);
   return units;
 }
 
@@ -390,24 +712,70 @@ function ruleAppliesToProject(rule, relPath, deps) {
 
   if ((check.unlessFile || []).some((token) => relPath.includes(token))) return false;
 
+  // The positive counterpart of `unlessFile`. Without it a rule scoped by
+  // context — "`truncate` inside a dialog" — cannot be expressed at all, because
+  // a file filter can only ever switch a rule off.
+  if ((check.onlyFile || []).length
+    && !(check.onlyFile || []).some((token) => relPath.includes(token))) return false;
+
   const required = rule.requires && rule.requires.deps;
   if (required && required.length && !required.some((dep) => deps.has(dep))) return false;
 
   return true;
 }
 
+/**
+ * Whether an element renders any visible text.
+ *
+ * This is what separates an icon-only button from a labelled one, and a token
+ * list cannot express it: `<button><span>Guardar</span></button>` is accessible
+ * because the user sees "Guardar", and no `aria-*` attribute is involved. The
+ * escapes an attribute list can hold never cover that case.
+ *
+ * `textContent` is derived from parse offsets rather than stripped from the raw
+ * source, so an arrow function inside an attribute cannot be mistaken for a label.
+ */
+function hasVisibleText(unit) {
+  if (typeof unit.textContent === 'string') return unit.textContent.trim().length > 0;
+  return false;
+}
+
+/**
+ * Decides whether a rule matches one element unit.
+ *
+ * The unit carries two granularities and each check kind reads the right one:
+ *
+ *   `line`, `alsoLine`, `unlessLine`  →  `unit.text`, the opening tag and its
+ *       attributes. A signature belongs to the element that carries it, and a
+ *       finding should point at that element rather than at its wrapper.
+ *
+ *   `needsContent`, `unlessContent`  →  `unit.scopeText`, the element plus every
+ *       descendant. "Does this button contain an icon?" is a question about the
+ *       subtree, so evaluating it against the whole file — as an earlier version
+ *       did — made one `Icon` declaration turn every button in the file into an
+ *       icon-only button.
+ *
+ * `unlessVisibleText` reads that same subtree but semantically, for rules about
+ * whether a control exposes a name to the user.
+ *
+ * `nearby` and `unlessNearby` keep reading a line window, which is inherently
+ * positional.
+ */
 function lineMatches(rule, unit, lines, unitIndex, content) {
   const check = rule.check || {};
   const text = unit.text;
+  const scope = unit.scopeText;
 
   const anyIn = (list) => list.some((token) => text.includes(token));
-  const anyContent = (list) => list.some((token) => content.includes(token));
+  const anyInScope = (list) => list.some((token) => scope.includes(token));
 
-  if (!(check.line || []).some((token) => text.includes(token))) return false;
+  if (!(check.line || []).some((token) => text.includes(token))
+      && !(check.alsoContent || []).some((token) => (unit.ownContent || scope).includes(token))) return false;
   if ((check.alsoLine || []).length && !anyIn(check.alsoLine)) return false;
   if (anyIn(check.unlessLine || [])) return false;
-  if (anyContent(check.unlessContent || [])) return false;
-  if ((check.needsContent || []).length && !anyContent(check.needsContent)) return false;
+  if (anyInScope(check.unlessContent || [])) return false;
+  if ((check.needsContent || []).length && !anyInScope(check.needsContent)) return false;
+  if (check.unlessVisibleText && hasVisibleText(unit)) return false;
 
   const radius = typeof check.window === 'number' ? check.window : 6;
   if ((check.nearby || []).length || (check.unlessNearby || []).length) {
@@ -419,9 +787,9 @@ function lineMatches(rule, unit, lines, unitIndex, content) {
   return true;
 }
 
-function auditFile(filePath, rules, deps, disabledRules) {
+function auditFile(filePath, rules, deps, disabledRules, root = ROOT) {
   const findings = [];
-  const relPath = path.relative(ROOT, filePath);
+  const relPath = path.relative(root, filePath);
 
   let content;
   try {
@@ -503,153 +871,17 @@ function printJson(report) {
     rulesVersion: report.rulesVersion,
     src: report.srcDir,
     summary: report.summary,
+    baseline: report.baseline,
     findings: report.findings,
   }, null, 2));
 }
 
-function printRuleCatalog(catalog) {
-  console.log('');
-  console.log(`Rule catalog v${catalog.version} — ${catalog.rules.length} signatures`);
-  console.log('');
-  for (const rule of catalog.rules) {
-    const gated = rule.requires && rule.requires.deps
-      ? ` [requires: ${rule.requires.deps.join(' | ')}]`
-      : ' [stack agnostic]';
-    console.log(`${rule.severity.padEnd(7)} ${rule.id}  ${rule.title}${gated}`);
-    console.log(`        signature: ${rule.signature}`);
-    console.log(`        fix: ${rule.fix}`);
-    console.log('');
-  }
-}
-
-function printUsage() {
-  console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0].replace(/^\/\*\*?/, '').replace(/^ \* ?/gm, ''));
-}
-
 /**
- * Project invariants outside the scanned units.
+ * Stable identity for an observation, used to match findings against a baseline.
  *
- * The zero-CLS scrollbar contract lives in CSS, not in a JSX unit, so no source
- * signature can express it. It is a hard requirement in AGENTS.md, reported as
- * ERROR under an ENV-* id to keep it clearly outside the UX-* catalog.
- */
-function auditEnvInvariants() {
-  const results = [];
-  const cssPath = path.join(ROOT, 'src', 'index.css');
-
-  if (!fs.existsSync(cssPath)) {
-    results.push({
-      rule: ENV_GUTTER,
-      title: 'Scrollbar gutter stability',
-      severity: 'ERROR',
-      file: 'src/index.css',
-      line: 0,
-      message: 'src/index.css not found, so scrollbar stability cannot be verified.',
-      fix: 'Restore src/index.css declaring the html scrollbar contract.',
-      snippet: '',
-    });
-    return results;
-  }
-
-  const css = fs.readFileSync(cssPath, 'utf8');
-  const htmlBlock = css.match(/(^|[,\s}])html\s*\{([\s\S]*?)\}/);
-  const block = htmlBlock ? htmlBlock[2] : '';
-
-  const requirements = [
-    { prop: 'overflow-y: scroll', why: 'forces the scrollbar to stay visible and avoids width jumps between views' },
-    { prop: 'scrollbar-gutter: stable', why: 'reserves the scrollbar channel permanently and prevents horizontal CLS' },
-  ];
-
-  for (const { prop, why } of requirements) {
-    if (!block.includes(prop)) {
-      results.push({
-        rule: ENV_GUTTER,
-        title: 'Scrollbar gutter stability',
-        severity: 'ERROR',
-        file: 'src/index.css',
-        line: 0,
-        message: `Missing "${prop}" in the html block of index.css: ${why}.`,
-        fix: `Declare ${prop} inside the html { ... } rule.`,
-        snippet: '',
-      });
-    }
-  }
-
-  results.push(...auditTruncateInDialogs());
-
-  return results;
-}
-
-/**
- * ENV-002: `truncate` inside a dialog component.
- *
- * A static rule cannot tell an explanatory sentence from a one-line identifier, so
- * a justified opt-out is available: write `audit-ux:allow-ENV-002 <reason>` on the
- * affected line or the one above it.
- */
-function auditTruncateInDialogs() {
-  const results = [];
-
-  if (!fs.existsSync(path.join(ROOT, 'src'))) return results;
-
-  const stack = [path.join(ROOT, 'src')];
-  while (stack.length) {
-    const dir = stack.pop();
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (['node_modules', '.git', 'dist'].includes(entry.name)) continue;
-        stack.push(full);
-        continue;
-      }
-      if (!/\.tsx?$/.test(entry.name)) continue;
-      if (!/Modal|Dialog/.test(entry.name)) continue;
-
-      let lines;
-      try {
-        lines = fs.readFileSync(full, 'utf8').split('\n');
-      } catch {
-        continue;
-      }
-
-      const relPath = path.relative(ROOT, full);
-      lines.forEach((line, index) => {
-        if (!/\btruncate\b/.test(line)) return;
-
-        const window = lines.slice(Math.max(0, index - 1), index + 1).join(' ');
-        if (window.includes(`audit-ux:allow-${ENV_TRUNCATE}`)) return;
-
-        results.push({
-          rule: ENV_TRUNCATE,
-          title: 'Truncated text in a dialog',
-          severity: 'WARNING',
-          file: relPath,
-          line: index + 1,
-          message:
-            '`truncate` in a dialog. If the text is explanatory or sits in a detail box, the ellipsis hides the impact the user is being asked to confirm: use "break-words leading-relaxed". For a legitimate one-line identifier, silence it with an audit-ux:allow-ENV-002 comment stating why.',
-          fix: 'Replace `truncate` with `break-words leading-relaxed`.',
-          snippet: line.trim().slice(0, 160),
-        });
-      });
-    }
-  }
-
-  return results;
-}
-
-/**
- * Stable identity for a finding, independent of its position.
- *
- * Keyed on rule + file + hash of the normalised source line rather than the line
- * number: inserting code above a finding must not invalidate the snapshot, while
- * changing the code that produces it must.
+ * Rule, file and a digest of the offending source. Line numbers are excluded on
+ * purpose: inserting an import above a violation must not invalidate the whole
+ * snapshot.
  */
 function fingerprint(finding) {
   const normalized = (finding.snippet || finding.message || '').replace(/\s+/g, ' ').trim();
@@ -657,55 +889,54 @@ function fingerprint(finding) {
   return `${finding.rule}|${finding.file}|${digest}`;
 }
 
-function loadBaseline() {
-  if (!fs.existsSync(BASELINE_PATH)) return { version: BASELINE_VERSION, entries: {} };
+function loadBaseline(root = ROOT) {
+  const file = path.join(root, BASELINE_NAME);
+  if (!fs.existsSync(file)) return { version: BASELINE_VERSION, entries: {} };
 
   try {
-    const parsed = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (parsed.version !== BASELINE_VERSION) {
       console.warn(
         `⚠️  Baseline is v${parsed.version}, this auditor expects v${BASELINE_VERSION}. ` +
-        'Regenerate it with: npm run audit:ux -- --update-baseline',
+        `Regenerate it with: npm run audit:ux -- --update-baseline`,
       );
       return { version: BASELINE_VERSION, entries: {} };
     }
     return parsed;
   } catch (err) {
-    fatal(`Cannot read ${BASELINE_PATH}: ${err.message}`);
+    fatal(`Cannot read ${BASELINE_NAME}: ${err.message}`);
   }
+
+  return { version: BASELINE_VERSION, entries: {} };
 }
 
-function writeBaseline(baselinable) {
-  const counts = {};
-  for (const finding of baselinable) {
+function writeBaseline(findings, root = ROOT) {
+  const entries = {};
+  for (const finding of findings) {
     const key = fingerprint(finding);
-    counts[key] = (counts[key] || 0) + 1;
+    entries[key] = (entries[key] || 0) + 1;
   }
 
-  const entries = {};
-  for (const key of Object.keys(counts).sort()) entries[key] = counts[key];
-
   const payload = {
-    $comment:
-      'Snapshot of known, accepted UX observations (DEV-166). Regenerate deliberately with: npm run audit:ux -- --update-baseline',
     version: BASELINE_VERSION,
-    rulesVersion: JSON.parse(fs.readFileSync(RULES_PATH, 'utf8')).version,
-    generatedAt: new Date().toISOString(),
-    total: baselinable.length,
+    description:
+      'Observations already reviewed. WARNING and INFO only; ERROR is never absorbed.',
     entries,
   };
 
-  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(payload, null, 2)}\n`);
-  return payload;
+  fs.writeFileSync(path.join(root || ROOT, BASELINE_NAME), `${JSON.stringify(payload, null, 2)}\n`);
+  return entries;
 }
 
 /**
- * Splits findings into accepted-by-baseline and new. Occurrences are counted with
- * multiplicity, so a fifth instance of something the snapshot accepted four times
- * is reported. ERROR never enters this path.
+ * Splits findings into accepted-by-baseline and new.
+ *
+ * Occurrences are counted with multiplicity, so a fifth instance of something the
+ * snapshot accepted four times is reported as new. ERROR never enters this path:
+ * a severity that blocks the build cannot be silenced by a snapshot.
  */
-function diffAgainstBaseline(all) {
-  const baseline = loadBaseline();
+function diffAgainstBaseline(all, root = ROOT) {
+  const baseline = loadBaseline(root);
   const counts = new Map(Object.entries(baseline.entries || {}));
   const regressions = new Set();
 
@@ -724,6 +955,30 @@ function diffAgainstBaseline(all) {
   return { baseline, keys: regressions };
 }
 
+function printRuleCatalog(catalog) {
+  const local = (catalog.localRules || []).length;
+  console.log('');
+  console.log(
+    `Rule catalog v${catalog.version} — ${catalog.rules.length} signatures`
+    + (local ? ` (${catalog.rules.length - local} canonical, ${local} local)` : ''),
+  );
+  if (catalog.localPath) console.log(`Local catalog: ${path.basename(catalog.localPath)}`);
+  console.log('');
+  for (const rule of catalog.rules) {
+    const gated = rule.requires && rule.requires.deps
+      ? ` [requires: ${rule.requires.deps.join(' | ')}]`
+      : ' [stack agnostic]';
+    console.log(`${rule.severity.padEnd(7)} ${rule.id}  ${rule.title}${gated}`);
+    console.log(`        signature: ${rule.signature}`);
+    console.log(`        fix: ${rule.fix}`);
+    console.log('');
+  }
+}
+
+function printUsage() {
+  console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0].replace(/^\/\*\*?/, '').replace(/^ \* ?/gm, ''));
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
 
@@ -732,14 +987,15 @@ function main() {
     return;
   }
 
-  const catalog = loadRules();
+  // Config is read first so `--list-rules` can show the project's own signatures
+  // alongside the canonical ones.
+  const { config } = loadConfig(opts);
+  const catalog = loadCatalog(config, ROOT);
 
   if (opts.listRules) {
     printRuleCatalog(catalog);
     return;
   }
-
-  const { config } = loadConfig(opts);
 
   const unknown = opts.rules.filter((id) => !catalog.rules.some((rule) => rule.id === id));
   if (unknown.length) fatal(`Unknown rule id requested with --rule: ${unknown.join(', ')}`);
@@ -750,7 +1006,7 @@ function main() {
     ? catalog.rules.filter((rule) => opts.rules.includes(rule.id))
     : catalog.rules;
 
-  const srcDir = detectSourceDir(opts.src, config);
+  const srcDir = detectSourceDir(opts.src, config, ROOT);
 
   if (!srcDir) {
     if (opts.format === 'json') {
@@ -764,16 +1020,16 @@ function main() {
     return;
   }
 
-  const deps = loadDependencies();
+  const deps = loadDependencies(ROOT);
   const excludes = compileExcludes(config.exclude);
   const files = [];
   const unreadable = [];
   collectFiles(srcDir, files, unreadable);
-  const scannedFiles = applyExcludes(files, excludes);
+  const scannedFiles = applyExcludes(files, excludes, ROOT);
 
   const findings = [];
   for (const file of scannedFiles) {
-    const result = auditFile(file, activeRules, deps, disabledRules);
+    const result = auditFile(file, activeRules, deps, disabledRules, ROOT);
     findings.push(...result.findings);
   }
 
@@ -788,55 +1044,53 @@ function main() {
   const summary = { total: findings.length, ERROR: 0, WARNING: 0, INFO: 0 };
   for (const finding of findings) summary[finding.severity] += 1;
 
-  const allFindings = [...findings, ...auditEnvInvariants()];
-
-  // Baseline diff (DEV-166). Errors bypass it entirely.
-  const baselinable = allFindings.filter((f) => f.severity !== 'ERROR');
-  const regressionSet = opts.updateBaseline
-    ? new Set()
-    : new Set(diffAgainstBaseline(allFindings).keys);
-
-  const finalFindings = opts.updateBaseline ? [] : allFindings.filter((f) => regressionSet.has(f));
+  // A snapshot of already-reviewed observations lets a project adopt the
+  // auditor on a codebase that already carries hundreds of findings, without
+  // either silencing the gate or drowning in noise nobody will ever read.
+  const { keys: unreviewed } = diffAgainstBaseline(findings, ROOT);
 
   if (opts.updateBaseline) {
-    const written = writeBaseline(baselinable);
+    const entries = writeBaseline(findings.filter((f) => f.severity !== 'ERROR'));
+    const total = Object.values(entries).reduce((sum, n) => sum + n, 0);
+
     if (opts.format === 'json') {
-      printJson({ rulesVersion: catalog.version, baseline: written });
-    } else {
-      console.log(
-        `📸 Baseline actualizado: ${written.total} observaciones conocidas registradas en ` +
-        `${path.relative(ROOT, BASELINE_PATH)} (${Object.keys(written.entries).length} firmas únicas).`,
-      );
+      printJson({
+        rulesVersion: catalog.version,
+        src: srcDir,
+        baseline: { file: BASELINE_NAME, signatures: Object.keys(entries).length },
+        findings: [],
+      });
+    } else if (!opts.quiet) {
+      console.log('');
+      console.log(`✅ Baseline written: ${BASELINE_NAME} (${total} observation(s), ${Object.keys(entries).length} unique signature(s)).`);
+      console.log('   Run `npm run audit:ux` again to see only what is new.');
       console.log('');
     }
     return;
   }
 
-  const omitted = allFindings.length - finalFindings.length;
+  const reported = findings.filter((f) => unreviewed.has(f));
+  const absorbed = findings.length - reported.length;
 
-  if (finalFindings.length === 0) {
-    const empty = { rulesVersion: catalog.version, srcDir: path.relative(ROOT, srcDir) || '.', summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0 }, findings: [], baselined: omitted };
-    if (opts.format === 'json') printJson(empty);
-    else {
-      console.log('✅ CERO observaciones nuevas de UX en src/.');
-      console.log(`🎉 Sin regresiones contra el baseline (${omitted} observaciones conocidas y aceptadas).\n`);
-    }
-    return;
-  }
+  const finalSummary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0 };
+  for (const finding of reported) finalSummary[finding.severity] += 1;
 
-  const finalSummary = { total: finalFindings.length, ERROR: 0, WARNING: 0, INFO: 0 };
-  for (const f of finalFindings) finalSummary[f.severity] += 1;
-
-  const finalReport = {
+  const report = {
     rulesVersion: catalog.version,
     srcDir: path.relative(ROOT, srcDir) || '.',
     summary: finalSummary,
-    findings: finalFindings,
-    baselined: omitted,
+    findings: reported,
+    baseline: absorbed > 0 ? { absorbed } : undefined,
   };
 
-  if (opts.format === 'json') printJson(finalReport);
-  else printHuman(finalReport, opts);
+  if (opts.format === 'json') printJson(report);
+  else {
+    printHuman(report, opts);
+    if (absorbed > 0 && !opts.quiet) {
+      console.log(`ℹ️  ${absorbed} observation(s) matched the accepted baseline in ${BASELINE_NAME}.`);
+      console.log('');
+    }
+  }
 
   if (opts.format !== 'json' && !opts.quiet && unreadable.length) {
     console.log(`⚠️  ${unreadable.length} directory(ies) could not be read and were skipped.`);
@@ -853,4 +1107,100 @@ function main() {
   }
 }
 
-main();
+/**
+ * Runs an audit and returns the report, without printing or exiting.
+ *
+ * This is the programmatic entry point. It exists because a project that needs
+ * its own signatures must be able to *extend* the auditor, and forking the file
+ * was the only way to do that before. A consumer now imports this, adds whatever
+ * it needs around the findings, and keeps the canonical catalog untouched by the
+ * sync.
+ *
+ * @param {object}  [options]
+ * @param {string}  [options.root]        Project to audit. Defaults to the repo this file lives in.
+ * @param {string}  [options.src]         Source directory, relative to root.
+ * @param {string}  [options.config]      Config file path, relative to root.
+ * @param {string[]} [options.rules]      Only these rule ids. Defaults to every active rule.
+ * @param {boolean} [options.useBaseline] Subtract the accepted baseline. Defaults to true.
+ * @returns {{rulesVersion: number, srcDir: string|null, summary: object, findings: object[], unreadable: string[], absorbed: number}}
+ */
+function auditProject(options = {}) {
+  const root = options.root ? path.resolve(options.root) : ROOT;
+  const { config } = loadConfig({ config: options.config }, root);
+  const catalog = loadCatalog(config, root);
+
+  const disabledRules = new Set(config.disableRules || []);
+  const activeRules = options.rules && options.rules.length
+    ? catalog.rules.filter((rule) => options.rules.includes(rule.id))
+    : catalog.rules;
+
+  const srcDir = detectSourceDir(options.src, config, root);
+  if (!srcDir) {
+    return {
+      rulesVersion: catalog.version,
+      srcDir: null,
+      summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0 },
+      findings: [],
+      unreadable: [],
+      absorbed: 0,
+    };
+  }
+
+  const deps = loadDependencies(root);
+  const excludes = compileExcludes(config.exclude);
+  const files = [];
+  const unreadable = [];
+  collectFiles(srcDir, files, unreadable);
+
+  const findings = [];
+  for (const file of applyExcludes(files, excludes, root)) {
+    findings.push(...auditFile(file, activeRules, deps, disabledRules, root).findings);
+  }
+
+  const severityRank = { ERROR: 0, WARNING: 1, INFO: 2 };
+  findings.sort((a, b) => (
+    severityRank[a.severity] - severityRank[b.severity]
+    || a.file.localeCompare(b.file)
+    || a.line - b.line
+    || a.rule.localeCompare(b.rule)
+  ));
+
+  const applyBaseline = options.useBaseline !== false;
+
+  // `diffAgainstBaseline` returns the observations the snapshot does NOT cover,
+  // which are exactly the ones worth reporting.
+  let reported = findings;
+  let absorbed = 0;
+  if (applyBaseline) {
+    const { keys } = diffAgainstBaseline(findings, root);
+    reported = findings.filter((f) => keys.has(f));
+    absorbed = findings.length - reported.length;
+  }
+
+  const summary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0 };
+  for (const finding of reported) summary[finding.severity] += 1;
+
+  return {
+    rulesVersion: catalog.version,
+    srcDir: path.relative(root, srcDir) || '.',
+    summary,
+    findings: reported,
+    unreadable,
+    absorbed,
+  };
+}
+
+module.exports = {
+  auditProject,
+  loadCatalog,
+  loadConfig,
+  loadRules,
+  buildUnits,
+  lineMatches,
+  hasVisibleText,
+  fingerprint,
+};
+
+// Running as a binary is what triggers an audit. Importing the module is not,
+// so a consumer can build on top of it without the CLI firing as a side effect.
+if (require.main === module) main();

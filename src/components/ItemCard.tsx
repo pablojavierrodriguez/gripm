@@ -396,6 +396,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                 setMenuOpen(!menuOpen);
                 setStatusMenuOpen(false);
               }}
+              aria-label={t('card.openMenu')}
               className="p-1 rounded-md text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
             >
               <MoreVertical className="w-3.5 h-3.5" />
