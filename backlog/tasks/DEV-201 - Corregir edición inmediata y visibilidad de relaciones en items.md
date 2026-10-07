@@ -1,13 +1,14 @@
 ---
 id: DEV-201
 title: "Corregir edición inmediata y visibilidad de relaciones en items"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "ui"
   - "api"
+dependencies: []
 priority: high
 type: bug
 milestone: "1.0.4"
@@ -32,6 +33,11 @@ Al crear una tarea en un proyecto Backlog.md, el API responde con un ID temporal
 - [x] #4 El flujo de regresión automatizado cubre creación, lectura, edición y persistencia de relaciones
 - [x] #5 Pasan TypeScript, pruebas relevantes, suite completa, build y sincronización del backlog
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

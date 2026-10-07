@@ -1,13 +1,14 @@
 ---
 id: DEV-206
 title: "Evitar solapamiento entre filtros y contadores en español"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "ux"
   - "ui"
   - "i18n"
+dependencies: []
 priority: medium
 type: improvement
 milestone: "1.0.4"
@@ -30,6 +31,11 @@ En el tablero, a 1366×768 y con la interfaz en español, el contador de tareas 
 - [x] #2 Los filtros de prioridad siguen accesibles desde el panel de Filtros cuando no caben como accesos rápidos
 - [x] #3 Los accesos rápidos de prioridad solo ocupan espacio inline cuando el viewport permite conservar una única fila compacta
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

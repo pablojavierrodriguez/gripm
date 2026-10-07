@@ -11,7 +11,31 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
-En preparación: `1.0.4`.
+---
+
+## [1.0.4] — 2026-10-07 🚀 Claridad de Producto, Flujo de Tareas y Estabilidad
+
+### 🎯 Resumen
+*Parche de mejoras para Gripm: aclara los productos y comandos disponibles, mejora la creación, gestión y presentación de tareas y relaciones, y refuerza la cobertura de pruebas, los smoke tests y la distribución del paquete.*
+
+### 📦 Producto, CLI y distribución
+- **DEV-142 — Activos visuales y storytelling del README:** incorpora capturas de pantalla y una propuesta de valor bilingüe para presentar el producto.
+- **DEV-199 — Consolidar la marca Gripm:** alinea la marca en la aplicación y la documentación viva.
+- **DEV-200 — Corregir las opciones de versión de la CLI:** hace fiables `gripm -v` y `gripm --version`.
+- **DEV-204 — Aclarar productos Gripm y comandos de uso:** explica qué hace cada producto y cómo usarlo sin ambigüedades.
+- **DEV-195 — Incluir el logo en el paquete npm:** asegura que el logo esté disponible en instalaciones del paquete.
+- **DEV-196 — Preservar plantillas de skill por idioma:** conserva correctamente las plantillas localizadas en el paquete.
+
+### 🧭 Tareas y relaciones
+- **DEV-201 — Corregir edición inmediata y visibilidad de relaciones:** mejora la persistencia y la presentación de los cambios y relaciones.
+- **DEV-202 — Acceso rápido para quitar relaciones y ver jerarquía de ítems:** agiliza la gestión de relaciones y facilita reconocer jerarquías.
+- **DEV-206 — Evitar solapamiento entre filtros y contadores en español:** hace que la barra se adapte a traducciones más largas sin superponer los controles.
+
+### 🧪 Calidad y estabilidad
+- **DEV-172 — Cobertura de tests para la capa de UI:** añade cobertura a la lógica derivada de la interfaz.
+- **DEV-194 — Corregir el orden de hooks al abrir ItemModal:** evita el error de hooks al mostrar el modal.
+- **DEV-197 — Propagar fallos del smoke test Linux:** evita que fallos de la suite Linux se reporten como exitosos.
+- **DEV-198 — Automatizar smoke test de creación de tarea en navegador:** valida el flujo principal de creación desde el navegador.
 
 ---
 

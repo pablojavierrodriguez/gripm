@@ -1,12 +1,13 @@
 ---
 id: DEV-200
 title: "Corregir las opciones de versión de la CLI"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "cli"
   - "dx"
+dependencies: []
 priority: high
 type: bug
 milestone: "1.0.4"
@@ -31,6 +32,11 @@ Al ejecutar `gripm --version`, la CLI ignora la opción y arranca el servidor we
 - [x] #4 El smoke test del paquete npm comprueba la salida y terminación de ambas opciones
 - [x] #5 Pasan las validaciones específicas de CLI, la suite unificada y la sincronización del backlog
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -1,9 +1,9 @@
 ---
 id: DEV-172
 title: "Cobertura de Tests para la Capa de UI: Lógica Derivada y Accesibilidad de Componentes"
-status: ready
+status: done
 created_date: '2026-10-05'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "testing"
   - "ui"

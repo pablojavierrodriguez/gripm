@@ -5,10 +5,10 @@
     "version": "1.0.4",
     "date": "2026-10-07",
     "targetDate": "2026-10-07",
-    "status": "unreleased",
+    "status": "released",
     "title": "v1.0.4 - Claridad de Producto, Flujo de Tareas y Estabilidad",
     "summary": "Parche de mejoras para Gripm: aclara los productos y comandos disponibles, mejora la creación, gestión y presentación de tareas y relaciones, y refuerza la cobertura de pruebas, los smoke tests y la distribución del paquete.",
-    "scopeNotes": "Release local en preparación. Incluye tareas listas y con valor confirmado; no representa una publicación a producción.",
+    "scopeNotes": "Parche de mejoras de Gripm: claridad de productos y comandos, gestión fluida de tareas y relaciones, y refuerzo de smoke tests y empaquetado.",
     "itemCodes": [
       "DEV-142",
       "DEV-172",

@@ -1,13 +1,14 @@
 ---
 id: DEV-197
 title: "Propagar fallos del smoke test Linux"
-status: ready
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "ci"
   - "testing"
+dependencies: []
 priority: high
 type: bug
 milestone: "1.0.4"
@@ -30,6 +31,11 @@ targetRelease: "1.0.4"
 - [x] #2 `npm run test:linux` devuelve exit code 0 cuando pasan todos los pasos
 - [x] #3 La suite Linux corre contra el árbol local actual, incluyendo archivos no stageados
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

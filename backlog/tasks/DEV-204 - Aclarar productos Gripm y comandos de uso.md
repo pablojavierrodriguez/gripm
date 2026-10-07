@@ -1,9 +1,9 @@
 ---
 id: DEV-204
 title: "Aclarar los productos Gripm y sus comandos de uso"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "product"
   - "documentation"

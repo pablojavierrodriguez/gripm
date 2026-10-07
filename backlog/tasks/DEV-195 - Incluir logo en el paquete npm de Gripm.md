@@ -1,12 +1,13 @@
 ---
 id: DEV-195
 title: "Incluir logo en el paquete npm de Gripm"
-status: ready
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "packaging"
+dependencies: []
 priority: medium
 type: bug
 milestone: "1.0.4"
@@ -30,6 +31,11 @@ En el smoke test con Gripm instalado globalmente en otro repositorio, no se ve e
 - [x] #3 `npm run publish:check` exige que `public/logo.png` esté presente en el tarball
 - [x] #4 El paquete Gripm no se declara a sí mismo como dependencia y el lockfile coincide con el manifiesto
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

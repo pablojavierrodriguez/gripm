@@ -1,9 +1,9 @@
 ---
 id: DEV-142
 title: "Activos Visuales y Storytelling del README: Hero Screenshot, Galería y Propuesta de Valor"
-status: ready
+status: done
 created_date: '2026-10-01'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels: []
 dependencies: []
 priority: high
@@ -13,8 +13,6 @@ releases:
   - "1.0.4"
 release: "1.0.4"
 targetRelease: "1.0.4"
-sprints: []
-sprint: ""
 ---
 
 ## Description

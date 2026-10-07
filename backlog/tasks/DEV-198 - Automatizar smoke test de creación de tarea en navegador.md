@@ -1,13 +1,14 @@
 ---
 id: DEV-198
 title: "Automatizar smoke test de creación de tarea en navegador"
-status: ready
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "testing"
   - "ui"
+dependencies: []
 priority: high
 type: chore
 milestone: "1.0.4"
@@ -32,6 +33,11 @@ La suite de CI no ejercita un flujo real de navegador para los caminos principal
 - [x] #4 El test falla si la consola registra errores fatales o la UI muestra el ErrorBoundary
 - [x] #5 El smoke test corre en CI y se puede ejecutar localmente con un comando documentado
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

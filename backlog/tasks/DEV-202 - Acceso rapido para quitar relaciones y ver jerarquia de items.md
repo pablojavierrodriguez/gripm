@@ -1,13 +1,14 @@
 ---
 id: DEV-202
 title: "Acceso rápido para quitar relaciones y ver jerarquía de ítems"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "ux"
   - "ui"
   - "backlog"
+dependencies: []
 priority: high
 type: improvement
 milestone: "1.0.4"
@@ -32,6 +33,11 @@ Las relaciones guardadas se resumen en el modal, pero para quitarlas hay que exp
 - [x] #4 Las relaciones no resueltas siguen mostrando el identificador almacenado sin fallar ni desaparecer
 - [x] #5 Pasan las pruebas de regresión, UX, TypeScript, suite completa, build y sincronización del backlog
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

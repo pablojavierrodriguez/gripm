@@ -1,12 +1,13 @@
 ---
 id: DEV-194
 title: "Corregir el orden de hooks al abrir ItemModal"
-status: ready
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "ui"
+dependencies: []
 priority: high
 type: bug
 milestone: "1.0.4"
@@ -30,6 +31,11 @@ En el smoke test de Gripm como producto, al crear una tarea el tablero muestra e
 - [x] #3 `npx tsc --noEmit` y `npm run build` pasan
 - [x] #4 La suite incluye una regresión que verifica que `useFocusTrap` se invoca antes del retorno por modal cerrado
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

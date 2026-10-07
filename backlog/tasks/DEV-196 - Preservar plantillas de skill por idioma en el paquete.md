@@ -1,13 +1,14 @@
 ---
 id: DEV-196
 title: "Preservar plantillas de skill por idioma en el paquete"
-status: ready
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-07'
+updated_date: '2026-10-07 23:29'
 labels:
   - "bug"
   - "i18n"
   - "packaging"
+dependencies: []
 priority: medium
 type: bug
 milestone: "1.0.4"
@@ -30,6 +31,11 @@ Al inicializar el propio repositorio Gripm en inglés, `gripm --init` escribe la
 - [x] #2 `npm test` verifica la instalación de skills en inglés y español después de inicializar el repo fuente en inglés
 - [x] #3 El tarball npm contiene las fuentes canónicas para ambos idiomas
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -140,7 +140,7 @@ try {
   const relationCard = page.getByRole('button', { name: new RegExp(relatedTaskTitle) });
   await relationCard.getByText(editedTaskTitle, { exact: false }).waitFor({ state: 'visible' });
 
-  await page.getByRole('button', { name: 'Sprints y Backlog' }).click();
+  await page.getByRole('button', { name: /^(Sprints & Backlog|Sprints y Backlog)$/ }).click();
   const backlogRow = page.locator('tr').filter({ hasText: relatedTaskTitle });
   await backlogRow.getByText(editedTaskTitle, { exact: false }).waitFor({ state: 'visible' });
 

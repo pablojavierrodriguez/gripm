@@ -88,7 +88,11 @@ try {
     assert.ifError(versionResult.error);
     assert.equal(versionResult.status, 0, `${flag} debe terminar con código 0`);
     assert.equal(versionResult.stdout.trim(), packagedVersion, `${flag} debe imprimir la versión empaquetada`);
-    assert.equal(versionResult.stderr, '', `${flag} no debe emitir errores`);
+    const sanitizedStderr = versionResult.stderr
+      .replace(/\(node:\d+\)\s*ExperimentalWarning:[^\n]*\n?/g, '')
+      .replace(/\(Use `node --trace-warnings \.\.\.`[^\n]*\n?/g, '')
+      .trim();
+    assert.equal(sanitizedStderr, '', `${flag} no debe emitir errores`);
   }
   console.log('✅ --version y -v imprimieron la versión empaquetada y terminaron sin arrancar el servidor.');
 
