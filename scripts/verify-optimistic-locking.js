@@ -171,6 +171,66 @@ Descripción inicial de prueba.
   }
   console.log(`✅ [4/4] Sobreescritura forzada permitida con force: true (HTTP 200 OK)`);
 
+  // 5. A newly created Markdown task must return its persisted canonical ID and
+  // keep relationships through create, edit, and a fresh read from disk.
+  const createRes = await dispatch('POST', '/api/items', {
+    projectId: 'test-fixture-lock',
+    title: 'Tarea creada para probar edición y relaciones',
+    type: 'feature',
+    parentId: 'LOCK-001',
+    blocks: ['LOCK-001'],
+    blockedBy: ['LOCK-001'],
+    relatedTo: ['LOCK-001']
+  });
+
+  if (createRes.status !== 201 || !createRes.body?.item) {
+    throw new Error(`Se esperaba 201 al crear la tarea de regresión, se obtuvo ${createRes.status}`);
+  }
+  const created = createRes.body.item;
+  if (created.id !== created.code) {
+    throw new Error(`La tarea Markdown debe devolver su ID persistido (${created.code}), se obtuvo ${created.id}`);
+  }
+  for (const relation of ['parentId', 'blocks', 'blockedBy', 'relatedTo']) {
+    const expected = relation === 'parentId' ? 'LOCK-001' : ['LOCK-001'];
+    if (JSON.stringify(created[relation]) !== JSON.stringify(expected)) {
+      throw new Error(`La relación ${relation} no llegó en la respuesta de creación: ${JSON.stringify(created[relation])}`);
+    }
+  }
+
+  const editRes = await dispatch('PUT', `/api/items/${encodeURIComponent(created.id)}`, {
+    title: `${created.title} editada`,
+    parentId: created.parentId,
+    blocks: created.blocks,
+    blockedBy: created.blockedBy,
+    relatedTo: created.relatedTo
+  });
+  if (editRes.status !== 200 || editRes.body?.item?.title !== `${created.title} editada`) {
+    throw new Error(`La tarea recién creada no se pudo editar por su ID canónico: ${editRes.status} ${JSON.stringify(editRes.body)}`);
+  }
+
+  const persistedRes = await dispatch('GET', '/api/data');
+  const persisted = persistedRes.body?.items?.find(i => i.code === created.code);
+  if (!persisted || persisted.id !== created.id || persisted.parentId !== 'LOCK-001'
+    || JSON.stringify(persisted.blocks) !== '["LOCK-001"]'
+    || JSON.stringify(persisted.blockedBy) !== '["LOCK-001"]'
+    || JSON.stringify(persisted.relatedTo) !== '["LOCK-001"]') {
+    throw new Error(`La edición o sus relaciones no persistieron en el archivo Markdown: ${JSON.stringify(persisted)}`);
+  }
+
+  const clearRelationsRes = await dispatch('PUT', `/api/items/${encodeURIComponent(created.id)}`, {
+    parentId: '',
+    blocks: [],
+    blockedBy: [],
+    relatedTo: []
+  });
+  if (clearRelationsRes.status !== 200 || clearRelationsRes.body?.item?.parentId
+    || clearRelationsRes.body?.item?.blocks?.length
+    || clearRelationsRes.body?.item?.blockedBy?.length
+    || clearRelationsRes.body?.item?.relatedTo?.length) {
+    throw new Error(`La API no permitió desasignar explícitamente las relaciones: ${JSON.stringify(clearRelationsRes.body)}`);
+  }
+  console.log('✅ [5/5] Crear → editar → releer y limpiar todas las relaciones conserva identidad y estado');
+
 } finally {
   await dispatch('DELETE', '/api/projects/test-fixture-lock');
   if (fs.existsSync(testRepo)) {

@@ -42,6 +42,13 @@ function openBrowser(url) {
 }
 
 async function main() {
+  const command = args[0];
+  if (command && !command.startsWith('-') && !['mcp', 'playbook'].includes(command)) {
+    console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
+    process.exitCode = 1;
+    return;
+  }
+
   // DEV-150: Handle 'mcp' subcommand directly without starting Vite
   if (args[0] === 'mcp') {
     await import('./gripm-mcp.js');
@@ -50,6 +57,13 @@ async function main() {
 
   // Handle 'playbook' subcommand
   if (args[0] === 'playbook') {
+    if (args[1] !== 'sync') {
+      console.error('Uso: gripm playbook sync [--repo <ruta>] [--dry-run] [--force]');
+      console.error('Este comando sincroniza materiales del Playbook en un proyecto; no instala Gripm Playbook.');
+      process.exitCode = 1;
+      return;
+    }
+
     const { runPlaybookSync } = await import('../scripts/sync-playbook.mjs');
     const branchIdx = args.findIndex(a => a === '--branch' || a === '-b');
     const branch = branchIdx !== -1 ? args[branchIdx + 1] : undefined;
@@ -75,27 +89,32 @@ async function main() {
 
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-  🚀 gripm CLI - Agile Engineering & Product Management Cockpit
+  🚀 gripm CLI - productos locales para backlog y trabajo con agentes
   
-  Uso:
-    npx @gripm/board [opciones]
-    gripm [opciones]
-    gripm mcp             Inicia el servidor Model Context Protocol (MCP) en stdio
-    gripm playbook sync   Sincroniza la última versión canónica del Playbook preservando AGENTS.md
+  Comandos:
+    gripm [opciones]      Abre Gripm Board en el navegador (comportamiento por defecto)
+    gripm --init          Configura Gripm Board en el proyecto actual
+    gripm mcp             Inicia el servidor MCP de Board para un agente; no abre la interfaz web
+    gripm-mcp             Ejecuta el mismo servidor MCP como binario independiente
+    gripm playbook sync   Sincroniza archivos del Playbook en un proyecto; no instala el producto Playbook
 
   Opciones:
     --port, -p <puerto>   Puerto para el servidor web (por defecto: 4100)
     --host <host>         Host de enlace (por defecto: localhost)
-    --repo, -r <ruta>     Ruta del repositorio a gestionar (por defecto: process.cwd())
+    --repo, -r <ruta>     Proyecto destino (por defecto: carpeta actual); aplica a Board, MCP y Playbook sync
     --no-open             No abrir el navegador automáticamente
-    --init                Iniciar asistente interactivo de configuración y scaffolding
     --language, --lang <es|en> Idioma del proyecto para scaffolding y plantillas (por defecto: es)
+    --hub                 Abrir Board en modo hub multi-proyecto
     --uninstall, --clean   Desacoplar gripm de este repositorio (nunca borra backlog/)
     --global              Con --uninstall: purga también el registro global del dispositivo
     --remove-agents       Con --uninstall: elimina la skill de agentes y AGENTS.md (por defecto se preservan)
     --yes, -y             Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
     --version, -v         Muestra la versión instalada
     --help, -h            Muestra esta ayuda
+
+  Productos:
+    Board y el servidor MCP se distribuyen juntos en @gripm/board.
+    Gripm Playbook es independiente. Gripm Suite no tiene aún un instalador.
     `);
     process.exit(0);
   }

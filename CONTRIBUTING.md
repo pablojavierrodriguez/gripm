@@ -55,7 +55,8 @@ npm run backlog:check   # 3. Integridad del backlog. Debe salir con código 0.
 ### Smoke automatizado de interfaz
 
 El smoke del navegador verifica la carga del logo, la apertura del modal, la
-creación y persistencia de una tarea, y la ausencia de errores fatales:
+creación y edición inmediata de una tarea, la persistencia y visibilidad de sus
+relaciones al reabrirla, y la ausencia de errores de consola:
 
 ```bash
 npx playwright install chromium   # una vez por entorno

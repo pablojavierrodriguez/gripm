@@ -269,7 +269,7 @@ export const FilterBar: FC<FilterBarProps> = ({
             </div>
 
             {/* Quick Priority Filter Pills */}
-            <div className="hidden xl:flex items-center gap-1 bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] p-0.5 rounded-lg text-xs shrink-0">
+            <div className="hidden 2xl:flex items-center gap-1 bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] p-0.5 rounded-lg text-xs shrink-0">
               <button
                 type="button"
                 onClick={() => handleQuickPriority('all')}

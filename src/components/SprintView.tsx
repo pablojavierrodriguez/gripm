@@ -64,6 +64,7 @@ const normalizeStatusNum = (s?: string): number => {
 
 interface SprintViewProps {
   items: BacklogItem[];
+  allItems?: BacklogItem[];
   sprints?: Sprint[];
   onClickItem: (item: BacklogItem) => void;
   onUpdateStatus: (id: string, newStatus: ItemStatus) => void;
@@ -87,6 +88,7 @@ type GroupBy = 'sprint' | 'priority' | 'module' | 'none' | 'epic';
 
 export const SprintView: FC<SprintViewProps> = ({
   items,
+  allItems,
   sprints = [],
   onClickItem,
   onUpdateStatus,
@@ -105,6 +107,7 @@ export const SprintView: FC<SprintViewProps> = ({
   projectId
 }) => {
   const { t } = useTranslation();
+  const hierarchyItems = allItems || items;
   const getStatusMeta = useStatusMeta();
   const [groupBy, setGroupBy] = useState<GroupBy>('sprint');
   const [sortBy, setSortBy] = useState<'order' | 'priority' | 'code' | 'status'>('order');
@@ -281,9 +284,12 @@ export const SprintView: FC<SprintViewProps> = ({
       } else if (groupBy === 'module') {
         key = it.module || 'General / Core';
       } else if (groupBy === 'epic') {
-        // Group by parent epic: look for items of type 'epic' that this item is associated with
-        // Use module as a proxy for epic grouping (or a dedicated epic field if present)
-        key = (it as any).epic || it.module || 'Sin Épica';
+        const parent = it.parentId
+          ? hierarchyItems.find(candidate => candidate.id === it.parentId || candidate.code === it.parentId)
+          : undefined;
+        key = parent
+          ? `${parent.code || parent.id} · ${parent.title}`
+          : it.epic || it.module || 'Sin Épica';
       }
 
       if (!groups.has(key)) {
@@ -345,7 +351,7 @@ export const SprintView: FC<SprintViewProps> = ({
     }
 
     return result;
-  }, [items, groupBy, sortBy, sortAsc, sprints, showCompletedSprints]);
+  }, [items, hierarchyItems, groupBy, sortBy, sortAsc, sprints, showCompletedSprints]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollSnapshotRef = useRef<{
@@ -888,6 +894,9 @@ export const SprintView: FC<SprintViewProps> = ({
                           const TypeIcon = typeInfo.icon;
                           const pInfo = priorityConfig[item.priority] || priorityConfig.p2;
                           const sInfo = getStatusMeta(item.status);
+                          const parentItem = item.parentId
+                            ? hierarchyItems.find(candidate => candidate.id === item.parentId || candidate.code === item.parentId)
+                            : undefined;
                           const rawRelease = item.release || item.targetRelease;
                           const releaseVal = rawRelease && !rawRelease.toLowerCase().includes('sprint') ? rawRelease : undefined;
                           const isBeingDragged = draggedItemId === item.id;
@@ -998,6 +1007,19 @@ export const SprintView: FC<SprintViewProps> = ({
                                 <div className="font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors line-clamp-1 truncate" title={item.title}>
                                   {item.title}
                                 </div>
+                                {(parentItem || item.parentId || item.epic) && (
+                                  <div
+                                    className="mt-1 flex max-w-sm items-center gap-1 truncate text-xs text-muted-foreground"
+                                    title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : item.parentId || item.epic}
+                                  >
+                                    <Layers className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">
+                                      {parentItem
+                                        ? `${parentItem.code || parentItem.id} · ${parentItem.title}`
+                                        : item.parentId || item.epic}
+                                    </span>
+                                  </div>
+                                )}
                                 {item.impactedFile && (
                                   <div className="text-[10px] text-slate-500 font-mono truncate max-w-sm">
                                     {item.impactedFile}
@@ -1164,10 +1186,10 @@ export const SprintView: FC<SprintViewProps> = ({
                               {/* Épica (DEV-079) */}
                               {visibleCols.has('epic') && (
                                 <td className="py-2.5 px-4 whitespace-nowrap">
-                                  {item.epic ? (
+                                  {parentItem || item.epic ? (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-medium">
                                       <Bookmark className="w-2.5 h-2.5" />
-                                      {item.epic}
+                                      {parentItem ? `${parentItem.code || parentItem.id} · ${parentItem.title}` : item.epic}
                                     </span>
                                   ) : (
                                     <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>

@@ -1,5 +1,33 @@
 [
   {
+    "id": "rel-1-0-4",
+    "projectId": "gripm",
+    "version": "1.0.4",
+    "date": "2026-10-07",
+    "targetDate": "2026-10-07",
+    "status": "unreleased",
+    "title": "v1.0.4 - Claridad de Producto, Flujo de Tareas y Estabilidad",
+    "summary": "Parche de mejoras para Gripm: aclara los productos y comandos disponibles, mejora la creación, gestión y presentación de tareas y relaciones, y refuerza la cobertura de pruebas, los smoke tests y la distribución del paquete.",
+    "scopeNotes": "Release local en preparación. Incluye tareas listas y con valor confirmado; no representa una publicación a producción.",
+    "itemCodes": [
+      "DEV-142",
+      "DEV-172",
+      "DEV-194",
+      "DEV-195",
+      "DEV-196",
+      "DEV-197",
+      "DEV-198",
+      "DEV-199",
+      "DEV-200",
+      "DEV-201",
+      "DEV-202",
+      "DEV-204",
+      "DEV-206"
+    ],
+    "markdownContent": "## [1.0.4] — 2026-10-07 🚀 Claridad de Producto, Flujo de Tareas y Estabilidad\n\n### 🎯 Resumen\n*Parche de mejoras para Gripm: aclara los productos y comandos disponibles, mejora la creación, gestión y presentación de tareas y relaciones, y refuerza la cobertura de pruebas, los smoke tests y la distribución del paquete.*\n\n### 📦 Producto, CLI y distribución\n- **DEV-142 — Activos visuales y storytelling del README:** incorpora capturas de pantalla y una propuesta de valor bilingüe para presentar el producto.\n- **DEV-199 — Consolidar la marca Gripm:** alinea la marca en la aplicación y la documentación viva.\n- **DEV-200 — Corregir las opciones de versión de la CLI:** hace fiables `gripm -v` y `gripm --version`.\n- **DEV-204 — Aclarar productos Gripm y comandos de uso:** explica qué hace cada producto y cómo usarlo sin ambigüedades.\n- **DEV-195 — Incluir el logo en el paquete npm:** asegura que el logo esté disponible en instalaciones del paquete.\n- **DEV-196 — Preservar plantillas de skill por idioma:** conserva correctamente las plantillas localizadas en el paquete.\n\n### 🧭 Tareas y relaciones\n- **DEV-201 — Corregir edición inmediata y visibilidad de relaciones:** mejora la persistencia y la presentación de los cambios y relaciones.\n- **DEV-202 — Acceso rápido para quitar relaciones y ver jerarquía de ítems:** agiliza la gestión de relaciones y facilita reconocer jerarquías.\n- **DEV-206 — Evitar solapamiento entre filtros y contadores en español:** hace que la barra se adapte a traducciones más largas sin superponer los controles.\n\n### 🧪 Calidad y estabilidad\n- **DEV-172 — Cobertura de tests para la capa de UI:** añade cobertura a la lógica derivada de la interfaz.\n- **DEV-194 — Corregir el orden de hooks al abrir ItemModal:** evita el error de hooks al mostrar el modal.\n- **DEV-197 — Propagar fallos del smoke test Linux:** evita que fallos de la suite Linux se reporten como exitosos.\n- **DEV-198 — Automatizar smoke test de creación de tarea en navegador:** valida el flujo principal de creación desde el navegador.",
+    "createdAt": "2026-10-07T19:35:00.000Z"
+  },
+  {
     "id": "rel-1-0-3",
     "projectId": "gripm",
     "version": "1.0.3",

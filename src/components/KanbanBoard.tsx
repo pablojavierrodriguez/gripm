@@ -823,6 +823,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 >
                   <ItemCard
                     item={item}
+                    allItems={allItems || items}
                     isDragging={isItemDragged}
                     onClick={() => onClickItem(item)}
                     onUpdateStatus={(id, s) => onUpdateStatus(id, s)}

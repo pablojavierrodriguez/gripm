@@ -1312,6 +1312,7 @@ export function App() {
           <SprintView
             projectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
             items={visibleItems}
+            allItems={allProjectItems}
             sprints={projectSprints}
             onClickItem={(item) => {
               setEditingItem(item);

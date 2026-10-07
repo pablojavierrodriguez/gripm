@@ -9,6 +9,11 @@ labels:
   - "dx"
 priority: high
 type: bug
+milestone: "1.0.4"
+releases:
+  - "1.0.4"
+release: "1.0.4"
+targetRelease: "1.0.4"
 ---
 
 ## Description

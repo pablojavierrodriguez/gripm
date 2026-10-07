@@ -25,7 +25,7 @@ Gripm incluye un servidor MCP autónomo empaquetado sobre `stdio` (`bin/gripm-mc
 }
 ```
 
-### Opción B: Mediante binario global (si instalaste con `npm install -g gripm`)
+### Opción B: Mediante binario global (instalado con `npm install -g @gripm/board`)
 ```json
 {
   "mcpServers": {
@@ -36,6 +36,8 @@ Gripm incluye un servidor MCP autónomo empaquetado sobre `stdio` (`bin/gripm-mc
   }
 }
 ```
+
+El servidor MCP viene incluido en el paquete `@gripm/board`. Expone el backlog de Board a los agentes mediante `stdio` y puede ejecutarse sin abrir la interfaz web; hoy no es un producto ni paquete independiente. `gripm playbook sync` solo sincroniza materiales del Playbook en un proyecto: no instala Gripm Playbook.
 
 ### Opción C: Mediante npx directo
 ```json

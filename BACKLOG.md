@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (2)
+### 💡 Ideas / Discovery (5)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -51,38 +51,73 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 🔍 Review & QA (2)
+#### [DEV-203] Configurar metadatos visibles en tarjetas de ítems
+- **Prioridad**: `medium` | **Tipo**: `improvement`
 
-#### [DEV-194] Corregir el orden de hooks al abrir ItemModal
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-En el smoke test de Gripm como producto, al crear una tarea el tablero muestra el error fatal `Rendered more hooks than during the previous render.`. `ItemModal` retorna cuando está cerrado antes de ejecutar `useFocusTrap`, pero ejecuta ese hook cuando se abre; React recibe un número distinto de hooks entre renders del mismo componente.
+Permitir que cada usuario elija qué información de una tarea se muestra directamente en las tarjetas del Kanban sin abrir el modal, por ejemplo módulo, sprint, release, avance de criterios, etiquetas, asignados y relaciones. La preferencia debe persistir, ser fácil de descubrir desde configuración y evitar saturar las tarjetas, con el mismo resultado en las vistas donde se reutiliza el componente.
 
 **Criterios de Aceptación:**
-- [x] #1 `ItemModal` ejecuta el mismo conjunto de hooks y en el mismo orden tanto cerrado como abierto
-- [x] #2 Abrir el modal de creación, guardar una tarea y volver al tablero no produce el error de hooks
-- [x] #3 `npx tsc --noEmit` y `npm run build` pasan
-- [x] #4 La suite incluye una regresión que verifica que `useFocusTrap` se invoca antes del retorno por modal cerrado
+- [ ] #1 Configuración permite activar o desactivar campos de metadatos visibles en tarjetas
+- [ ] #2 Las preferencias persisten entre sesiones y cuentan con valores por defecto razonables para instalaciones existentes
+- [ ] #3 Las tarjetas Kanban respetan la selección sin abrir el modal
+- [ ] #4 La opción de jerarquía/relaciones no duplica información ya visible ni colisiona con interacciones de tarjetas
+- [ ] #5 La configuración es accesible, responsiva y localizada en español e inglés
 
 ---
 
-#### [DEV-195] Incluir logo en el paquete npm de Gripm
-- **Prioridad**: `medium` | **Tipo**: `bug`
+#### [DEV-205] Evaluar e implementar Gripm Suite
+- **Prioridad**: `medium` | **Tipo**: `feature`
 
-En el smoke test con Gripm instalado globalmente en otro repositorio, no se ve el logo. La interfaz lo solicita desde `/logo.png` y el asset vive en `public/logo.png`, pero `package.json` publica una allowlist que incluye `dist` y omite `public`. El CLI levanta Vite desde el paquete instalado, por lo que el archivo público debe estar presente en el tarball.
+Evaluar y, si la experiencia de usuario lo justifica, crear una forma sencilla de instalar Gripm Board y Gripm Playbook juntos desde una sola invocación, preservando que cada producto se pueda instalar, actualizar, usar y desinstalar independientemente.
+
+No asumir que un paquete agregador de npm instala automáticamente los ejecutables de sus dependencias ni que una instalación conjunta debe ser global. Definir primero el alcance global y/o por proyecto, la selección de productos, los requisitos de Node y el comportamiento de actualización/desinstalación. Las operaciones deben preservar el backlog y los archivos existentes del usuario y solicitar confirmación explícita antes de cualquier acción destructiva.
+
+Esta iniciativa depende de DEV-204 para que el modelo de productos, los nombres y los comandos individuales estén claros antes de introducir otra capa de instalación.
 
 **Criterios de Aceptación:**
-- [x] #1 El tarball de npm contiene `public/logo.png`
-- [x] #2 El CLI sirve `/logo.png` correctamente al ejecutarse contra el repo smoke-test
-- [x] #3 `npm run publish:check` exige que `public/logo.png` esté presente en el tarball
-- [x] #4 El paquete Gripm no se declara a sí mismo como dependencia y el lockfile coincide con el manifiesto
+- [ ] #1 Está justificado el valor de Suite frente a instalar Board y Playbook por separado.
+- [ ] #2 Se define y documenta qué productos incluye Suite y cómo se seleccionan, manteniendo Board y Playbook opcionales e independientes.
+- [ ] #3 Se decide y documenta el alcance de instalación (global, por proyecto o ambos), los defaults y los comandos reproducibles.
+- [ ] #4 Se valida con los artefactos empaquetados/publicados que una invocación instala los ejecutables previstos y no depende de suposiciones sobre npm.
+- [ ] #5 Instalar, actualizar y desinstalar preserva backlogs y archivos del usuario; cualquier eliminación requiere consentimiento explícito.
 
 ---
 
-### 🚀 Ready for Deploy (6)
+#### [DEV-207] Mejorar UX responsive del tablero en tablet y mobile
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+El tablero está priorizando actualmente el uso en desktop y presenta una experiencia visual apretada en tablet y mobile: controles de filtros densos, textos y estadísticas que compiten por espacio y vistas de trabajo que necesitan una jerarquía específica para pantallas táctiles. Diseñar una experiencia responsive intencional para resoluciones menores, sin limitarse a envolver controles en filas que dejen espacios vacíos o creen barras visualmente fragmentadas.
+
+**Criterios de Aceptación:**
+- [ ] #1 Definir y documentar los anchos objetivo y la jerarquía de información para mobile, tablet y desktop
+- [ ] #2 Reorganizar filtros, estadísticas y acciones del tablero para evitar hacinamiento y saltos de línea accidentales
+- [ ] #3 Validar las vistas Kanban y Backlog en anchos táctiles habituales, incluyendo navegación, acciones y scroll
+- [ ] #4 Mantener la experiencia desktop compacta y sin regresiones en resoluciones amplias
+- [ ] #5 Verificar ambos idiomas y temas, sin overflow horizontal accidental ni pérdida de controles
+
+---
+
+### 🚀 Ready for Deploy (13)
+
+#### [DEV-142] Activos Visuales y Storytelling del README: Hero Screenshot, Galería y Propuesta de Valor
+- **Prioridad**: `high` | **Tipo**: `docs`
+- **Sprint / Milestone**: 1.0.4
+
+Para una herramienta visual e interactiva como Gripm, la presencia de capturas de alta calidad y un pitch narrativo inmediato es clave para explicar el producto y convertir visitas en adopción. Esta tarea abarca la creación de assets gráficos y la mejora del storytelling en el README bilingüe.
+
+**Criterios de Aceptación:**
+- [x] #1 Crear carpeta `docs/screenshots/` para almacenar imágenes y capturas optimizadas del cockpit
+- [x] #2 Capturar imágenes del Kanban Board en modo oscuro y claro con tareas sintéticas del proyecto de demostración
+- [x] #3 Capturar vistas clave: Sprint Hub con métricas y Release Assembler con changelog generado
+- [x] #4 Insertar hero image en la parte superior de README.md y README.es.md con badge de capturas del producto
+- [x] #5 Agregar galería bilingüe en ambos READMEs con descripciones concisas
+- [x] #6 Fortalecer el storytelling con la propuesta local-first y el mensaje «Tu hoja de ruta no debería vivir en servidores ajenos» / “Your roadmap shouldn't live on someone else's servers.”
+
+---
 
 #### [DEV-172] Cobertura de Tests para la Capa de UI: Lógica Derivada y Accesibilidad de Componentes
 - **Prioridad**: `high` | **Tipo**: `chore`
+- **Sprint / Milestone**: 1.0.4
 
 La suite de verificación cubre parser, API, seguridad de red, MCP, CLI, SSE, locking optimista e importación. Antes de esta tarea, ningún paso importaba lógica desde la UI; para ~14.000 líneas de `src/` con 6 componentes de más de 1.100 líneas cada uno, la única cobertura era `audit:ux`, un análisis estático de clases Tailwind.
 
@@ -125,8 +160,37 @@ Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar 
 
 ---
 
+#### [DEV-194] Corregir el orden de hooks al abrir ItemModal
+- **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
+
+En el smoke test de Gripm como producto, al crear una tarea el tablero muestra el error fatal `Rendered more hooks than during the previous render.`. `ItemModal` retorna cuando está cerrado antes de ejecutar `useFocusTrap`, pero ejecuta ese hook cuando se abre; React recibe un número distinto de hooks entre renders del mismo componente.
+
+**Criterios de Aceptación:**
+- [x] #1 `ItemModal` ejecuta el mismo conjunto de hooks y en el mismo orden tanto cerrado como abierto
+- [x] #2 Abrir el modal de creación, guardar una tarea y volver al tablero no produce el error de hooks
+- [x] #3 `npx tsc --noEmit` y `npm run build` pasan
+- [x] #4 La suite incluye una regresión que verifica que `useFocusTrap` se invoca antes del retorno por modal cerrado
+
+---
+
+#### [DEV-195] Incluir logo en el paquete npm de Gripm
+- **Prioridad**: `medium` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
+
+En el smoke test con Gripm instalado globalmente en otro repositorio, no se ve el logo. La interfaz lo solicita desde `/logo.png` y el asset vive en `public/logo.png`, pero `package.json` publica una allowlist que incluye `dist` y omite `public`. El CLI levanta Vite desde el paquete instalado, por lo que el archivo público debe estar presente en el tarball.
+
+**Criterios de Aceptación:**
+- [x] #1 El tarball de npm contiene `public/logo.png`
+- [x] #2 El CLI sirve `/logo.png` correctamente al ejecutarse contra el repo smoke-test
+- [x] #3 `npm run publish:check` exige que `public/logo.png` esté presente en el tarball
+- [x] #4 El paquete Gripm no se declara a sí mismo como dependencia y el lockfile coincide con el manifiesto
+
+---
+
 #### [DEV-196] Preservar plantillas de skill por idioma en el paquete
 - **Prioridad**: `medium` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
 
 Al inicializar el propio repositorio Gripm en inglés, `gripm --init` escribe la skill inglesa sobre `.agents/skills/gripm/SKILL.md`, que también funciona como plantilla canónica española del paquete. Después, el test `verify-dist` instala una skill inglesa incluso cuando pide `--language es` y falla su aserción. Las plantillas de distribución deben ser estables e independientes del idioma escogido para inicializar el repo fuente.
 
@@ -139,6 +203,7 @@ Al inicializar el propio repositorio Gripm en inglés, `gripm --init` escribe la
 
 #### [DEV-197] Propagar fallos del smoke test Linux
 - **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
 
 `npm run test:linux` puede terminar con exit code 0 aunque la suite interna haya fallado. `scripts/repro-ci-linux.sh` imprime `SUITE_EXIT=1`, pero luego completa correctamente el shell del contenedor con el `echo`, ocultando el resultado de `npm test` a CI y a quien ejecuta localmente.
 
@@ -151,6 +216,7 @@ Al inicializar el propio repositorio Gripm en inglés, `gripm --init` escribe la
 
 #### [DEV-198] Automatizar smoke test de creación de tarea en navegador
 - **Prioridad**: `high` | **Tipo**: `chore`
+- **Sprint / Milestone**: 1.0.4
 
 La suite de CI no ejercita un flujo real de navegador para los caminos principales del usuario. Un error de orden de hooks impedía abrir el modal de nueva tarea aunque los tests existentes pasaban. Incorporar un smoke test automatizado y acotado que levante Gripm en un repo temporal, confirme que el logo carga, abra el modal, cree una tarea y verifique su persistencia.
 
@@ -165,6 +231,7 @@ La suite de CI no ejercita un flujo real de navegador para los caminos principal
 
 #### [DEV-199] Consolidar la marca Gripm en la aplicación y documentación viva
 - **Prioridad**: `medium` | **Tipo**: `chore`
+- **Sprint / Milestone**: 1.0.4
 
 La interfaz ya se presenta como gripm, pero la documentación operativa y las plantillas activas todavía describen el producto como "anteriormente DevBoard". Consolidar el nombre Gripm en la aplicación y en las guías vigentes, hacer explícito el corte de marca posterior a v1.0.0 y dejar intactos el changelog y el backlog histórico. Mantener las rutas de migración de datos heredados para no arriesgar información de proyectos existentes.
 
@@ -179,6 +246,7 @@ La interfaz ya se presenta como gripm, pero la documentación operativa y las pl
 
 #### [DEV-200] Corregir las opciones de versión de la CLI
 - **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
 
 Al ejecutar `gripm --version`, la CLI ignora la opción y arranca el servidor web en vez de mostrar la versión instalada. Esto causa un efecto secundario inesperado y puede ocupar un puerto o abrir el navegador para una consulta informativa. Implementar y documentar `--version` y su alias `-v`, y verificar que ambos funcionen en el paquete npm extraído.
 
@@ -191,7 +259,80 @@ Al ejecutar `gripm --version`, la CLI ignora la opción y arranca el servidor we
 
 ---
 
-### 📋 Backlog / Draft (18)
+#### [DEV-201] Corregir edición inmediata y visibilidad de relaciones en items
+- **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.4
+
+Al crear una tarea en un proyecto Backlog.md, el API responde con un ID temporal aunque la tarea se persiste usando su código canónico. Al abrir y editar inmediatamente la tarea, la UI envía un PUT con el ID temporal y recibe 404. Además, el endpoint de creación no persiste parentId, blocks, blockedBy ni relatedTo; al reabrir el modal esas relaciones no aparecen. Alinear la identidad de la respuesta con el formato persistido, conservar las relaciones al crear y hacer que las relaciones guardadas se reconozcan claramente al editar.
+
+**Criterios de Aceptación:**
+- [x] #1 Crear una tarea Markdown devuelve la identidad canónica que acepta el endpoint de edición y puede editarse inmediatamente sin 404
+- [x] #2 El endpoint de creación persiste parentId, blocks, blockedBy y relatedTo en el archivo y los devuelve en la respuesta
+- [x] #3 Al reabrir una tarea con relaciones, el modal las muestra expandidas con suficiente contexto para identificar cada tarea relacionada
+- [x] #4 El flujo de regresión automatizado cubre creación, lectura, edición y persistencia de relaciones
+- [x] #5 Pasan TypeScript, pruebas relevantes, suite completa, build y sincronización del backlog
+
+---
+
+#### [DEV-202] Acceso rápido para quitar relaciones y ver jerarquía de ítems
+- **Prioridad**: `high` | **Tipo**: `improvement`
+- **Sprint / Milestone**: 1.0.4
+
+Las relaciones guardadas se resumen en el modal, pero para quitarlas hay que expandir la sección y buscar el chip correspondiente. Además, la relación jerárquica parent/epic no se ve de forma consistente en las tarjetas del Kanban ni en la vista Backlog, que actualmente muestra solo el campo legacy `epic`. Hacer removibles las relaciones desde su resumen y presentar el padre resuelto por código y título en las vistas de trabajo.
+
+**Criterios de Aceptación:**
+- [x] #1 Cada relación existente en el resumen del modal se puede quitar con una acción directa y accesible, sin expandir la sección
+- [x] #2 Las tarjetas del Kanban muestran código y título del ítem padre cuando `parentId` resuelve a un ítem del proyecto
+- [x] #3 El Backlog muestra bajo el título la relación `parentId` resuelta, sin requerir habilitar una columna opcional
+- [x] #4 Las relaciones no resueltas siguen mostrando el identificador almacenado sin fallar ni desaparecer
+- [x] #5 Pasan las pruebas de regresión, UX, TypeScript, suite completa, build y sincronización del backlog
+
+---
+
+#### [DEV-204] Aclarar los productos Gripm y sus comandos de uso
+- **Prioridad**: `high` | **Tipo**: `improvement`
+- **Sprint / Milestone**: 1.0.4
+
+Hacer que una persona nueva pueda distinguir qué ofrece cada parte del ecosistema Gripm, elegir el comando correcto para su objetivo y combinar los productos sin creer que son dependencias obligatorias entre sí.
+
+### Modelo de producto
+
+- **Gripm** es la marca y el ecosistema.
+- **Gripm Board** (`@gripm/board`) es el producto de gestión del backlog: interfaz web local, CLI y servidor MCP para exponer ese mismo backlog a agentes.
+- **Gripm MCP** (`gripm-mcp` o `gripm mcp`) es una interfaz de Board para agentes, distribuida dentro del paquete Board; se ejecuta sin abrir la interfaz web, pero no es hoy un paquete/producto autónomo.
+- **Gripm Playbook** (`@gripm/playbook`) es el producto independiente de metodología y skills para equipos/agentes; puede utilizarse sin Board.
+- **Gripm Suite** no existe todavía como paquete o instalador y queda fuera del alcance de esta tarea.
+
+Board incluye algunos materiales de agente y ofrece `gripm playbook sync` para sincronizar materiales canónicos en un proyecto. Ese comando no instala el paquete Playbook ni equivale a instalar/actualizar Board. La ayuda del CLI y las guías de inicio deben dejar claras estas diferencias, indicar qué comandos se usan para abrir Board o conectar MCP, y evitar nombres de paquetes obsoletos o ambiguos.
+
+La documentación debe ser honesta sobre lo que existe hoy y no prometer una instalación unificada todavía.
+
+**Criterios de Aceptación:**
+- [x] #1 README en español e inglés explica con el mismo modelo Gripm, Board, MCP y Playbook, incluida la independencia real y la relación de MCP con Board.
+- [x] #2 Una guía breve de decisión asigna de forma inequívoca los comandos existentes a abrir Board, inicializar un proyecto, conectar MCP y sincronizar materiales del Playbook.
+- [x] #3 La ayuda del CLI presenta el comando por defecto y sus subcomandos con propósitos, opciones de destino y efectos claramente diferenciados.
+- [x] #4 Las instrucciones de instalación y configuración MCP usan el nombre publicado `@gripm/board` y no sugieren paquetes o comandos no existentes.
+- [x] #5 Se aclara que `gripm playbook sync` sincroniza materiales del Playbook en un proyecto; no instala el paquete Playbook ni Gripm Suite.
+- [x] #6 Suite se describe solo como una posibilidad futura, sin prometer instalador, paquete agregador o flujo de instalación que todavía no exista.
+- [x] #7 README, ayuda del CLI y skills incluidas en Board no se contradicen en nombres de productos ni comandos.
+- [x] #8 Pasan las verificaciones de CLI/documentación aplicables, TypeScript, tests, build, publicación y sincronización del backlog.
+
+---
+
+#### [DEV-206] Evitar solapamiento entre filtros y contadores en español
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+- **Sprint / Milestone**: 1.0.4
+
+En el tablero, a 1366×768 y con la interfaz en español, el contador de tareas pendientes se solapaba con el filtro de prioridad P3. La barra de filtros debe conservar una composición compacta en desktop sin saltar grupos enteros a una segunda línea; los filtros de prioridad siguen disponibles desde el panel Filtros cuando no caben como accesos rápidos.
+
+**Criterios de Aceptación:**
+- [x] #1 El contador de pendientes no se solapa con los controles visibles a 1366×768 en español
+- [x] #2 Los filtros de prioridad siguen accesibles desde el panel de Filtros cuando no caben como accesos rápidos
+- [x] #3 Los accesos rápidos de prioridad solo ocupan espacio inline cuando el viewport permite conservar una única fila compacta
+
+---
+
+### 📋 Backlog / Draft (17)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -398,21 +539,6 @@ Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a
 - [ ] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
 - [ ] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
 - [ ] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
-
----
-
-#### [DEV-142] Activos Visuales y Storytelling del README: Hero Screenshot, Galería y Propuesta de Valor
-- **Prioridad**: `high` | **Tipo**: `docs`
-
-Para una herramienta visual e interactiva como DevBoard, la presencia de capturas de alta calidad y un pitch narrativo inmediato es el factor #1 de conversión y comprensión en la comunidad de código abierto. Esta tarea abarca la creación de assets gráficos y la mejora del storytelling en el README bilingüe.
-
-**Criterios de Aceptación:**
-- [ ] #1 Crear carpeta `docs/screenshots/` para almacenar imágenes y capturas optimizadas del cockpit
-- [ ] #2 Capturar o generar imágenes del Kanban Board en Dark Mode y Light Mode con datos de demo limpios
-- [ ] #3 Capturar vistas clave: Sprint Hub con métricas y Release Assembler con notas de versión compiladas
-- [ ] #4 Insertar hero image en la parte superior de README.md y README.es.md con badge de demostración visual
-- [ ] #5 Agregar sección 'Capturas de Pantalla' / 'Screenshots' bilingüe en ambos READMEs con descripciones concisas
-- [ ] #6 Fortalecer el storytelling y propuesta de valor inicial: 'Tu hoja de ruta no debería vivir en servidores ajenos' y destacar la soberanía local-first con agentes IA
 
 ---
 

@@ -177,6 +177,10 @@ export const ItemModal: FC<ItemModalProps> = ({
   const currentCode = item?.code || '';
   const otherItems = (allItems || []).filter(it => it.id !== currentId && it.code !== currentCode);
   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
+  const formatRelation = (relationId: string) => {
+    const relatedItem = otherItems.find(it => it.code === relationId || it.id === relationId);
+    return relatedItem ? `${relatedItem.code || relatedItem.id} · ${relatedItem.title}` : relationId;
+  };
   const availableLabels = Array.from(new Set(allItems.flatMap(it => it.labels || []))).filter(Boolean);
   const availableAssignees = Array.from(new Set(allItems.flatMap(it => it.assignees || []))).filter(Boolean);
 
@@ -348,10 +352,10 @@ export const ItemModal: FC<ItemModalProps> = ({
         releases: selectedReleases.length > 0 ? selectedReleases : (release.trim() ? [release.trim()] : []),
         milestone: selectedReleases[0] ? selectedReleases[0].trim() : (release.trim() || ''),
         sprints: sprint.trim() ? [sprint.trim()] : [],
-        parentId: parentId.trim() || undefined,
-        blocks: blocks.length > 0 ? blocks : undefined,
-        blockedBy: blockedBy.length > 0 ? blockedBy : undefined,
-        relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
+        parentId: parentId.trim(),
+        blocks,
+        blockedBy,
+        relatedTo,
         description: description.trim(),
         risk: risk.trim() || undefined,
         fix: fix.trim() || undefined,
@@ -699,33 +703,94 @@ export const ItemModal: FC<ItemModalProps> = ({
 
               {/* DEV-048: Relaciones y Dependencias (Jerarquías y Bloqueos) */}
               <div className="rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setRelationsExpanded(!relationsExpanded)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    <Link className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {t('itemModal.relationsTitle')}
-                    </span>
-                    {(parentId || blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-mono">
-                        {[
-                          parentId ? `1 ${t('itemModal.relationsParent').split(' ')[1] || 'padre'}` : null,
-                          blocks.length > 0 ? `${blocks.length} ${t('itemModal.relationsBlocks').split(' ')[0] || 'bloquea'}` : null,
-                          blockedBy.length > 0 ? `${blockedBy.length} ${t('itemModal.relationsBlockedBy').split(' ')[0] || 'bloqueado'}` : null,
-                          relatedTo.length > 0 ? `${relatedTo.length} enlaces` : null
-                        ].filter(Boolean).join(' · ')}
+                <div className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setRelationsExpanded(!relationsExpanded)}
+                    aria-expanded={relationsExpanded}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Link className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="text-xs font-semibold text-foreground">
+                        {t('itemModal.relationsTitle')}
                       </span>
+                    </span>
+                    {relationsExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     )}
-                  </div>
-                  {relationsExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                  </button>
+                  {(parentId || blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
+                    <div className="flex flex-wrap gap-2 pt-2 pl-5">
+                      {parentId && (
+                        <div className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                          <span className="break-words py-1">
+                            {t('itemModal.relationsParent')}: {formatRelation(parentId)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
+                            title={t('itemModal.relationsRemoveBlocks')}
+                            onClick={() => setParentId('')}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                      {blockedBy.map(id => (
+                        <div key={`blocked-by-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                          <span className="break-words py-1">
+                            {t('itemModal.relationsBlockedBy')}: {formatRelation(id)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`${t('itemModal.relationsRemoveBlocker')}: ${formatRelation(id)}`}
+                            title={t('itemModal.relationsRemoveBlocker')}
+                            onClick={() => setBlockedBy(previous => previous.filter(value => value !== id))}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {blocks.map(id => (
+                        <div key={`blocks-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                          <span className="break-words py-1">
+                            {t('itemModal.relationsBlocks')}: {formatRelation(id)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(id)}`}
+                            title={t('itemModal.relationsRemoveBlocks')}
+                            onClick={() => setBlocks(previous => previous.filter(value => value !== id))}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {relatedTo.map(id => (
+                        <div key={`related-to-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                          <span className="break-words py-1">
+                            {t('itemModal.relationsRelatedTo')}: {formatRelation(id)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(id)}`}
+                            title={t('itemModal.relationsRemoveBlocks')}
+                            onClick={() => setRelatedTo(previous => previous.filter(value => value !== id))}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
 
                 {relationsExpanded && (
                   <div className="p-4 border-t border-slate-200 dark:border-white/[0.06] space-y-4 bg-slate-50 dark:bg-black/10 text-xs">
@@ -791,7 +856,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                         <div className="flex flex-wrap gap-1.5">
                           {blockedBy.map(bCode => (
                             <span key={bCode} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[11px]">
-                              <span>⛔ {bCode}</span>
+                              <span>⛔ {formatRelation(bCode)}</span>
                               <button
                                 type="button"
                                 onClick={() => setBlockedBy(blockedBy.filter(c => c !== bCode))}
@@ -842,7 +907,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                         <div className="flex flex-wrap gap-1.5">
                           {blocks.map(bCode => (
                             <span key={bCode} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px]">
-                              <span>⚠️ {bCode}</span>
+                              <span>⚠️ {formatRelation(bCode)}</span>
                               <button
                                 type="button"
                                 onClick={() => setBlocks(blocks.filter(c => c !== bCode))}
@@ -892,7 +957,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                         <div className="flex flex-wrap gap-1.5">
                           {relatedTo.map(rCode => (
                             <span key={rCode} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 text-[11px]">
-                              <span>🔗 {rCode}</span>
+                              <span>🔗 {formatRelation(rCode)}</span>
                               <button
                                 type="button"
                                 onClick={() => setRelatedTo(relatedTo.filter(c => c !== rCode))}

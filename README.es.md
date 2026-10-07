@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/brand/gripm-logo.png" alt="gripm Logo" width="140" style="border-radius: 28px;" />
+  <img src="docs/brand/gripm-logo-lockup.png" alt="Logo de gripm en su marco oscuro" width="140" />
 </p>
 
 <h1 align="center">gripm ⚡</h1>
 
 <p align="center">
-  <strong>Tracción para ingeniería a velocidad de IA: Un tablero ágil de gestión de producto e ingeniería soberano y local-first para desarrolladores y pair programming con IA.</strong>
+  <strong>Un espacio local-first para gestionar el trabajo de producto e ingeniería, planificar iteraciones y colaborar con agentes de IA.</strong>
 </p>
 
 <p align="center">
@@ -17,72 +17,103 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-blue.svg" alt="Licencia: MIT" /></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocolo%20Listo-6366f1.svg" alt="Protocolo MCP: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.6.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=22.6.0" /></a>
+  <a href="#capturas-de-pantalla"><img src="https://img.shields.io/badge/Demo-Capturas%20del%20producto-6366f1.svg" alt="Ver capturas de demostración" /></a>
 </p>
 
-**gripm** (*"grip-em"*) es un tablero autónomo de gestión de producto e ingeniería ágil diseñado para eliminar la fricción de gestionar tareas, deuda técnica, backlogs de sprint y releases directamente junto a tu código fuente. Provee el agarre (**grip**) y la firme tracción necesarios para guiar agentes de IA (Cursor, Claude Code, Copilot, Antigravity) con especificaciones estructuradas, criterios de aceptación verificables y empaquetado de releases soberano y local-first.
+<p align="center">
+  <a href="#capturas-de-pantalla"><img src="docs/screenshots/01-kanban-dark.png" alt="Tablero Kanban de Gripm en modo oscuro con tareas de demostración" width="100%" /></a>
+</p>
 
-Construido con **React 18**, **Vite**, **TypeScript** y **Tailwind CSS**. Diseñado para operacionalizar la metodología [**Agentic Team Playbook**](docs/AGENTIC_PLAYBOOK.md).
+> **Tu hoja de ruta no debería vivir en servidores ajenos.** Gripm mantiene el trabajo de producto e ingeniería junto a tu código: local-first, versionable con Git y preparado para agentes de IA.
+
+**gripm** (*"grip-em"*) es un espacio local para gestionar listas de trabajo de producto e ingeniería, planificar iteraciones y preparar versiones. Da a los agentes de IA (Cursor, Claude Code, Copilot, Antigravity) especificaciones estructuradas y criterios de aceptación verificables sin trasladar tu hoja de ruta a servicios de terceros.
+
+Construido con **React 18**, **Vite**, **TypeScript** y **Tailwind CSS**. Gripm Board puede usarse por separado o junto con el producto independiente Gripm Playbook.
 
 > **Historial de marca:** v1.0.0 fue la última versión bajo el nombre DevBoard. Desde v1.0.1, las versiones se publican con la marca Gripm. Los datos de proyectos existentes se siguen detectando y migrando; el cambio de marca no los renombra ni elimina.
+
+## 🧭 Qué es cada producto y qué comando usar
+
+**Gripm** es el ecosistema y tiene dos productos independientes:
+
+| Producto | Qué hace | Paquete / acceso |
+| :--- | :--- | :--- |
+| **Gripm Board** | Gestiona el backlog del proyecto con una interfaz web local y un CLI. | `@gripm/board` → `gripm` |
+| **Gripm Playbook** | Proporciona metodología y skills para trabajar con agentes; puede usarse sin Board. | Paquete independiente: `@gripm/playbook` ([repositorio](https://github.com/pablojavierrodriguez/gripm-playbook)) |
+
+**MCP es una interfaz para Board, no un tercer producto ni un paquete separado.** Permite que un agente lea y actualice el mismo backlog sin abrir la interfaz web. Una vez configurado, el cliente de IA inicia el proceso MCP por `stdio` cuando se conecta.
+
+Elige el comando según lo que quieras hacer:
+
+| Objetivo | Comando | Efecto |
+| :--- | :--- | :--- |
+| Instalar Board y sus comandos (una vez por equipo) | `npm install -g @gripm/board` | Instala `gripm` y `gripm-mcp`; no instala Playbook |
+| Usar Board sin instalación global | `npx @gripm/board --repo <ruta>` | Abre el tablero para el proyecto indicado |
+| Preparar un proyecto para Board | Desde su carpeta: `gripm --init` | Configura el proyecto; no instala otro producto |
+| Abrir el tablero | Desde el proyecto: `gripm` | Abre Board en el navegador |
+| Conectar un agente al backlog | Configura `gripm-mcp --repo <ruta>` en tu cliente de IA | El cliente inicia el proceso MCP por `stdio`; si omites `--repo`, se usa el directorio de trabajo que le indique el cliente |
+| Actualizar materiales del Playbook en un proyecto | `gripm playbook sync --repo <ruta>` | Sincroniza archivos/skills; no instala ni actualiza el paquete Playbook |
+| Usar solo Playbook | Sigue las instrucciones de su [repositorio y paquete](https://github.com/pablojavierrodriguez/gripm-playbook) | No requiere instalar Board |
+
+**Gripm Suite todavía no tiene paquete ni instalador.** Si quieres ambos productos, instala/configura Board y Playbook por separado. `gripm --help` muestra los comandos del CLI; los subcomandos desconocidos se rechazan en vez de abrir el tablero por accidente.
+
+## 🖼️ Capturas de pantalla
+
+Explora el tablero local-first, la planificación por iteraciones y las notas de versión con un proyecto de demostración limpio:
+
+| Kanban — Modo oscuro | Kanban — Modo claro |
+| :---: | :---: |
+| <img src="docs/screenshots/01-kanban-dark.png" alt="Tablero Kanban de Gripm en modo oscuro" width="100%" /> | <img src="docs/screenshots/02-kanban-light.png" alt="Tablero Kanban de Gripm en modo claro" width="100%" /> |
+| Iteraciones y backlog | Notas de versión |
+| <img src="docs/screenshots/03-backlog-sprints.png" alt="Vista de planificación de iteraciones y backlog; la interfaz demo muestra la etiqueta Sprint" width="100%" /> | <img src="docs/screenshots/04-release-changelog.png" alt="Generador de notas de versión" width="100%" /> |
 
 ---
 
 ## 💡 ¿Por qué gripm?
 
 ### El Problema
-Al gestionar bases de código, el seguimiento de tareas suele comenzar como archivos Markdown estáticos (`BACKLOG.md`, `TODO.md`). Con el tiempo, se convierten en cementerios desestructurados de sólo escritura: difíciles de priorizar entre sprints, imposibles de filtrar interactivamente y dolorosos de reconciliar al redactar notas de release.
+Al gestionar bases de código, el seguimiento suele comenzar con archivos Markdown estáticos (`BACKLOG.md`, `TODO.md`). A medida que crece el trabajo, puede hacer falta priorizarlo mejor, filtrarlo de forma interactiva y reunir con claridad las notas de cada versión.
 
-Las herramientas de gestión en la nube (Jira, Trello, Asana) caen en el extremo opuesto: tiempos de carga lentos, sobrecarga corporativa, desconexión de los commits de Git y la obligación de almacenar arquitectura privada, deuda técnica y fallos de seguridad en servidores de terceros.
+Las herramientas de gestión en la nube suelen centralizar los datos en servicios de sus proveedores y ofrecen funciones de colaboración amplias. Para algunos equipos, un backlog local y versionado junto al código puede ser una alternativa más directa y mantener esos datos bajo su propio control.
 
 ### Ventajas de gripm frente a Herramientas en la Nube
 
-| Factor | Herramientas Cloud (Jira, Trello, Asana) | gripm ⚡ |
+| Factor | Servicios de gestión alojados | gripm ⚡ |
 | :--- | :--- | :--- |
-| **Privacidad de Datos** | Alojado en la nube. Roadmaps y vulnerabilidades en servidores remotos. | **100% Soberano y Local-First**. Cero telemetría, cero fugas. Almacenado en tu repo local. |
-| **Alineación con Git** | Desconectado del código; requiere sincronización manual o webhooks frágiles. | **Versionado junto a tu código**. Comitea estados de tareas junto a pull requests y ramas. |
-| **Velocidad y Peso** | Bundles pesados, segundos de carga, spinners constantes. | **Arranque instantáneo en <200ms**. Cero sobrecarga, corre localmente en un único puerto. |
-| **Foco del Flujo** | Sobrecargado de formularios corporativos, permisos y ruido de notificaciones. | **Enfocado en flujos de desarrollo**: Ideas → Sprint → Plan → Release. |
-| **Pair-Programming con IA** | Campos de texto genéricos sin contexto estructurado para agentes de código. | **Puente Nativo para IA**: Plan Guard, Servidor MCP sobre stdio y prompts listos para agentes. |
+| **Datos** | Se alojan en la infraestructura del proveedor. | **Local-first**. El backlog se guarda en archivos locales bajo tu control; Gripm no lo carga a un servicio propio. El CLI puede consultar GitHub Releases para buscar actualizaciones. |
+| **Git** | La relación con el código depende de las funciones e integraciones del servicio. | Puedes versionar tareas junto con el código y colaborar mediante Git. |
+| **Acceso** | Se accede al servicio del proveedor, normalmente a través de la web. | El tablero se sirve desde tu equipo; no requiere un servicio de gestión alojado. |
+| **Flujo de trabajo** | Ofrecen distintos flujos de gestión y colaboración. | Enfocado en backlogs de desarrollo: Ideas → Planificar → Construir → Entregar, con planificación opcional por iteraciones. |
+| **Agentes de IA** | La integración depende de las funciones e integraciones disponibles. | Incluye un servidor MCP para que los agentes consulten y actualicen el backlog. |
 
 ---
 
 ## 🗄️ Motor Dual de Almacenamiento Flexible
 
-gripm te otorga control explícito sobre cómo se almacena cada proyecto en disco, con **cero dependencias externas**:
+gripm te permite elegir cómo almacenar cada proyecto en disco. No requiere una base de datos ni un servicio de almacenamiento externo:
 
 ### 1. Markdown Distribuido (`backlog-md`)
 - **Formato**: `backlog/tasks/<CODIGO> - <Titulo>.md` con frontmatter YAML limpio y secciones delimitadas (`<!-- AC:BEGIN -->`, `<!-- SECTION:PLAN:BEGIN -->`).
-- **Por qué usarlo**: Ideal para equipos o flujos multi-agente. Al ser cada tarea un archivo independiente, ramas concurrentes de Git y agentes de IA pueden crear, actualizar y resolver tareas con **cero conflictos de fusión (merge conflicts)**.
+- **Por qué usarlo**: Útil para equipos o flujos multi-agente. Los archivos de tarea independientes reducen la contención, aunque los cambios en archivos compartidos todavía pueden generar conflictos de Git.
 
 ### 2. Archivo Único JSON (`json`)
 - **Formato**: `.gripm/backlog.json`
 - **Por qué usarlo**: Ideal si prefieres una huella compacta en un solo archivo sin crear archivos individuales de tareas en tu repositorio.
 
-### 🔄 Conversión Bidireccional en 1 Clic
-Desde la configuración del proyecto en gripm, puedes convertir entre motores de almacenamiento en cualquier momento sin pérdida de datos:
+### 🔄 Conversión Bidireccional
+Desde la configuración del proyecto puedes convertir entre motores de almacenamiento. Haz una copia de seguridad antes de cambiar el formato:
 - **"Pasar a archivos .md individuales"**: Toma `.gripm/backlog.json` y lo divide en `backlog/tasks/*.md`.
 - **"Unificar en un solo archivo JSON"**: Toma `backlog/tasks/*.md` y compacta todo en `.gripm/backlog.json`.
 
 ### 💾 Exportación y Descargas
-- **Reporte Documental (`BACKLOG.md`)**: Exporta un resumen consolidado en Markdown de tu tablero o sprint activo para PRs, issues o documentación.
-- **Copia de Seguridad Completa (`backlog.json`)**: Exporta todos los datos del proyecto (tareas, criterios de aceptación, planes técnicos, releases) para archivo offline o migración.
+- **Reporte Documental (`BACKLOG.md`)**: Exporta un resumen Markdown del tablero o de la iteración seleccionada para PRs, issues o documentación.
+- **Copia de Seguridad Completa (`backlog.json`)**: Exporta los datos del proyecto (tareas, criterios de aceptación, planes técnicos y versiones) para archivo offline o migración.
 
 ---
 
-## 📐 Metodología: Agentic Team Playbook
+## 📐 Trabajo con agentes de IA
 
-gripm está diseñado desde sus cimientos para operacionalizar el [**Agentic Team Playbook**](docs/AGENTIC_PLAYBOOK.md), un marco de ingeniería riguroso para equipos que colaboran con agentes de IA (Antigravity, Cursor, Claude Code, GitHub Copilot).
-
-Reemplaza el caos del *"vibe coding"* con salvaguardas estrictas y transparentes:
-- **Fase 1: Contexto y Anclaje** — Ningún agente modifica código sin anclarse a una tarea atómica en `backlog/tasks/`.
-- **Fase 2: Plan Guard** — Arquitectura explícita y plan de implementación paso a paso antes de escribir código.
-- **Fase 3: Ejecución Atómica Incremental** — Seguimiento interactivo con casillas (`- [x]`) y estricto aislamiento de alcance.
-- **Fase 4: Gates Automatizados de Verificación** — Hooks pre-commit (`.githooks/pre-commit`) previenen desincronizaciones entre código y backlog.
-- **Fase 5: Release Hub y Trazabilidad** — Versionado histórico, compilación automática de changelogs y cero conflictos de Git.
-
-👉 Consulta la metodología completa en [**docs/AGENTIC_PLAYBOOK.md**](docs/AGENTIC_PLAYBOOK.md).
-
-> **Tip Pro:** Mantén las skills y reglas de agentes de tu proyecto sincronizadas con el estándar oficial ejecutando `npx gripm playbook sync` (o `npm run playbook:sync`).
+Board proporciona a los agentes de código contexto estructurado del backlog y criterios de aceptación mediante MCP. Puede usarse por separado o junto con el producto independiente [**Gripm Playbook**](https://github.com/pablojavierrodriguez/gripm-playbook), que ofrece metodología y skills para agentes. Playbook es opcional; `gripm playbook sync` copia materiales seleccionados al proyecto, pero no instala el producto Playbook.
 
 ---
 
@@ -94,7 +125,7 @@ gripm atiende a dos perfiles principales. Elige el camino según tu objetivo:
 | :--- | :--- |
 | **"Quiero gestionar tareas y usar IA en mi proyecto existente"** | **"Quiero modificar el código de gripm, personalizarlo o hacer un fork"** |
 | ✅ Cero necesidad de clonar el repositorio de gripm | ✅ Clona o bifurca el repositorio de gripm |
-| ✅ Configuración guiada en 1 minuto vía CLI (`gripm --init`) | ✅ Modifica componentes React, Tailwind y código TypeScript |
+| ✅ Configuración guiada vía CLI (`gripm --init`) | ✅ Modifica componentes React, Tailwind y código TypeScript |
 | ✅ Tablero web local + integración de IA en Cursor / Claude / Antigravity | ✅ Ejecuta servidor Vite con Hot Module Reload (`npm run dev`) |
 | ⏩ **[Ir a Guía de Onboarding e Inicio Rápido](#-guía-de-onboarding-e-inicio-rápido-perfil-1)** | ⏩ **[Ir a Guía para Desarrolladores y Contribuidores](#-guía-para-desarrolladores-y-contribuidores-perfil-2)** |
 
@@ -103,27 +134,21 @@ gripm atiende a dos perfiles principales. Elige el camino según tu objetivo:
 ## 🚀 Guía de Onboarding e Inicio Rápido (Perfil 1)
 *Usa gripm en cualquier repositorio sin clonar ni modificar el código fuente de gripm.*
 
-### Paso 1: Instalación Global (Recomendado, sólo una vez en tu equipo)
-Instala el CLI desde npm:
+### Paso 1: Instala Gripm Board
+Requiere Node.js 22.6.0 o posterior. Instala el CLI desde npm:
 ```bash
 npm install -g @gripm/board
-# o directamente desde GitHub: npm install -g github:pablojavierrodriguez/gripm
 ```
-*(O ejecútalo bajo demanda con zero install: `npx @gripm/board`)*
+También puedes ejecutarlo bajo demanda con `npx @gripm/board`.
 
-### Paso 2: Inicializa tu Repositorio (Configuración guiada en 1 minuto)
+### Paso 2: Inicializa tu repositorio (opcional)
 Abre un terminal en la raíz de tu proyecto (ej: `mi-app`) y ejecuta:
 ```bash
 gripm --init
 ```
 *(O vía npx: `npx @gripm/board --init`)*
 
-El asistente interactivo en español te guiará a través de 5 decisiones:
-1. **Modo de Instanciación**: Elige **Mono-Proyecto** (aislado y autocontenido para este repo) o **Multi-Proyecto Hub** (registrado en el Hub global `~/.gripm/registry.json`).
-2. **Skill para Agentes de IA**: Instala `.agents/skills/gripm/SKILL.md` para que Cursor, Antigravity y Claude Code conozcan las herramientas MCP.
-3. **Guía de Gobernanza (AGENTS.md)**: Genera `AGENTS.md` con reglas de dogfooding, salvaguardas pre-commit y flujos de trabajo con agentes.
-4. **Scripts en package.json**: Agrega scripts inteligentes `"board"` y `"mcp"` con fallback automático a npm (`gripm 2>/dev/null || npx -y @gripm/board`).
-5. **Reglas para Git**: Añade exclusiones recomendadas (`.gripm/update-cache.json`, etc.) a tu `.gitignore`.
+El asistente puede configurar un espacio de un solo proyecto o un hub multiproyecto y, de manera opcional, agregar instrucciones para agentes, `AGENTS.md`, scripts de npm y exclusiones recomendadas en `.gitignore`. También puedes seleccionar opciones sin interacción con `--yes` / `-y`.
 
 *Modo no interactivo para integración continua (CI) o scripts:*
 ```bash
@@ -132,8 +157,8 @@ gripm --init -y
 
 ### Desacoplar gripm de un repositorio
 
-Si querés quitar gripm de un proyecto, el comando `uninstall` lo hace
-seleccionando el alcance, y **nunca borra tu backlog**:
+Para quitar gripm de un proyecto sin borrar los archivos del backlog, usa
+`uninstall` y elige el alcance:
 
 ```bash
 gripm --uninstall
@@ -153,9 +178,8 @@ locales**, que además limpia el registro central.
 
 Tres garantías del diseño:
 
-- 🔒 `backlog/` y `BACKLOG.md` **no se tocan nunca**, en ningún modo ni flag. No es
-  una precaución en el código: la lista de rutas eliminables es explícita y el
-  backlog no está en ella.
+- 🔒 `backlog/` y `BACKLOG.md` se preservan al desinstalar, en cualquier modo y
+  con cualquier flag. La lista de rutas eliminables es explícita y los excluye.
 - 🔒 Un script propio tuyo llamado `board` se preserva. Sólo se revierten los
   scripts que gripm inyectó.
 - 🔒 En la purga global te avisa cuántos proyectos registrados se van a
@@ -166,36 +190,36 @@ Cada vez que vayas a trabajar en tu proyecto, ejecuta:
 ```bash
 gripm
 ```
-*(O `npm run board` si configuraste los scripts durante la inicialización).*  
-*gripm iniciará el tablero visual en tu navegador predeterminado en `http://localhost:4100` en menos de 200ms.*
+El CLI abre el tablero en tu navegador predeterminado. El puerto inicial es `4100`, pero puede cambiar si ya está ocupado. Si al inicializar habilitaste el script opcional `board`, también puedes ejecutar `npm run board`.
 
 ### Paso 4 (Opcional): Conectar tu Agente de IA (Cursor / Claude / Antigravity)
-Agrega gripm a la configuración MCP de tu entorno (`.cursor/mcp.json`, Claude Desktop o Antigravity):
+Configura Gripm MCP en los ajustes de tu cliente de IA. El cliente inicia el proceso cuando se conecta; normalmente no necesitas abrirlo en una terminal aparte. Indica el proyecto con `--repo`:
 
-#### Opción A: Mediante npm run (Recomendado en el repositorio)
 ```json
 {
   "mcpServers": {
     "gripm": {
-      "command": "npm",
-      "args": ["run", "mcp"]
+      "command": "gripm-mcp",
+      "args": ["--repo", "/ruta/absoluta/a/mi-proyecto"]
     }
   }
 }
 ```
 
-#### Opción B: Mediante binario global
+El servidor usa el backlog del proyecto indicado. Si omites `--repo`, usará el directorio de trabajo que le proporcione el cliente MCP. Si no instalaste Board globalmente, configura el cliente para iniciarlo con `npx`:
+
 ```json
 {
   "mcpServers": {
     "gripm": {
-      "command": "gripm-mcp"
+      "command": "npx",
+      "args": ["-y", "-p", "@gripm/board", "gripm-mcp", "--repo", "/ruta/absoluta/a/mi-proyecto"]
     }
   }
 }
 ```
 
-*Tu agente de IA detectará automáticamente `backlog/tasks/` en tu repositorio y gestionará tareas a través de 12 herramientas dedicadas.*
+Más abajo se listan las herramientas disponibles.
 
 ---
 
@@ -210,7 +234,7 @@ cd gripm
 npm install
 npm run dev
 ```
-*Abre `http://localhost:4100`. Los hooks de pre-commit se configuran automáticamente mediante `npm install`.*
+El servidor de desarrollo abre `http://localhost:4100` (o el puerto disponible que determine Vite). Los hooks de pre-commit se configuran mediante `npm install`.
 
 ### 2. Enlace Local de Desarrollo (`npm link`)
 Para usar tu fork local de forma global en otros proyectos de tu máquina:
@@ -220,23 +244,27 @@ npm link
 *Ahora los comandos `gripm` y `gripm-mcp` ejecutarán directamente tu versión local.*
 
 ### 3. Modos y Banderas Avanzadas del CLI
-- `--single` / `--mono`: Fuerza el modo mono-proyecto aislado (bloquea el contexto a la carpeta actual e ignora otros repositorios).
 - `--hub`: Fuerza el modo hub multi-proyecto (carga y gestiona todos los proyectos registrados en `~/.gripm/registry.json`).
 - `--port <número>`: Especifica un puerto personalizado (ej: `gripm --port 4200`).
-- `--repo <ruta>`: Apunta a una ruta de repositorio explícita en lugar de la carpeta actual.
+- `--repo <ruta>`: Apunta a un proyecto explícito en lugar de la carpeta actual. Lo aceptan Board, MCP y `playbook sync`.
 - `--no-open`: Inicia el servidor sin abrir el navegador automáticamente.
 
-**Silenciar Verificación de Actualizaciones:**
-Al igual que Supabase CLI, gripm consulta lanzamientos de GitHub Releases una vez cada 24 horas en segundo plano. Para deshabilitarlo:
+**Desactivar la búsqueda de actualizaciones:**
+El CLI puede consultar GitHub Releases en segundo plano y guarda el resultado en una caché local durante 24 horas. Para desactivarlo:
 ```bash
 GRIPM_NO_UPDATE_CHECK=1 gripm
 ```
 
+En PowerShell:
+```powershell
+$env:GRIPM_NO_UPDATE_CHECK = "1"; gripm
+```
+
 ---
 
-## 🤖 Herramientas del Servidor MCP (12 Tools)
+## 🤖 Servidor MCP incluido en Board (12 herramientas)
 
-gripm incluye un servidor MCP autónomo sobre `stdio` (`bin/gripm-mcp.js`):
+El paquete `@gripm/board` incluye un servidor MCP sobre `stdio` (`bin/gripm-mcp.js`). Puede ejecutarse como proceso propio sin abrir la interfaz web, pero usa el motor de backlog de Board y no se publica como paquete separado:
 
 | Herramienta | Propósito | Parámetros Clave |
 | :--- | :--- | :--- |
@@ -250,34 +278,35 @@ gripm incluye un servidor MCP autónomo sobre `stdio` (`bin/gripm-mcp.js`):
 | `gripm_list_releases` | Consulta versiones publicadas, notas de changelog y tareas asociadas. | `projectId`, `version` |
 | `gripm_export_backlog` | Genera o actualiza el informe consolidado `BACKLOG.md`. | `projectId` |
 | `gripm_sync_backlog` | Audita y reconcilia tareas completadas con criterios de aceptación y sincroniza `BACKLOG.md`. | `projectId`, `autoFix` |
-| `gripm_create_retro` | Genera un archivo estructurado de retrospectiva para un sprint finalizado. | `projectId`, `sprintId`, `sprintName`, `whatWentWell`, `whatWentWrong`, `whatToImprove` |
+| `gripm_create_retro` | Genera una retrospectiva estructurada al cerrar una iteración. | `projectId`, `sprintId`, `sprintName`, `whatWentWell`, `whatWentWrong`, `whatToImprove` |
 | `gripm_list_retros` | Lista retrospectivas históricas registradas en `backlog/retros/`. | `projectId` |
 
 ---
 
 ## 🔒 Privacidad y Estrategias Git: Repositorios Públicos vs Privados
 
-gripm es **100% soberano y local-first**: tus datos nunca se envían a servidores externos ni plataformas de telemetría. Al residir los datos directamente en tu disco como archivos, puedes elegir la estrategia adecuada según la visibilidad de tu repositorio:
+gripm es local-first: los datos del backlog se guardan en archivos locales bajo tu control y no se cargan a un servicio de Gripm. El CLI puede consultar GitHub Releases para buscar actualizaciones; la consulta se guarda en caché y puedes desactivarla con `GRIPM_NO_UPDATE_CHECK=1`. Elige una estrategia de Git según la visibilidad de tu repositorio:
 
 ### ⚠️ Principio Crítico de Git en Repositorios Públicos
 En repositorios públicos de Git (ej: GitHub, GitLab), **todas las ramas y commits enviados (`git push`) son públicos para el mundo**, no únicamente la rama `main`. ¡Comitear un roadmap confidencial a una rama `dev` o `feature` lo expone públicamente!
 
 ### Estrategias Recomendadas
 
-#### Estrategia 1: "Backlog as Code" (Recomendada para Repos Privados u Open-Source Público)
+#### Estrategia 1: «Backlog como código» (para repositorios privados o proyectos open source con hoja de ruta pública)
 - **Archivos**: Comitea `backlog/tasks/*.md` (o `.gripm/backlog.json`) directamente en Git.
 - **Beneficios**: Tareas, criterios de aceptación y planes viajan en las mismas Pull Requests que el código implementado. Auditoría completa en el historial de Git.
-- **Cuándo usarla**: El repositorio es privado dentro de tu organización, O es un proyecto de código abierto con un roadmap deliberadamente público.
+- **Cuándo usarla**: El repositorio es privado dentro de tu organización o es un proyecto open source con una hoja de ruta deliberadamente pública.
 
-#### Estrategia 2: Backlog Soberano Local mediante `.gitignore` (Recomendada para Repos Públicos con Roadmap Interno)
+#### Estrategia 2: Backlog local mediante `.gitignore` (para repositorios públicos con roadmap interno)
 - **Configuración**: Añade las carpetas de gripm a tu `.gitignore`:
   ```gitignore
   # Ignorar backlog interno de gripm en repositorios públicos
   .gripm/
   backlog/
   ```
-- **Beneficios**: Disfrutas de todo el tablero visual, gestión de sprints y MCP localmente, sin que detalles de negocio, deuda técnica o vulnerabilidades sin parchear se suban a GitHub.
-- **Cuándo usarla**: Trabajas en repositorios públicos o de clientes donde el seguimiento de tareas debe permanecer estrictamente confidencial.
+- `.gitignore` solo afecta archivos que Git todavía no tiene bajo seguimiento. Si ya los sigue, agregar estas reglas no los elimina del historial ni evita que se incluyan en commits posteriores.
+- **Beneficios**: Puedes usar el tablero y MCP localmente sin subir los archivos ignorados del backlog a GitHub.
+- **Cuándo usarla**: Trabajas en repositorios públicos o de clientes donde el seguimiento de tareas debe permanecer privado.
 
 #### Estrategia 3: Repositorio Dedicado de Backlog Privado
 - Mantén el repositorio público limpio de tareas y gestiona un repositorio privado independiente (ej: `mi-proyecto-backlog`).
@@ -288,26 +317,17 @@ En repositorios públicos de Git (ej: GitHub, GitLab), **todas las ramas y commi
 
 ---
 
-## 📜 Política de Backlog Histórico y Cero Pérdida de Datos
+## 📜 Historial del backlog y Git
 
-En gripm, **ninguna tarea, fix o decisión arquitectónica debe desaparecer jamás sin dejar rastro en Git**:
+Gripm ofrece historial del proyecto y una papelera, que incluye acciones de purgado permanente. Si necesitas una auditoría en Git, mantén bajo seguimiento los archivos relevantes y guarda sus cambios en commits; el almacenamiento local por sí solo no es una copia de seguridad.
 
-1. **Inmutabilidad de Tareas Resueltas (`done` / `released`)**:
-   - Las tareas completadas **nunca se eliminan**. Permanecen indefinidamente en `backlog/tasks/*.md` (o `.gripm/backlog.json`) como documentación viva para desarrolladores y agentes de IA futuros.
-   - Al cerrar un release, las tareas se consolidan en notas de versión (`CHANGELOG.md`), vinculando commits de código con IDs de tarea (`DEV-001`, `DEV-014`).
-
-2. **Archivado Suave No Destructivo (`backlog/archive/`)**:
-   - Cuando una tarea se descarta, cancela o reemplaza, gripm **nunca realiza un borrado destructivo de disco**.
-   - En su lugar, el archivo se traslada a `backlog/archive/<ID> - <Titulo>.md` con estado `dismissed`. Al comitearse a Git, la justificación de por qué se descartó la solución queda preservada para siempre.
-
-3. **Aislamiento Estricto de Fixtures de Prueba**:
-   - Las suites de tests automatizados operan sobre carpetas temporales aisladas (`data/test-repo-*`), garantizando que datos sintéticos de prueba nunca contaminen el backlog de producción.
+Las versiones también pueden resumirse en `CHANGELOG.md`. El historial de Git conserva únicamente los archivos y cambios que elijas enviar al repositorio.
 
 ---
 
 ## 🛠️ Comandos de Verificación e Integridad
 
-gripm incluye salvaguardas integradas para garantizar cero desincronización entre código fuente, criterios de aceptación y documentación:
+gripm incluye verificaciones para detectar inconsistencias entre el backlog y su documentación consolidada:
 
 ```bash
 # Audita coherencia entre código, criterios tildados y estados de tareas
@@ -316,8 +336,12 @@ npm run backlog:check
 # Auto-reconcilia tareas completadas y actualiza el BACKLOG.md consolidado
 npm run backlog:sync
 
-# Auditoría estática de UX y rendimiento (zero CLS, saltos de layout, touch targets)
+# Auditoría estática de UX y rendimiento (zero CLS, saltos de layout y áreas táctiles)
 npm run audit:ux
+
+# Actualiza la línea base tras un cambio intencional para detectar solo
+# regresiones nuevas, no observaciones cosméticas ya conocidas
+npm run audit:ux:baseline
 
 # Valida tipado estricto TypeScript, bundle Vite y empaqueta binarios standalone
 npm run build
@@ -325,52 +349,21 @@ npm run build
 
 ---
 
-## ✨ Resumen de Características (v1.0.2)
+## ✨ Funcionalidades
 
-- **🌐 Internacionalización Integral Bilingüe (i18n)**: Selector de idioma en asistente CLI (`--init`), cobertura total de diccionarios en todas las vistas y modales del Tablero UI y plantillas bilingües (`DEV-114`).
-- **🚀 Apertura Automática del Navegador**: `npm run dev` y `npm run board` abren el tablero automáticamente en el navegador predeterminado del sistema con soporte para `--no-open` (`DEV-145`).
-- **☀️ Paridad Total de Light Mode**: Transición fluida de temas sin jank ni parpadeos y coherencia visual absoluta entre temas claro y oscuro (`DEV-124`).
-- **🧹 Desinstalación y Eject Seguro por CLI**: `gripm --uninstall` con preservación garantizada del backlog y scripts de usuario (`DEV-115`).
-- **🔌 Detección Multi-Stack de Puertos Libres y Aislamiento**: Detección dinámica y sin colisiones de puertos libres en entornos multi-proyecto (`DEV-116`).
-- **🔒 Pre-Commit Hook No Mutador**: Verificación estricta del backlog que audita sin mutar el índice de Git, preservando staging selectivo (`DEV-125`).
-- **🪟 Overlays y Modales Montados en Portal**: Portals montados sobre `document.body` para modales y menús contextuales, eliminando problemas de stacking context y containing block (`DEV-129`, `DEV-130`).
-- **🎨 Ergonomía de ItemModal**: Placeholders dinámicos de criterios de aceptación por tipo, tipografía homogénea y eliminación del flash de hidratación (`DEV-126`).
-- **🛠️ Tooling Open Source y CI/CD**: Pipeline de GitHub Actions CI, templates comunitarios de issues/PRs, Prettier, EditorConfig y Node engines (`DEV-121`, `DEV-122`, `DEV-123`, `DEV-140`, `DEV-141`).
-- **📐 Gobernanza Canónica de Sprint vs Release**: Paquetes de versión organizados estrictamente por valor entregado y timeboxing ágil sin ataduras bidireccionales artificiales (`DEV-146`).
-- **⚡ Resiliencia Zero-Install y Scaffolding**: Hook `prepare` resiliente en `package.json` y scripts generados con fallback automático (`gripm 2>/dev/null || npx -y github:pablojavierrodriguez/gripm`), garantizando cero abortos en `npx` y ejecución inmediata de `npm run board` sin requerir instalaciones globales (`DEV-112`, `DEV-113`).
-- **📦 Distribución Global por CLI y Empaquetado**: Binarios ejecutables nativos `gripm` y `gripm-mcp` con resolución absoluta de rutas en Tailwind CSS y bundler Vite (`DEV-108`, `DEV-144`).
-- **🔒 Modo Mono-Proyecto Aislado y Hub Multi-Proyecto**: Aislamiento estricto de repositorios (`--single`) para impedir fugas de datos entre proyectos, junto con gestión centralizada (`--hub`) bajo el estándar XDG (`~/.gripm/registry.json`) (`DEV-104`, `DEV-105`).
-- **🧙 Asistente Interactivo de Inicialización (`gripm --init`)**: Asistente guiado de onboarding interactivo mediante readline nativo con soporte de modo silencioso `--yes`/`-y`, configuración personalizada de skills de IA, reglas `AGENTS.md`, scripts y exclusiones Git (`DEV-109`).
-- **🔔 Notificador Silencioso de Actualizaciones**: Verificador no intrusivo inspirado en Supabase CLI con caché local de 24 horas y opt-out mediante `GRIPM_NO_UPDATE_CHECK=1` (`DEV-107`).
-- **🏷️ Etiquetas y Asignados Interactivos en ItemModal**: Editor interactivo de tags con adición/eliminación por teclado y selector visual de asignados en el modal de detalle (`DEV-111`).
-- **📋 Compatibilidad Canónica con Motor Backlog.md**: Preservación estricta de mayúsculas/minúsculas en IDs, actualizaciones atómicas en el archivo, mapeo canónico de sprints y conservación de `itemCodes` en releases (`DEV-103`).
-- **🛡️ Auditoría Automatizada Pre-Release**: Verificador de integridad en `verify-backlog-sync.js` que impide documentación desfasada o tareas huérfanas antes de sellar versiones (`DEV-102`, `DEV-110`).
-- **🎨 Estética Linear y Raycast**: Glassmorphism refinado, paleta semántica oscura, alternancia con modo claro y estabilidad de layout sin saltos (zero CLS: `overflow-y: scroll`, `scrollbar-gutter: stable`).
-- **🔄 Metodologías Ágiles Duales (Kanban vs Scrumban)**: 
-  - **Kanban**: Flujo continuo de entrega de valor sobre todas las tareas sin empaquetado artificial.
-  - **Scrumban**: Tablero enfocado en el **Sprint Goal** activo con seguimiento visual de progreso (% completado, tareas en curso, indicador de cumplimiento de objetivo).
-- **🎛️ Modos Dinámicos de Columnas**:
-  - **Modo Simple (3 columnas)**: Optimizado para velocidad y claridad (*Draft*, *Doing*, *Done*).
-  - **Modo Ampliado (5 columnas)**: Ciclo completo de calidad (*Draft*, *Doing*, *Review*, *Ready*, *Done*).
-  - **Columna de Descubrimiento (Ideas)**: Canal toggleable dedicado a ideas preliminares sin causar saltos de layout.
-- **🎯 Hub de Sprints y Priorización**: Ciclo de vida completo de sprints (planificación, desarrollo activo, cierre con generación automática de retrospectivas), tablas de datos densas, grupos colapsables y ordenamiento natural.
-- **🌳 Relaciones Jerárquicas y Grafo de Épicas**: Relaciones padre-hijo, subtareas y grafos de dependencia.
-- **🧪 Soporte Nativo BDD**: Especificación Given/When/Then de primera clase en historias de usuario y criterios de aceptación.
-- **🗑️ Papelera Directa y Ciclo Seguro**: Vista de primer nivel (`TrashView`) con soft-delete, restauración en un clic o purgado permanente, desacoplada de tareas descartadas.
-- **🔔 Diálogos Contextuales y Accesibles**: Componente `ConfirmModal` de nivel profesional para acciones destructivas y promoción de releases a producción.
-- **⚙️ Configuración Dedicada de Proyecto (`SettingsView`)**: Configuración persistente guardada en `.gripm/config.json` (metodología, taxonomía de tipos personalizados, columnas, límites WIP y preferencias de tema).
-- **🚀 Gestión Soberana de Releases**: Seguimiento estricto entre versiones en preparación (*unreleased*) y desplegadas a producción (*released*), con compilación automatizada de changelogs y ortogonalidad absoluta entre sprints y releases.
-- **🛡️ Plan Guard**: Asegura que cualquier tarea que pase a `doing` cuente con criterios de aceptación documentados y plan de implementación antes de codificar.
-- **📂 Explorador de Archivos Multiplataforma**: Selector visual de carpetas (`FolderPickerModal`) para macOS, Linux y Windows con detección automática de repositorios.
-- **🤖 Puente MCP Autónomo**: 12 herramientas dedicadas para agentes de IA con filtros de mínimo consumo de tokens, actualizaciones atómicas por lotes, generadores de retrospectivas y sincronización en vivo.
+- **Backlog de producto:** crea y organiza tareas con criterios de aceptación, etiquetas, prioridades y relaciones.
+- **Dos formatos de almacenamiento:** usa tareas en archivos Markdown o un backlog JSON; la configuración del proyecto permite convertirlos.
+- **Flujos flexibles:** trabaja con Kanban continuo o planifica por iteraciones; configura columnas, tipos de tarea y límites de trabajo en curso.
+- **Versiones:** agrupa el trabajo por valor entregado y compila notas independientemente de la planificación por iteraciones.
+- **Acceso para agentes de IA:** conecta el servidor MCP incluido para consultar y actualizar el mismo backlog de Board.
+- **Configuración local:** inicializa Board con `gripm --init` y agrega opcionalmente instrucciones para agentes, scripts de npm y reglas de Git.
+- **CLI multiplataforma:** abre el tablero local, selecciona proyectos, configura el puerto o inicia MCP sin abrir la interfaz web.
 
 ---
 
 ## 🐶 Dogfooding ("Git Building Git")
 
-gripm se construye utilizando gripm para gestionar su propio desarrollo.
-
-Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestionada en modo `backlog-md`, registrando funcionalidades reales, pulido de UX y releases a lo largo de **180+ tareas** (`DEV-001` a `DEV-185`), 9 sprints y 10 releases formales (`v0.2.0` a `v1.0.2`).
+gripm utiliza Gripm Board para gestionar su propio desarrollo. El backlog del proyecto y su configuración están disponibles en [`backlog/tasks/`](backlog/tasks/) y `.gripm/`.
 
 ---
 
@@ -378,7 +371,7 @@ Este repositorio contiene una carpeta [`backlog/tasks/`](backlog/tasks/) gestion
 
 - `N`: Crear nueva tarea en el backlog
 - `⌘K` / `Ctrl+K`: Enfocar barra de búsqueda instantánea
-- `1` - `5`: Cambiar de pestaña (`1`: Tablero Kanban, `2`: Sprint y Priorización, `3`: Releases, `4`: Papelera, `5`: Configuración)
+- `1` - `5`: Cambiar de pestaña (`1`: Tablero Kanban, `2`: planificación —la pestaña se llama “Sprints y Backlog” en la interfaz—, `3`: Versiones, `4`: Papelera, `5`: Configuración)
 - `Esc`: Cerrar modales activos
 - `⌘+Enter`: Guardar tarea / formulario
 
@@ -396,25 +389,28 @@ Este diseño permite a los equipos de ingeniería combinar libremente herramient
 
 Las contribuciones son bienvenidas. gripm se dogfoodea a sí mismo: **cada cambio
 de código se asocia a una tarea en `backlog/tasks/`**, y la propia guía de
-contribución del repositorio es simplemente otra tarea trackeada.
+contribución del repositorio es otra tarea versionada.
 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — requisitos de entorno, instalación, la
   pirámide de verificación de tres pasos (`tsc`, `npm test`, `backlog:check`),
-  convenciones de ramas y cómo trackear tu contribución con las herramientas MCP.
+  convenciones de ramas y cómo registrar tu contribución con las herramientas MCP.
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Contributor Covenant v2.1.
 - **[SECURITY.md](SECURITY.md)** — cómo reportar una vulnerabilidad de forma
   privada.
 - **[CHANGELOG.md](CHANGELOG.md)** — historial de versiones, generado a partir de
   `backlog/releases.json`.
 
-¿Trabajás con un agente de IA? Levantá el servidor MCP y dejá que conduzca el
-backlog:
+Para probar el servidor MCP desde una terminal, ejecuta el comando desde el
+proyecto que quieres consultar:
 
 ```bash
-npx -p @gripm/board gripm-mcp
+npx -y -p @gripm/board gripm-mcp --repo .
 # o con instalación global:
-# gripm mcp
+gripm mcp --repo .
 ```
+
+Para el uso habitual, configura MCP en los ajustes del cliente de IA como se
+indica en la guía de inicio; el cliente administra el proceso.
 
 El ciclo de vida de tareas que sigue todo cambio está documentado en
 [AGENTS.md](AGENTS.md).

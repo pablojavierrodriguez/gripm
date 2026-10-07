@@ -43,6 +43,7 @@ import { ConfirmModal } from './ConfirmModal';
 
 interface ItemCardProps {
   item: BacklogItem;
+  allItems?: BacklogItem[];
   isDragging?: boolean;
   onClick: () => void;
   onUpdateStatus: (id: string, newStatus: ItemStatus) => void;
@@ -200,6 +201,7 @@ interface MenuPosition {
 
 const ItemCardComponent: React.FC<ItemCardProps> = ({
   item,
+  allItems = [],
   isDragging = false,
   onClick,
   onUpdateStatus,
@@ -224,6 +226,9 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const dragJustEndedRef = useRef(false);
+  const parentItem = item.parentId
+    ? allItems.find(candidate => candidate.id === item.parentId || candidate.code === item.parentId)
+    : undefined;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -615,9 +620,14 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           );
         })()}
 
-        {item.parentId && (
-          <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 font-mono text-[9px] flex items-center gap-1" title={t('card.parentTask', { id: item.parentId })}>
-            ↳ {item.parentId}
+        {(parentItem || item.parentId || item.epic) && (
+          <span className="px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border text-xs flex items-center gap-1 min-w-0" title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : t('card.parentTask', { id: item.parentId || item.epic || '' })}>
+            <Layers className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              {parentItem
+                ? `${parentItem.code || parentItem.id} · ${parentItem.title}`
+                : item.parentId || item.epic}
+            </span>
           </span>
         )}
 

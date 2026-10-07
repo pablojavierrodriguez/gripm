@@ -1532,7 +1532,9 @@ function devBoardApi(): DevBoardPlugin {
 
               const normalizedSt = normalizeStatus(body.status || 'draft');
               const newItem = {
-                id: body.id || `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                id: isBacklogMdProject(project)
+                  ? code
+                  : (body.id || `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
                 code,
                 projectId: project.id,
                 title: body.title || 'Sin título',
@@ -1548,6 +1550,10 @@ function devBoardApi(): DevBoardPlugin {
                 targetSprint: body.sprint || body.targetSprint || undefined,
                 targetRelease: body.release || body.targetRelease || undefined,
                 milestone: body.release || body.targetRelease || body.milestone || undefined,
+                parentId: body.parentId || undefined,
+                blocks: Array.isArray(body.blocks) ? body.blocks : [],
+                blockedBy: Array.isArray(body.blockedBy) ? body.blockedBy : [],
+                relatedTo: Array.isArray(body.relatedTo) ? body.relatedTo : [],
                 acceptanceCriteriaList: body.acceptanceCriteriaList || [],
                 implementationPlan: body.implementationPlan || '',
                 assignees: body.assignees || [],
@@ -2685,4 +2691,3 @@ export default defineConfig(async () => {
     }
   };
 });
-

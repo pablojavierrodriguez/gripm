@@ -58,6 +58,20 @@ try {
 
   assert.ok(helpOutput.includes('gripm CLI') || helpOutput.includes('Uso:'), 'La ayuda del CLI debe ejecutarse correctamente');
   assert.ok(helpOutput.includes('--version, -v'), 'La ayuda del CLI debe documentar ambas opciones de versión');
+  assert.ok(helpOutput.includes('gripm mcp') && helpOutput.includes('gripm playbook sync'),
+    'La ayuda debe distinguir las entradas del servidor MCP y la sincronización del Playbook');
+  assert.ok(helpOutput.includes('Gripm Suite no tiene aún un instalador'),
+    'La ayuda no debe sugerir que Gripm Suite ya tiene un instalador');
+
+  for (const commandArgs of [['playbook'], ['playbook', 'install'], ['not-a-command']]) {
+    const invalidCommand = spawnSync(process.execPath, [
+      path.join(extractedPkg, 'bin/gripm.js'),
+      ...commandArgs
+    ], { cwd: tempDir, encoding: 'utf8', timeout: 5000 });
+    assert.equal(invalidCommand.status, 1, `${commandArgs.join(' ')} debe rechazarse explícitamente`);
+    assert.match(invalidCommand.stderr, /Comando desconocido|Uso: gripm playbook sync/,
+      `${commandArgs.join(' ')} debe indicar el comando válido`);
+  }
   console.log('✅ bin/gripm.js --help ejecutó exitosamente desde el paquete empaquetado.');
 
   // 5. Version flags must return immediately instead of starting the board server.

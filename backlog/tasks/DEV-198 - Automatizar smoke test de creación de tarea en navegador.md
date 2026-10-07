@@ -3,13 +3,18 @@ id: DEV-198
 title: "Automatizar smoke test de creación de tarea en navegador"
 status: ready
 created_date: '2026-10-06'
-updated_date: '2026-10-06'
+updated_date: '2026-10-07'
 labels:
   - "bug"
   - "testing"
   - "ui"
 priority: high
 type: chore
+milestone: "1.0.4"
+releases:
+  - "1.0.4"
+release: "1.0.4"
+targetRelease: "1.0.4"
 ---
 
 ## Description
@@ -34,4 +39,5 @@ La suite de CI no ejercita un flujo real de navegador para los caminos principal
 - El smoke aislado corre con `npm run test:ui`; instala Chromium localmente con `npx playwright install chromium`.
 - CI ejecuta este flujo en un job dedicado de Ubuntu usando `npx playwright install --with-deps chromium`.
 - El proceso usa directorios temporales y `GRIPM_HOME` aislado; no registra el proyecto en el perfil personal.
+- La navegación espera `domcontentloaded` y luego la UI visible; `networkidle` no es válido porque la aplicación mantiene una conexión SSE activa.
 <!-- SECTION:NOTES:END -->

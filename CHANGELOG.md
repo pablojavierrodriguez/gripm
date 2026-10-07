@@ -11,6 +11,8 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
+En preparación: `1.0.4`.
+
 ---
 
 ## [1.0.3] — 2026-10-06 🛡️ Estabilización: Pipeline de Publicación, Baseline de UX y Accesibilidad del Cockpit
