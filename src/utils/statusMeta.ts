@@ -1,4 +1,4 @@
-import { useTranslation, type TranslationKey } from './i18n';
+import type { TranslationKey } from './i18n';
 
 export type CanonicalStatus =
   | 'ideas'
@@ -144,9 +144,4 @@ export const getStatusMeta = (
     label: label.startsWith('status.') ? canonical : label,
     ...styles
   };
-};
-
-export const useStatusMeta = () => {
-  const { t } = useTranslation();
-  return (status: string): StatusMeta => getStatusMeta(status, t);
 };

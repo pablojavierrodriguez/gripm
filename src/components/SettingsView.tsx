@@ -33,7 +33,7 @@ import type { DevBoardConfig, ColumnConfig, Project, ItemStatus, ProjectMethodol
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
-import { useStatusMeta } from '../utils/statusMeta';
+import { useStatusMeta } from '../utils/useStatusMeta';
 
 export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string }[] = [
   { id: 'draft', label: 'Draft', desc: 'Backlog inicial' },

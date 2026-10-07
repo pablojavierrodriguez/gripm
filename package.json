@@ -44,6 +44,7 @@
     "audit-ux-baseline.json",
     "bin",
     "dist",
+    "public",
     "scripts",
     "src",
     "data/demo-backlog.json",
@@ -69,6 +70,7 @@
     "preview": "vite preview",
     "import:docs": "node scripts/import-docs.js",
     "test": "node --experimental-strip-types scripts/run-tests.js",
+    "test:ui": "node scripts/test-ui-smoke.js",
     "test:backlog": "node --experimental-strip-types scripts/verify-integration.js",
     "verify:dist": "node scripts/verify-dist.js",
     "mcp": "node bin/gripm-mcp.js",
@@ -102,6 +104,7 @@
     "@types/node": "^22.5.4",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "playwright": "^1.63.0",
     "typescript": "^5.5.4"
   }
 }

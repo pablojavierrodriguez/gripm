@@ -1,6 +1,6 @@
 # Agentic Team Playbook: Metodología y Guardrails de Ingeniería para Equipos con IA
 
-> **Framework de trabajo colaborativo entre desarrolladores humanos y agentes de inteligencia artificial (Antigravity, Cursor, Claude Code, GitHub Copilot) implementado nativamente en gripm (anteriormente DevBoard).**
+> **Framework de trabajo colaborativo entre desarrolladores humanos y agentes de inteligencia artificial (Antigravity, Cursor, Claude Code, GitHub Copilot) implementado nativamente en gripm.**
 
 ---
 

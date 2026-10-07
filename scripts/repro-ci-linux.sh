@@ -5,7 +5,7 @@
 # failure is specific to the runner OS. This runs the same suite on Linux, with a
 # clean node_modules installed inside the container (the macOS ones would carry
 # wrong native binaries).
-set -uo pipefail
+set -euo pipefail
 
 IMAGE="${IMAGE:-node:22.6.0-bookworm}"
 VOL="${VOL:-gripm-node-modules}"
@@ -19,7 +19,7 @@ docker run --rm \
   -v "$VOL":/nm \
   -w /work \
   "$IMAGE" bash -lc '
-  set -uo pipefail
+  set -euo pipefail
   mkdir -p /work
   tar -cf - -C /src --exclude=node_modules --exclude=.git . | tar -xf - -C /work
 
@@ -31,8 +31,9 @@ docker run --rm \
     cp -R /work/node_modules/. /nm/node_modules/ 2>/dev/null
   fi
 
+  node scripts/verify-linux-exit-code.js
   echo "--- npm test ---"
   CI=true GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=echo \
+    bash scripts/run-and-propagate-exit-code.sh \
     node --experimental-strip-types scripts/run-tests.js --timeout 90
-  echo "SUITE_EXIT=$?"
 '

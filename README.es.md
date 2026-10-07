@@ -23,6 +23,8 @@
 
 Construido con **React 18**, **Vite**, **TypeScript** y **Tailwind CSS**. Diseñado para operacionalizar la metodología [**Agentic Team Playbook**](docs/AGENTIC_PLAYBOOK.md).
 
+> **Historial de marca:** v1.0.0 fue la última versión bajo el nombre DevBoard. Desde v1.0.1, las versiones se publican con la marca Gripm. Los datos de proyectos existentes se siguen detectando y migrando; el cambio de marca no los renombra ni elimina.
+
 ---
 
 ## 💡 ¿Por qué gripm?

@@ -37,8 +37,8 @@ try {
 
   // 2. AC #2 & #3: Inspeccionar contenido del tarball con tar -tzf
   const tarList = execSync(`tar -tzf "${tarballPath}"`, { encoding: 'utf8' });
-  const skillCount = (tarList.match(/package\/\.agents\/skills\/gripm\/SKILL(\.en)?\.md/g) || []).length;
-  assert.ok(skillCount >= 2, `El tarball debe contener SKILL.md y SKILL.en.md, encontrados: ${skillCount}`);
+  const skillCount = (tarList.match(/package\/\.agents\/skills\/gripm\/SKILL\.(en|es)\.md/g) || []).length;
+  assert.ok(skillCount >= 2, `El tarball debe contener las plantillas SKILL.en.md y SKILL.es.md, encontradas: ${skillCount}`);
 
   const githooksCount = (tarList.match(/package\/\.githooks\/pre-commit/g) || []).length;
   assert.strictEqual(githooksCount, 1, `El tarball debe contener .githooks/pre-commit exactamente 1 vez, encontrados: ${githooksCount}`);
@@ -63,6 +63,8 @@ try {
 
   const installedSkillEn = path.join(consumerRepoEn, '.agents/skills/gripm/SKILL.md');
   assert.ok(fs.existsSync(installedSkillEn), 'SKILL.md debe ser instalado en el consumidor');
+  const skillEnContent = fs.readFileSync(installedSkillEn, 'utf8');
+  assert.ok(skillEnContent.includes('This skill instructs'), 'SKILL.md debe instalar la plantilla canónica en inglés');
   const skillEnSize = fs.statSync(installedSkillEn).size;
   assert.ok(skillEnSize >= 1000, `SKILL.md debe pesar >= 1000 bytes, tamaño real: ${skillEnSize}`);
 
@@ -97,7 +99,7 @@ try {
   assert.ok(agentsEsContent.includes('Guía de Contribución para Agentes de IA'), 'AGENTS.md en español debe ser la guía canónica');
   assert.ok(!agentsEsContent.includes('Bienvenido a **demo**'), 'AGENTS.md en español no debe ser el stub básico');
 
-  console.log('✅ AC #2 & #3: .agents y .githooks verificados en el contenido del tarball');
+  console.log('✅ AC #2 & #3: las plantillas canónicas .agents y .githooks están en el tarball');
   console.log('✅ AC #4 & #5: Artefactos instalados >= 1000 bytes sin stubs degradados');
   console.log('✅ AC #6: Selección de idioma en plantillas validada para EN y ES');
   console.log('🎉 [Distribution Guard] Verificación de distribución de npm pasada con éxito!\n');

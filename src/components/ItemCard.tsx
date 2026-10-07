@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '../utils/i18n';
-import { useStatusMeta } from '../utils/statusMeta';
+import { useStatusMeta } from '../utils/useStatusMeta';
 import { 
   Bug, 
   Sparkles, 

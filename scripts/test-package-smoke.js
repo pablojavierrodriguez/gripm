@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import assert from 'node:assert';
 
 console.log('🧪 [Smoke Test] Verificando empaquetado de producción de npm (npm pack)...');
@@ -57,9 +57,28 @@ try {
   });
 
   assert.ok(helpOutput.includes('gripm CLI') || helpOutput.includes('Uso:'), 'La ayuda del CLI debe ejecutarse correctamente');
+  assert.ok(helpOutput.includes('--version, -v'), 'La ayuda del CLI debe documentar ambas opciones de versión');
   console.log('✅ bin/gripm.js --help ejecutó exitosamente desde el paquete empaquetado.');
 
-  // 5. Test MCP binary
+  // 5. Version flags must return immediately instead of starting the board server.
+  const packagedVersion = JSON.parse(
+    fs.readFileSync(path.join(extractedPkg, 'package.json'), 'utf8')
+  ).version;
+  for (const flag of ['--version', '-v']) {
+    console.log(`🔎 Probando bin/gripm.js ${flag} desde el tarball extraído...`);
+    const versionResult = spawnSync(
+      process.execPath,
+      [path.join(extractedPkg, 'bin/gripm.js'), flag],
+      { cwd: tempDir, encoding: 'utf8', timeout: 5000 }
+    );
+    assert.ifError(versionResult.error);
+    assert.equal(versionResult.status, 0, `${flag} debe terminar con código 0`);
+    assert.equal(versionResult.stdout.trim(), packagedVersion, `${flag} debe imprimir la versión empaquetada`);
+    assert.equal(versionResult.stderr, '', `${flag} no debe emitir errores`);
+  }
+  console.log('✅ --version y -v imprimieron la versión empaquetada y terminaron sin arrancar el servidor.');
+
+  // 6. Test MCP binary
   console.log('🤖 Verificando sintaxis y ejecución de bin/gripm-mcp.js...');
   execSync(`node -c "${path.join(extractedPkg, 'bin/gripm-mcp.js')}"`, { cwd: tempDir });
   console.log('✅ bin/gripm-mcp.js sintaxis verificada correctamente.');

@@ -3,7 +3,8 @@ import { Plus, Lightbulb, AlertTriangle, Layers, Target, CheckCircle2, Clock, Ch
 import type { BacklogItem, ItemStatus, ViewMode, ColumnConfig, DevBoardConfig, ActiveTab, Sprint } from '../types';
 import { ItemCard } from './ItemCard';
 import { useTranslation } from '../utils/i18n';
-import { useStatusMeta } from '../utils/statusMeta';
+import { useStatusMeta } from '../utils/useStatusMeta';
+import { getKanbanColumnItems } from '../utils/kanbanColumnItems';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
 
 interface KanbanBoardProps {
@@ -600,23 +601,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const renderColumn = (col: ColumnConfig, isMobile: boolean = false) => {
     const limit = config?.kanban?.wipLimits?.[col.id] ?? col.wipLimit ?? 0;
     const isDoneCol = col.id === 'col-done' || col.statuses.includes('done');
-    const colRawItems = scopedItems
-      .filter((item) => {
-        if (col.id === 'col-ideas') {
-          return item.status === 'ideas' || item.labels?.includes('idea');
-        }
-        if (col.id === 'col-draft') {
-          if (showIdeas && (item.status === 'ideas' || item.labels?.includes('idea'))) {
-            return false;
-          }
-          if (viewMode === 'simplificada' && !showIdeas && item.status === 'ideas') {
-            return false;
-          }
-          return col.statuses.includes(item.status);
-        }
-        return col.statuses.includes(item.status);
-      })
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const colRawItems = getKanbanColumnItems(scopedItems, col, { showIdeas, viewMode });
 
     const hiddenDoneCount = isDoneCol && !showPreviousDone
       ? colRawItems.filter(isItemHistoricalDone).length

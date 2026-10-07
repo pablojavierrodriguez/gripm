@@ -1,6 +1,6 @@
 # Guía de Contribución
 
-Gracias por tu interés en mejorar gripm (anteriormente DevBoard). Esta guía cubre el flujo completo: desde
+Gracias por tu interés en mejorar gripm. Esta guía cubre el flujo completo: desde
 el entorno hasta el merge.
 
 gripm se dogfoodea a sí mismo: **cada cambio de código se asocia a una tarea en
@@ -43,13 +43,23 @@ baratos y cubren la mayoría de los errores:
 
 ```bash
 npx tsc --noEmit        # 1. Tipado estricto. Debe salir con código 0.
-npm test                # 2. Suite unificada: 15 pasos secuenciales (parser,
+npm test                # 2. Suite unificada: 16 pasos secuenciales (parser,
                         #    integración, seguridad de API, smoke de paquete,
                         #    locking optimista, SSE, import legacy, binario
                         #    MCP, resiliencia y CLI, baseline de audit:ux,
-                        #    contraste de badges, trampa de foco,
+                        #    contraste de badges, lógica UI, trampa de foco,
                         #    reordenamiento sin puntero, sondeo de puertos, bundle dist).
 npm run backlog:check   # 3. Integridad del backlog. Debe salir con código 0.
+```
+
+### Smoke automatizado de interfaz
+
+El smoke del navegador verifica la carga del logo, la apertura del modal, la
+creación y persistencia de una tarea, y la ausencia de errores fatales:
+
+```bash
+npx playwright install chromium   # una vez por entorno
+npm run test:ui
 ```
 
 Comandos complementarios:

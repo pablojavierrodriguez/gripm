@@ -43,12 +43,14 @@ const REQUIRED_ENTRIES = [
   'bin/gripm.js',
   'bin/gripm-mcp.js',
   'dist/index.html',
+  'public/logo.png',
   'data/demo-backlog.json',
   'package.json',
   'README.md',
   'LICENSE',
   '.agents/skills/gripm/SKILL.md',
   '.agents/skills/gripm/SKILL.en.md',
+  '.agents/skills/gripm/SKILL.es.md',
   '.agents/AGENTS.en.md',
   '.agents/AGENTS.es.md',
   '.githooks/pre-commit',
@@ -93,6 +95,13 @@ try {
 
   console.log(`   Archivos en el tarball: ${allFiles.length}\n`);
 
+  // 3a. El paquete no debe introducirse a sí mismo como dependencia.
+  const packedPackage = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'));
+  if (packedPackage.dependencies?.[packedPackage.name]) {
+    console.error(`   ❌ DEPENDENCIA CIRCULAR: ${packedPackage.name} depende de sí mismo.`);
+    failed = true;
+  }
+
   // 4. Chequeo A — archivos prohibidos por nombre.
   for (const file of allFiles) {
     const base = path.basename(file);
@@ -135,7 +144,7 @@ try {
 
   console.log('   ✅ Sin archivos de datos locales en el tarball');
   console.log('   ✅ Sin rutas absolutas personales en el contenido');
-  console.log('   ✅ Allowlist completa (binarios, dist, demo, docs legales)\n');
+  console.log('   ✅ Allowlist completa (binarios, dist, assets, demo, docs legales)\n');
   console.log('🎉 Publish Surface Guard: la superficie pública está limpia.\n');
 } catch (err) {
   console.error('\n❌ Publish Surface Guard falló durante la verificación:');

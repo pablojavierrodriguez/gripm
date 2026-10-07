@@ -23,6 +23,8 @@
 
 Built with **React 18**, **Vite**, **TypeScript**, and **Tailwind CSS**. Designed to operationalize the [**gripm Playbook**](https://github.com/pablojavierrodriguez/gripm-playbook) methodology.
 
+> **Brand history:** v1.0.0 was the last release under the DevBoard name. Releases from v1.0.1 onward use the Gripm brand. Existing project data is still detected and migrated; the brand change does not rename or delete it.
+
 ---
 
 ## 💡 Why gripm?

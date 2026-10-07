@@ -68,6 +68,11 @@ async function main() {
     return;
   }
 
+  if (args.includes('--version') || args.includes('-v')) {
+    console.log(currentVersion);
+    return;
+  }
+
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
   🚀 gripm CLI - Agile Engineering & Product Management Cockpit
@@ -89,6 +94,7 @@ async function main() {
     --global              Con --uninstall: purga también el registro global del dispositivo
     --remove-agents       Con --uninstall: elimina la skill de agentes y AGENTS.md (por defecto se preservan)
     --yes, -y             Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
+    --version, -v         Muestra la versión instalada
     --help, -h            Muestra esta ayuda
     `);
     process.exit(0);

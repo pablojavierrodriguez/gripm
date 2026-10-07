@@ -1,6 +1,6 @@
 # Guía de Contribución para Agentes de IA (AGENTS.md)
 
-Bienvenido a **gripm** (anteriormente DevBoard). Este documento establece las normas operativas, el flujo ágil de entrega y los guardrails técnicos para agentes de IA (Antigravity, Cursor, Claude Code) y desarrolladores.
+Bienvenido a **gripm**. Este documento establece las normas operativas, el flujo ágil de entrega y los guardrails técnicos para agentes de IA (Antigravity, Cursor, Claude Code) y desarrolladores.
 
 ---
 

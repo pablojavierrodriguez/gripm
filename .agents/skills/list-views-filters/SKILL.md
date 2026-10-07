@@ -1,12 +1,12 @@
 ---
 name: list-views-filters
-description: Estándares de arquitectura y experiencia de usuario para barras de filtrado, búsquedas, paneles de filtros avanzados en Popover, selectores de vistas (Kanban vs Backlog) y gestión de estados vacíos en DevBoard.
+description: Estándares de arquitectura y experiencia de usuario para barras de filtrado, búsquedas, paneles de filtros avanzados en Popover, selectores de vistas (Kanban vs Backlog) y gestión de estados vacíos en Gripm.
 ---
 
-# List Views, Board Filters & Unified Navigation Architecture (DevBoard)
+# List Views, Board Filters & Unified Navigation Architecture (Gripm)
 
 ## Misión y Filosofía
-En un gestor ágil de alta frecuencia como **DevBoard**, la velocidad con la que el usuario filtra, localiza y visualiza tareas determina directamente la productividad de todo el equipo. Esta skill define los patrones unificados de arquitectura y experiencia de usuario para barras de herramientas (`FilterBar`), popovers de filtros, vistas de lista/tabla y manejo de estados vacíos.
+En un gestor ágil de alta frecuencia como **Gripm**, la velocidad con la que el usuario filtra, localiza y visualiza tareas determina directamente la productividad de todo el equipo. Esta skill define los patrones unificados de arquitectura y experiencia de usuario para barras de herramientas (`FilterBar`), popovers de filtros, vistas de lista/tabla y manejo de estados vacíos.
 
 ---
 

@@ -11,11 +11,11 @@ Bienvenido a **{{projectName}}**. Al trabajar en este repositorio, tanto agentes
 - Incluye el archivo `.md` de la tarea en el mismo commit que el código.
 
 ## 2. Servidor MCP de gripm
-Usa las herramientas de gripm (`gripm-mcp`, `npm run mcp` o `devboard-mcp`):
-- `gripm_list_tasks` / `devboard_list_tasks`: Lista y filtra tareas con mínimo consumo de tokens.
-- `gripm_get_task` / `devboard_get_task`: Lee detalles y criterios de aceptación.
-- `gripm_update_task` / `devboard_update_task`: Actualiza estado, plan y tilda criterios secuencialmente.
-- `gripm_sync_backlog` / `devboard_sync_backlog`: Reconcilia tareas y regenera `BACKLOG.md` automáticamente.
+Usa las herramientas de gripm (`gripm-mcp` o `npm run mcp`):
+- `gripm_list_tasks`: Lista y filtra tareas con mínimo consumo de tokens.
+- `gripm_get_task`: Lee detalles y criterios de aceptación.
+- `gripm_update_task`: Actualiza estado, plan y tilda criterios secuencialmente.
+- `gripm_sync_backlog`: Reconcilia tareas y regenera `BACKLOG.md` automáticamente.
 
 ## 3. Salvaguarda Pre-Commit y Soberanía del Desarrollador
 - **Prohibido `git commit` por deducción**: El agente solo prepara los cambios en el árbol de trabajo y valida pruebas y tipado (`tsc`). Se ejecuta `git commit` **única y exclusivamente ante una orden textual y explícita del usuario**.

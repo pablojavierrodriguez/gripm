@@ -1,6 +1,6 @@
-# Dogfooding & Sincronización Obligatoria del Backlog (DevBoard)
+# Dogfooding & Sincronización Obligatoria del Backlog (Gripm)
 
-Este repositorio es la fuente de **DevBoard**, el cockpit de gestión ágil. Como regla de oro de ingeniería, **practicamos dogfooding estricto**: usamos DevBoard para desarrollar DevBoard y ningún código se commitea sin sincronización viva del backlog.
+Este repositorio es la fuente de **Gripm**, el cockpit de gestión ágil. Como regla de oro de ingeniería, **practicamos dogfooding estricto**: usamos Gripm para desarrollar Gripm y ningún código se commitea sin sincronización viva del backlog.
 
 ---
 
@@ -10,11 +10,11 @@ Antes de iniciar cualquier implementación o cambio de código:
 
 1. **Localizar o Crear la Tarea:**
    - Debe existir un archivo `backlog/tasks/<ID> - <Título>.md` representativo.
-   - Si el requerimiento es nuevo, créalo con la herramienta MCP `devboard_create_task` o crea el archivo Markdown.
+   - Si el requerimiento es nuevo, créalo con la herramienta MCP `gripm_create_task` o crea el archivo Markdown.
 
 2. **Pasar a `doing`:**
    - Antes de escribir una sola línea de código, la tarea debe actualizarse a `status: doing`.
-   - `devboard_update_task` con `{ taskId: "DEV-XXX", status: "doing" }`.
+   - `gripm_update_task` con `{ taskId: "DEV-XXX", status: "doing" }`.
 
 3. **Tildar Criterios de Aceptación (AC) en Vivo:**
    - A medida que se resuelven los criterios, cambia `- [ ]` a `- [x]` (o usa `toggleAcIndex`).

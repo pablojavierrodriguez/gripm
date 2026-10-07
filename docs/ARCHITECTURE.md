@@ -1,6 +1,6 @@
-# Arquitectura del Sistema gripm (anteriormente DevBoard)
+# Arquitectura del Sistema gripm
 
-Este documento describe la topología, capas, flujo de datos y mapa de componentes de **gripm** (anteriormente DevBoard). Está diseñado como referencia rápida y canónica tanto para desarrolladores humanos como para agentes de IA (Antigravity, Cursor, Claude Code) con el fin de agilizar la navegación del código y el análisis de impacto.
+Este documento describe la topología, capas, flujo de datos y mapa de componentes de **gripm**. Está diseñado como referencia rápida y canónica tanto para desarrolladores humanos como para agentes de IA (Antigravity, Cursor, Claude Code) con el fin de agilizar la navegación del código y el análisis de impacto.
 
 ---
 
@@ -162,4 +162,3 @@ Cada tarea en gripm cuando se almacena en modo `backlog-md` reside en `backlog/t
 | `## Implementation Plan` | `<!-- SECTION:PLAN:BEGIN -->` ... `<!-- SECTION:PLAN:END -->` | Plan de ingeniería paso a paso (Plan Guard). |
 | `## Implementation Notes` | `<!-- SECTION:NOTES:BEGIN -->` ... `<!-- SECTION:NOTES:END -->` | Notas técnicas de desarrollo, fixes y riesgos aplicados. |
 | `## Final Summary` | `<!-- SECTION:FINAL_SUMMARY:BEGIN -->` ... `<!-- SECTION:FINAL_SUMMARY:END -->` | Resumen de cierre o entrega de la tarea. |
-

@@ -76,6 +76,14 @@ const DIALOGS = [
     if (!/tabIndex=\{-1\}/.test(src)) {
       missing.push(`${name}: el panel no es enfocable como último recurso`);
     }
+
+    if (name === 'ItemModal') {
+      const hookIndex = src.indexOf('useFocusTrap<HTMLDivElement>(isOpen, onClose)');
+      const closedGuardIndex = src.indexOf('if (!isOpen) return null;');
+      if (hookIndex === -1 || closedGuardIndex === -1 || hookIndex > closedGuardIndex) {
+        missing.push(`${name}: el hook debe ejecutarse antes del retorno cuando está cerrado`);
+      }
+    }
   }
 
   assert.deepEqual(missing, [], `Diálogos incompletos:\n  ${missing.join('\n  ')}`);

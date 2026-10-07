@@ -13,7 +13,7 @@ const PKG_ROOT = path.resolve(__dirname, '..');
  */
 export function getSkillTemplate(language = 'en') {
   const isEn = String(language).toLowerCase() === 'en';
-  const skillFile = isEn ? 'SKILL.en.md' : 'SKILL.md';
+  const skillFile = isEn ? 'SKILL.en.md' : 'SKILL.es.md';
   const sourceGripmSkill = path.join(PKG_ROOT, '.agents/skills/gripm', skillFile);
   if (fs.existsSync(sourceGripmSkill)) {
     try {

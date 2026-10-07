@@ -30,7 +30,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { SprintModal } from './SprintModal';
 import { CompleteSprintModal } from './CompleteSprintModal';
 import { useTranslation } from '../utils/i18n';
-import { useStatusMeta } from '../utils/statusMeta';
+import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
 
 const normalizePriorityNum = (p?: string): number => {

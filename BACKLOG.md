@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-06 por gripm ⚡
+> Consolidado generado el 2026-10-07 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -51,7 +51,147 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-### 📋 Backlog / Draft (19)
+### 🔍 Review & QA (2)
+
+#### [DEV-194] Corregir el orden de hooks al abrir ItemModal
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En el smoke test de Gripm como producto, al crear una tarea el tablero muestra el error fatal `Rendered more hooks than during the previous render.`. `ItemModal` retorna cuando está cerrado antes de ejecutar `useFocusTrap`, pero ejecuta ese hook cuando se abre; React recibe un número distinto de hooks entre renders del mismo componente.
+
+**Criterios de Aceptación:**
+- [x] #1 `ItemModal` ejecuta el mismo conjunto de hooks y en el mismo orden tanto cerrado como abierto
+- [x] #2 Abrir el modal de creación, guardar una tarea y volver al tablero no produce el error de hooks
+- [x] #3 `npx tsc --noEmit` y `npm run build` pasan
+- [x] #4 La suite incluye una regresión que verifica que `useFocusTrap` se invoca antes del retorno por modal cerrado
+
+---
+
+#### [DEV-195] Incluir logo en el paquete npm de Gripm
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+En el smoke test con Gripm instalado globalmente en otro repositorio, no se ve el logo. La interfaz lo solicita desde `/logo.png` y el asset vive en `public/logo.png`, pero `package.json` publica una allowlist que incluye `dist` y omite `public`. El CLI levanta Vite desde el paquete instalado, por lo que el archivo público debe estar presente en el tarball.
+
+**Criterios de Aceptación:**
+- [x] #1 El tarball de npm contiene `public/logo.png`
+- [x] #2 El CLI sirve `/logo.png` correctamente al ejecutarse contra el repo smoke-test
+- [x] #3 `npm run publish:check` exige que `public/logo.png` esté presente en el tarball
+- [x] #4 El paquete Gripm no se declara a sí mismo como dependencia y el lockfile coincide con el manifiesto
+
+---
+
+### 🚀 Ready for Deploy (6)
+
+#### [DEV-172] Cobertura de Tests para la Capa de UI: Lógica Derivada y Accesibilidad de Componentes
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+La suite de verificación cubre parser, API, seguridad de red, MCP, CLI, SSE, locking optimista e importación. Antes de esta tarea, ningún paso importaba lógica desde la UI; para ~14.000 líneas de `src/` con 6 componentes de más de 1.100 líneas cada uno, la única cobertura era `audit:ux`, un análisis estático de clases Tailwind.
+
+### Evidencia (verificada sobre `6a50230`)
+
+```
+$ grep -rln "ItemCard\|KanbanBoard\|SprintView" scripts/*.js scripts/*.ts
+(vacío)
+
+$ grep -E "test|jest|vitest|playwright|jsdom|testing-library" package.json
+(antes de DEV-198 no había tooling E2E; esta etapa usa `node:assert` para módulos puros)
+```
+
+### Consecuencia
+
+Una regresión en el drag-and-drop del Kanban, en el ordenamiento de tarjetas, en el focus trap de un modal o en la normalización de estados puede **pasar la suite en verde** si no está cubierta por el E2E. El gate `npm test` no cubría la lógica que alimenta la capa donde el usuario pasa el 100 % del tiempo.
+
+### Tension real con el proyecto
+
+El producto sostiene una filosofía zero-deps: los tests son scripts con `node:assert`, sin framework. Introducir Vitest + Testing Library contradice esa filosofía. La tarea debe resolver esa tensión explícitamente, no ignorarla.
+
+### Enfoque propuesto en dos etapas
+
+**Etapa 1 (sin framework de render, coherente con la filosofía actual):** extraer la lógica determinista de los componentes a módulos puros en `src/utils/` y cubrirla con `node:assert`. `src/utils/statusMeta.ts` (DEV-162) ya expone `normalizeStatus()` y `getStatusMeta()`; la derivación de tareas por columna se extrae también para probarse directamente.
+
+**Etapa 2 (requiere decisión de stack):** cubrir comportamiento de render e interacción. Implica elegir framework y documentar el trade-off en `AGENTS.md`.
+
+### Objetivo
+
+Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar un stack de testing de componentes React que contradiga la filosofía de dependencias.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe al menos un archivo en `scripts/` que importe desde `src/utils/` o `src/components/` y ejecute aserciones con `node:assert`, y está conectado a la cadena de `npm test`
+- [x] #2 La lógica de derivación de columnas y agrupación del Kanban está extraída a un módulo puro en `src/utils/` y cubierta por tests: una entrada conocida que produce una salida incorrecta hace fallar el test
+- [x] #3 La normalización de estados legacy→canónico de `src/utils/statusMeta.ts` tiene test que ejercita los 4 aliases (`backlog`, `in_progress`, `testing_qa`, `finish`) contra `normalizeStatus()`
+- [x] #4 Existe un test que verifica que las etiquetas de estado provienen de `status.*` y no de literales: ante una locale alternativa, la etiqueta cambia
+- [x] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón — **no se deja implícito**
+- [x] #6 No se introduce un framework para render de componentes React en esta etapa, así que no hace falta cambiar la decisión zero-deps en `AGENTS.md`
+- [x] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0, `npm run test:linux` con exit 0 y `npm run build` sin errores
+
+---
+
+#### [DEV-196] Preservar plantillas de skill por idioma en el paquete
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+Al inicializar el propio repositorio Gripm en inglés, `gripm --init` escribe la skill inglesa sobre `.agents/skills/gripm/SKILL.md`, que también funciona como plantilla canónica española del paquete. Después, el test `verify-dist` instala una skill inglesa incluso cuando pide `--language es` y falla su aserción. Las plantillas de distribución deben ser estables e independientes del idioma escogido para inicializar el repo fuente.
+
+**Criterios de Aceptación:**
+- [x] #1 El idioma configurado para el repo Gripm no puede sobrescribir la plantilla canónica de otro idioma
+- [x] #2 `npm test` verifica la instalación de skills en inglés y español después de inicializar el repo fuente en inglés
+- [x] #3 El tarball npm contiene las fuentes canónicas para ambos idiomas
+
+---
+
+#### [DEV-197] Propagar fallos del smoke test Linux
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`npm run test:linux` puede terminar con exit code 0 aunque la suite interna haya fallado. `scripts/repro-ci-linux.sh` imprime `SUITE_EXIT=1`, pero luego completa correctamente el shell del contenedor con el `echo`, ocultando el resultado de `npm test` a CI y a quien ejecuta localmente.
+
+**Criterios de Aceptación:**
+- [x] #1 `npm run test:linux` devuelve exit code distinto de cero si falla `npm test` dentro del contenedor
+- [x] #2 `npm run test:linux` devuelve exit code 0 cuando pasan todos los pasos
+- [x] #3 La suite Linux corre contra el árbol local actual, incluyendo archivos no stageados
+
+---
+
+#### [DEV-198] Automatizar smoke test de creación de tarea en navegador
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+La suite de CI no ejercita un flujo real de navegador para los caminos principales del usuario. Un error de orden de hooks impedía abrir el modal de nueva tarea aunque los tests existentes pasaban. Incorporar un smoke test automatizado y acotado que levante Gripm en un repo temporal, confirme que el logo carga, abra el modal, cree una tarea y verifique su persistencia.
+
+**Criterios de Aceptación:**
+- [x] #1 Un test automatizado inicia el CLI contra un proyecto temporal aislado
+- [x] #2 El navegador confirma que el logo es visible y se cargó sin error
+- [x] #3 El test abre el modal, crea una tarea y verifica la persistencia en el repo
+- [x] #4 El test falla si la consola registra errores fatales o la UI muestra el ErrorBoundary
+- [x] #5 El smoke test corre en CI y se puede ejecutar localmente con un comando documentado
+
+---
+
+#### [DEV-199] Consolidar la marca Gripm en la aplicación y documentación viva
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+La interfaz ya se presenta como gripm, pero la documentación operativa y las plantillas activas todavía describen el producto como "anteriormente DevBoard". Consolidar el nombre Gripm en la aplicación y en las guías vigentes, hacer explícito el corte de marca posterior a v1.0.0 y dejar intactos el changelog y el backlog histórico. Mantener las rutas de migración de datos heredados para no arriesgar información de proyectos existentes.
+
+**Criterios de Aceptación:**
+- [x] #1 Las guías y plantillas vigentes presentan el producto únicamente como Gripm y no como "anteriormente DevBoard"
+- [x] #2 La interfaz web y los metadatos del producto identifican Gripm de forma consistente
+- [x] #3 CHANGELOG.md y las tareas históricas del backlog permanecen intactos
+- [x] #4 Las claves y carpetas heredadas se conservan solo como compatibilidad/migración de datos, sin promocionarlas como marca vigente
+- [x] #5 Las validaciones de build, tests y sincronización del backlog pasan
+
+---
+
+#### [DEV-200] Corregir las opciones de versión de la CLI
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al ejecutar `gripm --version`, la CLI ignora la opción y arranca el servidor web en vez de mostrar la versión instalada. Esto causa un efecto secundario inesperado y puede ocupar un puerto o abrir el navegador para una consulta informativa. Implementar y documentar `--version` y su alias `-v`, y verificar que ambos funcionen en el paquete npm extraído.
+
+**Criterios de Aceptación:**
+- [x] #1 `gripm --version` imprime únicamente la versión declarada en el paquete y termina exitosamente sin iniciar el servidor ni abrir un navegador
+- [x] #2 `gripm -v` produce el mismo resultado que `--version`
+- [x] #3 La ayuda del CLI documenta ambas opciones de versión
+- [x] #4 El smoke test del paquete npm comprueba la salida y terminación de ambas opciones
+- [x] #5 Pasan las validaciones específicas de CLI, la suite unificada y la sincronización del backlog
+
+---
+
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -381,50 +521,6 @@ Refactorizar los tipos en `src/` para eliminar las anotaciones `any`:
 - [ ] #3 `grep -rn --include="*.ts" --include="*.tsx" ": any" src/` retorna 0 coincidencias
 - [ ] #4 `npx tsc --noEmit` compila limpiamente con 0 errores de tipado estricto
 - [ ] #5 La suite unificada de tests `npm test` pasa íntegra con exit code 0
-
----
-
-#### [DEV-172] Cobertura de Tests para la Capa de UI: Lógica Derivada y Accesibilidad de Componentes
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-La suite de verificación cubre parser, API, seguridad de red, MCP, CLI, SSE, locking optimista e importación. **Ninguno de los 9 scripts importa un componente React.** Para ~14.000 líneas de `src/` con 6 componentes de más de 1.100 líneas cada uno, la única cobertura de la interfaz es `audit:ux`, que es un análisis estático de clases Tailwind.
-
-### Evidencia (verificada sobre `6a50230`)
-
-```
-$ grep -rln "ItemCard\|KanbanBoard\|SprintView" scripts/*.js scripts/*.ts
-(vacío)
-
-$ grep -E "test|jest|vitest|playwright|jsdom|testing-library" package.json
-(vacío — no hay framework de test instalado)
-```
-
-### Consecuencia
-
-Una regresión en el drag-and-drop del Kanban, en el ordenamiento de tarjetas, en el focus trap de un modal o en la normalización de estados que se renderiza **pasa la suite en verde**. El gate más caro del proyecto (`npm test`, 9 scripts) no cubre la capa donde el usuario pasa el 100 % del tiempo.
-
-### Tension real con el proyecto
-
-El producto sostiene una filosofía zero-deps: los tests son scripts con `node:assert`, sin framework. Introducir Vitest + Testing Library contradice esa filosofía. La tarea debe resolver esa tensión explícitamente, no ignorarla.
-
-### Enfoque propuesto en dos etapas
-
-**Etapa 1 (sin framework, coherente con la filosofía actual):** extraer la lógica determinista de los componentes a módulos puros en `src/utils/` y cubrirla con `node:assert`. El precedente ya existe: `src/utils/statusMeta.ts` (DEV-162) extrajo `normalizeStatus()` y la tabla de estilos como módulo puro testeable. `KanbanBoard`, `SprintView` e `ItemCard` consumen hoy los datos a través de ese módulo, de modo que las funciones de derivación de columna, agrupación y filtrado son candidatas directas.
-
-**Etapa 2 (requiere decisión de stack):** cubrir comportamiento de render e interacción. Implica elegir framework y documentar el trade-off en `AGENTS.md`.
-
-### Objetivo
-
-Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar un stack de testing que contradiga la filosofía del producto sin antes haberlo decidido y documentado.
-
-**Criterios de Aceptación:**
-- [ ] #1 Existe al menos un archivo en `scripts/` que importe desde `src/utils/` o `src/components/` y ejecute aserciones con `node:assert`, y está conectado a la cadena de `npm test`
-- [ ] #2 La lógica de derivación de columnas y agrupación del Kanban está extraída a un módulo puro en `src/utils/` y cubierta por tests: una entrada known que produce una salida incorrecta hace fallar el test
-- [ ] #3 La normalización de estados legacy→canónico de `src/utils/statusMeta.ts` tiene test que ejercita los 4 aliases (`backlog`, `in_progress`, `testing_qa`, `finish`) contra `normalizeStatus()`
-- [ ] #4 Existe un test que verifica que las etiquetas de estado renderizadas provienen de `status.*` y no de literales: ante una locale alternativa, la etiqueta cambia
-- [ ] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón — **no se deja implícito**
-- [ ] #6 Si se introduce un framework de test en la Etapa 2, la decisión queda registrada en `AGENTS.md` con el trade-off explícito frente a la filosofía zero-deps
-- [ ] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0 y `npm run build` sin errores
 
 ---
 

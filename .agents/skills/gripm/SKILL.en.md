@@ -1,9 +1,9 @@
 ---
 name: gripm
-description: gripm (formerly DevBoard) skill for agile management and Backlog.md. Guides AI agents and LLMs (Antigravity, Cursor, Claude Code) to query, pick, update, plan, and complete backlog tasks using the MCP server or native Markdown files.
+description: Gripm skill for agile management and Backlog.md. Guides AI agents and LLMs (Antigravity, Cursor, Claude Code) to query, pick, update, plan, and complete backlog tasks using the MCP server or native Markdown files.
 ---
 
-# gripm / DevBoard Agent Skill
+# Gripm Agent Skill
 
 This skill instructs AI agents and LLMs to interact with **gripm** (*"grip-em"*), the local agile cockpit and execution engine compatible with the **Backlog.md** standard.
 
@@ -11,7 +11,7 @@ This skill instructs AI agents and LLMs to interact with **gripm** (*"grip-em"*)
 
 ## 1. MCP Server Configuration
 
-gripm includes a standalone MCP server over `stdio` (`bin/gripm-mcp.js` with backward-compatible alias `bin/devboard-mcp.js`). To integrate it with Antigravity, Cursor, or Claude Code:
+Gripm includes a standalone MCP server over `stdio` (`bin/gripm-mcp.js`). To integrate it with Antigravity, Cursor, or Claude Code:
 
 ### Option A: Via npm run (Recommended in this repository)
 ```json

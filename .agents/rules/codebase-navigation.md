@@ -1,6 +1,6 @@
 # Navegación Eficiente y Mapeo Semántico del Código (CodeGraph & Arquitectura)
 
-La base de código de DevBoard cuenta con archivos extensos y de alta densidad funcional (`vite.config.ts`, `src/App.tsx`, `src/components/SettingsView.tsx`, etc.). Para evitar el consumo excesivo de tokens, sobrecarga de contexto y regresiones colaterales, **todo agente de IA debe seguir estas pautas de navegación y análisis**:
+La base de código de Gripm cuenta con archivos extensos y de alta densidad funcional (`vite.config.ts`, `src/App.tsx`, `src/components/SettingsView.tsx`, etc.). Para evitar el consumo excesivo de tokens, sobrecarga de contexto y regresiones colaterales, **todo agente de IA debe seguir estas pautas de navegación y análisis**:
 
 ---
 

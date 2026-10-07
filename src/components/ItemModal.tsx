@@ -219,6 +219,7 @@ export const ItemModal: FC<ItemModalProps> = ({
 
   const prevIsOpenRef = useRef(false);
   const prevItemIdRef = useRef<string | null>(null);
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   // Initialize form ONLY when modal opens or target item changes, never on live background syncs.
   // DEV-126: useLayoutEffect (not useEffect) so the form is populated BEFORE the browser paints.
@@ -412,8 +413,6 @@ export const ItemModal: FC<ItemModalProps> = ({
   const planExample = impactedFile.trim()
     ? `1. Modificar ${impactedFile.trim()}...&#10;2. Ajustar tipos, contrato de datos y tests...&#10;3. Ejecutar tsc, npm test y backlog:check...`
     : '1. Modificar el archivo afectado...&#10;2. Ajustar tipos, contrato de datos y tests...&#10;3. Ejecutar tsc, npm test y backlog:check...';
-
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   return (
     <div 

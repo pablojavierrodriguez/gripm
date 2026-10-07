@@ -34,3 +34,7 @@ data/*.local.json
 
 # Keep demo sample backlog for new clone instances
 !data/demo-backlog.json
+
+# gripm local cache
+.gripm/update-cache.json
+.gripm/*.tmp

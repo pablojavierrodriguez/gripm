@@ -38,6 +38,7 @@ const STEPS = [
   ['resilience-cli', 'scripts/verify-resilience-and-cli.js'],
   ['audit-ux-baseline', 'scripts/verify-audit-ux-baseline.js'],
   ['status-contrast', 'scripts/verify-status-contrast.js'],
+  ['ui-logic', 'scripts/test-ui-logic.js'],
   ['focus-trap', 'scripts/verify-focus-trap.js'],
   ['kanban-reorder', 'scripts/verify-kanban-reorder.js'],
   ['port-probe', 'scripts/verify-port-probe.js'],
