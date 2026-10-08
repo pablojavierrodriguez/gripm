@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-07 por gripm ⚡
+> Consolidado generado el 2026-10-08 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -94,6 +94,22 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 - [ ] #3 Validar las vistas Kanban y Backlog en anchos táctiles habituales, incluyendo navegación, acciones y scroll
 - [ ] #4 Mantener la experiencia desktop compacta y sin regresiones en resoluciones amplias
 - [ ] #5 Verificar ambos idiomas y temas, sin overflow horizontal accidental ni pérdida de controles
+
+---
+
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-208] Clarificar narrativa de README para rookies y desarrolladores
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Hacer que la documentación sea accesible y comprensible para perfiles novatos, no técnicos y vibe coders sin perder rigor técnico para desarrolladores e ingenieros consolidados. Se reorganiza el flujo de lectura con revelación progresiva, se elimina la burocracia conceptual al inicio y se preserva toda la información dura de arquitectura, MCP y CLI.
+
+**Criterios de Aceptación:**
+- [x] #1 Reestructurar README.es.md y README.md con revelación progresiva: inicio rápido directo, conexión de IA sin fricción y arquitectura avanzada al final.
+- [x] #2 Eliminar tecnicismos defensivos y redundancias sobre instalación de Playbook en la portada, explicando el comando gripm playbook sync constructivamente.
+- [x] #3 Desacoplar la sección de desinstalación (--uninstall) de la guía de inicio y ubicarla en su propia sección dedicada.
+- [x] #4 Preservar el 100% de la información técnica (motor dual, catálogo MCP de 12 tools, flags CLI, estrategias Git, comandos de integridad y guía core).
+- [x] #5 Pasan las verificaciones de integridad de backlog y pirámide de calidad (npm run backlog:check, npm test, npm run publish:check).
 
 ---
 
