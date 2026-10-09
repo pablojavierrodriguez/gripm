@@ -97,7 +97,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 📋 Backlog / Draft (14)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -570,6 +570,81 @@ Esta tarea es una **decisión con trade-off**, no un bug con parche.
 - [ ] #4 Si se actualizan: el bundle publicado se compara contra el actual y el crecimiento se justifica en el release notes
 - [ ] #5 Si se aceptan los avisos: queda escrito por qué el riesgo no alcanza al runtime del consumidor, con la evidencia de que los binarios solo importan built-ins
 - [ ] #6 El aviso no vuelve a sorprender en el `npm ci` de quien integra el repo: queda registrado en el README o en CONTRIBUTING qué esperar
+
+---
+
+#### [DEV-218] Desacople de Sprints y defaults minimalistas para Gripm Core
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Establecer Gripm Core como un producto minimalista por defecto, desacoplando Sprints y Scrum de la configuración inicial del tablero:
+1. **Defaults canónicos orientados a flujo continuo:** En `src/types.ts` y en la resolución de configuración, la metodología por defecto pasa a ser `kanban` en lugar de `scrumban`, con la pestaña de Sprints deshabilitada por defecto (`enabledTabs: { kanban: true, sprint: false, release: true }`).
+2. **Ocultamiento condicional en UI (Zero-Leakage):** Cuando el módulo de Sprints esté inactivo (`enabledTabs.sprint === false` o metodología `kanban`), la interfaz debe ocultar limpiamente los selectores y metadatos de Sprint en `ItemModal`, `FilterBar` y tarjetas, sin dejar huecos ni campos mudos.
+3. **Preservación total de retrocompatibilidad:** Los proyectos que ya tengan configurado `sprint: true` o metodología `scrum`/`scrumban` continúan viendo y usando Sprints sin alteración ni pérdida de datos.
+
+**Criterios de Aceptación:**
+- [ ] #1 La metodologia por defecto en configuraciones nuevas es kanban con enabledTabs.sprint en false
+- [ ] #2 ItemModal oculta el selector de sprint cuando enabledTabs.sprint es false o methodology es kanban
+- [ ] #3 FilterBar oculta el filtro y dropdown de sprints cuando el modulo de sprints no esta activo
+- [ ] #4 Proyectos con configuracion previa de sprints o scrumban preservan la visibilidad de sprints sin regresion
+- [ ] #5 La suite de verificacion npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-219] Onboarding CLI con selección de perfiles y add-ons declarativos en init
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Evolucionar el asistente de inicialización `gripm --init` (`scripts/initScaffold.js`) para ofrecer perfiles de adopción y selección declarativa de add-ons:
+1. **Selección de perfil inicial en CLI:** Ofrecer una primera decisión clara y concisa al usuario:
+   - `[1] Minimalista AI-First (Recomendado)`: Núcleo ultraligero con Kanban puro, sin ceremonias ni timeboxes (`methodology: "kanban"`, `enabledTabs.sprint: false`, solo `backlog/tasks/` y `SKILL.md`).
+   - `[2] Baterías Incluidas`: Suite completa habilitando Sprints/Scrum, Releases y gobernanza de agentes.
+   - `[3] Personalizado`: Permite seleccionar granularmente cada add-on (Sprints, Releases, AGENTS.md, scripts en package.json, etc.).
+2. **Generación explícita de `.gripm/config.json`:** El archivo de configuración resultante debe persistir explícitamente `methodology` y `enabledTabs`, eliminando ambigüedades o fallbacks implícitos en el arranque del servidor.
+3. **Flags no interactivas (`--minimal`, `--full`):** Soporte en CLI para flags de automatización en scripts o CI.
+
+**Criterios de Aceptación:**
+- [ ] #1 scripts/initScaffold.js presenta selector de perfiles de inicializacion (Minimalista AI-First, Baterias Incluidas, Personalizado)
+- [ ] #2 El perfil Minimalista AI-First configura methodology kanban y enabledTabs.sprint false sin crear archivos innecesarios
+- [ ] #3 .gripm/config.json persiste explicitamente methodology y enabledTabs segun la eleccion del usuario
+- [ ] #4 Soporte para flags no interactivas (--minimal, --full) en el comando gripm --init
+- [ ] #5 npm test y npm run backlog:check pasan con codigo 0
+
+---
+
+#### [DEV-220] Panel de gestión de módulos y add-ons en configuración web
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Diseñar e incorporar en `SettingsView` un panel centralizado de **"Módulos & Add-ons"** para activar o desactivar capacidades en caliente:
+1. **Catálogo visual de add-ons:** Presentar tarjetas con interruptores claros para cada módulo del producto:
+   - 🗂️ **Kanban Core & Backlog:** Siempre activo (núcleo base indispensable).
+   - ⏱️ **Sprints & Timeboxing (Scrum):** Activa/desactiva la pestaña Sprints y sus campos en tareas/filtros.
+   - 🚀 **Release Management & Versioning:** Activa/desactiva la pestaña Releases y el empaquetado formal de versiones.
+   - 🌐 **Multi-Project Hub:** Switcher de proyectos y registro en el hub global.
+2. **Activación instantánea sin recarga:** Al encender o apagar un add-on, la barra superior de navegación y los modales reaccionan de inmediato y persisten el cambio en `.gripm/config.json`.
+3. **Descubribilidad no invasiva:** Si el usuario está en modo minimalista, mostrar en la configuración una vía obvia y simple para expandir capacidades cuando el equipo o el proyecto lo requiera.
+
+**Criterios de Aceptación:**
+- [ ] #1 SettingsView incluye seccion dedicada de Modulos y Add-ons con explicacion clara de cada capacidad
+- [ ] #2 Toggles individuales para Sprints, Releases y Multi-Hub con persistencia inmediata en .gripm/config.json
+- [ ] #3 La barra de navegacion principal refleja altas y bajas de pestanas de forma reactiva y sin recargar la pagina
+- [ ] #4 Textos completamente localizados en espanol e ingles en utils/i18n.ts
+- [ ] #5 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-221] Inversión de orden en pipeline de publicación y auto-creación de GitHub Release
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` para garantizar que la publicación a npmjs.com y la creación de la GitHub Release ocurran de forma atómica y estrictamente posterior a la validación completa del código:
+1. **Inversión de fases en el workflow de publicación:** Mover el paso `npm publish` al final del pipeline. La ejecución de la suite completa (`tsc`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build`, `npm run publish:check` y `npm pack --dry-run`) debe preceder obligatoriamente a la publicación. Si cualquier verificación falla, el proceso debe abortar sin mutar el registro de npm.
+2. **Auto-creación de GitHub Release:** Integrar en el workflow la creación automática de la Release oficial en GitHub utilizando el CLI nativo `gh release create` y el token de Actions con permisos `contents: write`. El título y las notas de la versión deben extraerse automáticamente desde `backlog/releases.json` / `CHANGELOG.md` para evitar pasos manuales o scripts externos.
+3. **Sincronización atómica:** Asegurar que el tag de Git, la release documental en GitHub y el paquete publicado en npmjs.com compartan la misma foto verificada y queden sellados en el mismo evento sin duplicar ejecuciones ni dejar artefactos a medio publicar.
+
+**Criterios de Aceptación:**
+- [ ] #1 En publish.yml, la piramide completa de pruebas y verificacion se ejecuta antes del paso de publicacion en npm
+- [ ] #2 Si cualquier paso de verificacion o build falla, el job se detiene sin publicar en npm ni crear la GitHub Release
+- [ ] #3 Tras publicar exitosamente en npmjs.com, publish.yml crea la GitHub Release oficial extrayendo titulo y notas desde backlog/releases.json
+- [ ] #4 El workflow maneja idempotencia evitando fallas si la version o la release ya existian en el repositorio
+- [ ] #5 La suite de pruebas y scripts de integridad local pasan con codigo 0
 
 ---
 
