@@ -29,6 +29,7 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 - **DEV-209 — Consistencia, alineación y subcomandos de ayuda en gripm CLI:** ayuda formateada distinguiendo comandos de opciones y soporte nativo de `--help` en subcomandos.
 - **DEV-215 — Tolerancia de flags de ayuda y clarificación de comandos y servidor MCP:** soporte robusto de variantes `--h` y `-help`, eliminación de menciones confusas a Gripm Suite y desacople de `gripm-mcp` como binario para herramientas de IA.
 - **DEV-216 — Eliminar creación preventiva y auto-regeneración no solicitada de directorios backlog/tasks:** lectura estrictamente pura en el servidor y fin de la creación automática de carpetas no deseadas en el disco del usuario.
+- **DEV-217 — Corrección de paridad multiplataforma en CI y smoke test de jerarquías:** resolución de aserción en tests de UI y normalización de baseline de UX multiplataforma.
 - **DEV-186 — Refactor de Tipos Core:** migración canónica de `DevBoardConfig` a `GripmConfig`.
 - **DEV-192 — Normalizar IDs de Sprint:** IDs estandarizados bajo el patrón `sprint-<n>`.
 - **DEV-191 — Actualizar GitHub Actions deprecadas:** migración limpia a Node 24.

@@ -1805,12 +1805,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* 2. Auto-save on Edit */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
-                  <label className="flex items-start justify-between cursor-pointer">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75">
                     <div className="pr-2">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.autoSaveLabel')}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         {t('settings.autoSaveDesc')}
                       </p>
                     </div>
@@ -1825,12 +1825,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* 3. Manual Ranking and Drag & Drop */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
-                  <label className="flex items-start justify-between cursor-pointer">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75">
                     <div className="pr-2">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.rankingLabel')}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         {t('settings.rankingDesc')}
                       </p>
                     </div>

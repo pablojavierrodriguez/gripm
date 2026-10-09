@@ -1466,8 +1466,8 @@ export const ItemModal: FC<ItemModalProps> = ({
 
                 {/* Parent / Epic (Jerarquía de Ítem) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                  <div className="flex items-center justify-between mb-1 min-w-0">
+                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                       <span>{t('itemModal.parentEpicLabel')}</span>
                     </label>
@@ -1475,12 +1475,28 @@ export const ItemModal: FC<ItemModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setParentId('')}
-                        className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors"
+                        className="text-xs text-slate-400 hover:text-rose-500 transition-colors"
                       >
                         {t('common.clear')}
                       </button>
                     )}
                   </div>
+
+                  {parentId && (
+                    <div className="mb-1.5 flex items-center justify-between gap-1 min-w-0 px-2.5 py-1 rounded-md bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/50 text-xs text-indigo-700 dark:text-indigo-300">
+                      <span className="break-words font-mono">{formatRelation(parentId)}</span>
+                      <button
+                        type="button"
+                        aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
+                        title={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
+                        onClick={() => setParentId('')}
+                        className="inline-flex items-center justify-center p-0.5 rounded text-indigo-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <select
                       value={parentId}
@@ -1490,6 +1506,11 @@ export const ItemModal: FC<ItemModalProps> = ({
                       <option value="" className="bg-white dark:bg-[#0e1626]">
                         {t('itemModal.relationsNoParent')}
                       </option>
+                      {parentId && !candidateParents.some((cand) => (cand.code || cand.id) === parentId || cand.id === parentId) && (
+                        <option value={parentId} className="bg-white dark:bg-[#0e1626]">
+                          {parentId}
+                        </option>
+                      )}
                       {candidateParents.map((cand) => (
                         <option key={cand.id} value={cand.code || cand.id} className="bg-white dark:bg-[#0e1626]">
                           [{cand.type.toUpperCase()}] {cand.code || cand.id}: {cand.title.slice(0, 45)}

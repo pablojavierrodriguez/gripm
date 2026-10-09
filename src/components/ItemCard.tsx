@@ -377,7 +377,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       }`}
     >
       {/* Top row: Code + Type Badge + Priority + Menu */}
-      <div className={`flex items-center justify-between gap-1.5 ${isCompact ? 'mb-1.5' : 'mb-2'}`}>
+      <div className={`flex items-center justify-between gap-1.5 min-w-0 ${isCompact ? 'mb-1.5' : 'mb-2'}`}>
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Item Code */}
           <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300 tracking-tight">

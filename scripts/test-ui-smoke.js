@@ -66,7 +66,7 @@ async function waitForTask(title = taskTitle) {
 }
 
 async function expectRelationVisible(dialog, title) {
-  await dialog.getByText(title, { exact: false }).first().waitFor({ state: 'visible' });
+  await dialog.locator(':not(option)').filter({ hasText: title }).first().waitFor({ state: 'visible' });
 }
 
 try {
