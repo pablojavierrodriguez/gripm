@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslation } from '../utils/i18n';
+import { useTranslation, type TranslationKey } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { 
   Bug, 
@@ -54,6 +54,7 @@ interface ItemCardProps {
   // DEV-047: Progress rollup for epics/initiatives
   epicProgress?: { done: number; total: number };
   customItemTypes?: CustomItemTypeConfig[];
+  density?: 'comfortable' | 'compact';
   /**
    * Keyboard-accessible reordering (DEV-173, AC #3). Without it, moving a card
    * inside its column is drag-and-drop only, which a keyboard cannot perform.
@@ -211,12 +212,14 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   onShowToast,
   epicProgress,
   customItemTypes,
+  density = 'comfortable',
   canMoveUp = false,
   canMoveDown = false,
   onMoveWithinColumn
 }) => {
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
+  const isCompact = density === 'compact';
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -309,6 +312,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
   const typeInfo = getItemTypeInfo(item.type, customItemTypes);
   const priorityInfo = priorityConfig[item.priority] || priorityConfig.p2;
+  const priorityLabel = t(`priority.${item.priority}` as TranslationKey) || priorityInfo.label;
   const TypeIcon = typeInfo.icon;
 
   const handleDragStartInternal = (e: React.DragEvent) => {
@@ -368,12 +372,12 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       onDragStart={handleDragStartInternal}
       onDragEnd={handleDragEndInternal}
       onClick={handleClickInternal}
-      className={`group relative glass-card p-3 rounded-xl cursor-grab active:cursor-grabbing select-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+      className={`group relative glass-card ${isCompact ? 'p-2' : 'p-3'} rounded-xl cursor-grab active:cursor-grabbing select-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
         isDragging ? 'is-dragging' : ''
       }`}
     >
       {/* Top row: Code + Type Badge + Priority + Menu */}
-      <div className="flex items-center justify-between gap-1.5 mb-2">
+      <div className={`flex items-center justify-between gap-1.5 ${isCompact ? 'mb-1.5' : 'mb-2'}`}>
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Item Code */}
           <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300 tracking-tight">
@@ -389,9 +393,9 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
         <div className="flex items-center gap-1.5">
           {/* Priority Pill */}
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.05] text-[10px]">
-            <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.dot}`} />
-            <span className={priorityInfo.text}>{priorityInfo.label}</span>
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.05] text-[10px] min-w-[70px] justify-center shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.dot} shrink-0`} />
+            <span className={`${priorityInfo.text} truncate`}>{priorityLabel}</span>
           </div>
 
           {/* Context Menu Button */}
@@ -558,7 +562,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       </div>
 
       {/* Item Title */}
-      <h4 className={`text-xs font-medium leading-snug line-clamp-2 mb-2 transition-colors ${
+      <h4 className={`${isCompact ? 'text-[11px] mb-1.5' : 'text-xs mb-2'} font-medium leading-snug line-clamp-2 transition-colors ${
         item.type === 'epic'
           ? 'text-indigo-900 dark:text-indigo-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
           : item.type === 'initiative'
@@ -573,7 +577,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
         <div className="mb-2">
           <div className="flex items-center justify-between text-[10px] mb-1">
             <span className={`font-medium ${item.type === 'epic' ? 'text-indigo-600 dark:text-indigo-400' : 'text-purple-600 dark:text-purple-400'}`}>
-              Progreso
+              {t('card.progress')}
             </span>
             <span className="text-slate-500 dark:text-slate-400 font-mono">
               {epicProgress.done}/{epicProgress.total} · {Math.round((epicProgress.done / epicProgress.total) * 100)}%
@@ -591,7 +595,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       )}
 
       {/* Meta Pills (Module, Sprint, Release, ACs) */}
-      <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100 dark:border-white/[0.04] text-[10px] text-slate-500 dark:text-slate-400">
+      <div className={`flex items-center gap-1.5 flex-wrap ${isCompact ? 'pt-0.5' : 'pt-1'} border-t border-slate-100 dark:border-white/[0.04] text-[10px] text-slate-500 dark:text-slate-400`}>
         {item.acceptanceCriteriaList && item.acceptanceCriteriaList.length > 0 && (
           <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-mono text-[9px] flex items-center gap-1 font-medium">
             ✓ {item.acceptanceCriteriaList.filter(ac => ac.checked).length}/{item.acceptanceCriteriaList.length} AC
@@ -633,13 +637,13 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
         {item.blockedBy && item.blockedBy.length > 0 && (
           <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}>
-            ⛔ Bloqueada por {item.blockedBy.join(', ')}
+            ⛔ {t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}
           </span>
         )}
 
         {item.blocks && item.blocks.length > 0 && (
           <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blocks', { tasks: item.blocks.join(', ') })}>
-            ⚠️ Bloquea {item.blocks.join(', ')}
+            ⚠️ {t('card.blocks', { tasks: item.blocks.join(', ') })}
           </span>
         )}
       </div>

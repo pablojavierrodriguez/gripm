@@ -1,4 +1,4 @@
-import type { BacklogItem, BoardData, Project, Release, StorageType, DevBoardConfig, Sprint } from './types';
+import type { BacklogItem, BoardData, Project, Release, StorageType, GripmConfig, Sprint } from './types';
 
 const API_BASE = '/api';
 
@@ -352,7 +352,7 @@ export async function importLegacyBacklog(params: {
   return res.json();
 }
 
-export async function fetchSettings(projectId?: string): Promise<DevBoardConfig> {
+export async function fetchSettings(projectId?: string): Promise<GripmConfig> {
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
   const res = await fetch(`${API_BASE}/settings${query}`);
   if (!res.ok) {
@@ -362,7 +362,7 @@ export async function fetchSettings(projectId?: string): Promise<DevBoardConfig>
   return data.config;
 }
 
-export async function saveSettings(config: DevBoardConfig, projectId?: string): Promise<DevBoardConfig> {
+export async function saveSettings(config: GripmConfig, projectId?: string): Promise<GripmConfig> {
   const res = await fetch(`${API_BASE}/settings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

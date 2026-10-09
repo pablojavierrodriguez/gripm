@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-08 por gripm ⚡
+> Consolidado generado el 2026-10-09 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -97,23 +97,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 🚀 Ready for Deploy (1)
-
-#### [DEV-208] Clarificar narrativa de README para rookies y desarrolladores
-- **Prioridad**: `medium` | **Tipo**: `improvement`
-
-Hacer que la documentación sea accesible y comprensible para perfiles novatos, no técnicos y vibe coders sin perder rigor técnico para desarrolladores e ingenieros consolidados. Se reorganiza el flujo de lectura con revelación progresiva, se elimina la burocracia conceptual al inicio y se preserva toda la información dura de arquitectura, MCP y CLI.
-
-**Criterios de Aceptación:**
-- [x] #1 Reestructurar README.es.md y README.md con revelación progresiva: inicio rápido directo, conexión de IA sin fricción y arquitectura avanzada al final.
-- [x] #2 Eliminar tecnicismos defensivos y redundancias sobre instalación de Playbook en la portada, explicando el comando gripm playbook sync constructivamente.
-- [x] #3 Desacoplar la sección de desinstalación (--uninstall) de la guía de inicio y ubicarla en su propia sección dedicada.
-- [x] #4 Preservar el 100% de la información técnica (motor dual, catálogo MCP de 12 tools, flags CLI, estrategias Git, comandos de integridad y guía core).
-- [x] #5 Pasan las verificaciones de integridad de backlog y pirámide de calidad (npm run backlog:check, npm test, npm run publish:check).
-
----
-
-### 📋 Backlog / Draft (17)
+### 📋 Backlog / Draft (14)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -479,20 +463,6 @@ Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm
 
 ---
 
-#### [DEV-186] Refactor de Tipos Core: Renombrar DevBoardConfig a GripmConfig y Unificar Interfaces
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Renombrar la interfaz canónica DevBoardConfig a GripmConfig en src/types.ts y propagar el cambio en los ~10 módulos consumidores (src/App.tsx, SettingsView.tsx, api.ts, etc.) manteniendo retrocompatibilidad mediante un type alias deprecated export type DevBoardConfig = GripmConfig;. Esto completa la unificación de identidad de tipos post-rebranding sin romper contratos externos.
-
-**Criterios de Aceptación:**
-- [ ] #1 Definir GripmConfig como la interfaz canónica de configuración en src/types.ts
-- [ ] #2 Exportar export type DevBoardConfig = GripmConfig como alias con anotación @deprecated para retrocompatibilidad total
-- [ ] #3 Actualizar las referencias e importaciones en src/App.tsx, src/components/SettingsView.tsx, src/api.ts y demás módulos hacia GripmConfig
-- [ ] #4 Verificar que npx tsc --noEmit pase con 0 errores en modo estricto
-- [ ] #5 Validar que npm test y npm run backlog:check pasen con código 0
-
----
-
 #### [DEV-188] Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
 
@@ -554,70 +524,6 @@ dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 
 ---
 
-#### [DEV-191] Actualizar las GitHub Actions deprecadas que corren forzadas en Node 24
-- **Prioridad**: `medium` | **Tipo**: `chore`
-
-Cada corrida de los workflows termina con este warning de GitHub:
-
-```
-##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but
-are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.
-```
-
-`actions/checkout@v4` y `actions/setup-node@v4` apuntan a Node 20, que GitHub ya no soporta. Hoy funcionan porque el runner los fuerza a Node 24, o sea que el runtime real no es el que la action pide. Eso es una dependencia implícita de un comportamiento que GitHub puede cambiar sin avisar, y el día que deje de forzarla, los jobs dejan de andar.
-
-Aparece en `ci.yml` y en `publish.yml`. El de `publish.yml` importa más: es el que publica a npm.
-
-Vale notar que esto no surfaced por una falla, sino por un warning al final de un run exitoso. Es exactamente la clase de cosa que se pierde si solo se leen los pasos con `failure`.
-
-**Criterios de Aceptación:**
-- [ ] #1 `actions/checkout` actualizado a la major que apunta a Node 24 o superior
-- [ ] #2 `actions/setup-node` actualizado a la major que apunta a Node 24 o superior
-- [ ] #3 Ningún otro action del repo queda apuntando a una versión de Node deprecada
-- [ ] #4 La matriz de CI sigue en verde en los 3 sistemas operativos y las 2 versiones de Node
-- [ ] #5 El workflow de publicación sigue funcionando: `npm view @gripm/board@<version>` responde tras un tag de prueba
-
----
-
-#### [DEV-192] Normalizar los IDs de sprint: hay un prefijo duplicado y un ID basado en timestamp
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-`backlog/sprints.json` tiene 9 sprints y dos de sus IDs no siguen el patrón `sprint-<n>`:
-
-```
-sprint-0                 Sprint 0
-sprint-1                 Sprint 1
-sprint-2                 Sprint 2
-sprint-3                 Sprint 3
-sprint-4                 Sprint 4
-sprint-1790252674566     Sprint 5     <- ID basado en timestamp
-sprint-6                 Sprint 6
-sprint-sprint-7          Sprint 7     <- prefijo duplicado
-sprint-8                 Sprint 8
-```
-
-`sprint-sprint-7` tiene el prefijo `sprint-` duplicado, y `sprint-1790252674566` se generó con `Date.now()` en lugar de secuencia. Visualmente el nombre es correcto ("Sprint 7"), así que el defecto está oculto hasta que algo consume el ID.
-
-### Por qué importa aunque hoy no rompa nada
-
-Verificado: **ninguna tarea, release ni entrada de `BACKLOG.md` referencia estos dos IDs**. La migración no tiene costo de datos.
-
-El riesgo es latente, no activo. Los IDs son la clave de agrupación y de las queries del filtro de sprint; un ID con doble prefijo rompe cualquier comparación por `startsWith` o por regex que asuma el patrón, y un timestamp no ordena igual que el resto de la secuencia.
-
-### Origen probable
-
-El `sprint-sprint-7` sugiere que en algún momento el nombre ya venía prefijado y el código que genera el ID le agregó el prefijo otra vez. El timestamp sugiere un camino de creación alternative que no participa de la secuencia.
-
-**Criterios de Aceptación:**
-- [ ] #1 Los 9 IDs de `backlog/sprints.json` siguen el patrón `sprint-<n>`
-- [ ] #2 La secuencia es correlativa y coincide con el nombre del sprint
-- [ ] #3 El generador de IDs de sprint no puede producir un prefijo duplicado
-- [ ] #4 El generador de IDs de sprint no puede producir un ID basado en timestamp
-- [ ] #5 `npm run backlog:check` sigue en verde después de la migración
-- [ ] #6 La vista de Sprint y el filtro por sprint muestran los 9 sprints con el mismo nombre que antes de la migración
-
----
-
 #### [DEV-193] Decidir qué hacer con las 10 vulnerabilidades del toolchain de build
 - **Prioridad**: `medium` | **Tipo**: `chore`
 
@@ -667,7 +573,7 @@ Esta tarea es una **decisión con trade-off**, no un bug con parche.
 
 ---
 
-### ✅ Done / Deployed (180)
+### ✅ Done / Deployed (192)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -4422,6 +4328,21 @@ En `scripts/uninstall.js`, se importaba `node:readline` (basado en callbacks) en
 
 ---
 
+#### [DEV-186] Refactor de Tipos Core: Renombrar DevBoardConfig a GripmConfig y Unificar Interfaces
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+- **Sprint / Milestone**: 1.0.5
+
+Renombrar la interfaz canónica DevBoardConfig a GripmConfig en src/types.ts y propagar el cambio en los ~10 módulos consumidores (src/App.tsx, SettingsView.tsx, api.ts, etc.) manteniendo retrocompatibilidad mediante un type alias deprecated export type DevBoardConfig = GripmConfig;. Esto completa la unificación de identidad de tipos post-rebranding sin romper contratos externos.
+
+**Criterios de Aceptación:**
+- [x] #1 Definir GripmConfig como la interfaz canónica de configuración en src/types.ts
+- [x] #2 Exportar export type DevBoardConfig = GripmConfig como alias con anotación @deprecated para retrocompatibilidad total
+- [x] #3 Actualizar las referencias e importaciones en src/App.tsx, src/components/SettingsView.tsx, src/api.ts y demás módulos hacia GripmConfig
+- [x] #4 Verificar que npx tsc --noEmit pase con 0 errores en modo estricto
+- [x] #5 Validar que npm test y npm run backlog:check pasen con código 0
+
+---
+
 #### [DEV-189] Corregir el cuelgue del sondeo de puertos que bloqueaba npm test en CI
 - **Prioridad**: `high` | **Tipo**: `bug`
 
@@ -4521,6 +4442,72 @@ Todos los servidores de prueba eran mocks sin ciclo de vida. `configureServer` n
 - [x] #8 Existe un gate en pre-commit que rechaza YAML inválido, `import()` con rutas crudas, corrupción de codificación y tareas con id descuadrado
 - [x] #9 Cada check del gate se validó reintroduciendo el bug original y confirmando que lo rechaza
 - [x] #10 El gate no produce falsos positivos sobre el árbol correcto
+
+---
+
+#### [DEV-191] Actualizar las GitHub Actions deprecadas que corren forzadas en Node 24
+- **Prioridad**: `medium` | **Tipo**: `chore`
+- **Sprint / Milestone**: 1.0.5
+
+Cada corrida de los workflows termina con este warning de GitHub:
+
+```
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but
+are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.
+```
+
+`actions/checkout@v4` y `actions/setup-node@v4` apuntan a Node 20, que GitHub ya no soporta. Hoy funcionan porque el runner los fuerza a Node 24, o sea que el runtime real no es el que la action pide. Eso es una dependencia implícita de un comportamiento que GitHub puede cambiar sin avisar, y el día que deje de forzarla, los jobs dejan de andar.
+
+Aparece en `ci.yml` y en `publish.yml`. El de `publish.yml` importa más: es el que publica a npm.
+
+Vale notar que esto no surfaced por una falla, sino por un warning al final de un run exitoso. Es exactamente la clase de cosa que se pierde si solo se leen los pasos con `failure`.
+
+**Criterios de Aceptación:**
+- [x] #1 `actions/checkout` actualizado a la major que apunta a Node 24 o superior
+- [x] #2 `actions/setup-node` actualizado a la major que apunta a Node 24 o superior
+- [x] #3 Ningún otro action del repo queda apuntando a una versión de Node deprecada
+- [x] #4 La matriz de CI sigue en verde en los 3 sistemas operativos y las 2 versiones de Node
+- [x] #5 El workflow de publicación sigue funcionando: `npm view @gripm/board@<version>` responde tras un tag de prueba
+
+---
+
+#### [DEV-192] Normalizar los IDs de sprint: hay un prefijo duplicado y un ID basado en timestamp
+- **Prioridad**: `low` | **Tipo**: `chore`
+- **Sprint / Milestone**: 1.0.5
+
+`backlog/sprints.json` tiene 9 sprints y dos de sus IDs no siguen el patrón `sprint-<n>`:
+
+```
+sprint-0                 Sprint 0
+sprint-1                 Sprint 1
+sprint-2                 Sprint 2
+sprint-3                 Sprint 3
+sprint-4                 Sprint 4
+sprint-1790252674566     Sprint 5     <- ID basado en timestamp
+sprint-6                 Sprint 6
+sprint-sprint-7          Sprint 7     <- prefijo duplicado
+sprint-8                 Sprint 8
+```
+
+`sprint-sprint-7` tiene el prefijo `sprint-` duplicado, y `sprint-1790252674566` se generó con `Date.now()` en lugar de secuencia. Visualmente el nombre es correcto ("Sprint 7"), así que el defecto está oculto hasta que algo consume el ID.
+
+### Por qué importa aunque hoy no rompa nada
+
+Verificado: **ninguna tarea, release ni entrada de `BACKLOG.md` referencia estos dos IDs**. La migración no tiene costo de datos.
+
+El riesgo es latente, no activo. Los IDs son la clave de agrupación y de las queries del filtro de sprint; un ID con doble prefijo rompe cualquier comparación por `startsWith` o por regex que asuma el patrón, y un timestamp no ordena igual que el resto de la secuencia.
+
+### Origen probable
+
+El `sprint-sprint-7` sugiere que en algún momento el nombre ya venía prefijado y el código que genera el ID le agregó el prefijo otra vez. El timestamp sugiere un camino de creación alternative que no participa de la secuencia.
+
+**Criterios de Aceptación:**
+- [x] #1 Los 9 IDs de `backlog/sprints.json` siguen el patrón `sprint-<n>`
+- [x] #2 La secuencia es correlativa y coincide con el nombre del sprint
+- [x] #3 El generador de IDs de sprint no puede producir un prefijo duplicado
+- [x] #4 El generador de IDs de sprint no puede producir un ID basado en timestamp
+- [x] #5 `npm run backlog:check` sigue en verde después de la migración
+- [x] #6 La vista de Sprint y el filtro por sprint muestran los 9 sprints con el mismo nombre que antes de la migración
 
 ---
 
@@ -4693,6 +4680,130 @@ En el tablero, a 1366×768 y con la interfaz en español, el contador de tareas 
 - [x] #1 El contador de pendientes no se solapa con los controles visibles a 1366×768 en español
 - [x] #2 Los filtros de prioridad siguen accesibles desde el panel de Filtros cuando no caben como accesos rápidos
 - [x] #3 Los accesos rápidos de prioridad solo ocupan espacio inline cuando el viewport permite conservar una única fila compacta
+
+---
+
+#### [DEV-208] Clarificar narrativa de README para rookies y desarrolladores
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+- **Sprint / Milestone**: 1.0.5
+
+Hacer que la documentación sea accesible y comprensible para perfiles novatos, no técnicos y vibe coders sin perder rigor técnico para desarrolladores e ingenieros consolidados. Se reorganiza el flujo de lectura con revelación progresiva, se elimina la burocracia conceptual al inicio y se preserva toda la información dura de arquitectura, MCP y CLI.
+
+**Criterios de Aceptación:**
+- [x] #1 Reestructurar README.es.md y README.md con revelación progresiva: inicio rápido directo, conexión de IA sin fricción y arquitectura avanzada al final.
+- [x] #2 Eliminar tecnicismos defensivos y redundancias sobre instalación de Playbook en la portada, explicando el comando gripm playbook sync constructivamente.
+- [x] #3 Desacoplar la sección de desinstalación (--uninstall) de la guía de inicio y ubicarla en su propia sección dedicada.
+- [x] #4 Preservar el 100% de la información técnica (motor dual, catálogo MCP de 12 tools, flags CLI, estrategias Git, comandos de integridad y guía core).
+- [x] #5 Pasan las verificaciones de integridad de backlog y pirámide de calidad (npm run backlog:check, npm test, npm run publish:check).
+
+---
+
+#### [DEV-209] Consistencia alineacion y subcomandos de ayuda en gripm CLI
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+- **Sprint / Milestone**: 1.0.5
+
+Resolver las inconsistencias en la ayuda del CLI (`bin/gripm.js` y `bin/gripm-mcp.js`):
+1. Distinguir semánticamente Comandos posicionales (`gripm`, `gripm mcp`, `gripm playbook sync`) de Opciones de ejecución.
+2. Soporte nativo de `--help` y `-h` en subcomandos:
+   - `gripm mcp --help` y `gripm-mcp --help` deben desplegar la descripción del servidor MCP y sus parámetros en lugar de bloquearse esperando JSON-RPC por stdin.
+   - `gripm playbook --help` y `gripm playbook sync --help` deben mostrar la ayuda con código de salida 0 en lugar de abortar con exit code 1.
+3. Documentar las opciones existentes: `--single`, `--multi`, opciones no interactivas de `--init` y flags avanzadas de `playbook sync` (`--branch`, `--remote`, `--dry-run`, `--force`).
+4. Alinear el host por defecto documentado (`127.0.0.1`) con la implementación real.
+5. Corregir el espaciado y alineación visual de columnas en la salida de terminal.
+
+**Criterios de Aceptación:**
+- [x] #1 gripm --help y gripm -h presentan una salida formateada y alineada, diferenciando comandos de opciones y documentando --single, --multi y host 127.0.0.1
+- [x] #2 gripm mcp --help, gripm mcp -h y gripm-mcp --help muestran la descripcion del servidor MCP con codigo de salida 0 sin colgarse en stdin
+- [x] #3 gripm playbook --help, gripm playbook sync --help y gripm playbook -h muestran la guia de uso de sincronizacion con codigo de salida 0
+- [x] #4 Las opciones avanzadas de --init (--no-skill, --no-agents, etc.) y playbook sync (--dry-run, --force, --branch, --remote) estan documentadas adecuadamente
+- [x] #5 La suite de pruebas npm test, npm run backlog:check y npm run publish:check pasan con codigo de salida 0
+
+---
+
+#### [DEV-210] I18n de Tarjetas y Estabilidad Visual Zero-CLS en Cambio de Idioma
+- **Prioridad**: `p2` | **Tipo**: `ux`
+- **Sprint / Milestone**: 1.0.5
+**Criterios de Aceptación:**
+- [x] #1 1. Claves de prioridad 'priority.p0', 'priority.p1', 'priority.p2', 'priority.p3' agregadas en 'en.json' y 'es.json' y consumidas dinámicamente en 'ItemCard.tsx'.
+- [x] #2 2. Textos 'Progreso', 'Bloqueada por...' y 'Bloquea...' en 'ItemCard.tsx' consumen claves de internacionalización ('card.progress', 'card.blockedBy', 'card.blocks').
+- [x] #3 3. Pestañas de navegación en 'Header.tsx' y pills de prioridad adoptan anchos estables/mínimos para evitar jitter y reacomodamiento visual (Zero-CLS) al alternar idioma.
+
+---
+
+#### [DEV-211] Filtro de Sprints en Tablero y Corrección de Banner CLI
+- **Prioridad**: `p2` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.5
+**Criterios de Aceptación:**
+- [x] #1 1. En 'KanbanBoard.tsx', la opción 'Todos los sprints' solo se renderiza si existen 2 o más sprints registrados; cuando no hay sprints o hay 1 solo, se evita la redundancia mostrando solo la opción correspondiente.
+- [x] #2 2. La inicialización y persistencia de 'activeSprint' en 'KanbanBoard.tsx' cae en un fallback limpio cuando 'all' no está disponible en la lista de opciones.
+- [x] #3 3. En 'bin/gripm.js', el cálculo de ancho visual de las líneas del banner informativo contempla los caracteres de ancho extendido (emojis) para que el borde vertical derecho '│' permanezca alineado en una sola columna fija.
+
+---
+
+#### [DEV-212] Jerarquía de Ítems Selector de Epic Parent en Panel Lateral de ItemModal
+- **Prioridad**: `p2` | **Tipo**: `ux`
+- **Sprint / Milestone**: 1.0.5
+**Criterios de Aceptación:**
+- [x] #1 1. En 'ItemModal.tsx', la relación vertical 'parentId' se remueve de la sección colapsable de relaciones (manteniendo bloques de blockedBy, blocks y relatedTo).
+- [x] #2 2. Se incorpora el campo 'Epic / Épica' (o 'Item Padre') en la columna lateral derecha de 'ItemModal.tsx', debajo de etiquetas y arriba de módulo y código.
+- [x] #3 3. El selector permite seleccionar un padre de la lista de candidatos (epics, initiatives, features) o desasignar fácilmente, persistiendo el campo 'parentId' de forma simétrica.
+
+---
+
+#### [DEV-213] SettingsView Limpieza de Badges Desacople de Manual Ranking e Integracion de Board Density
+- **Prioridad**: `p2` | **Tipo**: `ux`
+- **Sprint / Milestone**: 1.0.5
+**Criterios de Aceptación:**
+- [x] #1 1. En 'SettingsView.tsx', se elimina el badge duplicado/desalineado junto al título de 'Project Work Methodology'.
+- [x] #2 2. 'Manual Ranking and Drag & Drop' se extrae de la tarjeta de Auto-save y se ubica como control propio e independiente dentro del grid de configuración.
+- [x] #3 3. 'KanbanBoard.tsx' e 'ItemCard.tsx' consumen 'config.density' aplicando clases de densidad compacta ('compact') vs estándar ('comfortable') en gaps de columna y espaciados internos de tarjetas.
+
+---
+
+#### [DEV-214] ReleasesView Nomenclatura Unreleased Estabilidad de Contenedor y Boton de Nueva Version
+- **Prioridad**: `p2` | **Tipo**: `ux`
+- **Sprint / Milestone**: 1.0.5
+**Criterios de Aceptación:**
+- [x] #1 1. En 'ReleaseAssembler.tsx', el contenedor raíz adopta el estándar 'w-full flex-1 p-4 sm:p-6 min-w-0 max-w-[1680px] mx-auto', garantizando un ancho inmutable independientemente de la cantidad de ítems en la vista.
+- [x] #2 2. La pestaña de filtro y chips de estado se actualizan a 'Unreleased' ('No liberadas' en español) en 'en.json', 'es.json' y 'ReleaseAssembler.tsx'.
+- [x] #3 3. El botón de nueva versión se normaliza a 'New Release' / 'Nueva Versión' sin texto redundante de preparación.
+
+---
+
+#### [DEV-215] Tolerancia de flags de ayuda y clarificación de comandos y servidor MCP en CLI
+- **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.5
+
+Resolver irregularidades y fricciones de usabilidad en la interfaz de línea de comandos (CLI) y servidor MCP:
+1. **Tolerancia de flags de ayuda:** Cuando el usuario pasa variantes comunes de ayuda como `--h` o `-help` (o `help`), el CLI no debe abrir el servidor web ni buscar puertos alternativos (ej: 4101), sino responder inmediatamente imprimiendo la ayuda y saliendo con código 0. Esto aplica tanto a `gripm`, `gripm-mcp`, `gripm mcp` como a `gripm playbook`.
+2. **Claridad en comandos y ejecutable MCP:** En la sección `Comandos:` de `gripm --help`, separar los subcomandos ejecutables reales (`gripm mcp`, `gripm playbook sync`) del binario directo independiente `gripm-mcp` (provisto para clientes MCP como Cursor y Claude Desktop), evitando la impresión errónea de que `gripm-mcp` es un subcomando anidado.
+3. **Eliminación de disclaimers confusos:** Retirar de la salida de `--help` la mención `"Gripm Suite no tiene aún un instalador"`, la cual genera confusión al referirse a un elemento de roadmap no publicado.
+
+**Criterios de Aceptación:**
+- [x] #1 bin/gripm.js y scripts/mcp-server.ts aceptan --h, -help, --help y -h terminando con codigo 0 sin iniciar Vite ni abrir puertos
+- [x] #2 gripm --help lista unicamente subcomandos directos en Comandos: y documenta gripm-mcp en seccion de integracion MCP
+- [x] #3 La salida de ayuda elimina la mencion innecesaria a Gripm Suite y su falta de instalador
+- [x] #4 verify-resilience-and-cli.js y test-package-smoke.js auditan las nuevas variantes de flag y la estructura limpia de ayuda
+- [x] #5 La suite de pruebas npm test, npm run backlog:check y npm run publish:check pasan con codigo de salida 0
+
+---
+
+#### [DEV-216] Eliminar creación preventiva y auto-regeneración no solicitada de directorios backlog tasks
+- **Prioridad**: `high` | **Tipo**: `bug`
+- **Sprint / Milestone**: 1.0.5
+
+Evitar la creación involuntaria de carpetas `backlog/tasks` en directorios arbitrarios del sistema (ej: carpetas raíz o home del usuario):
+1. **Operación de solo lectura pura en el servidor (`vite.config.ts`):** `readProjectBacklog` no debe invocar `fs.mkdirSync(tasksDir)`. Si el directorio no existe, debe retornar una colección vacía (`items: []`) sin mutar el disco.
+2. **Cero creación preventiva en el CLI (`bin/gripm.js`):** Al detectar el tipo de almacenamiento en el arranque, `bin/gripm.js` no debe crear `backlog/tasks` al vuelo. La creación en disco debe ocurrir exclusivamente ante `--init` explícito o cuando el usuario crea una tarea.
+3. **Protección del directorio home en el registro (`bin/gripm.js`):** Evitar auto-registrar el directorio `os.homedir()` en `~/.gripm/registry.json` ante ejecuciones no intencionales de la CLI sin flag `--repo` ni `--init`.
+4. **Limpieza de registros y carpetas parásitas:** Purgar del registro global de proyectos las rutas huérfanas o accidentales (`.code`, home del usuario y temporales inexistentes) y eliminar las carpetas residuales vacías creadas indebidamente.
+
+**Criterios de Aceptación:**
+- [x] #1 readProjectBacklog en vite.config.ts es estrictamente de solo lectura y no ejecuta mkdirSync si tasksDir no existe
+- [x] #2 bin/gripm.js no crea preventivamente la carpeta backlog/tasks en disco al arrancar
+- [x] #3 bin/gripm.js evita registrar el directorio home del usuario (os.homedir()) en registry.json en ejecuciones por defecto
+- [x] #4 Se limpian las entradas parasitas de ~/.gripm/registry.json y las carpetas residuales huerfanas generadas por auto-creacion
+- [x] #5 La suite de pruebas npm test, npm run backlog:check y npm run publish:check pasan con codigo de salida 0
 
 ---
 

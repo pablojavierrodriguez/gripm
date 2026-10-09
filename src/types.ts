@@ -165,7 +165,7 @@ export interface KanbanSettings {
 
 export type ProjectMethodology = 'kanban' | 'scrum' | 'scrumban';
 
-export interface DevBoardConfig {
+export interface GripmConfig {
   theme?: 'dark' | 'light' | 'system';
   density?: 'comfortable' | 'compact';
   methodology?: ProjectMethodology;
@@ -182,6 +182,11 @@ export interface DevBoardConfig {
   locale?: 'es' | 'en';
   version?: string;
 }
+
+/**
+ * @deprecated Use GripmConfig instead. Kept for backwards compatibility.
+ */
+export type DevBoardConfig = GripmConfig;
 
 export interface FilterState {
   search: string;

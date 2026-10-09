@@ -1,9 +1,14 @@
 ---
+releases:
+  - "1.0.5"
+targetRelease: "1.0.5"
+release: "1.0.5"
+milestone: "1.0.5"
 id: DEV-192
 title: "Normalizar los IDs de sprint: hay un prefijo duplicado y un ID basado en timestamp"
-status: draft
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-06'
+updated_date: '2026-10-09'
 labels:
   - "higiene"
   - "backlog"
@@ -46,12 +51,12 @@ El `sprint-sprint-7` sugiere que en algún momento el nombre ya venía prefijado
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Los 9 IDs de `backlog/sprints.json` siguen el patrón `sprint-<n>`
-- [ ] #2 La secuencia es correlativa y coincide con el nombre del sprint
-- [ ] #3 El generador de IDs de sprint no puede producir un prefijo duplicado
-- [ ] #4 El generador de IDs de sprint no puede producir un ID basado en timestamp
-- [ ] #5 `npm run backlog:check` sigue en verde después de la migración
-- [ ] #6 La vista de Sprint y el filtro por sprint muestran los 9 sprints con el mismo nombre que antes de la migración
+- [x] #1 Los 9 IDs de `backlog/sprints.json` siguen el patrón `sprint-<n>`
+- [x] #2 La secuencia es correlativa y coincide con el nombre del sprint
+- [x] #3 El generador de IDs de sprint no puede producir un prefijo duplicado
+- [x] #4 El generador de IDs de sprint no puede producir un ID basado en timestamp
+- [x] #5 `npm run backlog:check` sigue en verde después de la migración
+- [x] #6 La vista de Sprint y el filtro por sprint muestran los 9 sprints con el mismo nombre que antes de la migración
 <!-- AC:END -->
 
 ## Implementation Plan

@@ -896,6 +896,32 @@ try {
   if (pkg.version) currentVersion = pkg.version;
 } catch {
 }
+var cliArgs = process.argv.slice(2);
+var isHelp = cliArgs.some((a) => ["--help", "-h", "--h", "-help"].includes(a)) || cliArgs[0] === "help";
+if (isHelp) {
+  console.log(`
+  \u{1F680} gripm-mcp - Servidor Model Context Protocol (MCP) para agentes de IA
+
+  Uso:
+    gripm mcp [opciones]
+    gripm-mcp [opciones]
+
+  Descripci\xF3n:
+    Inicia el servidor MCP de Gripm sobre stdio (JSON-RPC 2.0).
+    Permite a agentes de IA (Cursor, Antigravity, Claude Code) consultar,
+    crear, actualizar y sincronizar tareas del backlog.
+
+  Opciones:
+    --repo, -r <ruta>     Ruta al repositorio del proyecto (por defecto: directorio actual)
+    --version, -v         Muestra la versi\xF3n instalada
+    --help, -h            Muestra esta ayuda
+`);
+  process.exit(0);
+}
+if (cliArgs.includes("--version") || cliArgs.includes("-v")) {
+  console.log(currentVersion);
+  process.exit(0);
+}
 try {
   const cached = getCachedUpdateInfo(currentVersion);
   if (cached && cached.hasUpdate) {

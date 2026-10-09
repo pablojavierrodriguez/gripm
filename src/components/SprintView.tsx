@@ -600,7 +600,7 @@ export const SprintView: FC<SprintViewProps> = ({
           const fallbackStatus = isGroupAllDone ? 'completed' : (hasDoingOrReview ? 'active' : 'planned');
 
           const sprintObj: Sprint | undefined = (groupBy === 'sprint' && !isBacklogGroup) ? {
-            id: sprintObjRaw?.id || `sprint-${group.key.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`,
+            id: sprintObjRaw?.id || `sprint-${group.key.toLowerCase().trim().replace(/^sprint[-\s_]*/i, '').replace(/[^a-z0-9_-]/g, '-')}`,
             projectId: sprintObjRaw?.projectId || projectId || '',
             name: sprintObjRaw?.name || group.key,
             status: (sprintObjRaw?.status || fallbackStatus) as any,

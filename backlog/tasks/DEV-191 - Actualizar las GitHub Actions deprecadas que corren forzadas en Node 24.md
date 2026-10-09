@@ -1,9 +1,14 @@
 ---
+releases:
+  - "1.0.5"
+targetRelease: "1.0.5"
+release: "1.0.5"
+milestone: "1.0.5"
 id: DEV-191
 title: "Actualizar las GitHub Actions deprecadas que corren forzadas en Node 24"
-status: draft
+status: done
 created_date: '2026-10-06'
-updated_date: '2026-10-06'
+updated_date: '2026-10-09'
 labels:
   - "ci"
   - "devops"
@@ -33,11 +38,11 @@ Vale notar que esto no surfaced por una falla, sino por un warning al final de u
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `actions/checkout` actualizado a la major que apunta a Node 24 o superior
-- [ ] #2 `actions/setup-node` actualizado a la major que apunta a Node 24 o superior
-- [ ] #3 Ningún otro action del repo queda apuntando a una versión de Node deprecada
-- [ ] #4 La matriz de CI sigue en verde en los 3 sistemas operativos y las 2 versiones de Node
-- [ ] #5 El workflow de publicación sigue funcionando: `npm view @gripm/board@<version>` responde tras un tag de prueba
+- [x] #1 `actions/checkout` actualizado a la major que apunta a Node 24 o superior
+- [x] #2 `actions/setup-node` actualizado a la major que apunta a Node 24 o superior
+- [x] #3 Ningún otro action del repo queda apuntando a una versión de Node deprecada
+- [x] #4 La matriz de CI sigue en verde en los 3 sistemas operativos y las 2 versiones de Node
+- [x] #5 El workflow de publicación sigue funcionando: `npm view @gripm/board@<version>` responde tras un tag de prueba
 <!-- AC:END -->
 
 ## Implementation Plan

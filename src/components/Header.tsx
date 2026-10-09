@@ -21,7 +21,7 @@ import {
   Sparkles,
   Globe
 } from 'lucide-react';
-import type { Project, DevBoardConfig, ActiveTab, UpdateInfo } from '../types';
+import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 
@@ -45,7 +45,7 @@ interface HeaderProps {
   onConvertToJson?: (projectId: string) => void;
   onOpenImportWizard?: () => void;
   liveConnected?: boolean;
-  config?: DevBoardConfig;
+  config?: GripmConfig;
   singleProject?: boolean;
   updateAvailable?: UpdateInfo | null;
 }
@@ -333,13 +333,13 @@ export const Header: FC<HeaderProps> = ({
             {isKanbanEnabled && (
               <button
                 onClick={() => onSelectTab('kanban')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'kanban'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Kanban className="w-3.5 h-3.5" />
+                <Kanban className="w-3.5 h-3.5 shrink-0" />
                 <span>{t('header.kanban')}</span>
               </button>
             )}
@@ -347,13 +347,13 @@ export const Header: FC<HeaderProps> = ({
             {isSprintEnabled && (
               <button
                 onClick={() => onSelectTab('sprint')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[145px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'sprint'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Target className="w-3.5 h-3.5" />
+                <Target className="w-3.5 h-3.5 shrink-0" />
                 <span>{t('header.sprints')}</span>
               </button>
             )}
@@ -361,13 +361,13 @@ export const Header: FC<HeaderProps> = ({
             {isReleaseEnabled && (
               <button
                 onClick={() => onSelectTab('release')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[98px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'release'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Rocket className="w-3.5 h-3.5" />
+                <Rocket className="w-3.5 h-3.5 shrink-0" />
                 <span>{t('header.releases')}</span>
               </button>
             )}

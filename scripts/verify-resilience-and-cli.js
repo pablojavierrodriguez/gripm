@@ -54,6 +54,85 @@ try {
   }
   console.log('✅ npm run tasks ejecutado exitosamente');
 
+  // 5. DEV-209: Verificar consistencia de --help y subcomandos de ayuda en CLI
+  const helpOutput = execSync('node bin/gripm.js --help', { encoding: 'utf8' });
+  if (!helpOutput.includes('Comandos:') || !helpOutput.includes('Opciones de Cockpit:') || !helpOutput.includes('--single') || !helpOutput.includes('127.0.0.1')) {
+    throw new Error('DEV-209 FAILED: node bin/gripm.js --help no incluye las secciones y opciones esperadas.');
+  }
+  console.log('✅ DEV-209: node bin/gripm.js --help verificado con éxito');
+
+  const mcpHelpOutput = execSync('node bin/gripm.js mcp --help', { encoding: 'utf8' });
+  if (!mcpHelpOutput.includes('gripm mcp - Servidor Model Context Protocol')) {
+    throw new Error('DEV-209 FAILED: node bin/gripm.js mcp --help falló.');
+  }
+  console.log('✅ DEV-209: node bin/gripm.js mcp --help verificado con éxito');
+
+  const standaloneMcpHelp = execSync('node bin/gripm-mcp.js --help', { encoding: 'utf8' });
+  if (!standaloneMcpHelp.includes('gripm-mcp - Servidor Model Context Protocol')) {
+    throw new Error('DEV-209 FAILED: node bin/gripm-mcp.js --help falló.');
+  }
+  console.log('✅ DEV-209: node bin/gripm-mcp.js --help verificado con éxito');
+
+  const playbookHelp = execSync('node bin/gripm.js playbook --help', { encoding: 'utf8' });
+  if (!playbookHelp.includes('gripm playbook - Herramientas y sincronización')) {
+    throw new Error('DEV-209 FAILED: node bin/gripm.js playbook --help falló.');
+  }
+  console.log('✅ DEV-209: node bin/gripm.js playbook --help verificado con éxito');
+
+  const playbookSyncHelp = execSync('node bin/gripm.js playbook sync --help', { encoding: 'utf8' });
+  if (!playbookSyncHelp.includes('gripm playbook sync [opciones]')) {
+    throw new Error('DEV-209 FAILED: node bin/gripm.js playbook sync --help falló.');
+  }
+  console.log('✅ DEV-209: node bin/gripm.js playbook sync --help verificado con éxito');
+
+  // 6. DEV-215: Verificar tolerancia de flags variantes (--h, -help) y separación de binario MCP
+  for (const flag of ['--h', '-help', '-h']) {
+    const mainHelpVariant = execSync(`node bin/gripm.js ${flag}`, { encoding: 'utf8' });
+    if (!mainHelpVariant.includes('gripm CLI - productos locales')) {
+      throw new Error(`DEV-215 FAILED: node bin/gripm.js ${flag} no desplegó la ayuda esperada.`);
+    }
+    const mcpHelpVariant = execSync(`node bin/gripm.js mcp ${flag}`, { encoding: 'utf8' });
+    if (!mcpHelpVariant.includes('gripm mcp - Servidor Model Context Protocol')) {
+      throw new Error(`DEV-215 FAILED: node bin/gripm.js mcp ${flag} no desplegó la ayuda esperada.`);
+    }
+    const standaloneMcpVariant = execSync(`node bin/gripm-mcp.js ${flag}`, { encoding: 'utf8' });
+    if (!standaloneMcpVariant.includes('gripm-mcp - Servidor Model Context Protocol')) {
+      throw new Error(`DEV-215 FAILED: node bin/gripm-mcp.js ${flag} no desplegó la ayuda esperada.`);
+    }
+  }
+
+  const playbookVariant = execSync('node bin/gripm.js playbook --h', { encoding: 'utf8' });
+  if (!playbookVariant.includes('gripm playbook - Herramientas y sincronización')) {
+    throw new Error('DEV-215 FAILED: node bin/gripm.js playbook --h falló.');
+  }
+
+  const playbookSyncVariant = execSync('node bin/gripm.js playbook sync --h', { encoding: 'utf8' });
+  if (!playbookSyncVariant.includes('gripm playbook sync [opciones]')) {
+    throw new Error('DEV-215 FAILED: node bin/gripm.js playbook sync --h falló.');
+  }
+
+  if (helpOutput.includes('Gripm Suite no tiene aún un instalador')) {
+    throw new Error('DEV-215 FAILED: la ayuda aún contiene la mención obsoleta a Gripm Suite.');
+  }
+  console.log('✅ DEV-215: Tolerancia de variantes de flags (--h, -help) y limpieza de ayuda verificadas con éxito');
+
+  // 7. DEV-216: Cero creación preventiva de backlog/tasks en carpetas no inicializadas
+  const tempNoBacklog = path.join(process.cwd(), 'data/test-no-backlog-' + Date.now());
+  fs.mkdirSync(tempNoBacklog, { recursive: true });
+  try {
+    execSync(`node bin/gripm.js --repo "${tempNoBacklog}" --help`, { encoding: 'utf8' });
+    const tasksCreated = fs.existsSync(path.join(tempNoBacklog, 'backlog/tasks'));
+    if (tasksCreated) {
+      throw new Error('DEV-216 FAILED: bin/gripm.js creó preventivamente backlog/tasks en el repositorio sin --init');
+    }
+    console.log('✅ DEV-216: bin/gripm.js no crea backlog/tasks preventivamente en consultas o arranque sin --init');
+  } finally {
+    if (fs.existsSync(tempNoBacklog)) {
+      fs.rmSync(tempNoBacklog, { recursive: true, force: true });
+    }
+  }
+
+
 } finally {
   // Limpieza
   if (fs.existsSync(ANOMALOUS_PATH)) {

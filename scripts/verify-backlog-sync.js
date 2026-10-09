@@ -289,6 +289,25 @@ if (fs.existsSync(releasesJsonPath)) {
   }
 }
 
+// REGLA 5: Validación de IDs de Sprint canónicos (DEV-192)
+const sprintJsonPath = path.join(currentRepoDir, 'backlog/sprints.json');
+if (fs.existsSync(sprintJsonPath)) {
+  try {
+    const sprints = JSON.parse(fs.readFileSync(sprintJsonPath, 'utf8'));
+    if (Array.isArray(sprints)) {
+      for (const sp of sprints) {
+        if (!/^sprint-\d+$/.test(sp.id || '')) {
+          console.error(`❌ [Error de Sprint] Sprint "${sp.name}" tiene ID no canónico '${sp.id}' (debe seguir el patrón sprint-<n>).`);
+          errorsFound++;
+        }
+      }
+    }
+  } catch (e) {
+    // Si sprints.json no es legible
+  }
+}
+
+
 if (errorsFound > 0) {
   console.error('\n🛑 [gripm Commit Guard] El commit fue bloqueado para evitar desactualización del backlog.');
   console.error(`   Se detectaron ${errorsFound} tarea(s) desfasadas respecto al código.`);

@@ -9,7 +9,7 @@ import type {
   Project, 
   Release, 
   ViewMode,
-  DevBoardConfig,
+  GripmConfig,
   ActiveTab,
   Sprint
 } from './types';
@@ -172,7 +172,7 @@ export function App() {
   const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   // Settings / Config State (DEV-006 & DEV-009)
-  const [config, setConfig] = useState<DevBoardConfig>({});
+  const [config, setConfig] = useState<GripmConfig>({});
 
   // Computed tab visibility helpers
   const isKanbanTabEnabled = config?.enabledTabs?.kanban !== undefined
@@ -219,7 +219,7 @@ export function App() {
     }
   }, [setLanguage]);
 
-  const handleSaveConfig = useCallback(async (newConfig: DevBoardConfig) => {
+  const handleSaveConfig = useCallback(async (newConfig: GripmConfig) => {
     const saved = await saveSettings(
       newConfig, 
       selectedProjectId !== 'all' ? selectedProjectId : undefined
@@ -263,7 +263,7 @@ export function App() {
       return col;
     });
 
-    const updatedConfig: DevBoardConfig = {
+    const updatedConfig: GripmConfig = {
       ...config,
       kanban: {
         ...config.kanban,

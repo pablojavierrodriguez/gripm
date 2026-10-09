@@ -29,7 +29,7 @@ import {
   Check,
   Globe
 } from 'lucide-react';
-import type { DevBoardConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
+import type { GripmConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
@@ -125,8 +125,8 @@ export const AVAILABLE_CUSTOM_ICONS = [
 export type SettingsTabId = 'views' | 'kanban' | 'taxonomy' | 'visual' | 'tools' | 'advanced';
 
 interface SettingsViewProps {
-  config: DevBoardConfig;
-  onSaveConfig: (newConfig: DevBoardConfig) => Promise<void>;
+  config: GripmConfig;
+  onSaveConfig: (newConfig: GripmConfig) => Promise<void>;
   currentProject?: Project;
   onBack: () => void;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -263,7 +263,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   // Compute built config from state
-  const builtConfig: DevBoardConfig = useMemo(() => {
+  const builtConfig: GripmConfig = useMemo(() => {
     return {
       ...config,
       theme,
@@ -291,7 +291,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }, [config, theme, density, locale, methodology, defaultView, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
 
   // Helper to normalize config object for reliable dirty-checking (DEV-081)
-  const normalizeForComparison = (c: Partial<DevBoardConfig>) => {
+  const normalizeForComparison = (c: Partial<GripmConfig>) => {
     const kanban = c.kanban || {};
     return {
       theme: c.theme || 'system',
@@ -462,7 +462,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setJsonError(null);
 
     try {
-      let nextConfig: DevBoardConfig;
+      let nextConfig: GripmConfig;
 
       if (activeTab === 'advanced') {
         try {
@@ -814,9 +814,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {t('settings.methodologyDesc')}
                     </p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                    {methodology === 'kanban' ? `📋 ${t('settings.methodologyKanban')}` : methodology === 'scrum' ? `🎯 ${t('settings.methodologyScrum')}` : `⚡ ${t('settings.methodologyScrumban')}`}
-                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -1768,15 +1765,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* Density and AutoSave */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
-                  <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                    {t('settings.densityLabel')}
-                  </label>
-                  <p className="text-[11px] text-slate-500 mb-3">
-                    {t('settings.densityDesc')}
-                  </p>
+              {/* Density, AutoSave, and Manual Ranking */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
+                {/* 1. Board Density */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                      {t('settings.densityLabel')}
+                    </label>
+                    <p className="text-[11px] text-slate-500 mb-3">
+                      {t('settings.densityDesc')}
+                    </p>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1803,13 +1803,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                {/* 2. Auto-save on Edit */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
+                  <label className="flex items-start justify-between cursor-pointer">
+                    <div className="pr-2">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.autoSaveLabel')}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 mt-1">
                         {t('settings.autoSaveDesc')}
                       </p>
                     </div>
@@ -1817,17 +1818,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       type="checkbox"
                       checked={autoSave}
                       onChange={(e) => setAutoSave(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0 mt-0.5"
                     />
                   </label>
+                </div>
 
-                  {/* Ranking Manual Toggle (DEV-050) */}
-                  <label className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02] cursor-pointer hover:border-indigo-500/30 transition-colors mt-3">
-                    <div>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                {/* 3. Manual Ranking and Drag & Drop */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
+                  <label className="flex items-start justify-between cursor-pointer">
+                    <div className="pr-2">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.rankingLabel')}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 mt-1">
                         {t('settings.rankingDesc')}
                       </p>
                     </div>
@@ -1835,7 +1838,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       type="checkbox"
                       checked={rankingEnabled}
                       onChange={(e) => setRankingEnabled(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0 mt-0.5"
                     />
                   </label>
                 </div>

@@ -465,12 +465,8 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
   if (isBacklogMdProject(project) && project.repoPath) {
     const tasksDir = getBacklogTasksDir(project);
     try {
-      if (!fs.existsSync(tasksDir)) {
-        fs.mkdirSync(tasksDir, { recursive: true });
-      }
-
       const items: any[] = [];
-      const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+      const files = fs.existsSync(tasksDir) ? fs.readdirSync(tasksDir).filter(f => f.endsWith('.md')) : [];
       files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
       let order = 1;
@@ -2336,8 +2332,30 @@ function devBoardApi(): DevBoardPlugin {
                 backlog.sprints = backlog.sprints.map((s: any) => s.status === 'active' ? { ...s, status: 'planned' } : s);
               }
 
+              // DEV-192: Generar ID secuencial canónico sprint-<n>
+              let sprintId = body.id ? String(body.id).trim() : '';
+              while (sprintId.startsWith('sprint-sprint-')) {
+                sprintId = sprintId.replace(/^sprint-/, '');
+              }
+              if (!sprintId || /^sprint-\d{10,}$/.test(sprintId)) {
+                const nameMatch = (body.name || '').match(/sprint\s*(\d+)/i);
+                if (nameMatch) {
+                  sprintId = `sprint-${nameMatch[1]}`;
+                } else {
+                  let maxNum = -1;
+                  for (const s of backlog.sprints) {
+                    const m = (s.id || '').match(/^sprint-(\d+)$/);
+                    if (m) {
+                      const num = parseInt(m[1], 10);
+                      if (num > maxNum) maxNum = num;
+                    }
+                  }
+                  sprintId = `sprint-${maxNum >= 0 ? maxNum + 1 : backlog.sprints.length}`;
+                }
+              }
+
               const newSprint = {
-                id: body.id || `sprint-${Date.now()}`,
+                id: sprintId,
                 projectId: project.id,
                 name: (body.name || `Sprint ${backlog.sprints.length + 1}`).trim(),
                 goal: body.goal || '',

@@ -46,7 +46,7 @@
     "completedAt": "2026-09-23T19:05:00.000Z"
   },
   {
-    "id": "sprint-1790252674566",
+    "id": "sprint-5",
     "projectId": "gripm",
     "name": "Sprint 5",
     "goal": "Resolución de errores críticos de UX/UI, coherencia de backlog, mejoras de configuración y robustecimiento de MCP",
@@ -70,7 +70,7 @@
     "completedAt": "2026-09-25T21:40:00.000Z"
   },
   {
-    "id": "sprint-sprint-7",
+    "id": "sprint-7",
     "projectId": "gripm",
     "name": "Sprint 7",
     "goal": "Integridad del dato y corrección de fallos silenciosos: hooks de verificación que no mutan el repositorio, paridad de temas, identidad de proyecto, y eliminación de los defectos que no fallaban de forma visible (contenido fabricado en los .md, stacking context y containing block en overlays, y pulido de ItemModal).",

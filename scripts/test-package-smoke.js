@@ -60,8 +60,10 @@ try {
   assert.ok(helpOutput.includes('--version, -v'), 'La ayuda del CLI debe documentar ambas opciones de versión');
   assert.ok(helpOutput.includes('gripm mcp') && helpOutput.includes('gripm playbook sync'),
     'La ayuda debe distinguir las entradas del servidor MCP y la sincronización del Playbook');
-  assert.ok(helpOutput.includes('Gripm Suite no tiene aún un instalador'),
-    'La ayuda no debe sugerir que Gripm Suite ya tiene un instalador');
+  assert.ok(!helpOutput.includes('Gripm Suite'),
+    'La ayuda no debe incluir menciones a suites no empaquetadas');
+  assert.ok(helpOutput.includes('gripm-mcp'),
+    'La ayuda debe documentar el ejecutable de integración MCP para agentes');
 
   for (const commandArgs of [['playbook'], ['playbook', 'install'], ['not-a-command']]) {
     const invalidCommand = spawnSync(process.execPath, [

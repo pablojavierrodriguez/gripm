@@ -283,12 +283,12 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
       summary: newSummary.trim() || 'Versión en preparación',
       status: 'unreleased',
       itemCodes: [],
-      markdownContent: `## [${v}] — En Preparación 🛠️ ${newTitle.trim() || 'Versión en desarrollo'}\n\n### 🎯 Resumen\n*${newSummary.trim() || 'En desarrollo.'}*`
+      markdownContent: `## [${v}] — Unreleased 🛠️ ${newTitle.trim() || 'Versión en desarrollo'}\n\n### 🎯 Resumen\n*${newSummary.trim() || 'En desarrollo.'}*`
     };
 
     try {
       await onArchiveRelease(newRel, []);
-      onShowToast(`Versión v${v} creada en preparación (Unreleased)`, 'success');
+      onShowToast(`Versión v${v} creada como No liberada (Unreleased)`, 'success');
       setNewReleaseModalOpen(false);
       // Auto open drawer for the newly created release
       setTimeout(() => {
@@ -383,7 +383,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="w-full flex-1 p-4 sm:p-6 min-w-0 max-w-[1680px] mx-auto space-y-6 pb-16">
       {/* Header & Controls */}
       <div className="glass-panel p-6 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-slate-950/40 backdrop-blur-xl space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -496,9 +496,9 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
       </div>
 
       {/* Streamlined Compact Feed */}
-      <div className="space-y-3">
+      <div className="space-y-3 w-full">
         {visibleReleases.length === 0 ? (
-          <div className="glass-panel py-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-white/[0.08] space-y-2">
+          <div className="glass-panel py-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-white/[0.08] space-y-2 w-full">
             <Rocket className="w-8 h-8 text-slate-600 mx-auto" />
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {t('release.emptyFiltered')}

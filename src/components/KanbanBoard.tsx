@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Lightbulb, AlertTriangle, Layers, Target, CheckCircle2, Clock, ChevronDown, Pencil, History } from 'lucide-react';
-import type { BacklogItem, ItemStatus, ViewMode, ColumnConfig, DevBoardConfig, ActiveTab, Sprint } from '../types';
+import type { BacklogItem, ItemStatus, ViewMode, ColumnConfig, GripmConfig, ActiveTab, Sprint } from '../types';
 import { ItemCard } from './ItemCard';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
@@ -18,7 +18,7 @@ interface KanbanBoardProps {
   onClickItem: (item: BacklogItem) => void;
   onQuickAddItem: (status: ItemStatus, defaultSprint?: string) => void;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
-  config?: DevBoardConfig;
+  config?: GripmConfig;
   availableSprints?: string[];
   sprints?: Sprint[];
   onNavigateToTab?: (tab: ActiveTab) => void;
@@ -320,7 +320,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   // Si el sprint específico seleccionado deja de existir en el proyecto (y no es 'all' ni 'backlog')
   useEffect(() => {
     if (activeSprint !== 'all' && activeSprint !== 'backlog' && availableSprintsList.length > 0 && !availableSprintsList.includes(activeSprint)) {
-      setActiveSprint(activeSprintEntity?.name || 'all');
+      setActiveSprint(activeSprintEntity?.name || (availableSprintsList.length >= 2 ? 'all' : (availableSprintsList[0] || 'backlog')));
+    } else if (activeSprint === 'all' && availableSprintsList.length < 2) {
+      setActiveSprint(availableSprintsList[0] || 'backlog');
     }
   }, [activeSprint, availableSprintsList, activeSprintEntity]);
 
@@ -795,7 +797,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
         {/* Items List */}
         <div 
-          className="flex flex-col gap-2.5 flex-1 overflow-y-auto pr-0.5"
+          className={`flex flex-col ${config?.density === 'compact' ? 'gap-1.5' : 'gap-2.5'} flex-1 overflow-y-auto pr-0.5`}
           onDragOver={(e) => {
             e.preventDefault();
             if (activeDropColumn !== col.id) setActiveDropColumn(col.id);
@@ -832,6 +834,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onDragEnd={handleDragEnd}
                     onShowToast={onShowToast}
                     customItemTypes={config?.customItemTypes}
+                    density={config?.density}
                     canMoveUp={idx > 0}
                     canMoveDown={idx < colItems.length - 1}
                     onMoveWithinColumn={(direction) =>
@@ -896,7 +899,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onChange={(e) => setActiveSprint(e.target.value)}
                     className="appearance-none bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/[0.1] rounded-lg pl-2.5 pr-8 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-xs cursor-pointer"
                   >
-                    <option value="all" className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200">{t('kanban.allSprints')}</option>
+                    {availableSprintsList.length >= 2 && (
+                      <option value="all" className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200">{t('kanban.allSprints')}</option>
+                    )}
                     {availableSprintsList.map((s) => {
                       const spObj = sprints?.find((sp) => sp.name?.toLowerCase().trim() === s.toLowerCase().trim() || sp.id === s);
                       const sprintItems = (allItems || items).filter(i => (i.sprint || i.targetSprint || '').toLowerCase().trim() === s.toLowerCase().trim());
@@ -1071,7 +1076,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           <div className="flex items-center gap-3 mt-4">
             <button
               type="button"
-              onClick={() => setActiveSprint('all')}
+              onClick={() => setActiveSprint(availableSprintsList.length >= 2 ? 'all' : (availableSprintsList[0] || 'backlog'))}
               className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-xs transition-colors"
             >
               {t('kanban.viewAllBoard')}

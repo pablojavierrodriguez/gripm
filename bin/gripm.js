@@ -8,6 +8,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { loadRegistryFile, saveRegistryFile, getRegistryPath, resolveProjectIdentity } from '../scripts/registryConfig.js';
@@ -41,24 +42,142 @@ function openBrowser(url) {
   }
 }
 
+function isHelpFlag(arg) {
+  return arg === '--help' || arg === '-h' || arg === '--h' || arg === '-help';
+}
+
+function hasHelpFlag(argList) {
+  return Array.isArray(argList) && argList.some(isHelpFlag);
+}
+
+function printMainHelp() {
+  console.log(`
+  🚀 gripm CLI - productos locales para backlog y trabajo con agentes
+
+  Uso:
+    gripm [opciones]               Abre Gripm Board en el navegador (por defecto)
+    gripm <comando> [opciones]     Ejecuta un subcomando específico
+
+  Comandos:
+    gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
+    gripm playbook sync            Sincroniza materiales del Playbook en el proyecto actual
+
+  Opciones de Cockpit:
+    --port, -p <puerto>            Puerto para el servidor web (por defecto: 4100)
+    --host <host>                  Host de enlace (por defecto: 127.0.0.1)
+    --repo, -r <ruta>              Proyecto destino (por defecto: carpeta actual)
+    --no-open                      No abrir el navegador automáticamente
+    --single                       Forzar modo de proyecto único
+    --hub, --multi                 Abrir en modo hub multi-proyecto
+
+  Opciones de Inicialización y Gestión:
+    --init                         Configura Gripm Board en el proyecto actual
+    --language, --lang <es|en>     Idioma del proyecto para scaffolding y plantillas (por defecto: es)
+    --yes, -y                      Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
+    --uninstall, --clean           Desacoplar gripm de este repositorio (nunca borra backlog/)
+    --global, --all                Con --uninstall: purga también el registro global del dispositivo
+    --remove-agents                Con --uninstall: elimina la skill de agentes y AGENTS.md
+
+  Opciones Generales:
+    --version, -v                  Muestra la versión instalada
+    --help, -h                     Muestra esta ayuda
+
+  Integración con Agentes de IA (MCP):
+    Para clientes como Cursor, Claude Desktop o Antigravity, también puedes configurar
+    directamente el comando 'gripm-mcp' sobre stdio (incluido en @gripm/board).
+`);
+}
+
+function printMcpHelp() {
+  console.log(`
+  🚀 gripm mcp - Servidor Model Context Protocol (MCP) para agentes de IA
+
+  Uso:
+    gripm mcp [opciones]
+    gripm-mcp [opciones]
+
+  Descripción:
+    Inicia el servidor MCP de Gripm sobre stdio (JSON-RPC 2.0).
+    Permite a agentes de IA (Cursor, Antigravity, Claude Code) consultar,
+    crear, actualizar y sincronizar tareas del backlog.
+
+  Opciones:
+    --repo, -r <ruta>              Ruta al repositorio del proyecto (por defecto: directorio actual)
+    --version, -v                  Muestra la versión instalada
+    --help, -h                     Muestra esta ayuda
+`);
+}
+
+function printPlaybookHelp() {
+  console.log(`
+  📘 gripm playbook - Herramientas y sincronización del Playbook
+
+  Uso:
+    gripm playbook sync [opciones]
+
+  Comandos:
+    sync                           Sincroniza archivos y plantillas del Playbook en el proyecto actual
+
+  Opciones:
+    --repo, -r <ruta>              Proyecto destino (por defecto: carpeta actual)
+    --branch, -b <rama>            Rama Git remota a sincronizar (por defecto: main)
+    --remote <url>                 Repositorio remoto del Playbook
+    --dry-run                      Simula los cambios sin escribir en disco
+    --force                        Fuerza la sobrescritura de archivos existentes
+    --help, -h                     Muestra esta ayuda
+
+  Nota:
+    Este comando sincroniza materiales del Playbook en un proyecto; no instala el producto Gripm Playbook.
+`);
+}
+
 async function main() {
   const command = args[0];
-  if (command && !command.startsWith('-') && !['mcp', 'playbook'].includes(command)) {
+  if (command && !command.startsWith('-') && !['mcp', 'playbook', 'help'].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
   }
 
+  // Handle 'help' subcommand alias
+  if (command === 'help') {
+    const sub = args[1];
+    if (sub === 'mcp') {
+      printMcpHelp();
+      process.exit(0);
+    }
+    if (sub === 'playbook') {
+      printPlaybookHelp();
+      process.exit(0);
+    }
+    printMainHelp();
+    process.exit(0);
+  }
+
   // DEV-150: Handle 'mcp' subcommand directly without starting Vite
   if (args[0] === 'mcp') {
+    if (hasHelpFlag(args)) {
+      printMcpHelp();
+      process.exit(0);
+    }
+    if (args.includes('--version') || args.includes('-v')) {
+      console.log(currentVersion);
+      process.exit(0);
+    }
     await import('./gripm-mcp.js');
     return;
   }
 
   // Handle 'playbook' subcommand
   if (args[0] === 'playbook') {
+    if (hasHelpFlag(args)) {
+      printPlaybookHelp();
+      process.exit(0);
+    }
+
     if (args[1] !== 'sync') {
       console.error('Uso: gripm playbook sync [--repo <ruta>] [--dry-run] [--force]');
+      console.error('Ejecuta "gripm playbook --help" para ver las opciones disponibles.');
       console.error('Este comando sincroniza materiales del Playbook en un proyecto; no instala Gripm Playbook.');
       process.exitCode = 1;
       return;
@@ -87,35 +206,8 @@ async function main() {
     return;
   }
 
-  if (args.includes('--help') || args.includes('-h')) {
-    console.log(`
-  🚀 gripm CLI - productos locales para backlog y trabajo con agentes
-  
-  Comandos:
-    gripm [opciones]      Abre Gripm Board en el navegador (comportamiento por defecto)
-    gripm --init          Configura Gripm Board en el proyecto actual
-    gripm mcp             Inicia el servidor MCP de Board para un agente; no abre la interfaz web
-    gripm-mcp             Ejecuta el mismo servidor MCP como binario independiente
-    gripm playbook sync   Sincroniza archivos del Playbook en un proyecto; no instala el producto Playbook
-
-  Opciones:
-    --port, -p <puerto>   Puerto para el servidor web (por defecto: 4100)
-    --host <host>         Host de enlace (por defecto: localhost)
-    --repo, -r <ruta>     Proyecto destino (por defecto: carpeta actual); aplica a Board, MCP y Playbook sync
-    --no-open             No abrir el navegador automáticamente
-    --language, --lang <es|en> Idioma del proyecto para scaffolding y plantillas (por defecto: es)
-    --hub                 Abrir Board en modo hub multi-proyecto
-    --uninstall, --clean   Desacoplar gripm de este repositorio (nunca borra backlog/)
-    --global              Con --uninstall: purga también el registro global del dispositivo
-    --remove-agents       Con --uninstall: elimina la skill de agentes y AGENTS.md (por defecto se preservan)
-    --yes, -y             Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
-    --version, -v         Muestra la versión instalada
-    --help, -h            Muestra esta ayuda
-
-  Productos:
-    Board y el servidor MCP se distribuyen juntos en @gripm/board.
-    Gripm Playbook es independiente. Gripm Suite no tiene aún un instalador.
-    `);
+  if (hasHelpFlag(args)) {
+    printMainHelp();
     process.exit(0);
   }
 
@@ -192,45 +284,46 @@ async function main() {
   } else if (fs.existsSync(gripmJson) || fs.existsSync(devboardJson)) {
     storageType = 'json';
   } else {
-    // Initialize minimal distributed markdown structure if not present
-    try {
-      fs.mkdirSync(tasksDir, { recursive: true });
-      storageType = 'markdown';
-    } catch (err) {
-      // Ignore if readonly or sandbox
-    }
+    // DEV-216: No crear carpetas preventivamente al vuelo; inicialización ocurre con --init o al crear ítems
+    storageType = 'markdown';
   }
 
   // Register project in registry dynamically (DEV-104)
-  try {
-    const registry = loadRegistryFile(PKG_ROOT);
-    
-    const identity = resolveProjectIdentity(targetRepo);
-    const projectName = identity.name;
-    const projectId = identity.id;
-    const codePrefix = identity.codePrefix;
-    
-    const existingIdx = registry.projects.findIndex(p => p.id === projectId || (p.repoPath && path.resolve(p.repoPath) === targetRepo));
-    const projectMeta = {
-      id: projectId,
-      name: projectName,
-      codePrefix,
-      repoPath: targetRepo,
-      storageType,
-      backlogDir: 'backlog',
-      createdAt: new Date().toISOString()
-    };
+  // DEV-216: No auto-registrar el directorio home del usuario salvo petición explícita (--repo o --init)
+  const isHomeDirectory = path.resolve(targetRepo).toLowerCase() === path.resolve(os.homedir()).toLowerCase();
+  const isExplicitProject = args.includes('--repo') || args.includes('-r') || args.includes('--init');
 
-    if (existingIdx !== -1) {
-      registry.projects[existingIdx] = { ...registry.projects[existingIdx], ...projectMeta };
-    } else {
-      registry.projects.unshift(projectMeta);
+  if (!isHomeDirectory || isExplicitProject) {
+    try {
+      const registry = loadRegistryFile(PKG_ROOT);
+      
+      const identity = resolveProjectIdentity(targetRepo);
+      const projectName = identity.name;
+      const projectId = identity.id;
+      const codePrefix = identity.codePrefix;
+      
+      const existingIdx = registry.projects.findIndex(p => p.id === projectId || (p.repoPath && path.resolve(p.repoPath) === targetRepo));
+      const projectMeta = {
+        id: projectId,
+        name: projectName,
+        codePrefix,
+        repoPath: targetRepo,
+        storageType,
+        backlogDir: 'backlog',
+        createdAt: new Date().toISOString()
+      };
+
+      if (existingIdx !== -1) {
+        registry.projects[existingIdx] = { ...registry.projects[existingIdx], ...projectMeta };
+      } else {
+        registry.projects.unshift(projectMeta);
+      }
+      registry.activeProjectId = projectId;
+      
+      saveRegistryFile(registry, PKG_ROOT);
+    } catch (err) {
+      // Gracefully continue
     }
-    registry.activeProjectId = projectId;
-    
-    saveRegistryFile(registry, PKG_ROOT);
-  } catch (err) {
-    // Gracefully continue
   }
 
   // Start Vite server
@@ -258,15 +351,37 @@ async function main() {
   const displayHost = host === '127.0.0.1' ? 'localhost' : host;
   const url = `http://${displayHost}:${actualPort}`;
 
+  const getVisualWidth = (str) => {
+    let width = 0;
+    for (const ch of str) {
+      const cp = ch.codePointAt(0);
+      if ((cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF)) {
+        width += 2;
+      } else {
+        width += 1;
+      }
+    }
+    return width;
+  };
+
+  const formatBoxLine = (content, innerWidth) => {
+    const contentWidth = getVisualWidth(content);
+    const padding = Math.max(0, innerWidth - contentWidth);
+    return '│  ' + content + ' '.repeat(padding) + '  │';
+  };
+
+  const innerWidth = 58;
+  const repoDisplay = targetRepo.length > 38 ? '...' + targetRepo.slice(-35) : targetRepo;
+
   console.log(`
-┌────────────────────────────────────────────────────────────┐
-│  🚀 gripm - Tablero Ágil de Ingeniería y Producto con IA    │
-│                                                            │
-│  📁 Repositorio:  ${targetRepo.slice(0, 39).padEnd(41)}│
-│  📦 Almacén:      ${storageType.toUpperCase().padEnd(41)}│
-│  🌐 Interfaz Web: ${url.padEnd(41)}│
-│  ⚡ En Tiempo Real: Activo (SSE y observador de archivos)   │
-└────────────────────────────────────────────────────────────┘
+┌${'─'.repeat(innerWidth + 4)}┐
+${formatBoxLine('🚀 gripm - Tablero Ágil de Ingeniería y Producto con IA', innerWidth)}
+${formatBoxLine('', innerWidth)}
+${formatBoxLine('📁 Repositorio:    ' + repoDisplay, innerWidth)}
+${formatBoxLine('📦 Almacén:        ' + storageType.toUpperCase(), innerWidth)}
+${formatBoxLine('🌐 Interfaz Web:   ' + url, innerWidth)}
+${formatBoxLine('⚡ En Tiempo Real:  Activo (SSE y observador de archivos)', innerWidth)}
+└${'─'.repeat(innerWidth + 4)}┘
   `);
 
   const cachedUpdate = getCachedUpdateInfo(currentVersion);

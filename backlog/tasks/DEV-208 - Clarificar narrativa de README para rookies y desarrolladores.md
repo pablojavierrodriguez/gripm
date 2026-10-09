@@ -1,9 +1,14 @@
 ---
+releases:
+  - "1.0.5"
+targetRelease: "1.0.5"
+release: "1.0.5"
+milestone: "1.0.5"
 id: DEV-208
 title: "Clarificar narrativa de README para rookies y desarrolladores"
-status: ready
+status: done
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-09'
 labels:
   - "documentation"
   - "dx"

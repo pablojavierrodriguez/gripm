@@ -21,7 +21,7 @@ import {
   Tag,
   User
 } from 'lucide-react';
-import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, DevBoardConfig, Sprint, Release } from '../types';
+import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, GripmConfig, Sprint, Release } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -41,7 +41,7 @@ interface ItemModalProps {
   onSave: (itemData: Partial<BacklogItem> & { expectedMtime?: number; force?: boolean }) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   activeProjectId?: string;
-  config?: DevBoardConfig;
+  config?: GripmConfig;
   allItems?: BacklogItem[];
 }
 
@@ -218,7 +218,7 @@ export const ItemModal: FC<ItemModalProps> = ({
     setAcExpanded(true);
     setPlanExpanded(Boolean(source.implementationPlan?.trim()));
     setRiskFixExpanded(Boolean(source.risk?.trim() || source.fix?.trim()));
-    setRelationsExpanded(Boolean(source.parentId || (source.blocks && source.blocks.length > 0) || (source.blockedBy && source.blockedBy.length > 0) || (source.relatedTo && source.relatedTo.length > 0)));
+    setRelationsExpanded(Boolean((source.blocks && source.blocks.length > 0) || (source.blockedBy && source.blockedBy.length > 0) || (source.relatedTo && source.relatedTo.length > 0)));
   };
 
   const prevIsOpenRef = useRef(false);
@@ -722,24 +722,8 @@ export const ItemModal: FC<ItemModalProps> = ({
                       <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     )}
                   </button>
-                  {(parentId || blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
+                  {(blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
                     <div className="flex flex-wrap gap-2 pt-2 pl-5">
-                      {parentId && (
-                        <div className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
-                          <span className="break-words py-1">
-                            {t('itemModal.relationsParent')}: {formatRelation(parentId)}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
-                            title={t('itemModal.relationsRemoveBlocks')}
-                            onClick={() => setParentId('')}
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
                       {blockedBy.map(id => (
                         <div key={`blocked-by-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
                           <span className="break-words py-1">
@@ -794,33 +778,7 @@ export const ItemModal: FC<ItemModalProps> = ({
 
                 {relationsExpanded && (
                   <div className="p-4 border-t border-slate-200 dark:border-white/[0.06] space-y-4 bg-slate-50 dark:bg-black/10 text-xs">
-                    {/* 1. Jerarquía Vertical (Padre Único) */}
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                        <span>{t('itemModal.relationsParent')}</span>
-                      </label>
-                      <p className="text-[10px] text-slate-600 dark:text-slate-400 mb-1.5">
-                        {t('itemModal.relationsParentDesc')}
-                      </p>
-                      <div className="relative">
-                        <select
-                          value={parentId}
-                          onChange={(e) => setParentId(e.target.value)}
-                          className="appearance-none w-full px-3 py-2 pr-8 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                        >
-                          <option value="" className="bg-white dark:bg-[#0e1626]">{t('itemModal.relationsNoParent')}</option>
-                          {candidateParents.map((cand) => (
-                            <option key={cand.id} value={cand.code || cand.id} className="bg-white dark:bg-[#0e1626]">
-                              [{cand.type.toUpperCase()}] {cand.code || cand.id}: {cand.title.slice(0, 50)}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {/* 2. Bloqueado Por (Blocked By) */}
+                    {/* 1. Bloqueado Por (Blocked By) */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
@@ -1504,6 +1462,42 @@ export const ItemModal: FC<ItemModalProps> = ({
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Parent / Epic (Jerarquía de Ítem) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>{t('itemModal.parentEpicLabel')}</span>
+                    </label>
+                    {parentId && (
+                      <button
+                        type="button"
+                        onClick={() => setParentId('')}
+                        className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors"
+                      >
+                        {t('common.clear')}
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={parentId}
+                      onChange={(e) => setParentId(e.target.value)}
+                      className="appearance-none w-full px-3 py-1.5 pr-8 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                    >
+                      <option value="" className="bg-white dark:bg-[#0e1626]">
+                        {t('itemModal.relationsNoParent')}
+                      </option>
+                      {candidateParents.map((cand) => (
+                        <option key={cand.id} value={cand.code || cand.id} className="bg-white dark:bg-[#0e1626]">
+                          [{cand.type.toUpperCase()}] {cand.code || cand.id}: {cand.title.slice(0, 45)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Module & Code */}
