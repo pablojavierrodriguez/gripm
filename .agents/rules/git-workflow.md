@@ -24,7 +24,8 @@ Strict rules governing Git operations to prevent unintentional code loss or vagu
 
 ---
 
-## Atomic Commits & Clean Releases
+## Consolidated Task Commits & Clean Releases
 
-- Ensure all tests and builds pass cleanly before staging commits.
-- Never chain hidden or stealth commits.
+- **Consolidated Cadence:** 1 verified task in `ready` = 1 clean, atomic commit including the code and its associated `DEV-XXX` task markdown file. Do not create noisy micro-commits during scratch work or exploration.
+- **Pre-Commit Enforcement:** Ensure pre-commit verification hooks pass cleanly (typecheck, tests, backlog sync) before completing commits.
+- **No Stealth Commits:** Never chain hidden or stealth commits. Maintain explicit task ID in commit title (`feat(DEV-XXX): ...` or `fix(DEV-XXX): ...`).

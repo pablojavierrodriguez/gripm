@@ -2,6 +2,8 @@
 
 This playbook establishes a collaborative, autonomous operating loop between specialized agent roles and human leads to build and maintain high-grade software products.
 
+> **Source of truth for states:** the delivery status vocabulary and its transitions are defined once, in [STATE_MACHINE.md](STATE_MACHINE.md). This document references it and must never redefine the state table.
+
 ---
 
 ## 🚦 Dynamic Decision Matrix (System Autonomy)
@@ -43,24 +45,26 @@ The team decides when to spawn sub-agents (e.g. browser subagents, background jo
 ## 🔄 The Agile Delivery Flow (The 5 Phases)
 
 ```
-[ 1. Discovery & PM ] (PM Orchestrator / PO)
+[ 1. Discovery & PM ] (PM Orchestrator / PO)          refinement gate (R1)
           │
           ▼
 [ 2. Research & Design ] (Market Researcher + Product Designer)
           │
           ▼
-[ 3. Dev Execution ] (Principal Engineer) ──► status: doing ➔ review
+[ 3. Dev Execution ] (Principal Engineer) ─────────► status: (pool) ➔ doing ➔ review
           │
           ▼
-[ 4. QA Gate & Signoff ] (Rigorous QA Auditor) ──► status: review ➔ ready (Formal Handover)
+[ 4. QA Gate & Certification ] (Rigorous QA Auditor) ──► status: review ➔ ready (Formal Handover)
           │
           ▼
 [ 5. Release Management & Prod ] (PO + Delivery Lead) ──► status: ready ➔ done (Deployed)
 ```
 
+Transitions, actors and guards are specified in [STATE_MACHINE.md](STATE_MACHINE.md).
+
 ### Phase 1: Briefing & Alignment (PM Orchestrator / PO)
 - **Input:** Backlog item or user requirement.
-- **Action:** Initializes task or sprint spec using `SPRINT_SPEC_TEMPLATE.md`.
+- **Action:** Initializes task or sprint spec using `docs/sprints/SPRINT_SPEC_TEMPLATE.md`. Refines the item until it passes the **refinement gate (R1)**: problem statement, scoped in/out, measurable ACs and priority.
 - **Output:** Clear problem statement, target personas, and measurable acceptance criteria (ACs).
 
 ### Phase 2: Benchmarking & Experience Design (Researcher + Designer)
@@ -68,9 +72,9 @@ The team decides when to spawn sub-agents (e.g. browser subagents, background jo
 - **Output:** Populates design spec, interactive states, and edge-case handling.
 
 ### Phase 3: Dev Execution (`doing` ➔ `review`) (Principal Engineer)
-- **Action:** Implements modular, strictly typed code adhering to domain invariants.
+- **Action:** Implements modular, strictly typed code adhering to domain invariants. Claims the item by moving it `(pool)` ➔ `doing` — only after the refinement gate passed.
 - **Ticking ACs:** Checks off acceptance criteria in real-time (`- [x]`).
-- **Output:** Passes the item to `status: review` upon completing implementation and local testing.
+- **Output:** Passes the item to `status: review` upon completing implementation and local testing. **Cannot self-certify:** moving to `ready` is exclusive to the QA Auditor.
 
 ### Phase 4: QA Gate (`review` ➔ `ready`) — Formal Handover of Development (QA Auditor)
 - **Action:** Audits the item using the **Verification Pyramid (Zero-Waste Testing)** in strict sequence:
@@ -78,9 +82,10 @@ The team decides when to spawn sub-agents (e.g. browser subagents, background jo
   2. ✅ Unit & integration tests (`npm test`, headless code 0)
   3. ✅ Backlog & spec consistency checks
   4. ✅ Production build (`npm run build`)
+  5. ✅ `node scripts/audit-ux-code.cjs --strict` (static UX audit, headless)
 - **Anti-Browser-Subagent Inefficiency:** Prohibited to invoke `browser_subagent` for logic, state, API contracts, or persistence that can be audited in milliseconds headlessly. Reserved strictly for static-undeducible CSS/layout issues or explicit user prompt.
-- **Output:** Once verified, moves the item to `status: ready`.
-- **`ready` is the formal delivery of development**: the item is validated and immediately eligible for packaging and deployment.
+- **Output:** Once verified, moves the item to `status: ready`. On failure, records actionable findings and moves it back to `doing` (transition T3).
+- **`ready` is the formal delivery of development**: the item is validated and immediately eligible for packaging and deployment. A certified item is frozen: any post-QA code change invalidates the certification and requires a return to `doing`.
 
 ### Phase 5: Release Management & Prod Implementation (`ready` ➔ `done`)
 - **Packaging by Delivered Value:** Release Management (PO + Scrum/Delivery Lead) groups available items in `ready` based on value delivered.

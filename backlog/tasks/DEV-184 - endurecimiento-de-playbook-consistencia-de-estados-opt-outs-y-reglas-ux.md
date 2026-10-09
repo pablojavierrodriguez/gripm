@@ -1,9 +1,9 @@
 ---
 id: DEV-184
 title: "Endurecimiento del Playbook: Consistencia de Estados T0-T5, Opt-outs en audit:ux y Reglas Multilínea"
-status: draft
+status: done
 created_date: '2026-10-05'
-updated_date: '2026-10-05'
+updated_date: '2026-10-09'
 labels:
   - "playbook"
   - "rules"
@@ -29,11 +29,11 @@ Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Corregir IDs de transición en SPRINT_SPEC_TEMPLATE.md y TEAM_PLAYBOOK.md alineándolos con STATE_MACHINE.md
-- [ ] #2 Implementar soporte de exclude en audit-ux-code.cjs o unificar la especificación en la documentación
-- [ ] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
-- [ ] #4 Agregar test fixture multilínea en la suite de tests del playbook
-- [ ] #5 Validar que npm run check:all pase en verde en gripm-playbook
+- [x] #1 Corregir IDs de transición en SPRINT_SPEC_TEMPLATE.md y TEAM_PLAYBOOK.md alineándolos con STATE_MACHINE.md
+- [x] #2 Implementar soporte de exclude en audit-ux-code.cjs o unificar la especificación en la documentación
+- [x] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
+- [x] #4 Agregar test fixture multilínea en la suite de tests del playbook
+- [x] #5 Validar que npm run check:all pase en verde en gripm-playbook
 <!-- AC:END -->
 
 ## Implementation Plan

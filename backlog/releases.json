@@ -1,5 +1,21 @@
 [
   {
+    "id": "rel-1-0-6",
+    "projectId": "gripm",
+    "version": "1.0.6",
+    "date": "2026-10-09",
+    "targetDate": "2026-10-09",
+    "status": "released",
+    "title": "v1.0.6 - Hotfix: Sincronización Canónica con Playbook v2.2.2 e Infraestructura de Estados",
+    "summary": "Versión 1.0.6 (Hotfix) de Gripm: alineación con @gripm/playbook v2.2.2 incorporando la máquina de estados canónica (STATE_MACHINE.md), actualización del sincronizador universal (scripts/sync-playbook.mjs) con soporte para lockfile (.playbook-lock.json), unificación de transiciones T0-T5 en plantillas de sprints y preservación estricta de plantillas y skills locales.",
+    "scopeNotes": "Hotfix de infraestructura para sincronización de estados y metodologías con Playbook v2.2.2.",
+    "itemCodes": [
+      "DEV-184"
+    ],
+    "markdownContent": "## [1.0.6] — 2026-10-09 ⚡ Hotfix: Sincronización Canónica con Playbook v2.2.2 e Infraestructura de Estados (DEV-184)\n\n### 🎯 Resumen\n*Alineación de infraestructura y metodología con @gripm/playbook v2.2.2: adopción de la máquina de estados canónica formal (STATE_MACHINE.md), unificación de transiciones T0-T5 en plantillas de especificación de sprints y actualización del sincronizador universal con soporte de lockfile determinista (.playbook-lock.json).*\n\n### 🛡️ Cambios e Infraestructura\n- **DEV-184 — Sincronizador Universal v2.2.2:** Actualización de `scripts/sync-playbook.mjs` con soporte para manifiesto `.playbook-manifest.json`, lockfile determinista `.playbook-lock.json`, verificación de procedencia canónica histórica y preservación estricta de plantillas de distribución.\n- **DEV-184 — Máquina de Estados Canónica:** Incorporación formal de `.agents/STATE_MACHINE.md` y alineación unívoca de las transiciones T0 a T5 en `docs/sprints/SPRINT_SPEC_TEMPLATE.md` y `.agents/TEAM_PLAYBOOK.md`.\n- **Preservación de Distribución:** Garantía de preservación intacta de plantillas `AGENTS.en.md`, `AGENTS.es.md`, `gripm` skills y reglas locales.",
+    "createdAt": "2026-10-09T20:25:00.000Z"
+  },
+  {
     "id": "rel-1-0-5",
     "projectId": "gripm",
     "version": "1.0.5",

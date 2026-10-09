@@ -97,7 +97,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 📋 Backlog / Draft (18)
+### 📋 Backlog / Draft (17)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -445,24 +445,6 @@ Durante el monitoreo automatizado de dependencias (DEV-175), Dependabot intentó
 
 ---
 
-#### [DEV-184] Endurecimiento del Playbook: Consistencia de Estados T0-T5, Opt-outs en audit:ux y Reglas Multilínea
-- **Prioridad**: `medium` | **Tipo**: `improvement`
-
-Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm-playbook` (hallazgos R8, R9 y R12 del informe de auditoría):
-
-1. **Consistencia de Transiciones (R9):** Alinear los IDs de transición en `docs/sprints/SPRINT_SPEC_TEMPLATE.md` y `TEAM_PLAYBOOK.md` para coincidir de forma unívoca con `STATE_MACHINE.md` (T0 a T5, eliminando la referencia ficticia a T6).
-2. **Soporte de Opt-outs (R8):** Implementar la propiedad `exclude` documentada en `.uxaudit.json` dentro de `audit-ux-code.cjs`, o limpiar la documentación en caso de ser redundante.
-3. **Robustez en Motor de Reglas UX (R12):** Corregir el contador de delimitadores en `buildUnits` para ignorar flechas de funciones (`=>`) y prevenir falsos positivos de UX-001 en inputs multilínea.
-
-**Criterios de Aceptación:**
-- [ ] #1 Corregir IDs de transición en SPRINT_SPEC_TEMPLATE.md y TEAM_PLAYBOOK.md alineándolos con STATE_MACHINE.md
-- [ ] #2 Implementar soporte de exclude en audit-ux-code.cjs o unificar la especificación en la documentación
-- [ ] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
-- [ ] #4 Agregar test fixture multilínea en la suite de tests del playbook
-- [ ] #5 Validar que npm run check:all pase en verde en gripm-playbook
-
----
-
 #### [DEV-188] Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
 
@@ -648,7 +630,7 @@ Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` pa
 
 ---
 
-### ✅ Done / Deployed (193)
+### ✅ Done / Deployed (194)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -4376,6 +4358,24 @@ Ejecutar la limpieza y actualización de documentación técnica secundaria y re
 - [x] #3 Corregir la descripción de endpoints del servidor en docs/ARCHITECTURE.md
 - [x] #4 Sincronizar catálogo de MCP tools y notas en CONTRIBUTING.md
 - [x] #5 Verificar que la suite de tests y backlog:check pasen con código 0
+
+---
+
+#### [DEV-184] Endurecimiento del Playbook: Consistencia de Estados T0-T5, Opt-outs en audit:ux y Reglas Multilínea
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Resolver las inconsistencias menores identificadas en el marco de trabajo `gripm-playbook` (hallazgos R8, R9 y R12 del informe de auditoría):
+
+1. **Consistencia de Transiciones (R9):** Alinear los IDs de transición en `docs/sprints/SPRINT_SPEC_TEMPLATE.md` y `TEAM_PLAYBOOK.md` para coincidir de forma unívoca con `STATE_MACHINE.md` (T0 a T5, eliminando la referencia ficticia a T6).
+2. **Soporte de Opt-outs (R8):** Implementar la propiedad `exclude` documentada en `.uxaudit.json` dentro de `audit-ux-code.cjs`, o limpiar la documentación en caso de ser redundante.
+3. **Robustez en Motor de Reglas UX (R12):** Corregir el contador de delimitadores en `buildUnits` para ignorar flechas de funciones (`=>`) y prevenir falsos positivos de UX-001 en inputs multilínea.
+
+**Criterios de Aceptación:**
+- [x] #1 Corregir IDs de transición en SPRINT_SPEC_TEMPLATE.md y TEAM_PLAYBOOK.md alineándolos con STATE_MACHINE.md
+- [x] #2 Implementar soporte de exclude en audit-ux-code.cjs o unificar la especificación en la documentación
+- [x] #3 Corregir la heurística de cierre de etiquetas en buildUnits para evitar falsos positivos con arrow functions multilínea
+- [x] #4 Agregar test fixture multilínea en la suite de tests del playbook
+- [x] #5 Validar que npm run check:all pase en verde en gripm-playbook
 
 ---
 

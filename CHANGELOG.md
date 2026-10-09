@@ -13,6 +13,18 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.0.6] — 2026-10-09 ⚡ Hotfix: Sincronización Canónica con Playbook v2.2.2 e Infraestructura de Estados (DEV-184)
+
+### 🎯 Resumen
+*Alineación de infraestructura y metodología con @gripm/playbook v2.2.2: adopción de la máquina de estados canónica formal (STATE_MACHINE.md), unificación de transiciones T0-T5 en plantillas de especificación de sprints y actualización del sincronizador universal con soporte de lockfile determinista (.playbook-lock.json).*
+
+### 🛡️ Cambios e Infraestructura
+- **DEV-184 — Sincronizador Universal v2.2.2:** Actualización de `scripts/sync-playbook.mjs` con soporte para manifiesto `.playbook-manifest.json`, lockfile determinista `.playbook-lock.json`, verificación de procedencia canónica histórica y preservación estricta de plantillas de distribución.
+- **DEV-184 — Máquina de Estados Canónica:** Incorporación formal de `.agents/STATE_MACHINE.md` y alineación unívoca de las transiciones T0 a T5 en `docs/sprints/SPRINT_SPEC_TEMPLATE.md` y `.agents/TEAM_PLAYBOOK.md`.
+- **Preservación de Distribución:** Garantía de preservación intacta de plantillas `AGENTS.en.md`, `AGENTS.es.md`, `gripm` skills y reglas locales.
+
+---
+
 ## [1.0.5] — 2026-10-09 🚀 Refinamiento UX/DX, Integración MCP y Resiliencia de Runtime
 
 ### 🎯 Resumen
