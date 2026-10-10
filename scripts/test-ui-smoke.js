@@ -70,7 +70,17 @@ async function expectRelationVisible(dialog, title) {
 }
 
 try {
-  fs.mkdirSync(repoPath, { recursive: true });
+  fs.mkdirSync(path.join(repoPath, '.gripm'), { recursive: true });
+  fs.writeFileSync(
+    path.join(repoPath, '.gripm', 'config.json'),
+    JSON.stringify({
+      language: 'en',
+      theme: 'dark',
+      density: 'comfortable',
+      methodology: 'scrumban',
+      enabledTabs: { kanban: true, sprint: true, release: true }
+    }, null, 2)
+  );
   const port = await reservePort();
   const url = `http://127.0.0.1:${port}`;
 

@@ -762,7 +762,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Boxes className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'modules' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
             <div>
               <div className="text-xs font-semibold">{t('settings.navModules')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navModulesDesc')}</div>
+              <div className="text-xs text-slate-500">{t('settings.navModulesDesc')}</div>
             </div>
           </button>
 
@@ -1138,7 +1138,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span className="text-sm font-bold text-slate-900 dark:text-white">
                           {t('settings.moduleKanbanTitle')}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                           {t('settings.moduleCoreBadge')}
                         </span>
                       </div>
@@ -1165,7 +1165,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span className="text-sm font-bold text-slate-900 dark:text-white">
                           {t('settings.moduleSprintsTitle')}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
                           enabledTabs.sprint
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                             : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
@@ -1179,7 +1179,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
                       <input
                         type="checkbox"
                         checked={enabledTabs.sprint}
@@ -1202,7 +1202,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span className="text-sm font-bold text-slate-900 dark:text-white">
                           {t('settings.moduleReleasesTitle')}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
                           enabledTabs.release
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                             : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
@@ -1216,7 +1216,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
                       <input
                         type="checkbox"
                         checked={enabledTabs.release}
@@ -1239,7 +1239,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span className="text-sm font-bold text-slate-900 dark:text-white">
                           {t('settings.moduleHubTitle')}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
                           modeState === 'multi'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                             : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
@@ -1253,7 +1253,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
                       <input
                         type="checkbox"
                         checked={modeState === 'multi'}
