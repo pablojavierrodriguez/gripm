@@ -4,7 +4,7 @@
   "ref": "local",
   "version": "2.2.2",
   "stacks": [],
-  "syncedAt": "2026-10-09T23:26:00.121Z",
+  "syncedAt": "2026-10-09T23:08:28.572Z",
   "files": {
     ".agents/TEAM_PLAYBOOK.md": "678b2d8278bc8635af07f707475838e35a7480325dbf5333edbf4c7fbc7273b8",
     ".agents/STATE_MACHINE.md": "d4157359a64edf8a3c139f7b01a76196e5e7954134010b2c0500f650d2613cfd",

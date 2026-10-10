@@ -1,5 +1,30 @@
 [
   {
+    "id": "rel-1-1-0",
+    "projectId": "gripm",
+    "version": "1.1.0",
+    "date": "2026-10-09",
+    "targetDate": "2026-10-09",
+    "status": "released",
+    "title": "v1.1.0 — Arquitectura Canónica, Gatekeeper MCP, Perfiles CLI y Desacople de Flujos",
+    "summary": "Versión 1.1.0 de Gripm: unificación formal de la máquina de estados con draft e ideas (DEV-231), compuerta de verificación de calidad y criterios de aceptación en el servidor MCP (DEV-224), desacople de Sprints por defecto y flujo continuo Kanban minimalista (DEV-218), asistente CLI de onboarding con perfiles de adopción y selección de add-ons (DEV-219), panel de Módulos & Add-ons en SettingsView (DEV-220), guardrail ergonómico pre-commit sin fricción (DEV-232), canonicalización de estados en frontmatter (DEV-134), soporte para runtime Node 20 LTS (DEV-223), automatización de pipeline con auto-creación de GitHub Release (DEV-221) y documentación multilingüe integral (DEV-227).",
+    "scopeNotes": "Salto de versión menor 1.1.0: evolución arquitectónica del motor, desacople de flujos, supervisión activa de agentes vía MCP y alineación metodológica total con el Playbook.",
+    "itemCodes": [
+      "DEV-134",
+      "DEV-218",
+      "DEV-219",
+      "DEV-220",
+      "DEV-221",
+      "DEV-223",
+      "DEV-224",
+      "DEV-227",
+      "DEV-231",
+      "DEV-232"
+    ],
+    "markdownContent": "## [1.1.0] — 2026-10-09 🚀 Arquitectura Canónica, Gatekeeper MCP, Perfiles CLI y Desacople de Flujos\n\n### 🎯 Resumen\n*Versión 1.1.0 de Gripm: unificación formal de la máquina de estados con draft e ideas (DEV-231), compuerta de verificación de calidad y criterios de aceptación en el servidor MCP (DEV-224), desacople de Sprints por defecto y flujo continuo Kanban minimalista (DEV-218), asistente CLI de onboarding con perfiles de adopción y selección de add-ons (DEV-219), panel de Módulos & Add-ons en SettingsView (DEV-220), guardrail ergonómico pre-commit sin fricción (DEV-232), canonicalización de estados en frontmatter (DEV-134), soporte para runtime Node 20 LTS (DEV-223), automatización de pipeline con auto-creación de GitHub Release (DEV-221) y documentación multilingüe integral (DEV-227).*\n\n### 🛡️ Gobernanza Agéntica, Metodología y Calidad (Core)\n- **DEV-231 — Unificación del modelo de estados y taxonomía del Delivery Flow:** formalización de `draft` como estado legítimo del backlog, `ideas` para descubrimiento y delimitación de `ready` como meta de desarrollo y `done` como evento exclusivo de despliegue.\n- **DEV-224 — Execution Gatekeeper en el servidor MCP:** el servidor MCP valida que el 100% de los criterios de aceptación estén verificados antes de permitir transiciones a `ready` o `done`, proveyendo rechazos determinísticos y soporte para comandos de test automatizados.\n- **DEV-232 — Política pragmática de commits y guardrails sin fricción:** garantía mecánica basada en hooks `pre-commit` y cadencia limpia de 1 commit consolidado por tarea.\n- **DEV-134 — Canonicalización de estados en frontmatter:** serialización determinista en minúsculas en el write path con script de migración y preservación de atributos.\n\n### ⚡ Minimalismo, Desacople y Experiencia de Usuario (UI/DX)\n- **DEV-218 — Desacople de Sprints y defaults minimalistas:** metodología `kanban` por defecto en nuevos proyectos, ocultamiento limpio de campos de Sprint cuando el módulo está inactivo y preservación retrocompatible.\n- **DEV-219 — Onboarding CLI con perfiles de adopción:** asistente interactivo `gripm --init` con perfiles 'Minimalista AI-First', 'Baterías Incluidas' y 'Personalizado', junto con flags no interactivas (`--minimal`, `--full`).\n- **DEV-220 — Panel de gestión de Módulos & Add-ons en SettingsView:** catálogo visual interactivo para activar o desactivar capacidades (Sprints, Releases, Multi-Hub) en caliente sin recargar la página.\n\n### 🚀 Distribución, Runtime e Integración Continua (CI/DevOps)\n- **DEV-221 — Pipeline de publicación optimizado y auto-creación de GitHub Release:** reordenamiento de fases en CI (verificación total antes de publicar) y auto-creación de releases oficiales en GitHub mediante `gh release create` y `workflow_dispatch`.\n- **DEV-223 — Compatibilidad amplia con Node 20 LTS y POC binaria:** soporte ampliado a Node 20+ y evaluación documentada de distribución ejecutable independiente.\n- **DEV-227 — Documentación multilingüe integral:** actualización en perfecta simetría de `README.md` y `README.es.md` con las nuevas capacidades y arquitectura.",
+    "createdAt": "2026-10-09T21:00:00.000Z"
+  },
+  {
     "id": "rel-1-0-6",
     "projectId": "gripm",
     "version": "1.0.6",

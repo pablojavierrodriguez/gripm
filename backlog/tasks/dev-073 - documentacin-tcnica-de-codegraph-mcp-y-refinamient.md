@@ -1,7 +1,7 @@
 ---
 id: DEV-073
 title: "Documentación técnica de CodeGraph MCP y refinamiento de skills de ingeniería"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

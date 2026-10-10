@@ -447,6 +447,47 @@ try {
   assert.ok(enAgents.includes('AI Agent Contribution Guide') && enAgents.includes('Welcome to'), 'English AGENTS.md should be generated');
 
   console.log('✅ DEV-109 / DEV-114: Interactive, customizable, and bilingual scaffolding wizard verified');
+
+  // Test 13.4: DEV-219 - Minimalist AI-First profile (--minimal)
+  const testMinimalRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-init-minimal-'));
+  try {
+    const resMinimal = await runInitWizard(testMinimalRepo, {
+      isInteractive: false,
+      minimal: true
+    });
+    assert.strictEqual(resMinimal.profile, 'minimal', 'Profile should be minimal');
+    assert.strictEqual(resMinimal.methodology, 'kanban', 'Methodology should be kanban');
+    assert.strictEqual(resMinimal.enabledTabs.sprint, false, 'Sprint tab should be disabled');
+    assert.strictEqual(resMinimal.enabledTabs.kanban, true, 'Kanban tab should be enabled');
+    assert.strictEqual(fs.existsSync(path.join(testMinimalRepo, '.gripm/config.json')), true, 'Config should exist');
+    const minimalConfig = JSON.parse(fs.readFileSync(path.join(testMinimalRepo, '.gripm/config.json'), 'utf8'));
+    assert.strictEqual(minimalConfig.methodology, 'kanban', 'Config should persist methodology: kanban');
+    assert.strictEqual(minimalConfig.enabledTabs.sprint, false, 'Config should persist enabledTabs.sprint: false');
+    assert.strictEqual(fs.existsSync(path.join(testMinimalRepo, '.agents/skills/gripm/SKILL.md')), true, 'Skill should be installed');
+    assert.strictEqual(fs.existsSync(path.join(testMinimalRepo, 'AGENTS.md')), false, 'Minimal profile should NOT create AGENTS.md');
+  } finally {
+    if (fs.existsSync(testMinimalRepo)) fs.rmSync(testMinimalRepo, { recursive: true, force: true });
+  }
+
+  // Test 13.5: DEV-219 - Full / Batteries Included profile (--full)
+  const testFullRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-init-full-'));
+  try {
+    const resFull = await runInitWizard(testFullRepo, {
+      isInteractive: false,
+      full: true
+    });
+    assert.strictEqual(resFull.profile, 'full', 'Profile should be full');
+    assert.strictEqual(resFull.methodology, 'scrum', 'Methodology should be scrum');
+    assert.strictEqual(resFull.enabledTabs.sprint, true, 'Sprint tab should be enabled');
+    assert.strictEqual(fs.existsSync(path.join(testFullRepo, '.gripm/config.json')), true, 'Config should exist');
+    const fullConfig = JSON.parse(fs.readFileSync(path.join(testFullRepo, '.gripm/config.json'), 'utf8'));
+    assert.strictEqual(fullConfig.methodology, 'scrum', 'Config should persist methodology: scrum');
+    assert.strictEqual(fullConfig.enabledTabs.sprint, true, 'Config should persist enabledTabs.sprint: true');
+    assert.strictEqual(fs.existsSync(path.join(testFullRepo, '.agents/skills/gripm/SKILL.md')), true, 'Skill should be installed');
+    assert.strictEqual(fs.existsSync(path.join(testFullRepo, 'AGENTS.md')), true, 'Full profile should create AGENTS.md');
+  } finally {
+    if (fs.existsSync(testFullRepo)) fs.rmSync(testFullRepo, { recursive: true, force: true });
+  }
 } finally {
   if (fs.existsSync(testInitRepo)) fs.rmSync(testInitRepo, { recursive: true, force: true });
 }

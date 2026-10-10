@@ -70,8 +70,15 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   `);
 
   let mode = options.mode || (options.hub ? 'multi' : 'single');
+  let profile = options.profile || (options.minimal ? 'minimal' : (options.full ? 'full' : null));
+  let methodology = options.methodology || (profile === 'full' ? 'scrum' : 'kanban');
+  let enabledTabs = options.enabledTabs || {
+    kanban: true,
+    sprint: profile === 'full',
+    release: true
+  };
   let installSkill = options.skill !== undefined ? options.skill : true;
-  let installAgentsMd = options.agentsMd !== undefined ? options.agentsMd : true;
+  let installAgentsMd = options.agentsMd !== undefined ? options.agentsMd : (profile === 'minimal' ? false : true);
   let updatePkgJson = options.packageJson !== undefined ? options.packageJson : true;
   let updateGitignore = options.gitignore !== undefined ? options.gitignore : true;
 
@@ -82,7 +89,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     });
 
     try {
-      console.log('  Configuración inicial personalizada:\n');
+      console.log('  Configuración inicial:\n');
 
       // Question 1: Language
       const langAnswer = await rl.question(
@@ -105,34 +112,75 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         codePrefix = projectName.replace(/^@[^/]+\//, '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'PROJ';
       }
 
-      // Question 3: Mode
-      const modeAnswer = await rl.question(
-        '\n  3. Modo de Instanciación:\n' +
-        '     [1] Mono-Proyecto (Recomendado: tablero aislado y autocontenido para este repo)\n' +
-        '     [2] Multi-Proyecto (Registrar en el Hub global para verlo junto a otros repositorios)\n' +
+      // Question 3: Adoption Profile
+      const profileAnswer = await rl.question(
+        '\n  3. Perfil de Adopción:\n' +
+        '     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, solo tareas y skill)\n' +
+        '     [2] Baterías Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n' +
+        '     [3] Personalizado (Configuración manual de cada add-on y opción)\n' +
         '     Selecciona opción [1]: '
       );
-      if (modeAnswer.trim() === '2') {
-        mode = 'multi';
+
+      const trimmedProfile = profileAnswer.trim();
+      if (trimmedProfile === '2') {
+        profile = 'full';
+        methodology = 'scrum';
+        enabledTabs = { kanban: true, sprint: true, release: true };
+        installAgentsMd = true;
+      } else if (trimmedProfile === '3') {
+        profile = 'custom';
       } else {
-        mode = 'single';
+        profile = 'minimal';
+        methodology = 'kanban';
+        enabledTabs = { kanban: true, sprint: false, release: true };
+        installAgentsMd = false;
       }
 
-      // Question 4: Skill
-      const skillAnswer = await rl.question('\n  4. ¿Instalar skill para agentes (.agents/skills/gripm/SKILL.md)? (S/n) [S]: ');
-      installSkill = skillAnswer.trim().toLowerCase() !== 'n';
+      if (profile === 'custom') {
+        // Mode
+        const modeAnswer = await rl.question(
+          '\n  3.1 Modo de Instanciación:\n' +
+          '      [1] Mono-Proyecto (Recomendado: tablero aislado y autocontenido para este repo)\n' +
+          '      [2] Multi-Proyecto (Registrar en el Hub global para verlo junto a otros repositorios)\n' +
+          '      Selecciona opción [1]: '
+        );
+        if (modeAnswer.trim() === '2') {
+          mode = 'multi';
+        } else {
+          mode = 'single';
+        }
 
-      // Question 5: AGENTS.md
-      const agentsAnswer = await rl.question('  5. ¿Generar guía de gobernanza para agentes (AGENTS.md)? (S/n) [S]: ');
-      installAgentsMd = agentsAnswer.trim().toLowerCase() !== 'n';
+        // Methodology
+        const methAnswer = await rl.question(
+          '\n  3.2 Metodología:\n' +
+          '      [1] Kanban puro (Flujo continuo, sin timeboxes de sprint)\n' +
+          '      [2] Scrum / Sprints (Timeboxes y sprints activos)\n' +
+          '      Selecciona opción [1]: '
+        );
+        if (methAnswer.trim() === '2') {
+          methodology = 'scrum';
+          enabledTabs.sprint = true;
+        } else {
+          methodology = 'kanban';
+          enabledTabs.sprint = false;
+        }
 
-      // Question 6: package.json scripts
-      const pkgAnswer = await rl.question('  6. ¿Configurar scripts de inicio ("board", "mcp") en package.json? (S/n) [S]: ');
-      updatePkgJson = pkgAnswer.trim().toLowerCase() !== 'n';
+        // Skill
+        const skillAnswer = await rl.question('\n  3.3 ¿Instalar skill para agentes (.agents/skills/gripm/SKILL.md)? (S/n) [S]: ');
+        installSkill = skillAnswer.trim().toLowerCase() !== 'n';
 
-      // Question 7: .gitignore
-      const gitignoreAnswer = await rl.question('  7. ¿Añadir reglas recomendadas a .gitignore? (S/n) [S]: ');
-      updateGitignore = gitignoreAnswer.trim().toLowerCase() !== 'n';
+        // AGENTS.md
+        const agentsAnswer = await rl.question('  3.4 ¿Generar guía de gobernanza para agentes (AGENTS.md)? (S/n) [S]: ');
+        installAgentsMd = agentsAnswer.trim().toLowerCase() !== 'n';
+
+        // package.json scripts
+        const pkgAnswer = await rl.question('  3.5 ¿Configurar scripts de inicio ("board", "mcp") en package.json? (S/n) [S]: ');
+        updatePkgJson = pkgAnswer.trim().toLowerCase() !== 'n';
+
+        // .gitignore
+        const gitignoreAnswer = await rl.question('  3.6 ¿Añadir reglas recomendadas a .gitignore? (S/n) [S]: ');
+        updateGitignore = gitignoreAnswer.trim().toLowerCase() !== 'n';
+      }
 
     } finally {
       rl.close();
@@ -145,6 +193,9 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     projectId,
     mode,
     language,
+    profile,
+    methodology,
+    enabledTabs,
     devboardConfig: false,
     tasksDir: false,
     skill: false,
@@ -171,6 +222,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     density: 'comfortable',
     autoSave: true,
     mode,
+    methodology,
+    enabledTabs,
     kanban: {
       showIdeasByDefault: false,
       showDoneHistoryByDefault: false,
@@ -193,7 +246,9 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         language: options.language || options.lang || existing.language || language,
         projectName: existing.projectName || projectName,
         projectId: existing.projectId || projectId,
-        codePrefix: existing.codePrefix || codePrefix
+        codePrefix: existing.codePrefix || codePrefix,
+        methodology: options.methodology || (profile ? methodology : (existing.methodology || methodology)),
+        enabledTabs: options.enabledTabs || (profile ? enabledTabs : (existing.enabledTabs || enabledTabs))
       };
     } catch {}
   }

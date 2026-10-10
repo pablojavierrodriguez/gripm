@@ -1,7 +1,7 @@
 ---
 id: DEV-099
 title: "Desacople estricto de Sprint vs Release: eliminación de versión falsa vSprint5 y prevención de label smuggling"
-status: Done
+status: done
 created_date: '2026-09-24 20:47'
 updated_date: '2026-09-24 20:10'
 labels: []

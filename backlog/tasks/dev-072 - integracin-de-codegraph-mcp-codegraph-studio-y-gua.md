@@ -1,7 +1,7 @@
 ---
 id: DEV-072
 title: "Integración de CodeGraph MCP, Codegraph Studio y Guía de Arquitectura de Código"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

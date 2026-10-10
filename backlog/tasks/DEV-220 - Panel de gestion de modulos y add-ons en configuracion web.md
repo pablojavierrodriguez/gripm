@@ -1,7 +1,7 @@
 ---
 id: DEV-220
 title: "Panel de gestión de módulos y add-ons en configuración web"
-status: draft
+status: done
 created_date: '2026-10-09'
 updated_date: '2026-10-09'
 labels:
@@ -29,11 +29,11 @@ Diseñar e incorporar en `SettingsView` un panel centralizado de **"Módulos & A
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 SettingsView incluye seccion dedicada de Modulos y Add-ons con explicacion clara de cada capacidad
-- [ ] #2 Toggles individuales para Sprints, Releases y Multi-Hub con persistencia inmediata en .gripm/config.json
-- [ ] #3 La barra de navegacion principal refleja altas y bajas de pestanas de forma reactiva y sin recargar la pagina
-- [ ] #4 Textos completamente localizados en espanol e ingles en utils/i18n.ts
-- [ ] #5 npm test y npx tsc --noEmit pasan con codigo 0
+- [x] #1 SettingsView incluye seccion dedicada de Modulos y Add-ons con explicacion clara de cada capacidad
+- [x] #2 Toggles individuales para Sprints, Releases y Multi-Hub con persistencia inmediata en .gripm/config.json
+- [x] #3 La barra de navegacion principal refleja altas y bajas de pestanas de forma reactiva y sin recargar la pagina
+- [x] #4 Textos completamente localizados en espanol e ingles en utils/i18n.ts
+- [x] #5 npm test y npx tsc --noEmit pasan con codigo 0
 <!-- AC:END -->
 
 ## Implementation Notes

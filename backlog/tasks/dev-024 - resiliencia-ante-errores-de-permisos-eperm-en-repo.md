@@ -1,7 +1,7 @@
 ---
 id: DEV-024
 title: "Resiliencia ante errores de permisos (EPERM) en repositorios locales y banner en UI"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-19 04:25'
 labels: []

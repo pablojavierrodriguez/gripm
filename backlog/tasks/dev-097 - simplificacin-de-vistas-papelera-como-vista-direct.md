@@ -1,7 +1,7 @@
 ---
 id: DEV-097
 title: "Simplificación de vistas: Papelera como vista directa y gestión de descartadas desde Backlog y Filtros"
-status: Done
+status: done
 created_date: '2026-09-24'
 updated_date: '2026-09-24 20:10'
 labels: []

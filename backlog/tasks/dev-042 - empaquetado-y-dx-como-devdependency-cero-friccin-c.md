@@ -1,7 +1,7 @@
 ---
 id: DEV-042
 title: "Empaquetado y DX como devDependency (Cero Fricción con npm i -D y npx)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-24 12:14'
 labels: []

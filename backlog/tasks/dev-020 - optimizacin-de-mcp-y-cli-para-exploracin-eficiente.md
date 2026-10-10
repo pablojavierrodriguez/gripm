@@ -1,7 +1,7 @@
 ---
 id: DEV-020
 title: "Optimización de MCP y CLI para exploración eficiente del Backlog por Agentes de IA"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

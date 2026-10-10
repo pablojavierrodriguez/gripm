@@ -172,6 +172,9 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [customSprintMode, setCustomSprintMode] = useState(false);
   const [customReleaseMode, setCustomReleaseMode] = useState(false);
   const [customReleaseInput, setCustomReleaseInput] = useState('');
+  const isSprintModuleActive = config?.enabledTabs?.sprint !== undefined
+    ? config.enabledTabs.sprint
+    : (config?.methodology === 'scrum' || config?.methodology === 'scrumban');
 
   const currentId = item?.id || '';
   const currentCode = item?.code || '';
@@ -1014,9 +1017,9 @@ export const ItemModal: FC<ItemModalProps> = ({
                   </div>
                 </div>
 
-                {/* Sprint & Multi-Release (DEV-056, DEV-077, DEV-087) */}
+                {/* Sprint & Multi-Release (DEV-056, DEV-077, DEV-087, DEV-218) */}
                 <div className="space-y-3">
-                  {config?.methodology !== 'kanban' && (
+                  {isSprintModuleActive && (
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">{t('itemModal.sprintLabel')}</label>

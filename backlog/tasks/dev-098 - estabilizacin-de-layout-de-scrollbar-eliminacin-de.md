@@ -1,7 +1,7 @@
 ---
 id: DEV-098
 title: "Estabilización de layout de scrollbar: eliminación de layout shift en Header entre vistas Home y Papelera"
-status: Done
+status: done
 created_date: '2026-09-24 20:43'
 updated_date: '2026-09-24 20:10'
 labels: []

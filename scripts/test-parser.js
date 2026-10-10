@@ -35,7 +35,36 @@ assert.strictEqual(normalizeStatus('deployed'), 'done');
 assert.strictEqual(normalizeStatus('dismissed'), 'dismissed');
 assert.strictEqual(normalizeStatus('cancelled'), 'dismissed');
 
-console.log('✅ Status normalization passed');
+// DEV-134: serializeBacklogMd canonicalizes uppercase status variants to lowercase
+const uppercaseStatusVariants = [
+  { input: 'Done', expected: 'done' },
+  { input: 'Draft', expected: 'draft' },
+  { input: 'In Progress', expected: 'doing' },
+  { input: 'Ready', expected: 'ready' },
+  { input: 'Testing', expected: 'review' },
+  { input: 'Review', expected: 'review' }
+];
+
+for (const variant of uppercaseStatusVariants) {
+  const serialized = serializeBacklogMd({
+    id: 'DEV-TEST',
+    title: 'Test status canonicalization',
+    status: variant.input
+  });
+  assert.ok(
+    serialized.includes(`status: ${variant.expected}`),
+    `serializeBacklogMd must format status '${variant.input}' as canonical '${variant.expected}'`
+  );
+
+  const reparsed = parseBacklogMd(serialized);
+  assert.strictEqual(
+    reparsed.status,
+    variant.expected,
+    `Round-trip re-parsing must preserve canonical status '${variant.expected}'`
+  );
+}
+
+console.log('✅ Status normalization & DEV-134 canonicalization passed');
 
 // 2. Sample real task parsing
 const sampleMd = `---

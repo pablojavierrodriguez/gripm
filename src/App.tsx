@@ -174,14 +174,14 @@ export function App() {
   // Settings / Config State (DEV-006 & DEV-009)
   const [config, setConfig] = useState<GripmConfig>({});
 
-  // Computed tab visibility helpers
+  // Computed tab visibility helpers (DEV-218: Kanban minimalista por defecto, sprints deshabilitados salvo scrum/scrumban)
   const isKanbanTabEnabled = config?.enabledTabs?.kanban !== undefined
     ? config.enabledTabs.kanban
     : config?.methodology !== 'scrum';
 
   const isSprintTabEnabled = config?.enabledTabs?.sprint !== undefined
     ? config.enabledTabs.sprint
-    : config?.methodology !== 'kanban';
+    : config?.methodology === 'scrum' || config?.methodology === 'scrumban';
 
   const isReleaseTabEnabled = config?.enabledTabs?.release !== false;
 
@@ -1226,7 +1226,7 @@ export function App() {
         onOpenImportWizard={() => setImportWizardOpen(true)}
         liveConnected={liveConnected}
         config={config}
-        singleProject={boardData?.singleProject}
+        singleProject={config?.mode !== undefined ? config.mode === 'single' : boardData?.singleProject}
         updateAvailable={boardData?.updateAvailable}
       />
 
@@ -1240,6 +1240,7 @@ export function App() {
           availableReleases={availableReleases}
           stats={stats}
           customItemTypes={config?.customItemTypes}
+          showSprint={isSprintTabEnabled}
         />
       )}
 

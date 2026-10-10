@@ -1,7 +1,7 @@
 ---
 id: DEV-058
 title: "Política de Visualización Limpia en Tablero: Ocultamiento por Defecto de Cards en 'Done' y Toggle de Histórico"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 14:57'
 labels:

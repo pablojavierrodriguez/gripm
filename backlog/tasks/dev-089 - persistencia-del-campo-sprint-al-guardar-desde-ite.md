@@ -1,7 +1,7 @@
 ---
 id: DEV-089
 title: "Persistencia del campo sprint al guardar desde ItemModal"
-status: Done
+status: done
 created_date: '2026-09-24'
 updated_date: '2026-09-24 18:49'
 labels: []

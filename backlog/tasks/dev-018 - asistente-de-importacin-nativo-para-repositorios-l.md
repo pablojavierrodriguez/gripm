@@ -1,7 +1,7 @@
 ---
 id: DEV-018
 title: "Asistente de importación nativo para repositorios legacy (Import Wizard)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

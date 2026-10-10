@@ -1,7 +1,7 @@
 ---
 id: DEV-019
 title: "Resiliencia y reconciliación ante tareas Markdown huérfanas o renombradas"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

@@ -170,6 +170,7 @@ export interface GripmConfig {
   density?: 'comfortable' | 'compact';
   methodology?: ProjectMethodology;
   defaultView?: 'kanban' | 'sprint' | 'release' | 'settings';
+  mode?: 'single' | 'multi';
   enabledTabs?: {
     kanban?: boolean;
     sprint?: boolean;

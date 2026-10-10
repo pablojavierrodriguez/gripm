@@ -1,7 +1,7 @@
 ---
 id: DEV-059
 title: "Administración y Personalización de Tipos de Cards y Flujos de Trabajo por el Usuario (Admin Soberano)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-24 12:14'
 labels:

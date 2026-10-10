@@ -1,7 +1,7 @@
 ---
 id: DEV-100
 title: "Eliminación de confirmación nativa del navegador en vista de Releases y UX de Promoción a Producción"
-status: Done
+status: done
 created_date: '2026-09-24 21:07'
 updated_date: '2026-09-24 20:10'
 labels: []

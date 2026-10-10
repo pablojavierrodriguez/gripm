@@ -13,6 +13,29 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.1.0] — 2026-10-09 🚀 Arquitectura Canónica, Gatekeeper MCP, Perfiles CLI y Desacople de Flujos
+
+### 🎯 Resumen
+*Versión 1.1.0 de Gripm: unificación formal de la máquina de estados con draft e ideas (DEV-231), compuerta de verificación de calidad y criterios de aceptación en el servidor MCP (DEV-224), desacople de Sprints por defecto y flujo continuo Kanban minimalista (DEV-218), asistente CLI de onboarding con perfiles de adopción y selección de add-ons (DEV-219), panel de Módulos & Add-ons en SettingsView (DEV-220), guardrail ergonómico pre-commit sin fricción (DEV-232), canonicalización de estados en frontmatter (DEV-134), soporte para runtime Node 20 LTS (DEV-223), automatización de pipeline con auto-creación de GitHub Release (DEV-221) y documentación multilingüe integral (DEV-227).*
+
+### 🛡️ Gobernanza Agéntica, Metodología y Calidad (Core)
+- **DEV-231 — Unificación del modelo de estados y taxonomía del Delivery Flow:** formalización de `draft` como estado legítimo del backlog, `ideas` para descubrimiento y delimitación de `ready` como meta de desarrollo y `done` como evento exclusivo de despliegue.
+- **DEV-224 — Execution Gatekeeper en el servidor MCP:** el servidor MCP valida que el 100% de los criterios de aceptación estén verificados antes de permitir transiciones a `ready` o `done`, proveyendo rechazos determinísticos y soporte para comandos de test automatizados.
+- **DEV-232 — Política pragmática de commits y guardrails sin fricción:** garantía mecánica basada en hooks `pre-commit` y cadencia limpia de 1 commit consolidado por tarea.
+- **DEV-134 — Canonicalización de estados en frontmatter:** serialización determinista en minúsculas en el write path con script de migración y preservación de atributos.
+
+### ⚡ Minimalismo, Desacople y Experiencia de Usuario (UI/DX)
+- **DEV-218 — Desacople de Sprints y defaults minimalistas:** metodología `kanban` por defecto en nuevos proyectos, ocultamiento limpio de campos de Sprint cuando el módulo está inactivo y preservación retrocompatible.
+- **DEV-219 — Onboarding CLI con perfiles de adopción:** asistente interactivo `gripm --init` con perfiles 'Minimalista AI-First', 'Baterías Incluidas' y 'Personalizado', junto con flags no interactivas (`--minimal`, `--full`).
+- **DEV-220 — Panel de gestión de Módulos & Add-ons en SettingsView:** catálogo visual interactivo para activar o desactivar capacidades (Sprints, Releases, Multi-Hub) en caliente sin recargar la página.
+
+### 🚀 Distribución, Runtime e Integración Continua (CI/DevOps)
+- **DEV-221 — Pipeline de publicación optimizado y auto-creación de GitHub Release:** reordenamiento de fases en CI (verificación total antes de publicar) y auto-creación de releases oficiales en GitHub mediante `gh release create` y `workflow_dispatch`.
+- **DEV-223 — Compatibilidad amplia con Node 20 LTS y POC binaria:** soporte ampliado a Node 20+ y evaluación documentada de distribución ejecutable independiente.
+- **DEV-227 — Documentación multilingüe integral:** actualización en perfecta simetría de `README.md` y `README.es.md` con las nuevas capacidades y arquitectura.
+
+---
+
 ## [1.0.6] — 2026-10-09 ⚡ Hotfix: Sincronización Canónica con Playbook v2.2.2 e Infraestructura de Estados (DEV-184)
 
 ### 🎯 Resumen

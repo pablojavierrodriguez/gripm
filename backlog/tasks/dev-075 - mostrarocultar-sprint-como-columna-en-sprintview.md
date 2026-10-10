@@ -1,7 +1,7 @@
 ---
 id: DEV-075
 title: "Mostrar/ocultar sprint como columna en SprintView"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

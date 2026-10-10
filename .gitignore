@@ -26,10 +26,11 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# DevBoard Local User Data & Projects Registry (Zero-leak policy)
+# gripm Local User Data & Projects Registry (Zero-leak policy)
 # Project backlogs reside inside each project repo, NOT in DevBoard!
 data/projects-registry.json
 data/dev-board.json
+data/demo-backlog.json
 data/*.local.json
 
 # Keep demo sample backlog for new clone instances

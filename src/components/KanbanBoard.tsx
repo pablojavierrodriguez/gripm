@@ -282,6 +282,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return Array.from(set).filter(Boolean).sort().reverse();
   }, [items, availableSprints]);
 
+  const isSprintActive = config?.enabledTabs?.sprint !== undefined
+    ? config.enabledTabs.sprint
+    : (config?.methodology === 'scrum' || config?.methodology === 'scrumban');
+
   const [activeSprint, setActiveSprint] = useState<string>(() => {
     try {
       const saved = getStoredItem(STORAGE_KEYS.KANBAN_SPRINT);
@@ -875,7 +879,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       {/* Workflow Toolbar: Cleaned up for Kanban Continuo vs Sprint Board for Scrumban */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 w-full border-b border-slate-200/60 dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
-          {config?.methodology === 'kanban' ? (
+          {!isSprintActive ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-800 dark:text-slate-200">
               <Layers className="w-3.5 h-3.5 text-indigo-500" />
               <span>{t('kanban.continuousFlow')}</span>

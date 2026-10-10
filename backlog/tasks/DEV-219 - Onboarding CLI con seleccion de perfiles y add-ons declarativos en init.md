@@ -1,7 +1,7 @@
 ---
 id: DEV-219
 title: "Onboarding CLI con selección de perfiles y add-ons declarativos en init"
-status: draft
+status: done
 created_date: '2026-10-09'
 updated_date: '2026-10-09'
 labels:
@@ -28,11 +28,11 @@ Evolucionar el asistente de inicialización `gripm --init` (`scripts/initScaffol
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 scripts/initScaffold.js presenta selector de perfiles de inicializacion (Minimalista AI-First, Baterias Incluidas, Personalizado)
-- [ ] #2 El perfil Minimalista AI-First configura methodology kanban y enabledTabs.sprint false sin crear archivos innecesarios
-- [ ] #3 .gripm/config.json persiste explicitamente methodology y enabledTabs segun la eleccion del usuario
-- [ ] #4 Soporte para flags no interactivas (--minimal, --full) en el comando gripm --init
-- [ ] #5 npm test y npm run backlog:check pasan con codigo 0
+- [x] #1 scripts/initScaffold.js presenta selector de perfiles de inicializacion (Minimalista AI-First, Baterias Incluidas, Personalizado)
+- [x] #2 El perfil Minimalista AI-First configura methodology kanban y enabledTabs.sprint false sin crear archivos innecesarios
+- [x] #3 .gripm/config.json persiste explicitamente methodology y enabledTabs segun la eleccion del usuario
+- [x] #4 Soporte para flags no interactivas (--minimal, --full) en el comando gripm --init
+- [x] #5 npm test y npm run backlog:check pasan con codigo 0
 <!-- AC:END -->
 
 ## Implementation Notes

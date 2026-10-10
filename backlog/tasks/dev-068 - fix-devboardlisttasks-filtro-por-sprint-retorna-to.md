@@ -1,7 +1,7 @@
 ---
 id: DEV-068
 title: "Fix: devboard_list_tasks — Filtro por Sprint Retorna Todos los Tasks"
-status: Done
+status: done
 created_date: '2026-09-19'
 updated_date: '2026-09-24 12:14'
 labels: []

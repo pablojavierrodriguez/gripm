@@ -1,7 +1,7 @@
 ---
 id: DEV-063
 title: "Fix: Estabilidad de Scroll, Tie-Breakers Deterministas y Normalización al Ordenar en Vista Sprint"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 06:36'
 labels:

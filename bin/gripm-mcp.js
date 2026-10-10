@@ -4,6 +4,7 @@
 import fs3 from "node:fs";
 import path3 from "node:path";
 import readline from "node:readline";
+import { execSync } from "node:child_process";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // scripts/backlogMdParser.ts
@@ -1225,6 +1226,8 @@ var CANONICAL_TOOLS = [
         sprint: { type: "string", description: 'Sprint name to assign (e.g. "Sprint 8").' },
         toggleAcIndex: { type: "number", description: "AC index (1-indexed) to toggle checked/unchecked." },
         checkAllAcs: { type: "boolean", description: "If true, checks all ACs. If false, unchecks all ACs." },
+        verifyCommand: { type: "string", description: "Verification command to execute before certifying transition to ready/done." },
+        force: { type: "boolean", description: "Force transition bypassing Gatekeeper checks (requires explicit authorization)." },
         milestone: { type: "string" }
       },
       required: ["taskId"]
@@ -1724,6 +1727,45 @@ async function handleToolCall(rawName, args) {
               (ac) => ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
             );
           }
+          const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+          const isTransitionToTerminal = targetStatus === "ready" || targetStatus === "done";
+          if (!args.force && isTransitionToTerminal) {
+            const acs = current.acceptanceCriteria || [];
+            const unchecked = acs.filter((ac) => !ac.checked);
+            if (unchecked.length > 0) {
+              const uncheckedList = unchecked.map((ac) => `  - [ ] #${ac.index} ${ac.text}`).join("\n");
+              throw new Error(
+                `[MCP Gatekeeper] Transici\xF3n rechazada: No se puede mover la tarea '${current.id}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptaci\xF3n sin cumplir:
+${uncheckedList}
+
+Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y m\xE1rcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
+              );
+            }
+            const verifyCmd = args.verifyCommand || current.rawExtraFrontmatter && (current.rawExtraFrontmatter.verifyCommand || current.rawExtraFrontmatter.verify_command || current.rawExtraFrontmatter.verifyCmd);
+            if (verifyCmd && typeof verifyCmd === "string") {
+              try {
+                const execCwd = project.repoPath || process.cwd();
+                execSync(verifyCmd, {
+                  cwd: execCwd,
+                  stdio: "pipe",
+                  encoding: "utf8",
+                  timeout: 12e4
+                });
+              } catch (execErr) {
+                const outMsg = (execErr.stderr || execErr.stdout || execErr.message || "").toString().trim();
+                throw new Error(
+                  `[MCP Gatekeeper] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' fall\xF3 al intentar mover '${current.id}' a '${targetStatus}':
+${outMsg}
+
+Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, soluciona los fallos y vuelve a intentar certificar la tarea.`
+                );
+              }
+            }
+          }
+          if (args.verifyCommand) {
+            if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+            current.rawExtraFrontmatter.verifyCommand = args.verifyCommand;
+          }
           const serialized = serializeBacklogMd(current);
           fs3.writeFileSync(fullPath, serialized, "utf8");
           const resp = { ok: true, updatedTask: current, filePath: fullPath };
@@ -1773,6 +1815,44 @@ async function handleToolCall(rawName, args) {
               current.acceptanceCriteriaList = current.acceptanceCriteriaList.map(
                 (ac) => ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
               );
+            }
+            const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+            const isTransitionToTerminal = targetStatus === "ready" || targetStatus === "done";
+            if (!args.force && isTransitionToTerminal) {
+              const acs = current.acceptanceCriteriaList || [];
+              const unchecked = acs.filter((ac) => !ac.checked);
+              if (unchecked.length > 0) {
+                const uncheckedList = unchecked.map((ac) => `  - [ ] #${ac.index} ${ac.text}`).join("\n");
+                throw new Error(
+                  `[MCP Gatekeeper] Transici\xF3n rechazada: No se puede mover la tarea '${current.id || current.code}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptaci\xF3n sin cumplir:
+${uncheckedList}
+
+Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y m\xE1rcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
+                );
+              }
+              const verifyCmd = args.verifyCommand || current.verifyCommand;
+              if (verifyCmd && typeof verifyCmd === "string") {
+                try {
+                  const execCwd = project.repoPath || process.cwd();
+                  execSync(verifyCmd, {
+                    cwd: execCwd,
+                    stdio: "pipe",
+                    encoding: "utf8",
+                    timeout: 12e4
+                  });
+                } catch (execErr) {
+                  const outMsg = (execErr.stderr || execErr.stdout || execErr.message || "").toString().trim();
+                  throw new Error(
+                    `[MCP Gatekeeper] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' fall\xF3 al intentar mover '${current.id || current.code}' a '${targetStatus}':
+${outMsg}
+
+Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, soluciona los fallos y vuelve a intentar certificar la tarea.`
+                  );
+                }
+              }
+            }
+            if (args.verifyCommand) {
+              current.verifyCommand = args.verifyCommand;
             }
             data.items[idx] = current;
             fs3.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");

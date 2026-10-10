@@ -1,7 +1,7 @@
 ---
 id: DEV-013
 title: "Estandarización de storageType a 'markdown' para desacoplar de Backlog.md"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

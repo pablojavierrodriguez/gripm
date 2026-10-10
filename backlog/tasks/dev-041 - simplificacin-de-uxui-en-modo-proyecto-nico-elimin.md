@@ -1,7 +1,7 @@
 ---
 id: DEV-041
 title: "Simplificación de UX/UI en Modo Proyecto Único (Eliminación de Ruido Multi-Proyecto)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-24 12:14'
 labels: []

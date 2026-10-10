@@ -1,7 +1,7 @@
 ---
 id: DEV-001
 title: "Interoperabilidad nativa con Backlog.md y motor Markdown"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

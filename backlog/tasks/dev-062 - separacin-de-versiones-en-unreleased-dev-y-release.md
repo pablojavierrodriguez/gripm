@@ -1,7 +1,7 @@
 ---
 id: DEV-062
 title: "Separación de Versiones en Unreleased (Dev) y Released (Producción) en Release Hub y Modelo de Datos"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 06:36'
 labels:

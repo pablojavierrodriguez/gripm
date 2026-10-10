@@ -1,7 +1,7 @@
 ---
 id: DEV-002
 title: "Modales de confirmación amables y eliminación de proyectos"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

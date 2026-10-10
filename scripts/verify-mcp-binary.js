@@ -10,6 +10,12 @@ const __dirname = path.dirname(__filename);
 const binaryPath = path.resolve(__dirname, '../bin/gripm-mcp.js');
 const backlogPath = path.resolve(__dirname, '../BACKLOG.md');
 const originalBacklogContent = fs.existsSync(backlogPath) ? fs.readFileSync(backlogPath, 'utf8') : null;
+const testTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-998 - Gatekeeper Test Task.md');
+fs.writeFileSync(
+  testTaskPath,
+  '---\nid: DEV-998\ntitle: "Gatekeeper Test Task"\nstatus: doing\n---\n\n## Acceptance Criteria\n\n<!-- AC:BEGIN -->\n- [x] #1 AC uno\n- [ ] #2 AC dos\n<!-- AC:END -->\n',
+  'utf8'
+);
 
 const child = spawn(process.execPath, [binaryPath], {
   stdio: ['pipe', 'pipe', 'inherit']
@@ -78,6 +84,48 @@ send({
   }
 });
 
+// 6. DEV-224: Call gripm_update_task to ready with unchecked ACs (Must fail)
+send({
+  jsonrpc: '2.0',
+  id: 6,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: { taskId: 'DEV-998', status: 'ready' }
+  }
+});
+
+// 7. DEV-224: Call gripm_update_task with failing verifyCommand (Must fail)
+send({
+  jsonrpc: '2.0',
+  id: 7,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-998',
+      status: 'ready',
+      checkAllAcs: true,
+      verifyCommand: 'node -e "process.exit(1)"'
+    }
+  }
+});
+
+// 8. DEV-224: Call gripm_update_task with all ACs checked and passing verifyCommand (Must succeed)
+send({
+  jsonrpc: '2.0',
+  id: 8,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-998',
+      status: 'ready',
+      checkAllAcs: true,
+      verifyCommand: 'node -e "process.exit(0)"'
+    }
+  }
+});
 
 setTimeout(() => {
   child.kill();
@@ -150,6 +198,30 @@ setTimeout(() => {
   const syncData = JSON.parse(syncRes.result.content[0].text);
   console.log(`✅ [5/5] gripm_sync_backlog OK: Tareas auditadas: ${syncData.taskCount}`);
 
+  // DEV-224: Assert Gatekeeper enforcement
+  const gatekeeperRes = responses.find(r => r.id === 6);
+  if (!gatekeeperRes?.result?.isError || !gatekeeperRes.result.content[0].text.includes('[MCP Gatekeeper] Transición rechazada')) {
+    throw new Error(`DEV-224: Se esperaba rechazo de Gatekeeper por ACs incompletos, recibido: ${JSON.stringify(gatekeeperRes)}`);
+  }
+  console.log('✅ [6/8] DEV-224 Gatekeeper: Rechazó correctamente transición a ready con ACs pendientes');
+
+  const verifyCmdFailRes = responses.find(r => r.id === 7);
+  if (!verifyCmdFailRes?.result?.isError || !verifyCmdFailRes.result.content[0].text.includes('falló al intentar mover')) {
+    throw new Error(`DEV-224: Se esperaba fallo por verifyCommand fallido, recibido: ${JSON.stringify(verifyCmdFailRes)}`);
+  }
+  console.log('✅ [7/8] DEV-224 Gatekeeper: Rechazó correctamente por verifyCommand con error');
+
+  const successRes = responses.find(r => r.id === 8);
+  if (successRes?.result?.isError) {
+    throw new Error(`DEV-224: Se esperaba éxito con ACs completos y verifyCommand exitoso, recibido error: ${JSON.stringify(successRes)}`);
+  }
+  console.log('✅ [8/8] DEV-224 Gatekeeper: Aprobó transición a ready con todos los ACs y verificación exitosa');
+
+  // Limpieza de tarea de prueba
+  if (fs.existsSync(testTaskPath)) {
+    fs.unlinkSync(testTaskPath);
+  }
+
   // DEV-160: Restaurar BACKLOG.md original si el test lo mutó para garantizar cero mutación en git status
   if (originalBacklogContent !== null && fs.existsSync(backlogPath)) {
     fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8');
@@ -157,4 +229,4 @@ setTimeout(() => {
 
   console.log('🎉 MCP Server y catálogo gripm_* completamente validados!');
   process.exit(0);
-}, 2000);
+}, 2500);

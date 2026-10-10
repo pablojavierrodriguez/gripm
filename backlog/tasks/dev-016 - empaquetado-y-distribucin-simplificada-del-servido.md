@@ -1,7 +1,7 @@
 ---
 id: DEV-016
 title: "Empaquetado y distribución simplificada del servidor MCP (npx devboard-mcp)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

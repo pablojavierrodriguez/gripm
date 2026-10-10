@@ -1,7 +1,7 @@
 ---
 id: DEV-076
 title: "Sanitización de prefijo y cálculo max+1 al crear ítems en la API web"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

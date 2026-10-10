@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   parseBacklogMd,
@@ -391,6 +392,8 @@ const CANONICAL_TOOLS = [
         sprint: { type: 'string', description: 'Sprint name to assign (e.g. "Sprint 8").' },
         toggleAcIndex: { type: 'number', description: 'AC index (1-indexed) to toggle checked/unchecked.' },
         checkAllAcs: { type: 'boolean', description: 'If true, checks all ACs. If false, unchecks all ACs.' },
+        verifyCommand: { type: 'string', description: 'Verification command to execute before certifying transition to ready/done.' },
+        force: { type: 'boolean', description: 'Force transition bypassing Gatekeeper checks (requires explicit authorization).' },
         milestone: { type: 'string' }
       },
       required: ['taskId']
@@ -975,6 +978,54 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             );
           }
 
+          // DEV-224: Execution Gatekeeper for terminal/certification status transitions
+          const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+          const isTransitionToTerminal = targetStatus === 'ready' || targetStatus === 'done';
+
+          if (!args.force && isTransitionToTerminal) {
+            const acs = current.acceptanceCriteria || [];
+            const unchecked = acs.filter(ac => !ac.checked);
+            if (unchecked.length > 0) {
+              const uncheckedList = unchecked.map(ac => `  - [ ] #${ac.index} ${ac.text}`).join('\n');
+              throw new Error(
+                `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${current.id}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
+                `${uncheckedList}\n\n` +
+                `Acción correctiva: Completa la implementación de cada criterio pendiente y márcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
+              );
+            }
+
+            const verifyCmd = args.verifyCommand || 
+              (current.rawExtraFrontmatter && (
+                current.rawExtraFrontmatter.verifyCommand || 
+                current.rawExtraFrontmatter.verify_command || 
+                current.rawExtraFrontmatter.verifyCmd
+              ));
+
+            if (verifyCmd && typeof verifyCmd === 'string') {
+              try {
+                const execCwd = project.repoPath || process.cwd();
+                execSync(verifyCmd, {
+                  cwd: execCwd,
+                  stdio: 'pipe',
+                  encoding: 'utf8',
+                  timeout: 120000
+                });
+              } catch (execErr: any) {
+                const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
+                throw new Error(
+                  `[MCP Gatekeeper] Transición rechazada: El comando de verificación '${verifyCmd}' falló al intentar mover '${current.id}' a '${targetStatus}':\n` +
+                  `${outMsg}\n\n` +
+                  `Acción correctiva: Revisa los errores del script de verificación, soluciona los fallos y vuelve a intentar certificar la tarea.`
+                );
+              }
+            }
+          }
+
+          if (args.verifyCommand) {
+            if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+            current.rawExtraFrontmatter.verifyCommand = args.verifyCommand;
+          }
+
           const serialized = serializeBacklogMd(current);
           // Sobreescritura in-place del archivo existente (fullPath) sin borrar ni generar slugs innecesarios
           fs.writeFileSync(fullPath, serialized, 'utf8');
@@ -1030,6 +1081,47 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) =>
                 ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
               );
+            }
+
+            // DEV-224: Execution Gatekeeper for terminal/certification status transitions
+            const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+            const isTransitionToTerminal = targetStatus === 'ready' || targetStatus === 'done';
+
+            if (!args.force && isTransitionToTerminal) {
+              const acs = current.acceptanceCriteriaList || [];
+              const unchecked = acs.filter((ac: any) => !ac.checked);
+              if (unchecked.length > 0) {
+                const uncheckedList = unchecked.map((ac: any) => `  - [ ] #${ac.index} ${ac.text}`).join('\n');
+                throw new Error(
+                  `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${current.id || current.code}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
+                  `${uncheckedList}\n\n` +
+                  `Acción correctiva: Completa la implementación de cada criterio pendiente y márcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
+                );
+              }
+
+              const verifyCmd = args.verifyCommand || current.verifyCommand;
+              if (verifyCmd && typeof verifyCmd === 'string') {
+                try {
+                  const execCwd = project.repoPath || process.cwd();
+                  execSync(verifyCmd, {
+                    cwd: execCwd,
+                    stdio: 'pipe',
+                    encoding: 'utf8',
+                    timeout: 120000
+                  });
+                } catch (execErr: any) {
+                  const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
+                  throw new Error(
+                    `[MCP Gatekeeper] Transición rechazada: El comando de verificación '${verifyCmd}' falló al intentar mover '${current.id || current.code}' a '${targetStatus}':\n` +
+                    `${outMsg}\n\n` +
+                    `Acción correctiva: Revisa los errores del script de verificación, soluciona los fallos y vuelve a intentar certificar la tarea.`
+                  );
+                }
+              }
+            }
+
+            if (args.verifyCommand) {
+              current.verifyCommand = args.verifyCommand;
             }
 
             data.items[idx] = current;

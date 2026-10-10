@@ -1,7 +1,7 @@
 ---
 id: DEV-055
 title: "Ciclo de Vida Integral de Sprints: Objetivo, Fechas con Presets, Estados y Autofiltrado"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-23 13:39'
 labels:

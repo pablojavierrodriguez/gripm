@@ -1,7 +1,7 @@
 ---
 id: DEV-030
 title: "Persistencia del Último Proyecto Activo y Fallback Seguro"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

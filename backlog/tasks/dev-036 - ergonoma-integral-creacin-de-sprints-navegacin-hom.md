@@ -1,7 +1,7 @@
 ---
 id: DEV-036
 title: "Ergonomía Integral: Creación de Sprints, Navegación Home en Logo, Edición Inline de Columnas y Estabilidad de Botón Ideas"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

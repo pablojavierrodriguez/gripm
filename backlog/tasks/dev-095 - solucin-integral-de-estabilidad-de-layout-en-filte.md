@@ -1,7 +1,7 @@
 ---
 id: DEV-095
 title: "Solución integral de estabilidad de layout en FilterBar ante activación de filtros (Zero-CLS)"
-status: Done
+status: done
 created_date: '2026-09-24'
 updated_date: '2026-09-24 18:49'
 labels: []

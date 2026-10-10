@@ -4,19 +4,22 @@ Bienvenido a **gripm**. Este documento establece las normas operativas, el flujo
 
 ---
 
-## 1. Flujo Ágil de Entrega (Dev → QA → Release Management → Prod)
+## 1. Flujo Ágil de Entrega (Backlog [draft] → Dev [doing] → QA [ready] → Release Management → Prod [done])
 
 Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/`.
 
 ```
-[Backlog / Sprint] 
-   └── 1. Dev (doing → review): Implementa y tilda criterios (- [x]). Al terminar, deja en 'review'.
-          └── 2. QA (ready): Audita pruebas y calidad. 'ready' es la entrega formal de desarrollo.
-                 └── 3. Release Management (PO + Scrum Lead): Arma paquetes por valor con ítems 'ready'.
-                        └── 4. Implementación en Prod (done): Commit/push de la versión. Pasa a 'done'.
+[Backlog / Pool]
+   └── 0. Backlog (draft / ideas): Tarea formalmente especificada y estimada con ACs.
+          └── 1. Dev (doing → review): Implementa y tilda criterios (- [x]). Al terminar, pasa a 'review'.
+                 └── 2. QA (ready): Audita pruebas y calidad. 'ready' es la entrega formal de desarrollo.
+                        └── 3. Release Management: Arma paquetes por valor entregado con ítems 'ready'.
+                               └── 4. Despliegue en Prod (done): Publicación de release. Pasa a 'done'.
 ```
 
-- **Invariante Fundamental:** **No puede haber un ítem en producción que no esté en `done`**.
+- **El Backlog no es un estado:** Es la dimensión de planificación y el inventario de trabajo no iniciado. Toda tarea en el Backlog tiene asignado legítimamente el estado canónico `draft` (o `ideas` si es descubrimiento).
+- **Línea de Llegada del Desarrollador (`ready`):** La meta terminal del desarrollador y del agente es `ready`. Queda terminantemente prohibido marcar `done` durante el desarrollo.
+- **Invariante Fundamental:** **No puede haber un ítem en producción que no esté en `done`, ni un ítem en `done` que no esté desplegado en producción**. El paso de `ready` a `done` lo realiza el empaquetado/despliegue del release (Release Assembler).
 - **Desacople Sprint vs. Release:** Sprints y releases no tienen vinculación 1:1. Un release se compone exclusivamente por el **valor entregado** agrupando cualquier ítem disponible en `ready` (sea histórico o del sprint actual), con o sin sprint activo.
 - **Trazabilidad Total:** Todo cambio de código —incluidos micro-refinamientos visuales o de texto— debe tener un criterio de aceptación (AC) o tarea asociada. Incluir el archivo `.md` de la tarea en el mismo commit que el código.
 - **Sincronización Inmediata:** Al crear o modificar cualquier archivo en `backlog/tasks/`, ejecutar `npm run backlog:sync` en el mismo movimiento para regenerar `BACKLOG.md` y mantener la coherencia del consolidado con el árbol de tareas.
@@ -32,10 +35,11 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 
 ---
 
-## 3. Guardrails de Git y Commits
+## 3. Política Pragmática de Commits y Guardrails de Git
 
-- **Cero Commits No Solicitados:** El agente NUNCA ejecuta `git commit` por deducción propia. Resolver un bug, tildar ACs o compilar NO autoriza a comitear. El agente solo prepara los cambios en el árbol de trabajo y los valida. El commit se ejecuta **única y exclusivamente ante orden textual explícita del usuario** (ej: *"hacé el commit"*, *"comiteá"*).
-- **Hooks Pre-Commit No Invasivos:** Los hooks (`verify-backlog-sync.js`) verifican la integridad sin mutar el índice de Git, preservando staging y commits selectivos.
+- **Cadencia Limpia (1 Tarea = 1 Commit Consolidado):** Durante la exploración y el desarrollo no se generan micro-commits ruidosos. Al certificar la tarea y dejarla en `ready` con la Pirámide de Verificación en verde, se realiza un único commit consolidado que incluye el código y el archivo `.md` de la tarea.
+- **Soberanía y Confirmación del Usuario:** El commit se ejecuta con confirmación o pedido explícito del usuario (`feat(DEV-XXX): ...` o `fix(DEV-XXX): ...`), manteniendo trazabilidad unívoca con el ID de la tarea.
+- **Hooks Pre-Commit como Salvaguarda Mecánica:** Los hooks (`verify-backlog-sync.js`) actúan como barrera física de calidad: abortan mecánicamente cualquier commit si el backlog está desincronizado, si hay errores de TypeScript o si las pruebas fallan, sin imponer burocracia manual adicional al desarrollador.
 
 ---
 

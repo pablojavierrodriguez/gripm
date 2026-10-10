@@ -1,7 +1,7 @@
 ---
 id: DEV-017
 title: "Optimistic Locking y prevención de sobreescrituras silenciosas (ETag / Mtime)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

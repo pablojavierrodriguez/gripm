@@ -1,7 +1,7 @@
 ---
 id: DEV-092
 title: "Alineación de métricas de progreso de Sprint: Ready como estado terminal del desarrollo en KanbanBoard"
-status: Done
+status: done
 created_date: '2026-09-24'
 updated_date: '2026-09-24 18:49'
 labels: []

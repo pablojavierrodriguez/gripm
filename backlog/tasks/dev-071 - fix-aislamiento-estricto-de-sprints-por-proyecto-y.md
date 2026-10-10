@@ -1,7 +1,7 @@
 ---
 id: DEV-071
 title: "Fix: Aislamiento estricto de Sprints por Proyecto y Prevención de Fugas Cross-Project"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

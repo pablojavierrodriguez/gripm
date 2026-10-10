@@ -1,7 +1,7 @@
 ---
 id: DEV-070
 title: "Feature: Retro Automática al Cerrar Sprint — Template y Checklist Integrado"
-status: Done
+status: done
 created_date: '2026-09-19'
 updated_date: '2026-09-24 12:14'
 labels: []

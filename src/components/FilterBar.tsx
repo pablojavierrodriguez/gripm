@@ -17,6 +17,7 @@ interface FilterBarProps {
     completed: number;
   };
   customItemTypes?: CustomItemTypeConfig[];
+  showSprint?: boolean;
 }
 
 export const FilterBar: FC<FilterBarProps> = ({
@@ -27,6 +28,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   availableReleases = [],
   stats,
   customItemTypes = [],
+  showSprint = true,
 }) => {
   const { t } = useTranslation();
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -73,7 +75,7 @@ export const FilterBar: FC<FilterBarProps> = ({
     (filters.types && filters.types.length > 0 ? filters.types.length : filters.type !== 'all' ? 1 : 0) +
     (filters.priorities && filters.priorities.length > 0 ? filters.priorities.length : filters.priority !== 'all' ? 1 : 0) +
     (hasCustomStatuses ? 1 : 0) +
-    (filters.sprint && filters.sprint !== 'all' ? 1 : 0) +
+    (showSprint && filters.sprint && filters.sprint !== 'all' ? 1 : 0) +
     (filters.release && filters.release !== 'all' ? 1 : 0) +
     (filters.module && filters.module !== 'all' ? 1 : 0);
 
@@ -222,6 +224,7 @@ export const FilterBar: FC<FilterBarProps> = ({
                 activeFiltersCount={activeFiltersCount}
                 onResetFilters={resetFilters}
                 customItemTypes={customItemTypes}
+                showSprint={showSprint}
               />
             </div>
 

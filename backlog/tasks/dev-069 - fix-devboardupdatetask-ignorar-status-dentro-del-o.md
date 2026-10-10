@@ -1,7 +1,7 @@
 ---
 id: DEV-069
 title: "Fix: devboard_update_task — Ignorar status dentro del objeto updates silenciosamente"
-status: Done
+status: done
 created_date: '2026-09-19'
 updated_date: '2026-09-24 12:14'
 labels: []

@@ -1,7 +1,7 @@
 ---
 id: DEV-023
 title: "Gestión e Inspección de Releases en MCP (devboard_list_releases)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

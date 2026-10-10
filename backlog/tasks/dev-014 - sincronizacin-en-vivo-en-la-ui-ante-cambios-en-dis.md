@@ -1,7 +1,7 @@
 ---
 id: DEV-014
 title: "Sincronización en vivo en la UI ante cambios en disco (Live File Watcher / SSE)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

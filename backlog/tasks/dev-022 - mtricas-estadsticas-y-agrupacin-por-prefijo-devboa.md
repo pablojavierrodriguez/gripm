@@ -1,7 +1,7 @@
 ---
 id: DEV-022
 title: "Métricas, Estadísticas y Agrupación por Prefijo (devboard_get_stats y CLI --stats)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

@@ -18,6 +18,12 @@ name: Publish
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v1.1.0)'
+        required: false
+        default: ''
 
 # Cancelar una corrida anterior del mismo tag evita publicar dos veces si se
 # re-lanza el job.
@@ -26,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -38,7 +44,7 @@ jobs:
     timeout-minutes: 30
 
     permissions:
-      contents: read
+      contents: write
       # OIDC: obligatorio para que npm pueda verificar la identidad del workflow
       # y emitir la attestation de provenance (DEV-182).
       id-token: write
@@ -63,63 +69,51 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          INPUT_TAG="${{ github.event.inputs.tag }}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
+
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          elif [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$PKG_VERSION"
+          fi
 
           if [ "$TAG" != "v$PKG_VERSION" ]; then
             echo "::error::Tag $TAG no coincide con package.json ($PKG_VERSION)."
             exit 1
           fi
 
-          # Exigir annotated tag: un tag lightweight no lleva mensaje y aun asi
-          # se publica, dejando la release de GitHub sin contexto.
-          #
-          # En un evento de push de tag, actions/checkout deja HEAD detached en
-          # el commit y el ref del tag no queda disponible para cat-file. Por eso
-          # se consulta el objeto etiquetado en el remoto en lugar del ref local.
-          TAG_OBJECT="$(git ls-remote --tags origin "refs/tags/v$PKG_VERSION" | cut -f1)"
-          if [ -z "$TAG_OBJECT" ]; then
-            echo "::error::No se encuentra el tag v$PKG_VERSION en el remoto."
-            exit 1
-          fi
+          # Exigir annotated tag cuando el trigger es un push de tag
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            TAG_OBJECT="$(git ls-remote --tags origin "refs/tags/v$PKG_VERSION" | cut -f1)"
+            if [ -z "$TAG_OBJECT" ]; then
+              echo "::error::No se encuentra el tag v$PKG_VERSION en el remoto."
+              exit 1
+            fi
 
-          # Un tag annotated expone una segunda linea "refs/tags/<tag>^{}" que
-          # desreferencia al commit. Un lightweight expone solo una.
-          if ! git ls-remote --tags origin "refs/tags/v$PKG_VERSION^{}" | grep -q .; then
-            echo "::error::El tag v$PKG_VERSION no es annotated. Recrealo con 'git tag -a'."
-            exit 1
+            if ! git ls-remote --tags origin "refs/tags/v$PKG_VERSION^{}" | grep -q .; then
+              echo "::error::El tag v$PKG_VERSION no es annotated. Recrealo con 'git tag -a'."
+              exit 1
+            fi
           fi
 
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify the tag is not already published
         id: already
         run: |
           set -euo pipefail
           if npm view "@gripm/board@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            # El flujo normal publica dos veces: al pushear el tag y de nuevo al
-            # crear la GitHub Release, porque el workflow escucha ambos eventos.
-            # La segunda corrida no es un error, es el mismo release. Cortar acá
-            # con exito, en vez de fallar, evita un run rojo que parece un
-            # problema de publicacion cuando en realidad ya se publico bien.
             echo "already_published=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::@gripm/board@${{ steps.version.outputs.version }} ya está publicado. No hay nada que hacer."
+            echo "::notice::@gripm/board@${{ steps.version.outputs.version }} ya está publicado en npm."
           else
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish to npm with provenance
-        if: steps.already.outputs.already_published != 'true'
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Report already-published version
-        if: steps.already.outputs.already_published == 'true'
-        run: |
-          echo "✅ @gripm/board@${{ steps.version.outputs.version }} ya estaba publicado."
-          echo "   Se omite la publicación para no duplicar el release."
-
+      # ─── PIRAMIDE DE VERIFICACION Y BUILD ANTES DE PUBLICAR (DEV-221) ───
       - name: Typecheck (tsc)
         run: npx tsc --noEmit
 
@@ -132,13 +126,6 @@ jobs:
       - name: Run UX static audit
         run: npm run audit:ux
 
-      # El guard de superficie empaqueta el tarball y exige `dist/index.html`.
-      # Por eso el build tiene que precederlo: antes el build estaba después del
-      # guard, así que en un runner limpio `dist/` no existía y el paso fallaba
-      # con "FALTA EN EL TARBALL". Localmente pasaba solo porque `dist/` ya
-      # estaba de una corrida anterior de `npm run build`. El paso nunca se
-      # había validado en CI porque las corridas previas morían antes, en el
-      # test suite.
       - name: Build the package
         run: npm run build
 
@@ -159,3 +146,48 @@ jobs:
 
       - name: Dry-run the package
         run: npm pack --dry-run
+
+      # ─── PUBLICACION EN NPM CON PROVENANCE (DEV-221) ───
+      - name: Publish to npm with provenance
+        if: steps.already.outputs.already_published != 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Report already-published version
+        if: steps.already.outputs.already_published == 'true'
+        run: |
+          echo "✅ @gripm/board@${{ steps.version.outputs.version }} ya estaba publicado en npm."
+          echo "   Se omite la publicación repetida."
+
+      # ─── AUTO-CREACION DE GITHUB RELEASE OFICIAL (DEV-221) ───
+      - name: Create or verify GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "✅ GitHub Release $TAG ya existe. Omitiendo creación duplicada."
+          else
+            echo "📦 Generando notas de la release desde backlog/releases.json..."
+            node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('backlog/releases.json', 'utf8'));
+              const list = Array.isArray(data) ? data : (data.releases || []);
+              const rel = list.find(r => r.version === '$VERSION') || {};
+              const title = rel.title || (rel.name ? \`$TAG - \${rel.name}\` : '$TAG');
+              fs.writeFileSync('release-title.txt', title.trim());
+              const notes = rel.markdownContent ? rel.markdownContent.replace(/\\r\\n|\\n/g, '\n').trim() : (rel.summary || rel.notes || 'Release oficial ' + '$TAG');
+              fs.writeFileSync('release-notes.txt', notes.trim() + '\n');
+            "
+
+            RELEASE_TITLE="$(cat release-title.txt)"
+            echo "🚀 Creando GitHub Release $TAG: $RELEASE_TITLE"
+            gh release create "$TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.txt
+            echo "✅ GitHub Release $TAG creada exitosamente."
+          fi

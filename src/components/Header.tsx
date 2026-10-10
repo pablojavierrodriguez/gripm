@@ -111,7 +111,7 @@ export const Header: FC<HeaderProps> = ({
 
   const isSprintEnabled = config?.enabledTabs?.sprint !== undefined
     ? config.enabledTabs.sprint
-    : config?.methodology !== 'kanban';
+    : config?.methodology === 'scrum' || config?.methodology === 'scrumban';
 
   const isReleaseEnabled = config?.enabledTabs?.release !== false;
 

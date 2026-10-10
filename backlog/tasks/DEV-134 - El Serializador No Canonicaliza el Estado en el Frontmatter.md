@@ -1,7 +1,7 @@
 ---
 id: DEV-134
 title: "El Serializador No Canonicaliza el Estado en el Frontmatter: Done/Done vs done/done Acumulados"
-status: draft
+status: done
 created_date: '2026-09-30'
 updated_date: '2026-09-30 02:45'
 labels:
@@ -60,15 +60,15 @@ resultados de 105 tareas completadas.
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `serializeBacklogMd` escribe el estado usando la forma canónica en minúscula, independientemente de cómo llegue en el objeto de entrada
-- [ ] #2 Verificar con un round-trip que una tarea creada con `status: "Done"` se persiste como `status: "done"` y se relee como `done`
-- [ ] #3 Se agrega un test de regresión en `scripts/test-parser.js` que cubra las variantes con mayúscula inicial (`Done`, `Draft`, `In Progress`, `Ready`, `Testing`, `Review`)
-- [ ] #4 Se normalizan los 96 archivos existentes que tienen el estado con mayúscula, sin alterar su contenido más allá del campo `status`
-- [ ] #5 La normalización preserva cualquier otro campo del frontmatter, incluidos los no canónicos (`labels`, `assignees`) y los nombres de sección
-- [ ] #6 Se documenta en el plan el criterio: en el write path, todo campo del modelo que tenga forma canónica se escribe en forma canónica, nunca "tal como vino"
-- [ ] #7 `npx tsc --noEmit` finishes con código 0
-- [ ] #8 `npm test` finishes con código 0
-- [ ] #9 `npm run backlog:check` finishes con código 0
+- [x] #1 `serializeBacklogMd` escribe el estado usando la forma canónica en minúscula, independientemente de cómo llegue en el objeto de entrada
+- [x] #2 Verificar con un round-trip que una tarea creada con `status: "Done"` se persiste como `status: "done"` y se relee como `done`
+- [x] #3 Se agrega un test de regresión en `scripts/test-parser.js` que cubra las variantes con mayúscula inicial (`Done`, `Draft`, `In Progress`, `Ready`, `Testing`, `Review`)
+- [x] #4 Se normalizan los 96 archivos existentes que tienen el estado con mayúscula, sin alterar su contenido más allá del campo `status`
+- [x] #5 La normalización preserva cualquier otro campo del frontmatter, incluidos los no canónicos (`labels`, `assignees`) y los nombres de sección
+- [x] #6 Se documenta en el plan el criterio: en el write path, todo campo del modelo que tenga forma canónica se escribe en forma canónica, nunca "tal como vino"
+- [x] #7 `npx tsc --noEmit` finishes con código 0
+- [x] #8 `npm test` finishes con código 0
+- [x] #9 `npm run backlog:check` finishes con código 0
 <!-- AC:END -->
 
 ## Implementation Plan

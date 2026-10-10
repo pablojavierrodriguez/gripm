@@ -1,7 +1,7 @@
 ---
 id: DEV-096
 title: "Unificación conceptual de borrado: separación ortogonal de Descartar vs Papelera y persistencia de soft-delete"
-status: Done
+status: done
 created_date: '2026-09-24'
 updated_date: '2026-09-24 20:10'
 labels: []

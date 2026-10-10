@@ -1,7 +1,7 @@
 ---
 id: DEV-003
 title: "Explorador visual de carpetas y compatibilidad multiplataforma"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

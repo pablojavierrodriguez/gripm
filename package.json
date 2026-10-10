@@ -1,6 +1,6 @@
 {
   "name": "@gripm/board",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Agile engineering & Product Management cockpit for AI pair programming: Markdown-backed backlog, MCP server and CLI for developers and autonomous agents.",
   "keywords": [
     "gripm",
@@ -35,7 +35,7 @@
     "url": "https://github.com/pablojavierrodriguez/gripm/issues"
   },
   "engines": {
-    "node": ">=22.6.0"
+    "node": ">=20.0.0"
   },
   "type": "module",
   "files": [
@@ -79,6 +79,7 @@
     "backlog:sync": "node scripts/verify-backlog-sync.js --fix",
     "playbook:sync": "node scripts/sync-playbook.mjs",
     "backlog:purge-fabricated": "node scripts/purge-fabricated-task-sections.js",
+    "backlog:canonicalize-status": "node --experimental-strip-types scripts/canonicalize-status.js",
     "publish:check": "node scripts/verify-publish-surface.js",
     "audit:ux": "node scripts/audit-ux-code.cjs",
     "audit:ux:baseline": "node scripts/audit-ux-code.cjs --update-baseline",

@@ -1,7 +1,7 @@
 ---
 id: DEV-065
 title: "Actualización de Skills de Agentes: Guía Estricta Anti-Scripts de Terminal y Ciclo de Vida Unreleased vs Released"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 14:57'
 labels:

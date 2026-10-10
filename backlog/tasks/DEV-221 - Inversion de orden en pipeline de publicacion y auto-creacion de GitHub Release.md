@@ -1,7 +1,7 @@
 ---
 id: DEV-221
 title: "Inversión de orden en pipeline de publicación y auto-creación de GitHub Release"
-status: draft
+status: done
 created_date: '2026-10-09'
 updated_date: '2026-10-09'
 labels:
@@ -26,9 +26,9 @@ Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` pa
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 En publish.yml, la piramide completa de pruebas y verificacion se ejecuta antes del paso de publicacion en npm
-- [ ] #2 Si cualquier paso de verificacion o build falla, el job se detiene sin publicar en npm ni crear la GitHub Release
-- [ ] #3 Tras publicar exitosamente en npmjs.com, publish.yml crea la GitHub Release oficial extrayendo titulo y notas desde backlog/releases.json
-- [ ] #4 El workflow maneja idempotencia evitando fallas si la version o la release ya existian en el repositorio
-- [ ] #5 La suite de pruebas y scripts de integridad local pasan con codigo 0
+- [x] #1 En publish.yml, la piramide completa de pruebas y verificacion se ejecuta antes del paso de publicacion en npm
+- [x] #2 Si cualquier paso de verificacion o build falla, el job se detiene sin publicar en npm ni crear la GitHub Release
+- [x] #3 Tras publicar exitosamente en npmjs.com, publish.yml crea la GitHub Release oficial extrayendo titulo y notas desde backlog/releases.json
+- [x] #4 El workflow maneja idempotencia evitando fallas si la version o la release ya existian en el repositorio
+- [x] #5 La suite de pruebas y scripts de integridad local pasan con codigo 0
 <!-- AC:END -->

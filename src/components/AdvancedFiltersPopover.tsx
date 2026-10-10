@@ -14,6 +14,7 @@ interface AdvancedFiltersPopoverProps {
   activeFiltersCount: number;
   onResetFilters: () => void;
   customItemTypes?: CustomItemTypeConfig[];
+  showSprint?: boolean;
 }
 
 export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
@@ -27,6 +28,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   activeFiltersCount,
   onResetFilters,
   customItemTypes = [],
+  showSprint = true,
 }) => {
   const { t } = useTranslation();
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -307,26 +309,28 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
       </div>
 
       {/* Section 4: Sprint & Release */}
-      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+      <div className={`grid ${showSprint ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06]`}>
         {/* Sprint */}
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            {t('itemModal.sprintLabel')}
-          </label>
-          <select
-            value={filters.sprint || 'all'}
-            onChange={(e) => onChangeFilters({ ...filters, sprint: e.target.value })}
-            className="appearance-none w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500/50"
-          >
-            <option value="all">{t('filter.allSprints')}</option>
-            {availableSprints.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-            <option value="backlog">{t('filter.noSprint')}</option>
-          </select>
-        </div>
+        {showSprint && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {t('itemModal.sprintLabel')}
+            </label>
+            <select
+              value={filters.sprint || 'all'}
+              onChange={(e) => onChangeFilters({ ...filters, sprint: e.target.value })}
+              className="appearance-none w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500/50"
+            >
+              <option value="all">{t('filter.allSprints')}</option>
+              {availableSprints.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+              <option value="backlog">{t('filter.noSprint')}</option>
+            </select>
+          </div>
+        )}
 
         {/* Release */}
         <div className="space-y-1">

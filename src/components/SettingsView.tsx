@@ -27,7 +27,8 @@ import {
   Trash2,
   Edit2,
   Check,
-  Globe
+  Globe,
+  Boxes
 } from 'lucide-react';
 import type { GripmConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
@@ -122,7 +123,7 @@ export const AVAILABLE_CUSTOM_ICONS = [
   'Feather', 'GitBranch', 'Terminal', 'Tag', 'Star', 'Bookmark', 'Layers'
 ];
 
-export type SettingsTabId = 'views' | 'kanban' | 'taxonomy' | 'visual' | 'tools' | 'advanced';
+export type SettingsTabId = 'views' | 'modules' | 'kanban' | 'taxonomy' | 'visual' | 'tools' | 'advanced';
 
 interface SettingsViewProps {
   config: GripmConfig;
@@ -155,6 +156,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [locale, setLocale] = useState<'es' | 'en'>(config.locale || language || 'es');
   const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
   const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'settings'>(config.defaultView || 'kanban');
+  const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
   const [enabledTabs, setEnabledTabs] = useState({
     kanban: config.enabledTabs?.kanban !== false,
     sprint: config.enabledTabs?.sprint !== false,
@@ -209,6 +211,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setLocale(config.locale || language || 'es');
     setMethodology(initialMethodology);
     setDefaultView(config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban'));
+    setModeState(config.mode || 'single');
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
@@ -271,6 +274,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       locale,
       methodology,
       defaultView,
+      mode: modeState,
       enabledTabs: {
         kanban: enabledTabs.kanban,
         sprint: enabledTabs.sprint,
@@ -288,7 +292,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         wipLimits
       }
     };
-  }, [config, theme, density, locale, methodology, defaultView, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
+  }, [config, theme, density, locale, methodology, defaultView, modeState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
 
   // Helper to normalize config object for reliable dirty-checking (DEV-081)
   const normalizeForComparison = (c: Partial<GripmConfig>) => {
@@ -299,6 +303,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       locale: c.locale || 'es',
       methodology: c.methodology || 'scrumban',
       defaultView: c.defaultView || (c.methodology === 'scrum' ? 'sprint' : 'kanban'),
+      mode: c.mode || 'single',
       enabledTabs: {
         kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
         sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
@@ -335,6 +340,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setDensity(config.density || 'comfortable');
     setMethodology(initialMethodology);
     setDefaultView(config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban'));
+    setModeState(config.mode || 'single');
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
@@ -369,6 +375,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTypeFormIcon('Sparkles');
     setTypeFormDescription('');
     onShowToast?.(t('settings.toastReset'), 'info');
+  };
+
+  // DEV-220: Module & Add-ons interactive toggles with immediate persistence
+  const handleToggleSprintModule = async (checked: boolean) => {
+    if (!checked && !enabledTabs.kanban && !enabledTabs.release) return;
+    const nextTabs = { ...enabledTabs, sprint: checked };
+    setEnabledTabs(nextTabs);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      enabledTabs: nextTabs,
+      methodology: checked
+        ? (builtConfig.methodology === 'kanban' ? 'scrum' : builtConfig.methodology)
+        : (builtConfig.methodology === 'scrum' ? 'kanban' : builtConfig.methodology)
+    };
+    await onSaveConfig(nextConfig);
+    onShowToast?.(
+      checked ? t('settings.toastModuleSprintEnabled') : t('settings.toastModuleSprintDisabled'),
+      'success'
+    );
+  };
+
+  const handleToggleReleaseModule = async (checked: boolean) => {
+    if (!checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
+    const nextTabs = { ...enabledTabs, release: checked };
+    setEnabledTabs(nextTabs);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      enabledTabs: nextTabs
+    };
+    await onSaveConfig(nextConfig);
+    onShowToast?.(
+      checked ? t('settings.toastModuleReleaseEnabled') : t('settings.toastModuleReleaseDisabled'),
+      'success'
+    );
+  };
+
+  const handleToggleMultiHub = async (checked: boolean) => {
+    const nextMode: 'single' | 'multi' = checked ? 'multi' : 'single';
+    setModeState(nextMode);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      mode: nextMode
+    };
+    await onSaveConfig(nextConfig);
+    onShowToast?.(
+      checked ? t('settings.toastModuleHubEnabled') : t('settings.toastModuleHubDisabled'),
+      'success'
+    );
   };
 
   // DEV-059: Taxonomy & Custom Card Types CRUD handlers
@@ -693,6 +747,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <div className="text-xs font-semibold">{t('settings.navViews')}</div>
               <div className="text-[11px] text-slate-500">{t('settings.navViewsDesc')}</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('modules')}
+            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
+              activeTab === 'modules'
+                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
+            }`}
+          >
+            <Boxes className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'modules' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+            <div>
+              <div className="text-xs font-semibold">{t('settings.navModules')}</div>
+              <div className="text-[11px] text-slate-500">{t('settings.navModulesDesc')}</div>
             </div>
           </button>
 
@@ -1039,6 +1109,160 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
                     />
                   </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 1.5: MODULOS & ADD-ONS (DEV-220) */}
+          {activeTab === 'modules' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+                  {t('settings.modulesTitle')}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {t('settings.modulesDesc')}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 pt-2">
+                {/* 1. Kanban Core & Backlog */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
+                      <Layout className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleKanbanTitle')}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                          {t('settings.moduleCoreBadge')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleKanbanDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 sm:self-center shrink-0">
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      {t('settings.moduleActive')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Sprints & Timeboxing (Scrum) */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                      <Target className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleSprintsTitle')}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          enabledTabs.sprint
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
+                        }`}>
+                          {enabledTabs.sprint ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleSprintsDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:self-center shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enabledTabs.sprint}
+                        onChange={(e) => handleToggleSprintModule(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 3. Release Management & Versioning */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                      <Rocket className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleReleasesTitle')}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          enabledTabs.release
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
+                        }`}>
+                          {enabledTabs.release ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleReleasesDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:self-center shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enabledTabs.release}
+                        onChange={(e) => handleToggleReleaseModule(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 4. Multi-Project Hub */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleHubTitle')}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          modeState === 'multi'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
+                        }`}>
+                          {modeState === 'multi' ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleHubDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:self-center shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={modeState === 'multi'}
+                        onChange={(e) => handleToggleMultiHub(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

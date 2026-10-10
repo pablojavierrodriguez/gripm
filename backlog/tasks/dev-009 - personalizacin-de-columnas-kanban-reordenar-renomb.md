@@ -1,7 +1,7 @@
 ---
 id: DEV-009
 title: "Personalización de Columnas Kanban: Reordenar, Renombrar, Mapeo de Estados y WIP Limits"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-18 06:36'
 labels:

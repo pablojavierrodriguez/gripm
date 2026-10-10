@@ -1,7 +1,7 @@
 ---
 id: DEV-048
 title: "Grafo de Relaciones entre Cards: Jerarquías Verticales (Padre/Hijo Estricto 1-a-N) y Enlaces Horizontales (Bloquea/Depende/Relacionado)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-24 12:14'
 labels:

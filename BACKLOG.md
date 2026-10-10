@@ -1,9 +1,9 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-09 por gripm ⚡
+> Consolidado generado el 2026-10-10 por gripm ⚡
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (5)
+### 💡 Ideas / Discovery (6)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -97,6 +97,24 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
+#### [DEV-230] Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios personales de manera inmediata y sin comprometer la privacidad:
+1. **Web Intent directo de Google Calendar:** Acción contextual en `ItemModal` ("Agendar en Calendario") que construye y abre una URL de intención web directa (`calendar.google.com/calendar/render?action=TEMPLATE...`) con el título `[ID] Título`, enlace local y notas de la tarea precargadas.
+2. **Descarga de archivo estándar iCalendar (.ics):** Generación instantánea en el navegador de un archivo `.ics` para usuarios de Apple Calendar, Outlook o clientes locales de calendario.
+3. **Cero dependencias cloud:** No requiere OAuth, permisos corporativos de Google Workspace, almacenamiento de tokens ni sincronizadores en segundo plano. Privacidad absoluta y cero mantenimiento de servidores.
+
+**Criterios de Aceptación:**
+- [ ] #1 Accion contextual en ItemModal para agendar sesion o evento a partir de los datos de la tarea
+- [ ] #2 Generacion de enlace Web Intent para Google Calendar con titulo y notas de la tarea precargados sin requerir OAuth
+- [ ] #3 Opcion de descarga de archivo .ics universal compatible con clientes de calendario de escritorio
+- [ ] #4 Cero almacenamiento o transmision de credenciales y cero dependencias de APIs cloud
+- [ ] #5 Textos localizados en espanol e ingles en src/utils/i18n.ts
+- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
 ### 📋 Backlog / Draft (17)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -131,58 +149,6 @@ Evolución integral del módulo de Releases hacia un centro de control y auditor
 - [ ] #3 Correlación y badge de coherencia con tags locales de Git proveniente de la integración DEV-039
 - [ ] #4 Asistente para detectar discrepancias entre código tageado y tareas asociadas
 - [ ] #5 Botón de copiado en un click del changelog formateado para GitHub Releases
-
----
-
-#### [DEV-134] El Serializador No Canonicaliza el Estado en el Frontmatter: Done/Done vs done/done Acumulados
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-El frontmatter de las tareas escribe el estado **tal como viene**, sin
-canonicalizarlo. Como el read path sí normaliza (`normalizeStatus` mapea `Done` a
-`done`, `Draft` a `draft`), el sistema funciona, pero el dato persistido queda
-inconsistente para siempre.
-
-**Estado real de los 132 archivos de `backlog/tasks/`:**
-
-| Valor escrito | Cantidad |
-|---|---|
-| `Done` (mayúscula) | 93 |
-| `Draft` (mayúscula) | 3 |
-| `done` (minúscula) | 12 |
-| `draft` (minúscula) | 10 |
-| `ready` | 8 |
-| `review` | 6 |
-
-Es decir, **96 de 132 tareas (73%) tienen el estado con mayúscula inicial**, y
-esas 96 son exactamente las más antiguas: el proyecto empezó escribiéndose a mano
-con `Done` y `Draft`, y desde que `normalizeStatus` existe el write path no
-corrige lo que ya quedó.
-
-**Por qué no rompe nada**: `normalizeStatus` se aplica al leer, así que la UI y
-el MCP ven `done` correctamente. El costo es de higiene del dato versionado, y
-crece: cada guardado reescribe el archivo con el valor que venga, de modo que la
-divergencia se congela en vez de resolverse.
-
-**Mismo patrón que DEV-127, otra dimensión**: DEV-127 eliminó que el serializador
-fabricara contenido que el usuario nunca escribió. Acá no fabrica, pero tampoco
-**normaliza**: escribe un valor no canónico. En ambos casos el write path debería
-garantizar que lo que llega al disco es la forma canónica del modelo.
-
-**Consecuencia práctica más grave que la estética**: cualquier herramienta que lea
-el frontmatter de forma directa sin pasar por el parser ve dos valores distintos
-para el mismo estado. Un `grep '^status: done'` sobre los archivos devuelve 12
-resultados de 105 tareas completadas.
-
-**Criterios de Aceptación:**
-- [ ] #1 `serializeBacklogMd` escribe el estado usando la forma canónica en minúscula, independientemente de cómo llegue en el objeto de entrada
-- [ ] #2 Verificar con un round-trip que una tarea creada con `status: "Done"` se persiste como `status: "done"` y se relee como `done`
-- [ ] #3 Se agrega un test de regresión en `scripts/test-parser.js` que cubra las variantes con mayúscula inicial (`Done`, `Draft`, `In Progress`, `Ready`, `Testing`, `Review`)
-- [ ] #4 Se normalizan los 96 archivos existentes que tienen el estado con mayúscula, sin alterar su contenido más allá del campo `status`
-- [ ] #5 La normalización preserva cualquier otro campo del frontmatter, incluidos los no canónicos (`labels`, `assignees`) y los nombres de sección
-- [ ] #6 Se documenta en el plan el criterio: en el write path, todo campo del modelo que tenga forma canónica se escribe en forma canónica, nunca "tal como vino"
-- [ ] #7 `npx tsc --noEmit` finishes con código 0
-- [ ] #8 `npm test` finishes con código 0
-- [ ] #9 `npm run backlog:check` finishes con código 0
 
 ---
 
@@ -555,82 +521,96 @@ Esta tarea es una **decisión con trade-off**, no un bug con parche.
 
 ---
 
-#### [DEV-218] Desacople de Sprints y defaults minimalistas para Gripm Core
+#### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
 
-Establecer Gripm Core como un producto minimalista por defecto, desacoplando Sprints y Scrum de la configuración inicial del tablero:
-1. **Defaults canónicos orientados a flujo continuo:** En `src/types.ts` y en la resolución de configuración, la metodología por defecto pasa a ser `kanban` en lugar de `scrumban`, con la pestaña de Sprints deshabilitada por defecto (`enabledTabs: { kanban: true, sprint: false, release: true }`).
-2. **Ocultamiento condicional en UI (Zero-Leakage):** Cuando el módulo de Sprints esté inactivo (`enabledTabs.sprint === false` o metodología `kanban`), la interfaz debe ocultar limpiamente los selectores y metadatos de Sprint en `ItemModal`, `FilterBar` y tarjetas, sin dejar huecos ni campos mudos.
-3. **Preservación total de retrocompatibilidad:** Los proyectos que ya tengan configurado `sprint: true` o metodología `scrum`/`scrumban` continúan viendo y usando Sprints sin alteración ni pérdida de datos.
+Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, orientada a demostraciones públicas desde dispositivos móviles y comunidades técnicas sin requerir un CLI ni daemon local:
+1. **Detección automática de entorno y fallback en memoria:** Si la aplicación detecta que está corriendo en la web sin conexión al socket o CLI local, inicializa automáticamente un adaptador en memoria y LocalStorage con un dataset precargado (un sprint activo, tareas en distintas columnas, criterios de aceptación interactivos y un release publicado con changelog) sin mostrar pantallas vacías ni errores de red.
+2. **Selector de formato dual interactivo:** Incorporar en la tarjeta o modal de tarea un selector que permita previsualizar en vivo cómo se serializa esa tarea en Markdown (`backlog/tasks/*.md`) frente a JSON unificado (`.gripm/backlog.json`).
+3. **Optimización móvil estricta (Zero-CLS & Touch Targets):** Interfaz completamente adaptada a pantallas móviles (360px a 430px) con áreas táctiles de al menos 44px de altura/anchura y navegación táctil fluida.
+4. **Configuración de hosting SPA:** Configuración limpia de `vercel.json` para soportar rutas SPA sin errores 404 en navegación directa o recarga.
+5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
 
 **Criterios de Aceptación:**
-- [ ] #1 La metodologia por defecto en configuraciones nuevas es kanban con enabledTabs.sprint en false
-- [ ] #2 ItemModal oculta el selector de sprint cuando enabledTabs.sprint es false o methodology es kanban
-- [ ] #3 FilterBar oculta el filtro y dropdown de sprints cuando el modulo de sprints no esta activo
-- [ ] #4 Proyectos con configuracion previa de sprints o scrumban preservan la visibilidad de sprints sin regresion
-- [ ] #5 La suite de verificacion npm test y npx tsc --noEmit pasan con codigo 0
+- [ ] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
+- [ ] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
+- [ ] #3 Interfaz adaptada a pantallas moviles de 360px a 430px con areas tactiles accesibles de al menos 44px
+- [ ] #4 Selector en tarjeta o modal para inspeccionar el formato dual Markdown con frontmatter vs JSON unificado
+- [ ] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
+- [ ] #6 npm test y npm run backlog:check pasan con codigo 0
 
 ---
 
-#### [DEV-219] Onboarding CLI con selección de perfiles y add-ons declarativos en init
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Evolucionar el asistente de inicialización `gripm --init` (`scripts/initScaffold.js`) para ofrecer perfiles de adopción y selección declarativa de add-ons:
-1. **Selección de perfil inicial en CLI:** Ofrecer una primera decisión clara y concisa al usuario:
-   - `[1] Minimalista AI-First (Recomendado)`: Núcleo ultraligero con Kanban puro, sin ceremonias ni timeboxes (`methodology: "kanban"`, `enabledTabs.sprint: false`, solo `backlog/tasks/` y `SKILL.md`).
-   - `[2] Baterías Incluidas`: Suite completa habilitando Sprints/Scrum, Releases y gobernanza de agentes.
-   - `[3] Personalizado`: Permite seleccionar granularmente cada add-on (Sprints, Releases, AGENTS.md, scripts en package.json, etc.).
-2. **Generación explícita de `.gripm/config.json`:** El archivo de configuración resultante debe persistir explícitamente `methodology` y `enabledTabs`, eliminando ambigüedades o fallbacks implícitos en el arranque del servidor.
-3. **Flags no interactivas (`--minimal`, `--full`):** Soporte en CLI para flags de automatización en scripts o CI.
-
-**Criterios de Aceptación:**
-- [ ] #1 scripts/initScaffold.js presenta selector de perfiles de inicializacion (Minimalista AI-First, Baterias Incluidas, Personalizado)
-- [ ] #2 El perfil Minimalista AI-First configura methodology kanban y enabledTabs.sprint false sin crear archivos innecesarios
-- [ ] #3 .gripm/config.json persiste explicitamente methodology y enabledTabs segun la eleccion del usuario
-- [ ] #4 Soporte para flags no interactivas (--minimal, --full) en el comando gripm --init
-- [ ] #5 npm test y npm run backlog:check pasan con codigo 0
-
----
-
-#### [DEV-220] Panel de gestión de módulos y add-ons en configuración web
+#### [DEV-225] Extensión Webview para VS Code y Cursor con sincronización en tiempo real
 - **Prioridad**: `medium` | **Tipo**: `feature`
 
-Diseñar e incorporar en `SettingsView` un panel centralizado de **"Módulos & Add-ons"** para activar o desactivar capacidades en caliente:
-1. **Catálogo visual de add-ons:** Presentar tarjetas con interruptores claros para cada módulo del producto:
-   - 🗂️ **Kanban Core & Backlog:** Siempre activo (núcleo base indispensable).
-   - ⏱️ **Sprints & Timeboxing (Scrum):** Activa/desactiva la pestaña Sprints y sus campos en tareas/filtros.
-   - 🚀 **Release Management & Versioning:** Activa/desactiva la pestaña Releases y el empaquetado formal de versiones.
-   - 🌐 **Multi-Project Hub:** Switcher de proyectos y registro en el hub global.
-2. **Activación instantánea sin recarga:** Al encender o apagar un add-on, la barra superior de navegación y los modales reaccionan de inmediato y persisten el cambio en `.gripm/config.json`.
-3. **Descubribilidad no invasiva:** Si el usuario está en modo minimalista, mostrar en la configuración una vía obvia y simple para expandir capacidades cuando el equipo o el proyecto lo requiera.
+Eliminar la fricción de alternar ventanas hacia el navegador para supervisar el backlog, empaquetando la interfaz React existente de Gripm dentro de una vista de panel lateral (Webview) para VS Code y Cursor:
+1. **Extensión empaquetada:** Crear una extensión ligera que registre una vista lateral (`WebviewViewProvider`) en el contenedor de vistas del explorador o barra de actividad de VS Code / Cursor.
+2. **Consumo de workspace activo:** Cargar la aplicación web de Gripm dentro del Webview alimentándose directamente de los archivos de backlog (`backlog/tasks/*.md` o `.gripm/backlog.json`) del workspace abierto.
+3. **Sincronización bidireccional reactiva:** Detectar eventos de modificación en disco mediante watchers del editor para que los cambios aplicados por el agente (vía MCP) o por el usuario se reflejen inmediatamente en la vista sin necesidad de recargar manualmente.
 
 **Criterios de Aceptación:**
-- [ ] #1 SettingsView incluye seccion dedicada de Modulos y Add-ons con explicacion clara de cada capacidad
-- [ ] #2 Toggles individuales para Sprints, Releases y Multi-Hub con persistencia inmediata en .gripm/config.json
-- [ ] #3 La barra de navegacion principal refleja altas y bajas de pestanas de forma reactiva y sin recargar la pagina
-- [ ] #4 Textos completamente localizados en espanol e ingles en utils/i18n.ts
-- [ ] #5 npm test y npx tsc --noEmit pasan con codigo 0
+- [ ] #1 Extension funcional empaquetada que registra una vista lateral en el explorador del editor
+- [ ] #2 Carga de la aplicacion web de Gripm dentro del Webview consumiendo los archivos locales del workspace abierto
+- [ ] #3 Sincronizacion bidireccional inmediata ante cambios en disco sin recargar manualmente
+- [ ] #4 npm test y npx tsc --noEmit pasan con codigo 0
 
 ---
 
-#### [DEV-221] Inversión de orden en pipeline de publicación y auto-creación de GitHub Release
-- **Prioridad**: `high` | **Tipo**: `feature`
+#### [DEV-226] Aislamiento multi-agente con Git Worktrees y bloqueos atómicos en disco
+- **Prioridad**: `medium` | **Tipo**: `feature`
 
-Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` para garantizar que la publicación a npmjs.com y la creación de la GitHub Release ocurran de forma atómica y estrictamente posterior a la validación completa del código:
-1. **Inversión de fases en el workflow de publicación:** Mover el paso `npm publish` al final del pipeline. La ejecución de la suite completa (`tsc`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build`, `npm run publish:check` y `npm pack --dry-run`) debe preceder obligatoriamente a la publicación. Si cualquier verificación falla, el proceso debe abortar sin mutar el registro de npm.
-2. **Auto-creación de GitHub Release:** Integrar en el workflow la creación automática de la Release oficial en GitHub utilizando el CLI nativo `gh release create` y el token de Actions con permisos `contents: write`. El título y las notas de la versión deben extraerse automáticamente desde `backlog/releases.json` / `CHANGELOG.md` para evitar pasos manuales o scripts externos.
-3. **Sincronización atómica:** Asegurar que el tag de Git, la release documental en GitHub y el paquete publicado en npmjs.com compartan la misma foto verificada y queden sellados en el mismo evento sin duplicar ejecuciones ni dejar artefactos a medio publicar.
+Permitir que múltiples sesiones de agentes (o un agente y el desarrollador) trabajen en paralelo sobre distintas tareas sin pisarse el directorio de trabajo ni generar inconsistencias en los archivos de backlog:
+1. **Comandos de aislamiento en CLI y MCP:** Incorporar comandos para inicializar y aislar una tarea en un nuevo Git Worktree (`gripm worktree create <TASK-ID>`), creando una carpeta aislada en `.gripm/worktrees/<TASK-ID>` y una rama dedicada `feature/<TASK-ID>`.
+2. **Mecanismo de bloqueo atómico (File Locks):** Implementar bloqueos en disco con timeout para prevenir condiciones de carrera cuando dos procesos o agentes intenten mutar tareas o regenerar el backlog simultáneamente.
+3. **Reintegración y limpieza:** Comando `gripm worktree finish <TASK-ID>` para sincronizar el estado, reintegrar la rama y limpiar el worktree temporal asegurando que la tarea quede en estado `ready`.
 
 **Criterios de Aceptación:**
-- [ ] #1 En publish.yml, la piramide completa de pruebas y verificacion se ejecuta antes del paso de publicacion en npm
-- [ ] #2 Si cualquier paso de verificacion o build falla, el job se detiene sin publicar en npm ni crear la GitHub Release
-- [ ] #3 Tras publicar exitosamente en npmjs.com, publish.yml crea la GitHub Release oficial extrayendo titulo y notas desde backlog/releases.json
-- [ ] #4 El workflow maneja idempotencia evitando fallas si la version o la release ya existian en el repositorio
-- [ ] #5 La suite de pruebas y scripts de integridad local pasan con codigo 0
+- [ ] #1 Comando CLI gripm worktree create <TASK-ID> para inicializar y aislar una tarea en un nuevo worktree
+- [ ] #2 Mecanismo de bloqueo (file lock) en disco que previene condiciones de carrera en mutaciones simultaneas
+- [ ] #3 Comando para sincronizar y reintegrar la rama del worktree una vez finalizada la tarea
+- [ ] #4 npm test y npx tsc --noEmit pasan con codigo 0
 
 ---
 
-### ✅ Done / Deployed (194)
+#### [DEV-228] Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Extender el sistema de importación para admitir la ingesta de backlogs exportados desde Jira y Linear (archivos CSV y JSON), transformándolos en tareas locales de gripm:
+1. **Adopción con cero fricción:** Eliminar la barrera de entrada para equipos existentes que ya tienen tareas en Jira o Linear, permitiendo importar proyectos enteros con un clic o comando sin tipear nada a mano.
+2. **Soberanía y privacidad de datos:** El procesamiento de los archivos de exportación se ejecuta 100% en local (en el cliente web y/o CLI). Cero llamadas a APIs de terceros, cero tokens y cero filtración de roadmap a la nube.
+3. **Mapeo canónico inteligente:** Normalizar estados, títulos, descripciones y prioridades de Jira/Linear al formato estándar de gripm (`backlog/tasks/*.md` o `.gripm/backlog.json`), extrayendo criterios de aceptación y etiquetas automáticamente.
+
+**Criterios de Aceptación:**
+- [ ] #1 Soporte para parsear exports de Jira en formato JSON y CSV mapeando estados, prioridades y descripciones
+- [ ] #2 Soporte para parsear exports de Linear en formato CSV y JSON preservando titulos, notas y estimaciones
+- [ ] #3 ImportWizardModal permite soltar o seleccionar archivos de export con previsualizacion y conteo de tareas antes de confirmar
+- [ ] #4 Comando CLI gripm import --file <path> para importar directamente desde la terminal
+- [ ] #5 Cero dependencias de red o llamadas remotas; conversion puramente local
+- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-229] Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab)
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics` / `analytics`) en la barra de navegación, integrable con el catálogo de add-ons (DEV-220):
+1. **Métricas de flujo continuo (Lean):** Brindar visibilidad del ritmo y cadencia de entrega (throughput semanal de tareas cerradas, cycle time promedio) sin caer en estimaciones burocráticas de horas quemadas.
+2. **Salud y completitud de Criterios de Aceptación:** Panel visual con gráficos locales (vía Recharts) que muestra el ratio de criterios de aceptación verificados (`- [x]`) versus pendientes por release o sprint.
+3. **Desacoplado y configurable:** Módulo opcional gobernable vía `enabledTabs.metrics` en `.gripm/config.json`. Quien prefiera la experiencia minimalista puede mantenerlo desactivado.
+4. **Cálculo reactivo local-first:** Las métricas se calculan en tiempo real leyendo los propios archivos del proyecto en memoria, sin telemetría externa ni servicios analíticos de terceros.
+
+**Criterios de Aceptación:**
+- [ ] #1 Pestaña opcional de metricas en la barra de navegacion gobernable via enabledTabs.metrics en .gripm/config.json
+- [ ] #2 Graficos de throughput y distribucion por tipo y estado usando Recharts en ejecucion local
+- [ ] #3 Panel de salud de criterios de aceptacion que resume avance de verificacion por release y sprint
+- [ ] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
+- [ ] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
+- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+### ✅ Done / Deployed (204)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -3259,6 +3239,58 @@ hoy, y la diferencia no queda registrada en el historial.
 
 ---
 
+#### [DEV-134] El Serializador No Canonicaliza el Estado en el Frontmatter: Done/Done vs done/done Acumulados
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+El frontmatter de las tareas escribe el estado **tal como viene**, sin
+canonicalizarlo. Como el read path sí normaliza (`normalizeStatus` mapea `Done` a
+`done`, `Draft` a `draft`), el sistema funciona, pero el dato persistido queda
+inconsistente para siempre.
+
+**Estado real de los 132 archivos de `backlog/tasks/`:**
+
+| Valor escrito | Cantidad |
+|---|---|
+| `Done` (mayúscula) | 93 |
+| `Draft` (mayúscula) | 3 |
+| `done` (minúscula) | 12 |
+| `draft` (minúscula) | 10 |
+| `ready` | 8 |
+| `review` | 6 |
+
+Es decir, **96 de 132 tareas (73%) tienen el estado con mayúscula inicial**, y
+esas 96 son exactamente las más antiguas: el proyecto empezó escribiéndose a mano
+con `Done` y `Draft`, y desde que `normalizeStatus` existe el write path no
+corrige lo que ya quedó.
+
+**Por qué no rompe nada**: `normalizeStatus` se aplica al leer, así que la UI y
+el MCP ven `done` correctamente. El costo es de higiene del dato versionado, y
+crece: cada guardado reescribe el archivo con el valor que venga, de modo que la
+divergencia se congela en vez de resolverse.
+
+**Mismo patrón que DEV-127, otra dimensión**: DEV-127 eliminó que el serializador
+fabricara contenido que el usuario nunca escribió. Acá no fabrica, pero tampoco
+**normaliza**: escribe un valor no canónico. En ambos casos el write path debería
+garantizar que lo que llega al disco es la forma canónica del modelo.
+
+**Consecuencia práctica más grave que la estética**: cualquier herramienta que lea
+el frontmatter de forma directa sin pasar por el parser ve dos valores distintos
+para el mismo estado. Un `grep '^status: done'` sobre los archivos devuelve 12
+resultados de 105 tareas completadas.
+
+**Criterios de Aceptación:**
+- [x] #1 `serializeBacklogMd` escribe el estado usando la forma canónica en minúscula, independientemente de cómo llegue en el objeto de entrada
+- [x] #2 Verificar con un round-trip que una tarea creada con `status: "Done"` se persiste como `status: "done"` y se relee como `done`
+- [x] #3 Se agrega un test de regresión en `scripts/test-parser.js` que cubra las variantes con mayúscula inicial (`Done`, `Draft`, `In Progress`, `Ready`, `Testing`, `Review`)
+- [x] #4 Se normalizan los 96 archivos existentes que tienen el estado con mayúscula, sin alterar su contenido más allá del campo `status`
+- [x] #5 La normalización preserva cualquier otro campo del frontmatter, incluidos los no canónicos (`labels`, `assignees`) y los nombres de sección
+- [x] #6 Se documenta en el plan el criterio: en el write path, todo campo del modelo que tenga forma canónica se escribe en forma canónica, nunca "tal como vino"
+- [x] #7 `npx tsc --noEmit` finishes con código 0
+- [x] #8 `npm test` finishes con código 0
+- [x] #9 `npm run backlog:check` finishes con código 0
+
+---
+
 #### [DEV-135] El Motor de Importación está Hardcodeado a un Proyecto Privado: Genericizar import-docs.js
 - **Prioridad**: `high` | **Tipo**: `bug`
 
@@ -4896,6 +4928,173 @@ Resolver las fallas en GitHub Actions tras la publicación de v1.0.5:
 - [x] #3 Subsanar las 11 observaciones de UX y micro-tipografia en ItemCard.tsx, ItemModal.tsx y SettingsView.tsx
 - [x] #4 Actualizar audit-ux-baseline.json con rutas POSIX normalizadas preservando los 12 casos residuales de UX-010
 - [x] #5 La suite de pruebas npm test, npm run test:ui y npm run backlog:check pasa con codigo 0
+
+---
+
+#### [DEV-218] Desacople de Sprints y defaults minimalistas para Gripm Core
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Establecer Gripm Core como un producto minimalista por defecto, desacoplando Sprints y Scrum de la configuración inicial del tablero:
+1. **Defaults canónicos orientados a flujo continuo:** En `src/types.ts` y en la resolución de configuración, la metodología por defecto pasa a ser `kanban` en lugar de `scrumban`, con la pestaña de Sprints deshabilitada por defecto (`enabledTabs: { kanban: true, sprint: false, release: true }`).
+2. **Ocultamiento condicional en UI (Zero-Leakage):** Cuando el módulo de Sprints esté inactivo (`enabledTabs.sprint === false` o metodología `kanban`), la interfaz debe ocultar limpiamente los selectores y metadatos de Sprint en `ItemModal`, `FilterBar` y tarjetas, sin dejar huecos ni campos mudos.
+3. **Preservación total de retrocompatibilidad:** Los proyectos que ya tengan configurado `sprint: true` o metodología `scrum`/`scrumban` continúan viendo y usando Sprints sin alteración ni pérdida de datos.
+
+**Criterios de Aceptación:**
+- [x] #1 La metodologia por defecto en configuraciones nuevas es kanban con enabledTabs.sprint en false
+- [x] #2 ItemModal oculta el selector de sprint cuando enabledTabs.sprint es false o methodology es kanban
+- [x] #3 FilterBar oculta el filtro y dropdown de sprints cuando el modulo de sprints no esta activo
+- [x] #4 Proyectos con configuracion previa de sprints o scrumban preservan la visibilidad de sprints sin regresion
+- [x] #5 La suite de verificacion npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-219] Onboarding CLI con selección de perfiles y add-ons declarativos en init
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Evolucionar el asistente de inicialización `gripm --init` (`scripts/initScaffold.js`) para ofrecer perfiles de adopción y selección declarativa de add-ons:
+1. **Selección de perfil inicial en CLI:** Ofrecer una primera decisión clara y concisa al usuario:
+   - `[1] Minimalista AI-First (Recomendado)`: Núcleo ultraligero con Kanban puro, sin ceremonias ni timeboxes (`methodology: "kanban"`, `enabledTabs.sprint: false`, solo `backlog/tasks/` y `SKILL.md`).
+   - `[2] Baterías Incluidas`: Suite completa habilitando Sprints/Scrum, Releases y gobernanza de agentes.
+   - `[3] Personalizado`: Permite seleccionar granularmente cada add-on (Sprints, Releases, AGENTS.md, scripts en package.json, etc.).
+2. **Generación explícita de `.gripm/config.json`:** El archivo de configuración resultante debe persistir explícitamente `methodology` y `enabledTabs`, eliminando ambigüedades o fallbacks implícitos en el arranque del servidor.
+3. **Flags no interactivas (`--minimal`, `--full`):** Soporte en CLI para flags de automatización en scripts o CI.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/initScaffold.js presenta selector de perfiles de inicializacion (Minimalista AI-First, Baterias Incluidas, Personalizado)
+- [x] #2 El perfil Minimalista AI-First configura methodology kanban y enabledTabs.sprint false sin crear archivos innecesarios
+- [x] #3 .gripm/config.json persiste explicitamente methodology y enabledTabs segun la eleccion del usuario
+- [x] #4 Soporte para flags no interactivas (--minimal, --full) en el comando gripm --init
+- [x] #5 npm test y npm run backlog:check pasan con codigo 0
+
+---
+
+#### [DEV-220] Panel de gestión de módulos y add-ons en configuración web
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Diseñar e incorporar en `SettingsView` un panel centralizado de **"Módulos & Add-ons"** para activar o desactivar capacidades en caliente:
+1. **Catálogo visual de add-ons:** Presentar tarjetas con interruptores claros para cada módulo del producto:
+   - 🗂️ **Kanban Core & Backlog:** Siempre activo (núcleo base indispensable).
+   - ⏱️ **Sprints & Timeboxing (Scrum):** Activa/desactiva la pestaña Sprints y sus campos en tareas/filtros.
+   - 🚀 **Release Management & Versioning:** Activa/desactiva la pestaña Releases y el empaquetado formal de versiones.
+   - 🌐 **Multi-Project Hub:** Switcher de proyectos y registro en el hub global.
+2. **Activación instantánea sin recarga:** Al encender o apagar un add-on, la barra superior de navegación y los modales reaccionan de inmediato y persisten el cambio en `.gripm/config.json`.
+3. **Descubribilidad no invasiva:** Si el usuario está en modo minimalista, mostrar en la configuración una vía obvia y simple para expandir capacidades cuando el equipo o el proyecto lo requiera.
+
+**Criterios de Aceptación:**
+- [x] #1 SettingsView incluye seccion dedicada de Modulos y Add-ons con explicacion clara de cada capacidad
+- [x] #2 Toggles individuales para Sprints, Releases y Multi-Hub con persistencia inmediata en .gripm/config.json
+- [x] #3 La barra de navegacion principal refleja altas y bajas de pestanas de forma reactiva y sin recargar la pagina
+- [x] #4 Textos completamente localizados en espanol e ingles en utils/i18n.ts
+- [x] #5 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-221] Inversión de orden en pipeline de publicación y auto-creación de GitHub Release
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` para garantizar que la publicación a npmjs.com y la creación de la GitHub Release ocurran de forma atómica y estrictamente posterior a la validación completa del código:
+1. **Inversión de fases en el workflow de publicación:** Mover el paso `npm publish` al final del pipeline. La ejecución de la suite completa (`tsc`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build`, `npm run publish:check` y `npm pack --dry-run`) debe preceder obligatoriamente a la publicación. Si cualquier verificación falla, el proceso debe abortar sin mutar el registro de npm.
+2. **Auto-creación de GitHub Release:** Integrar en el workflow la creación automática de la Release oficial en GitHub utilizando el CLI nativo `gh release create` y el token de Actions con permisos `contents: write`. El título y las notas de la versión deben extraerse automáticamente desde `backlog/releases.json` / `CHANGELOG.md` para evitar pasos manuales o scripts externos.
+3. **Sincronización atómica:** Asegurar que el tag de Git, la release documental en GitHub y el paquete publicado en npmjs.com compartan la misma foto verificada y queden sellados en el mismo evento sin duplicar ejecuciones ni dejar artefactos a medio publicar.
+
+**Criterios de Aceptación:**
+- [x] #1 En publish.yml, la piramide completa de pruebas y verificacion se ejecuta antes del paso de publicacion en npm
+- [x] #2 Si cualquier paso de verificacion o build falla, el job se detiene sin publicar en npm ni crear la GitHub Release
+- [x] #3 Tras publicar exitosamente en npmjs.com, publish.yml crea la GitHub Release oficial extrayendo titulo y notas desde backlog/releases.json
+- [x] #4 El workflow maneja idempotencia evitando fallas si la version o la release ya existian en el repositorio
+- [x] #5 La suite de pruebas y scripts de integridad local pasan con codigo 0
+
+---
+
+#### [DEV-223] Compatibilidad amplia de runtime Node 20 LTS y evaluación de distribución binaria
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Reducir la fricción de adopción eliminando el bloqueo estricto a Node.js 22.6+ y ampliando el soporte a la versión LTS activa:
+1. **Compatibilidad con Node.js 20.x LTS:** Permitir que el CLI (`gripm`) y el servidor MCP (`gripm-mcp`) ejecuten normalmente en Node.js 20.x sin advertencias de incompatibilidad de motor en `package.json`.
+2. **Auditoría de APIs dependientes de v22:** Identificar y reemplazar cualquier API exclusiva de Node 22.6+ por alternativas estándar compatibles con v20 (o polyfills equivalentes).
+3. **Distribución binaria independiente:** Diseñar y documentar una prueba de concepto para empaquetar binarios ejecutables standalone para macOS (arm64/x64) y Linux mediante Bun o herramientas nativas (ej. Node Single Executable Application / pkg), facilitando la distribución en gestores de paquetes como Homebrew sin requerir gestores de versiones de Node.
+
+**Criterios de Aceptación:**
+- [x] #1 El CLI y el servidor MCP ejecutan normalmente en Node.js 20.x LTS sin advertencias de engine en package.json
+- [x] #2 Auditoria y reemplazo de cualquier API de Node exclusiva de v22.6+ por alternativas compatibles con v20
+- [x] #3 Prueba de concepto documentada para empaquetar binarios ejecutables independientes para macOS y Linux
+- [x] #4 La suite de verificacion npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-224] Execution Gatekeeper en el servidor MCP para verificación objetiva de tareas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Transformar el servidor MCP de Gripm de un gestor de datos pasivo a un sistema activo de supervisión y arbitraje de calidad para agentes de IA:
+1. **Compuerta estricta de Criterios de Aceptación:** Cuando un LLM intente avanzar el estado de una tarea a `ready` (entrega formal de desarrollo) o `done`, la herramienta `gripm_update_task` debe validar que el 100% de los criterios de aceptación estén tildados (`- [x]`), rechazando la mutación en caso contrario.
+2. **Ejecución de comandos de verificación asociados:** Soporte opcional para asociar comandos de validación en la tarea (por ejemplo, `verifyCommand: npm test` en frontmatter), ejecutándolos en un subproceso antes de aceptar el cambio de estado.
+3. **Mensajes de error determinísticos:** En caso de rechazo, el servidor MCP debe retornar una respuesta clara y estructurada que detalle exactamente qué criterio o test falló y qué acción correctiva debe ejecutar el agente antes de reintentar.
+
+**Criterios de Aceptación:**
+- [x] #1 gripm_update_task rechaza la transicion a ready o done si existen criterios de aceptacion pendientes de marcar
+- [x] #2 Soporte para asociar comandos de verificacion ejecutables en la tarea antes de aceptar la certificacion
+- [x] #3 Mensajes de error deterministicos en la respuesta MCP que explican con claridad al agente la falla y como resolverla
+- [x] #4 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-227] Actualización integral de documentación multilingüe README en y es post-evolución
+- **Prioridad**: `low` | **Tipo**: `task`
+
+Actualizar de forma exhaustiva, simétrica y coherente la documentación del repositorio en inglés (`README.md`) y español (`README.es.md`) una vez culminado el plan de evolución:
+1. **Documentación del Sandbox en Vercel:** Incluir enlace destacado a la demo web interactiva y explicar su funcionamiento como entorno sandbox de demostración sin daemon.
+2. **Nuevos perfiles del asistente CLI:** Documentar los perfiles de inicialización de `gripm --init` (Minimalista AI-First vs Baterías Incluidas) y sus flags no interactivas (`--minimal`, `--full`).
+3. **Guía de integración del Gatekeeper MCP:** Explicar el funcionamiento de la compuerta de calidad de `gripm-mcp` para agentes de IA y la configuración de comandos de verificación.
+4. **Instrucciones de la extensión Webview:** Documentar la instalación y uso del panel lateral en VS Code y Cursor.
+5. **Flujo de Worktrees concurrentes:** Añadir guía de comandos para aislamiento multi-sesión con Git Worktrees.
+
+**Criterios de Aceptación:**
+- [x] #1 README.md actualizado con las nuevas capacidades y el enlace al Sandbox de Vercel
+- [x] #2 README.es.md actualizado en perfecta sincronia y simetria con README.md
+- [x] #3 Documentacion de perfiles CLI, Gatekeeper MCP, extension Webview y Git Worktrees
+- [x] #4 npm run backlog:check pasa con codigo 0
+
+---
+
+#### [DEV-231] Unificación del modelo de estados y taxonomía del Delivery Flow (draft a done)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Reconciliar y armonizar el modelo de estados del proyecto y el playbook (`STATE_MACHINE.md`, `AGENTS.md`, `TEAM_PLAYBOOK.md` y `gripm` core), erradicando ambigüedades y errores no forzados en los extremos del flujo:
+1. **Entrada al flujo (Backlog no es estado, las tareas nacen en draft):** Establecer formalmente que el "Backlog" es el contenedor / dimensión de planificación (el inventario de trabajo no iniciado), NO un valor de estado. Los ítems del Backlog nacen de forma legítima con el estado `draft` (o `ideas` para descubrimiento). Erradicar la noción confusa de "ítems sin estado".
+2. **Salida del desarrollo (ready es la meta de dev, done es exclusivo del release):** Clarificar que `ready` es la entrega formal de desarrollo (código implementado, probado y certificado). Marcar `done` antes del deploy/release es una mentira de estado que rompe el Release Assembler de Gripm. El paso a `done` lo realiza el empaquetado de release.
+3. **Flujo de vida completo y unificado:**
+   - **Discovery / Pool:** `ideas`
+   - **Backlog (definida / en especificación):** `draft`
+   - **Flujo activo de desarrollo:** `doing` ➔ `review` ➔ `ready` (línea final del dev/agente)
+   - **Producción / Despliegue:** `done` (asignado al sellar/desplegar el release)
+   - **Salidas fuera de flujo:** `dismissed`, `cancelled`
+4. **Sincronización documental bidireccional:** Actualizar `STATE_MACHINE.md` en gripm-playbook y las referencias en `AGENTS.md` de ambos repositorios para que reflejen esta taxonomía clara, unívoca y sin fricciones.
+
+**Criterios de Aceptación:**
+- [x] #1 STATE_MACHINE.md en gripm-playbook reconoce explicitamente a draft como el estado formal del backlog e ideas como discovery
+- [x] #2 Se erradica la regla ambigua de "items sin estado" preservando status: draft como valor canonico al crear tareas
+- [x] #3 Documentacion explicita que fija a ready como la meta terminal del desarrollador/agente y a done como evento de release/deploy
+- [x] #4 AGENTS.md en gripm y gripm-playbook reflejan con precision el flujo completo sin ambiguedades
+- [x] #5 Coherencia 100% entre src/types.ts, src/utils/statusMeta.ts, ReleaseAssembler y las reglas de gobernanza
+- [x] #6 npm run backlog:check y npm test pasan con codigo 0
+
+---
+
+#### [DEV-232] Política pragmática de commits y gobernanza de Git respaldada por hooks pre-commit
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Evolucionar la gobernanza de Git en el Playbook y en Gripm hacia un modelo pragmático, libre de burocracia innecesaria y respaldado por la garantía mecánica de los hooks pre-commit:
+1. **El hook pre-commit como guardián de calidad:** Reconocer que la integridad del repositorio está asegurada por el hook `verify-backlog-sync.js` y la Pirámide de Verificación (tipos, tests, sincronización). Ningún commit roto puede ingresar al historial.
+2. **Cadencia limpia de commits (1 tarea = 1 commit consolidado):** Evitar la proliferación de micro-commits desordenados durante la fase exploratoria. La norma canónica es un commit atómico y limpio por tarea completada y certificada, incluyendo el archivo `.md` de la tarea y el código asociado.
+3. **Erradicación de bloqueos burocráticos:** Descartar contraseñas, tokens o mecanismos que entorpezcan el flujo de trabajo tanto del desarrollador humano como del agente.
+4. **Claridad en la soberanía de commits:** Definir pautas claras en `AGENTS.md` y `git-workflow.md` sobre cuándo el agente debe preparar el commit o solicitar confirmación según el modo operativo (autónomo vs asistido), manteniendo siempre mensajes convencionales estandarizados (`feat(DEV-XXX): ...`, `fix(DEV-XXX): ...`).
+
+**Criterios de Aceptación:**
+- [x] #1 Actualizacion de la politica de commits en AGENTS.md y git-workflow.md enfatizando la cadencia de 1 commit consolidado por tarea
+- [x] #2 Reafirmacion de los hooks pre-commit como unica salvaguarda mecanica indispensable sin burocracia adicional
+- [x] #3 Formato canonico de mensaje de commit estandarizado vinculado de forma univoca al ID de la tarea DEV-XXX
+- [x] #4 Guia clara para agentes sobre cuando preparar cambios y como interactuar con el arbol de trabajo
+- [x] #5 npm run backlog:check y npm test pasan con codigo 0
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: DEV-037
 title: "Reasignación Dinámica y Visual de Estados a Columnas Kanban (Modo Simple y Ampliado)"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

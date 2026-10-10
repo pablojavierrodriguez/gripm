@@ -1,7 +1,7 @@
 ---
 id: DEV-078
 title: "Separación estricta de Sprint y Estado en columnas filtros y datos"
-status: Done
+status: done
 created_date: '2026-09-23'
 updated_date: '2026-09-24 12:14'
 labels: []

@@ -1,7 +1,7 @@
 ---
 id: DEV-053
 title: "Configuración Visual de Tablero por Drag & Drop en Settings (Arrastre de Estados entre Columnas)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-23 13:39'
 labels:

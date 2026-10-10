@@ -1,7 +1,7 @@
 ---
 id: DEV-045
 title: "Estabilidad Visual del Botón de Ideas (Cero CLS) y Estado Destino por Defecto a 'Ready' en Vista Simplificada"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 06:36'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-050
 title: "Reordenamiento Drag & Drop en Backlog / Sprint y Priorización con Setting de Ranking Manual Condicional"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 06:36'
 labels:

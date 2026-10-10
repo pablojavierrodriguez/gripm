@@ -1,7 +1,7 @@
 ---
 id: DEV-005
 title: "Release v1.1.0 y changelog automatizado"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

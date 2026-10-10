@@ -1,7 +1,7 @@
 ---
 id: DEV-034
 title: "Reubicación del Selector de Columnas (Simple/Ampliada) al Contenedor del Tablero Kanban"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-015
 title: "Distribución Zero-Install vía CLI (npx dev-board)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-19 04:25'
 labels: []

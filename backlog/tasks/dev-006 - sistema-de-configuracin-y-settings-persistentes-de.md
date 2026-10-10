@@ -1,7 +1,7 @@
 ---
 id: DEV-006
 title: "Sistema de Configuración y Settings Persistentes (.devboard/config.json y UI)"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-18 06:36'
 labels:

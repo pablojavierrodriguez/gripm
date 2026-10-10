@@ -1,7 +1,7 @@
 ---
 id: DEV-047
 title: "Soporte Jerárquico de Alcance Mayor: Épicas e Iniciativas con Agrupación y Progreso Consolidado"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-23 13:39'
 labels:

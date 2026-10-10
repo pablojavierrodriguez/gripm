@@ -1,7 +1,7 @@
 ---
 id: DEV-008
 title: "Simplificación de Vista Kanban: Columna Ideas Opcional y Oculta por Defecto"
-status: Done
+status: done
 created_date: '2026-09-16'
 updated_date: '2026-09-18 06:36'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-038
 title: "Soporte de Metodología de Proyecto (Kanban vs Scrum) en Settings para Liberar la Interfaz"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

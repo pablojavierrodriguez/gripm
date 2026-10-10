@@ -1,7 +1,7 @@
 ---
 id: DEV-004
 title: "Servidor MCP y Skills para Agentes de IA"
-status: Done
+status: done
 assignee:
   - "Antigravity"
 created_date: '2026-09-16'

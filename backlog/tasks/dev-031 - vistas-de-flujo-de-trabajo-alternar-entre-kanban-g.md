@@ -1,7 +1,7 @@
 ---
 id: DEV-031
 title: "Vistas de Flujo de Trabajo: Alternar entre Kanban Global y Sprint/Release Board Acotado"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:

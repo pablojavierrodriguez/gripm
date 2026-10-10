@@ -72,6 +72,8 @@ function printMainHelp() {
 
   Opciones de Inicialización y Gestión:
     --init                         Configura Gripm Board en el proyecto actual
+    --minimal                      Inicialización ultraligera AI-First (Kanban puro, sin ceremonias)
+    --full                         Inicialización con baterías incluidas (Scrum, Sprints, gobernanza)
     --language, --lang <es|en>     Idioma del proyecto para scaffolding y plantillas (por defecto: es)
     --yes, -y                      Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
     --uninstall, --clean           Desacoplar gripm de este repositorio (nunca borra backlog/)
@@ -242,16 +244,21 @@ async function main() {
   process.env.GRIPM_TARGET_REPO = targetRepo;
   process.env.GRIPM_HOST = host;
 
-  // DEV-042 & DEV-109: Handle --init flag to bootstrap .gripm/, backlog/, skills, AGENTS.md, gitignore
+  // DEV-042 & DEV-109 & DEV-219: Handle --init flag to bootstrap .gripm/, backlog/, skills, AGENTS.md, gitignore
   if (args.includes('--init')) {
     const isYes = args.includes('--yes') || args.includes('-y') || args.includes('--defaults');
     const isHubInit = args.includes('--hub') || args.includes('--multi');
     const isSingleInit = args.includes('--single');
     const langIdx = args.findIndex(a => a === '--language' || a === '--lang');
     const cliLang = langIdx !== -1 && args[langIdx + 1] ? args[langIdx + 1].toLowerCase() : undefined;
+    const isMinimal = args.includes('--minimal');
+    const isFull = args.includes('--full');
     
     await runInitWizard(targetRepo, {
       yes: isYes,
+      minimal: isMinimal,
+      full: isFull,
+      profile: isMinimal ? 'minimal' : (isFull ? 'full' : undefined),
       mode: isHubInit ? 'multi' : (isSingleInit ? 'single' : undefined),
       language: cliLang,
       skill: args.includes('--no-skill') ? false : (args.includes('--skill') ? true : undefined),

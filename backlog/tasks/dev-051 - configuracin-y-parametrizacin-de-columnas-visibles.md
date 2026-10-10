@@ -1,7 +1,7 @@
 ---
 id: DEV-051
 title: "Configuración y Parametrización de Columnas Visibles en la Vista de Backlog"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-23 13:39'
 labels:

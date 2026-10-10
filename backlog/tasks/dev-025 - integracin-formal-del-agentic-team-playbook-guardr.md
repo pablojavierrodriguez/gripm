@@ -1,7 +1,7 @@
 ---
 id: DEV-025
 title: "Integración Formal del Agentic Team Playbook, Guardrails de IA y Guía de Distribución"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-19 04:25'
 labels:

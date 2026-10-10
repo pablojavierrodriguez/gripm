@@ -1,7 +1,7 @@
 ---
 id: DEV-054
 title: "Rediseño Ergonómico y Expansión del Modal de Crear y Editar Card (Layout de 2 Columnas)"
-status: Done
+status: done
 created_date: '2026-09-18'
 updated_date: '2026-09-18 14:57'
 labels:

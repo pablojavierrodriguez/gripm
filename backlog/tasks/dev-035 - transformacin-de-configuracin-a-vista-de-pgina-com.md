@@ -1,7 +1,7 @@
 ---
 id: DEV-035
 title: "Transformación de Configuración a Vista de Página Completa (SettingsView)"
-status: Done
+status: done
 created_date: '2026-09-17'
 updated_date: '2026-09-18 06:36'
 labels:
