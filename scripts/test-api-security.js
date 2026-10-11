@@ -1,7 +1,9 @@
 import assert from 'node:assert';
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 console.log('🛡️  [Security Test] Verificando mitigaciones de CSRF, DNS Rebinding y Contención en API Middleware REAL...');
 
@@ -209,6 +211,22 @@ class MockRequest extends EventEmitter {
   assert.strictEqual(payload.ok, true, 'payload.ok debe ser true');
   assert.strictEqual(Array.isArray(payload.folders), true, 'folders debe ser un array');
   console.log('✅ FS Containment: Directorio autorizado devuelve 200 OK');
+}
+
+// Test 12: Client API Invariant (DEV-237): All mutating POST/PUT fetch calls in src/api.ts must declare Content-Type: application/json
+{
+  const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const apiSource = fs.readFileSync(path.join(ROOT, 'src', 'api.ts'), 'utf8');
+  const postPutBlocks = apiSource.match(/fetch\([^)]*\{\s*method:\s*['"](?:POST|PUT)['"][\s\S]*?\}\);/g) || [];
+  assert(postPutBlocks.length > 0, 'Debe haber llamadas fetch mutantes en src/api.ts');
+
+  for (const block of postPutBlocks) {
+    assert(
+      block.includes("'Content-Type': 'application/json'") || block.includes('"Content-Type": "application/json"'),
+      `Llamada mutante en src/api.ts debe declarar Content-Type: application/json para evitar rechazo 415 (DEV-237):\n${block}`,
+    );
+  }
+  console.log(`✅ Client API Invariant (DEV-237): ${postPutBlocks.length} llamadas POST/PUT en src/api.ts incluyen Content-Type: application/json`);
 }
 
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');

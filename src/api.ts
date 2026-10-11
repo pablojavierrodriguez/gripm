@@ -185,6 +185,8 @@ export async function triggerResync(projectId?: string): Promise<{
 export async function convertProjectToMd(projectId: string): Promise<{ ok: boolean; message: string; convertedCount: number }> {
   const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/convert-to-md`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -196,6 +198,8 @@ export async function convertProjectToMd(projectId: string): Promise<{ ok: boole
 export async function convertProjectToJson(projectId: string): Promise<{ ok: boolean; message: string; savedPath: string }> {
   const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/convert-to-json`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -225,6 +229,8 @@ export async function exportMonolithicMd(projectId: string, save = false): Promi
 export async function restoreDemoProject(): Promise<{ ok: boolean; projects: Project[] }> {
   const res = await fetch(`${API_BASE}/projects/restore-demo`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));

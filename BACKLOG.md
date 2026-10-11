@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🚀 Ready for Deploy (4)
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -140,6 +140,94 @@ Resolución de defectos funcionales P0, crashes en tiempo de ejecución al abrir
 - [x] #6 Aplicar variables de `env(safe-area)` en navegación inferior móvil, encabezado superior y toasts (`grep -c 'env(safe-area' src/` >= 3) (BUG-17)
 - [x] #7 Actualizar `scripts/verify-focus-trap.js` para certificar mecánicamente que `hookIndex < closedGuardIndex` en todos los 8 diálogos de la aplicación (GATE-09)
 - [x] #8 Pirámide de verificación pasa en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
+
+---
+
+#### [DEV-235] Fase 1: Integridad del Quality Gate y Verificación Multiplataforma
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Implementación de la Fase 1 del plan de remediación de la auditoría técnica integral (DEV-233):
+Restaurar la integridad, reproducibilidad y carácter multiplataforma del Quality Gate en CI y local.
+
+### Problemas abordados
+
+1. **GATE-03 / GATE-04:** En Windows, las observaciones del baseline de UX fallaban la coincidencia debido al uso de backslashes (`\`) en `path.relative()`, provocando que el verificador omitiera silenciosamente las aserciones de delta con un aviso. Se incorpora `toPosixPath()` en `audit-ux-code.cjs` y se remueve el bypass en `verify-audit-ux-baseline.js`.
+2. **GATE-05:** Erradicación de tres bloques `catch {}` mudos en `verify-backlog-sync.js` (reglas de documentación, integridad de `releases.json` e integridad de `sprints.json`), asegurando que cualquier fallo o corrupción de datos reporte error y bloquee el commit.
+3. **GATE-06 / GATE-17:** En `mcp-server.ts`, registro explícito de fallos en mutaciones en lote (`bulk_update`) en lugar de responder falsos `ok: true`, y unificación del estado objetivo de completitud a `status: ready` canónico en lugar de `Done` en mayúscula.
+4. **GATE-10:** Inclusión del flag `--ignore-scripts` al invocar `npm pack` en `verify-publish-surface.js`, impidiendo la mutación de `core.hooksPath` en `.git/config` durante la auditoría de empaquetado.
+5. **GATE-11:** Envolvimiento de creación de fixtures temporales en bloques `try / finally` y suscripción a eventos de salida del proceso (`process.on('exit')`, `SIGINT`) en `verify-mcp-binary.js` y `verify-resilience-and-cli.js`.
+6. **GATE-14 / GATE-15:** Validación estricta y numérica de argumentos `--timeout` y variable `GRIPM_WATCHDOG_MS` para impedir ejecuciones instantáneas con `NaN` o `0ms`, y soporte de control de corte con `--bail` / `--no-bail`.
+7. **GATE-01 / GATE-16:** Integración de `verify-changes.js --all` en CI (`.github/workflows/ci.yml`) y extensión del presupuesto de tiempo de ejecución de jobs de 25m a 35m.
+
+**Criterios de Aceptación:**
+- [x] #1 Normalizar rutas con `toPosixPath` en `audit-ux-code.cjs` y remover el bypass de Windows en `verify-audit-ux-baseline.js` (GATE-03, GATE-04)
+- [x] #2 Reemplazar catches silenciosos por logging y conteo de errores en `verify-backlog-sync.js` (GATE-05)
+- [x] #3 Manejar fallos de escritura en `bulk_update` y unificar transición automática a `status: ready` en `mcp-server.ts` (GATE-06, GATE-17)
+- [x] #4 Preservar el contrato de solo lectura en `verify-publish-surface.js` pasando `--ignore-scripts` a `npm pack` (GATE-10)
+- [x] #5 Garantizar limpieza de archivos de prueba temporales (`DEV-998`, `DEV-999`) con `try/finally` y hooks de proceso (GATE-11)
+- [x] #6 Validar argumentos `--timeout` numéricos y fallback seguro de `GRIPM_WATCHDOG_MS` (GATE-14, GATE-15)
+- [x] #7 Integrar `verify-changes.js --all` y ampliar timeout a 35m en `.github/workflows/ci.yml` (GATE-01, GATE-16)
+- [x] #8 Pirámide de verificación en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
+
+---
+
+#### [DEV-236] Selector de Proyectos Queda por Detrás de la Barra de Filtros por Conflicto de Stacking Context
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al abrir el selector desplegable de proyectos en el encabezado (`Header.tsx`), la parte superior del menú quedaba visualmente oculta **por detrás de la barra de búsqueda y filtros** (`FilterBar.tsx`), mostrando únicamente la sección inferior sobre las columnas de Kanban.
+
+### Causa Raíz
+
+Conflicto de niveles de apilamiento (*stacking context tie*):
+- Tanto `<header>` (`Header.tsx:122`) como el contenedor de `<FilterBar>` (`FilterBar.tsx:162`) declaraban la misma clase de z-index: `z-30`.
+- Ambos elementos establecen contextos de apilamiento posicionados (`sticky` y `relative`).
+- En el árbol DOM (`App.tsx`), `FilterBar` se renderiza inmediatamente después de `Header`.
+- Según la especificación CSS 2.1 (Apéndice E), cuando dos contextos de apilamiento hermanos tienen el mismo valor de `z-index`, el orden en el documento determina la prioridad de pintado. `FilterBar` se pintaba encima de `Header` y de todos sus descendientes (incluyendo el menú desplegable del selector con `z-50`).
+
+### Solución
+
+Ajustar la jerarquía canónica de z-index del sistema:
+- `FilterBar.tsx`: Reducir de `z-30` a `z-10`. De este modo, `FilterBar` conserva prioridad sobre el contenido del tablero (tarjetas y columnas en `z-auto`), pero queda estrictamente por debajo de `Header` (`z-30`).
+- El menú del selector de proyectos (`z-50` dentro de `Header`) se proyecta limpiamente por encima de la barra de filtros.
+- Al hacer scroll, `FilterBar` se desliza correctamente por debajo del encabezado adhesivo (`Header`).
+- Incorporar prueba anti-regresión en `scripts/test-ui-logic.js` para certificar la jerarquía `headerZ > filterBarZ`.
+
+**Criterios de Aceptación:**
+- [x] #1 FilterBar define z-index inferior al de Header (z-10 vs z-30) para evitar colisión de contextos de apilamiento
+- [x] #2 El menú desplegable del selector de proyectos se renderiza completamente por encima de FilterBar sin oclusión visual
+- [x] #3 FilterBar y su popover de filtros avanzados mantienen prioridad sobre las columnas y tarjetas del tablero
+- [x] #4 Prueba estática anti-regresión en test-ui-logic.js que valida invariante headerZ > filterBarZ
+- [x] #5 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-237] Resolución integral de Restaurar Proyecto Demo (Error 415 por Content-Type y activación multi-proyecto)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al invocar la acción "Restaurar Proyecto Demo" desde el selector de proyectos, se manifestaban dos fallas consecutivas:
+1. **Error HTTP 415 (Unsupported Media Type):** Al enviar la petición `POST /api/projects/restore-demo`, el middleware de seguridad CSRF de `vite.config.ts` rechazaba la solicitud por no incluir `Content-Type: application/json`.
+2. **Invisibilidad y falta de activación del Demo:** Tras resolver el 415, el servidor respondía OK y mostraba el toast de éxito, pero la pantalla no mostraba ningún cambio ni proyecto demo. Esto ocurría por dos factores combinados:
+   - En `vite.config.ts`, `isSingleMode` forzaba `true` de manera incondicional ante la ausencia de `process.env.GRIPM_MODE='multi'` (ignorando `config.mode: "multi"` de `.gripm/config.json` y la existencia de múltiples proyectos en el registro). Como resultado, `GET /api/data` filtraba y descartaba todos los proyectos del registro excepto el proyecto activo inicial (`gripm`), impidiendo que el cliente recibiera el proyecto demo y sus ítems.
+   - En `src/App.tsx`, `handleRestoreDemo` no conmutaba `selectedProjectId` a `'demo'`, dejando la interfaz anclada en el proyecto anterior.
+
+### Solución
+
+1. **Headers de mutación en `src/api.ts`:** Se agregaron `headers: { 'Content-Type': 'application/json' }` y `body: JSON.stringify({})` en `restoreDemoProject()`, `convertProjectToMd()` y `convertProjectToJson()`.
+2. **Detección consistente de `isSingleMode` en `vite.config.ts`:**
+   - Respeta `config.mode` (`"multi"` / `"single"`) definido en `.gripm/config.json`.
+   - Si no hay modo forzado por entorno ni configuración, deriva `isSingleMode` dinámicamente según `registry.projects.length <= 1`, permitiendo que coexistan múltiples proyectos sin forzar monoproyecto artificial.
+3. **Activación de proyecto demo:**
+   - En `vite.config.ts`, `POST /api/projects/restore-demo` establece `registry.activeProjectId = 'demo'`.
+   - En `src/App.tsx`, `handleRestoreDemo` ejecuta `setSelectedProjectId('demo')`, sincroniza con `STORAGE_KEYS.ACTIVE_PROJECT_ID` y llama a `setActiveProjectApi('demo')`.
+4. **Pruebas anti-regresión:** En `scripts/test-api-security.js`, se valida estáticamente que todas las peticiones `POST`/`PUT` de `src/api.ts` contengan `Content-Type: application/json`.
+
+**Criterios de Aceptación:**
+- [x] #1 restoreDemoProject, convertProjectToMd y convertProjectToJson envían Content-Type application/json
+- [x] #2 /api/projects/restore-demo responde 200 OK y registra demo como activeProjectId sin error 415
+- [x] #3 vite.config.ts respeta config.mode y registry.projects.length en isSingleMode sin ocultar proyectos registrados
+- [x] #4 handleRestoreDemo en App.tsx conmuta selectedProjectId a demo y renderiza inmediatamente el tablero demo
+- [x] #5 Prueba estática en test-api-security.js valida que todo fetch POST/PUT en src/api.ts incluye Content-Type application/json
+- [x] #6 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
 
 ---
 

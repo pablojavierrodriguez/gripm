@@ -159,7 +159,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   );
 
   return (
-    <div className="w-full border-b border-slate-200 dark:border-white/[0.06] bg-white/70 dark:bg-[#0c111c]/60 backdrop-blur-sm py-2 transition-colors relative z-30">
+    <div className="w-full border-b border-slate-200 dark:border-white/[0.06] bg-white/70 dark:bg-[#0c111c]/60 backdrop-blur-sm py-2 transition-colors relative z-10">
       <div className="max-w-[1680px] mx-auto px-4 sm:px-6 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 min-w-0">
           {/* Left: Search + Popover Button + Quick Filters */}

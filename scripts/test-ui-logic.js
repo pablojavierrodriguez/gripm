@@ -55,4 +55,14 @@ assert.equal(statusLabel(english), english['status.doing']);
 assert.equal(statusLabel(spanish), spanish['status.doing']);
 assert.notEqual(statusLabel(english), statusLabel(spanish), 'status labels change with the selected locale');
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, and localized status labels');
+// DEV-236: Header stacking context must strictly supersede FilterBar stacking context
+const headerSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'Header.tsx'), 'utf8');
+const filterBarSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'FilterBar.tsx'), 'utf8');
+const headerZ = parseInt((headerSource.match(/<header[^>]*className="[^"]*\bz-(\d+)\b/) || [])[1] || '0', 10);
+const filterBarZ = parseInt((filterBarSource.match(/className="[^"]*\bz-(\d+)\b/) || [])[1] || '0', 10);
+assert(
+  headerZ > filterBarZ,
+  `Header z-index (${headerZ}) must be strictly greater than FilterBar z-index (${filterBarZ}) to prevent project dropdown occlusion (DEV-236)`,
+);
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, and Header/FilterBar stacking hierarchy');

@@ -1367,7 +1367,6 @@ function devBoardApi(): DevBoardPlugin {
         const handle = async () => {
           try {
             const registry = getRegistry();
-            const isMultiMode = (process.env.GRIPM_MODE || process.env.DEVBOARD_MODE) === 'multi';
             const targetRepoEnv = process.env.GRIPM_TARGET_REPO || process.env.DEVBOARD_TARGET_REPO;
 
             // In single-project mode: resolve strictly the targeted or active project
@@ -1402,7 +1401,13 @@ function devBoardApi(): DevBoardPlugin {
               };
             }
 
-            const isSingleMode = (process.env.GRIPM_MODE || process.env.DEVBOARD_MODE) === 'single' || (!isMultiMode && registry.projects.length <= 1) || !isMultiMode;
+            const projectConfig = activeProject ? readProjectConfig(activeProject) : null;
+            const envMode = process.env.GRIPM_MODE || process.env.DEVBOARD_MODE;
+            const configuredMode = envMode || projectConfig?.mode;
+            const isMultiMode = configuredMode === 'multi';
+            const isSingleMode = configuredMode === 'single'
+              ? true
+              : (isMultiMode ? false : registry.projects.length <= 1);
 
             // GET /api/settings (DEV-006)
             if (req.method === 'GET' && pathname === '/api/settings') {
@@ -1870,9 +1875,10 @@ function devBoardApi(): DevBoardPlugin {
                   storageType: 'json',
                   createdAt: new Date().toISOString()
                 });
-                saveRegistry(registry);
               }
-              return sendJson(200, { ok: true, projects: registry.projects });
+              registry.activeProjectId = 'demo';
+              saveRegistry(registry);
+              return sendJson(200, { ok: true, projects: registry.projects, activeProjectId: 'demo' });
             }
 
             // POST /api/projects/detect-path

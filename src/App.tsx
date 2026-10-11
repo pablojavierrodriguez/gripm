@@ -866,6 +866,9 @@ export function App() {
   const handleRestoreDemo = useCallback(async () => {
     try {
       await restoreDemoProject();
+      setSelectedProjectId('demo');
+      setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, 'demo');
+      await setActiveProjectApi('demo');
       showToast(t('app.demoRestored'), 'success');
       await loadData();
     } catch (err: any) {
