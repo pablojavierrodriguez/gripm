@@ -125,6 +125,46 @@ export const AVAILABLE_CUSTOM_ICONS = [
 
 export type SettingsTabId = 'views' | 'modules' | 'kanban' | 'taxonomy' | 'visual' | 'tools' | 'advanced';
 
+interface SettingsSwitchProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  id?: string;
+}
+
+export const SettingsSwitch: React.FC<SettingsSwitchProps> = ({
+  checked,
+  onChange,
+  disabled = false,
+  ariaLabel,
+  id,
+}) => {
+  return (
+    <span
+      className={`relative inline-flex items-center shrink-0 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'
+      } transition-transform`}
+    >
+      <input
+        type="checkbox"
+        id={id}
+        role="switch"
+        aria-checked={checked}
+        aria-label={ariaLabel}
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <span
+        aria-hidden="true"
+        className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 rounded-full peer peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-600 transition-colors duration-200 ease-in-out relative block after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:shadow-xs after:transition-all after:duration-200 peer-checked:after:translate-x-full peer-checked:after:border-white"
+      />
+    </span>
+  );
+};
+
 interface SettingsViewProps {
   config: GripmConfig;
   onSaveConfig: (newConfig: GripmConfig) => Promise<void>;
@@ -1057,14 +1097,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <SettingsSwitch
                       checked={enabledTabs.kanban}
-                      onChange={(e) => {
-                        if (!e.target.checked && !enabledTabs.sprint && !enabledTabs.release) return;
-                        setEnabledTabs({ ...enabledTabs, kanban: e.target.checked });
+                      onChange={(checked) => {
+                        if (!checked && !enabledTabs.sprint && !enabledTabs.release) return;
+                        setEnabledTabs({ ...enabledTabs, kanban: checked });
                       }}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      ariaLabel={t('header.kanban')}
                     />
                   </label>
 
@@ -1080,14 +1119,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <SettingsSwitch
                       checked={enabledTabs.sprint}
-                      onChange={(e) => {
-                        if (!e.target.checked && !enabledTabs.kanban && !enabledTabs.release) return;
-                        setEnabledTabs({ ...enabledTabs, sprint: e.target.checked });
+                      onChange={(checked) => {
+                        if (!checked && !enabledTabs.kanban && !enabledTabs.release) return;
+                        setEnabledTabs({ ...enabledTabs, sprint: checked });
                       }}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      ariaLabel={t('header.sprints')}
                     />
                   </label>
 
@@ -1099,14 +1137,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className="text-[11px] text-slate-500">{t('settings.releaseTabDesc')}</div>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <SettingsSwitch
                       checked={enabledTabs.release}
-                      onChange={(e) => {
-                        if (!e.target.checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
-                        setEnabledTabs({ ...enabledTabs, release: e.target.checked });
+                      onChange={(checked) => {
+                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
+                        setEnabledTabs({ ...enabledTabs, release: checked });
                       }}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                      ariaLabel={t('header.releases')}
                     />
                   </label>
                 </div>
@@ -1179,15 +1216,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
-                      <input
-                        type="checkbox"
-                        checked={enabledTabs.sprint}
-                        onChange={(e) => handleToggleSprintModule(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                    </label>
+                    <SettingsSwitch
+                      checked={enabledTabs.sprint}
+                      onChange={handleToggleSprintModule}
+                      ariaLabel={t('settings.moduleSprintsTitle')}
+                    />
                   </div>
                 </div>
 
@@ -1216,15 +1249,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
-                      <input
-                        type="checkbox"
-                        checked={enabledTabs.release}
-                        onChange={(e) => handleToggleReleaseModule(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                    </label>
+                    <SettingsSwitch
+                      checked={enabledTabs.release}
+                      onChange={handleToggleReleaseModule}
+                      ariaLabel={t('settings.moduleReleasesTitle')}
+                    />
                   </div>
                 </div>
 
@@ -1253,15 +1282,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <label className="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
-                      <input
-                        type="checkbox"
-                        checked={modeState === 'multi'}
-                        onChange={(e) => handleToggleMultiHub(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                    </label>
+                    <SettingsSwitch
+                      checked={modeState === 'multi'}
+                      onChange={handleToggleMultiHub}
+                      ariaLabel={t('settings.moduleHubTitle')}
+                    />
                   </div>
                 </div>
               </div>
@@ -1329,41 +1354,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Ideas Column Toggle */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                <label className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-4">
+                  <div className="min-w-0 pr-2">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                       {t('settings.showIdeasLabel')}
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {t('settings.showIdeasDesc')}
                     </p>
                   </div>
-                  <input
-                    type="checkbox"
+                  <SettingsSwitch
                     checked={showIdeasByDefault}
-                    onChange={(e) => setShowIdeasByDefault(e.target.checked)}
-                    className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                    onChange={setShowIdeasByDefault}
+                    ariaLabel={t('settings.showIdeasLabel')}
                   />
                 </label>
               </div>
 
               {/* Done History Toggle (DEV-058) */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                <label className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-4">
+                  <div className="min-w-0 pr-2">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                       {t('settings.showDoneHistoryLabel')}
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {t('settings.showDoneHistoryDesc')}
                     </p>
                   </div>
-                  <input
-                    type="checkbox"
+                  <SettingsSwitch
                     checked={showDoneHistoryByDefault}
-                    onChange={(e) => setShowDoneHistoryByDefault(e.target.checked)}
-                    className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                    onChange={setShowDoneHistoryByDefault}
+                    ariaLabel={t('settings.showDoneHistoryLabel')}
                   />
                 </label>
               </div>
@@ -2028,8 +2051,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* 2. Auto-save on Edit */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
                     <div className="pr-2">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.autoSaveLabel')}
@@ -2038,18 +2061,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {t('settings.autoSaveDesc')}
                       </p>
                     </div>
-                    <input
-                      type="checkbox"
+                    <SettingsSwitch
                       checked={autoSave}
-                      onChange={(e) => setAutoSave(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0 mt-0.5"
+                      onChange={setAutoSave}
+                      ariaLabel={t('settings.autoSaveLabel')}
                     />
                   </label>
                 </div>
 
                 {/* 3. Manual Ranking and Drag & Drop */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
                     <div className="pr-2">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.rankingLabel')}
@@ -2058,11 +2080,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {t('settings.rankingDesc')}
                       </p>
                     </div>
-                    <input
-                      type="checkbox"
+                    <SettingsSwitch
                       checked={rankingEnabled}
-                      onChange={(e) => setRankingEnabled(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-white/20 text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0 mt-0.5"
+                      onChange={setRankingEnabled}
+                      ariaLabel={t('settings.rankingLabel')}
                     />
                   </label>
                 </div>

@@ -65,4 +65,17 @@ assert(
   `Header z-index (${headerZ}) must be strictly greater than FilterBar z-index (${filterBarZ}) to prevent project dropdown occlusion (DEV-236)`,
 );
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, and Header/FilterBar stacking hierarchy');
+// DEV-239: SettingsView must use SettingsSwitch for all boolean configuration toggles and have zero raw checkboxes
+const settingsSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'SettingsView.tsx'), 'utf8');
+assert(settingsSource.includes('export const SettingsSwitch'), 'SettingsSwitch must be defined and exported in SettingsView.tsx (DEV-239)');
+const checkboxMatches = [...settingsSource.matchAll(/type="checkbox"/g)];
+assert.equal(
+  checkboxMatches.length,
+  1,
+  `SettingsView.tsx must only contain exactly 1 input type="checkbox" (inside SettingsSwitch primitive), found ${checkboxMatches.length} (DEV-239)`,
+);
+assert(settingsSource.includes('checked={enabledTabs.kanban}'), 'Workflows & Views tab must use SettingsSwitch for kanban (DEV-239)');
+assert(settingsSource.includes('checked={showIdeasByDefault}'), 'Kanban tab must use SettingsSwitch for showIdeasByDefault (DEV-239)');
+assert(settingsSource.includes('checked={autoSave}'), 'Apariencia tab must use SettingsSwitch for autoSave (DEV-239)');
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, and unified SettingsSwitch (DEV-239)');
