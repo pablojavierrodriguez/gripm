@@ -285,20 +285,20 @@ async function askYesNo(question, rl) {
 }
 
 function printPlan(repoPath, registryInfo) {
+  const repoDisplay = repoPath.length > 39 ? '...' + repoPath.slice(-36) : repoPath;
   const lines = [
     '',
     '┌────────────────────────────────────────────────────────────┐',
-    '│  🧹 DevBoard - Desacople Seguro                            │',
+    '│  🧹 gripm - Desacople Seguro                               │',
     '│                                                            │'
   ];
   if (registryInfo && registryInfo.otherProjects > 0) {
-    lines.push(
-      `│  🌐 Hub: ${String(registryInfo.otherProjects).padEnd(10)}│   ` +
-      'otros proyectos registrados      │'
-    );
+    const hubText = `  🌐 Hub: ${registryInfo.otherProjects} otros proyectos registrados`;
+    lines.push(`│${hubText.padEnd(60)}│`);
   }
+  const repoText = `  📁 Repositorio: ${repoDisplay}`;
   lines.push(
-    `│  📁 Repositorio: ${repoPath.slice(0, 40).padEnd(41)}│`,
+    `│${repoText.padEnd(60)}│`,
     '│                                                            │',
     '│  🔒 Se preservan SIEMPRE:                                  │',
     '│     • backlog/  (tareas, releases.json, retro/)            │',
@@ -306,7 +306,7 @@ function printPlan(repoPath, registryInfo) {
     '│                                                            │',
     '│  Alcance:                                                 │',
     '│    [1] Desacoplar sólo este proyecto (Recomendado)         │',
-    '│    [2] Erradicar de todas las instancias locales           │',
+    '│    [2] Desvincular del registro global del Hub             │',
     '│                                                            │',
     '│  Selecciona opción [1]: '
   );
@@ -428,7 +428,7 @@ export async function runUninstallCommand(repoPath, options = {}) {
 
   if (scope === 'global') {
     console.log(
-      '\n  Para quitar el binario global (si lo instalaste):\n    npm uninstall -g gripm (o dev-board)'
+      '\n  Para quitar el binario global (si lo instalaste):\n    npm uninstall -g @gripm/board (o gripm)'
     );
   }
 
