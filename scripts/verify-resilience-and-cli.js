@@ -145,6 +145,26 @@ try {
     }
   }
 
+  // 8. DEV-240: Verificación de precedencia de flags CLI --single vs --hub e interoperabilidad
+  {
+    const binSource = fs.readFileSync(path.join(process.cwd(), 'bin/gripm.js'), 'utf8');
+    if (!binSource.includes("process.env.GRIPM_MODE = 'multi'") || !binSource.includes("process.env.GRIPM_MODE = 'single'") || !binSource.includes("delete process.env.GRIPM_MODE")) {
+      throw new Error('DEV-240 FAILED: bin/gripm.js no maneja flags --single / --hub con precedencia limpia');
+    }
+
+    const appSource = fs.readFileSync(path.join(process.cwd(), 'src/App.tsx'), 'utf8');
+    if (!appSource.includes('singleProject={boardData ? Boolean(boardData.singleProject) :')) {
+      throw new Error('DEV-240 FAILED: src/App.tsx no prioriza boardData.singleProject para el selector');
+    }
+
+    const viteSource = fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
+    if (!viteSource.includes('if (!reg.activeProjectId) {') || !viteSource.includes('reg.activeProjectId = existingLocal.id;')) {
+      throw new Error('DEV-240 FAILED: vite.config.ts no preserva activeProjectId al descubrir repo local');
+    }
+
+    console.log('✅ DEV-240: Banderas CLI --single / --hub y preservación de proyecto activo validadas');
+  }
+
 
 } finally {
   // Limpieza

@@ -6,7 +6,7 @@
     "showIdeasByDefault": false,
     "showDoneHistoryByDefault": false,
     "wipLimits": {
-      "col-doing": 0,
+      "col-doing": 15,
       "col-review": 0,
       "col-ready": 0
     },
@@ -18,9 +18,7 @@
         "color": "border-slate-300 dark:border-slate-700/60",
         "dotColor": "bg-indigo-500",
         "statuses": [
-          "draft",
-          "ideas",
-          "backlog"
+          "draft"
         ],
         "dropTargetStatus": "draft"
       },
@@ -31,8 +29,7 @@
         "color": "border-amber-500/30",
         "dotColor": "bg-amber-500",
         "statuses": [
-          "doing",
-          "in_progress"
+          "doing"
         ],
         "dropTargetStatus": "doing"
       },
@@ -43,8 +40,7 @@
         "color": "border-purple-500/30",
         "dotColor": "bg-purple-500",
         "statuses": [
-          "review",
-          "testing_qa"
+          "review"
         ],
         "dropTargetStatus": "review"
       },
@@ -55,8 +51,7 @@
         "color": "border-teal-500/30",
         "dotColor": "bg-teal-500",
         "statuses": [
-          "ready",
-          "finish"
+          "ready"
         ],
         "dropTargetStatus": "ready"
       },
@@ -80,8 +75,7 @@
         "color": "border-slate-300 dark:border-slate-700/60",
         "dotColor": "bg-indigo-500",
         "statuses": [
-          "draft",
-          "backlog"
+          "draft"
         ],
         "dropTargetStatus": "draft"
       },
@@ -93,9 +87,7 @@
         "dotColor": "bg-amber-500",
         "statuses": [
           "doing",
-          "in_progress",
-          "review",
-          "testing_qa"
+          "review"
         ],
         "dropTargetStatus": "doing"
       },
@@ -106,9 +98,8 @@
         "color": "border-emerald-500/30",
         "dotColor": "bg-emerald-500",
         "statuses": [
-          "done",
           "ready",
-          "finish"
+          "done"
         ],
         "dropTargetStatus": "ready"
       }
@@ -121,13 +112,17 @@
   "language": "en",
   "mode": "multi",
   "locale": "en",
-  "methodology": "kanban",
+  "methodology": "scrumban",
   "defaultView": "kanban",
   "enabledTabs": {
     "kanban": true,
-    "sprint": false,
+    "sprint": true,
     "release": true
   },
   "rankingEnabled": true,
-  "customItemTypes": []
+  "customItemTypes": [],
+  "modules": {
+    "sprint": true,
+    "release": true
+  }
 }

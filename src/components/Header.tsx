@@ -22,6 +22,7 @@ import {
   Globe
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 
@@ -92,10 +93,11 @@ export const Header: FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const currentProject = projects.find((p) => p.id === selectedProjectId);
-  const currentProjectName = selectedProjectId === 'all' 
+  const currentProject = projects.find((p) => p.id === selectedProjectId)
+    || (singleProject ? projects[0] : (projects.length === 1 ? projects[0] : undefined));
+  const currentProjectName = (selectedProjectId === 'all' && projects.length > 1) 
     ? 'Todos los Proyectos' 
-    : (currentProject?.name || 'Seleccionar Proyecto');
+    : (currentProject?.name || projects[0]?.name || 'Seleccionar Proyecto');
 
   const formatRepoDisplay = (repoPath?: string, prefix?: string) => {
     if (!repoPath) return `Prefijo: ${prefix || ''}`;
@@ -105,15 +107,16 @@ export const Header: FC<HeaderProps> = ({
 
   const hasDemoProject = projects.some(p => p.isDemo || p.id === 'demo');
 
-  const isKanbanEnabled = config?.enabledTabs?.kanban !== undefined
-    ? config.enabledTabs.kanban
-    : config?.methodology !== 'scrum';
+  const isSprintModule = isSprintModuleActive(config);
+  const isReleaseModule = isReleaseModuleActive(config);
 
-  const isSprintEnabled = config?.enabledTabs?.sprint !== undefined
+  const isKanbanEnabled = true;
+
+  const isSprintEnabled = isSprintModule && (config?.enabledTabs?.sprint !== undefined
     ? config.enabledTabs.sprint
-    : config?.methodology === 'scrum' || config?.methodology === 'scrumban';
+    : config?.methodology === 'scrum' || config?.methodology === 'scrumban');
 
-  const isReleaseEnabled = config?.enabledTabs?.release !== false;
+  const isReleaseEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
 
   const defaultHomeTab: ActiveTab = config?.defaultView || (config?.methodology === 'scrum' ? 'sprint' : 'kanban');
 
@@ -147,10 +150,12 @@ export const Header: FC<HeaderProps> = ({
                 <span className="font-semibold text-slate-800 dark:text-slate-100 max-w-[170px] truncate">
                   {currentProject?.name || currentProjectName}
                 </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
-                  Local
-                </span>
-                {currentProject && !currentProject.isDemo && (
+                {currentProject && (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+                    {currentProject.isDemo ? 'Demo' : 'Local'}
+                  </span>
+                )}
+                {currentProject && !currentProject.isDemo && currentProject.storageType && (
                   <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-semibold ${
                     currentProject.storageType === 'markdown'
                       ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'

@@ -165,12 +165,18 @@ export interface KanbanSettings {
 
 export type ProjectMethodology = 'kanban' | 'scrum' | 'scrumban';
 
+export interface ModulesConfig {
+  sprint?: boolean;
+  release?: boolean;
+}
+
 export interface GripmConfig {
   theme?: 'dark' | 'light' | 'system';
   density?: 'comfortable' | 'compact';
   methodology?: ProjectMethodology;
   defaultView?: 'kanban' | 'sprint' | 'release' | 'settings';
   mode?: 'single' | 'multi';
+  modules?: ModulesConfig;
   enabledTabs?: {
     kanban?: boolean;
     sprint?: boolean;
@@ -182,6 +188,26 @@ export interface GripmConfig {
   customItemTypes?: CustomItemTypeConfig[];
   locale?: 'es' | 'en';
   version?: string;
+}
+
+/**
+ * Resolves whether the Sprints functional capability is active.
+ * Decoupled from the visible tab state in UI views.
+ */
+export function isSprintModuleActive(config?: GripmConfig | null): boolean {
+  if (config?.modules?.sprint !== undefined) return config.modules.sprint;
+  return config?.enabledTabs?.sprint !== undefined
+    ? config.enabledTabs.sprint
+    : config?.methodology !== 'kanban';
+}
+
+/**
+ * Resolves whether the Release management capability is active.
+ * Decoupled from the visible tab state in UI views.
+ */
+export function isReleaseModuleActive(config?: GripmConfig | null): boolean {
+  if (config?.modules?.release !== undefined) return config.modules.release;
+  return config?.enabledTabs?.release !== false;
 }
 
 /**

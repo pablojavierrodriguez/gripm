@@ -2,6 +2,5 @@ node_modules/
 dist/
 bin/
 backlog/
-.devboard/
 *.local*
 package-lock.json

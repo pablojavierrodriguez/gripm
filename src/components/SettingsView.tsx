@@ -30,25 +30,26 @@ import {
   Globe,
   Boxes
 } from 'lucide-react';
-import type { GripmConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
+import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 
-export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string }[] = [
+export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string; isLegacy?: boolean }[] = [
   { id: 'draft', label: 'Draft', desc: 'Backlog inicial' },
   { id: 'doing', label: 'Doing', desc: 'En desarrollo activo' },
   { id: 'review', label: 'Review', desc: 'En revisión o testing' },
   { id: 'ready', label: 'Ready', desc: 'Listo para producción' },
   { id: 'done', label: 'Done', desc: 'Desplegado / Finalizado' },
   { id: 'ideas', label: 'Ideas', desc: 'Discovery & backlog crudo' },
-  { id: 'backlog', label: 'Backlog (compat)', desc: 'Sin iniciar (legacy)' },
-  { id: 'in_progress', label: 'In Progress (compat)', desc: 'En curso (legacy)' },
-  { id: 'testing_qa', label: 'Testing QA (compat)', desc: 'En pruebas (legacy)' },
-  { id: 'finish', label: 'Finish (compat)', desc: 'Terminado (legacy)' },
   { id: 'dismissed', label: 'Dismissed', desc: 'No se realizará' },
-  { id: 'cancelled', label: 'Cancelled', desc: 'Cancelado' }
+  { id: 'cancelled', label: 'Cancelled', desc: 'Cancelado' },
+  { id: 'backlog', label: 'Backlog (compat)', desc: 'Sin iniciar (legacy)', isLegacy: true },
+  { id: 'in_progress', label: 'In Progress (compat)', desc: 'En curso (legacy)', isLegacy: true },
+  { id: 'testing_qa', label: 'Testing QA (compat)', desc: 'En pruebas (legacy)', isLegacy: true },
+  { id: 'finish', label: 'Finish (compat)', desc: 'Terminado (legacy)', isLegacy: true }
 ];
 
 export const ITEM_TYPE_COLOR_PRESETS = [
@@ -142,7 +143,7 @@ export const SettingsSwitch: React.FC<SettingsSwitchProps> = ({
 }) => {
   return (
     <span
-      className={`relative inline-flex items-center shrink-0 ${
+      className={`relative inline-flex items-center justify-center shrink-0 w-11 h-6 select-none ${
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'
       } transition-transform`}
     >
@@ -155,11 +156,11 @@ export const SettingsSwitch: React.FC<SettingsSwitchProps> = ({
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="sr-only peer"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10 m-0 p-0 peer"
       />
       <span
         aria-hidden="true"
-        className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 rounded-full peer peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-600 transition-colors duration-200 ease-in-out relative block after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:shadow-xs after:transition-all after:duration-200 peer-checked:after:translate-x-full peer-checked:after:border-white"
+        className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 rounded-full peer peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-600 transition-colors duration-200 ease-in-out relative block pointer-events-none after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:shadow-xs after:transition-all after:duration-200 peer-checked:after:translate-x-full peer-checked:after:border-white"
       />
     </span>
   );
@@ -197,9 +198,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
   const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'settings'>(config.defaultView || 'kanban');
   const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
+  const [modulesState, setModulesState] = useState<ModulesConfig>(() => ({
+    sprint: isSprintModuleActive(config),
+    release: isReleaseModuleActive(config)
+  }));
   const [enabledTabs, setEnabledTabs] = useState({
     kanban: config.enabledTabs?.kanban !== false,
-    sprint: config.enabledTabs?.sprint !== false,
+    sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : true,
     release: config.enabledTabs?.release !== false
   });
   const [autoSave, setAutoSave] = useState<boolean>(config.autoSave ?? true);
@@ -245,13 +250,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Sync state when config prop changes
   useEffect(() => {
-    const initialMethodology = config.methodology || 'scrumban';
+    const isSprintModOn = isSprintModuleActive(config);
+    const isReleaseModOn = isReleaseModuleActive(config);
+    let initialMethodology = config.methodology || 'scrumban';
+    if (!isSprintModOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
+      initialMethodology = 'kanban';
+    }
+    let initialDefaultView = config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban');
+    if (!isSprintModOn && initialDefaultView === 'sprint') {
+      initialDefaultView = 'kanban';
+    }
+    if (!isReleaseModOn && initialDefaultView === 'release') {
+      initialDefaultView = 'kanban';
+    }
+
     setTheme(config.theme || 'system');
     setDensity(config.density || 'comfortable');
     setLocale(config.locale || language || 'es');
     setMethodology(initialMethodology);
-    setDefaultView(config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban'));
+    setDefaultView(initialDefaultView);
     setModeState(config.mode || 'single');
+    setModulesState({
+      sprint: isSprintModOn,
+      release: isReleaseModOn
+    });
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
@@ -289,17 +311,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleSelectMethodology = (m: ProjectMethodology) => {
+    if (!modulesState.sprint && (m === 'scrum' || m === 'scrumban')) {
+      onShowToast?.(t('settings.toastMethodologyRequiresSprint'), 'error');
+      return;
+    }
     setMethodology(m);
     if (m === 'kanban') {
-      setEnabledTabs({ kanban: true, sprint: false, release: true });
-      setDefaultView('kanban');
+      setEnabledTabs(prev => ({ ...prev, kanban: true }));
       onShowToast?.(t('settings.toastMethodologyKanban'), 'info');
     } else if (m === 'scrum') {
-      setEnabledTabs({ kanban: false, sprint: true, release: true });
+      setEnabledTabs(prev => ({ ...prev, kanban: true, sprint: true }));
       setDefaultView('sprint');
       onShowToast?.(t('settings.toastMethodologyScrum'), 'info');
     } else {
-      setEnabledTabs({ kanban: true, sprint: true, release: true });
+      setEnabledTabs(prev => ({ ...prev, kanban: true, sprint: true }));
       setDefaultView('kanban');
       onShowToast?.(t('settings.toastMethodologyScrumban'), 'info');
     }
@@ -315,6 +340,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       methodology,
       defaultView,
       mode: modeState,
+      modules: {
+        sprint: modulesState.sprint,
+        release: modulesState.release
+      },
       enabledTabs: {
         kanban: enabledTabs.kanban,
         sprint: enabledTabs.sprint,
@@ -332,7 +361,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         wipLimits
       }
     };
-  }, [config, theme, density, locale, methodology, defaultView, modeState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
+  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
 
   // Helper to normalize config object for reliable dirty-checking (DEV-081)
   const normalizeForComparison = (c: Partial<GripmConfig>) => {
@@ -344,6 +373,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       methodology: c.methodology || 'scrumban',
       defaultView: c.defaultView || (c.methodology === 'scrum' ? 'sprint' : 'kanban'),
       mode: c.mode || 'single',
+      modules: {
+        sprint: isSprintModuleActive(c as GripmConfig),
+        release: isReleaseModuleActive(c as GripmConfig)
+      },
       enabledTabs: {
         kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
         sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
@@ -373,18 +406,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [builtConfig, config]);
 
-  // DEV-074: Reset local settings state to original config from disk
+  // DEV-074, DEV-241: Reset local settings state to original config from disk with module consistency
   const handleResetChanges = () => {
-    const initialMethodology = config.methodology || 'scrumban';
+    const isSprintOn = config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : config.methodology !== 'kanban';
+    const isReleaseOn = config.enabledTabs?.release !== false;
+    let initialMethodology = config.methodology || 'scrumban';
+    if (!isSprintOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
+      initialMethodology = 'kanban';
+    }
+    let initialDefaultView = config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban');
+    if (!isSprintOn && initialDefaultView === 'sprint') {
+      initialDefaultView = 'kanban';
+    }
+    if (!isReleaseOn && initialDefaultView === 'release') {
+      initialDefaultView = 'kanban';
+    }
+
     setTheme(config.theme || 'system');
     setDensity(config.density || 'comfortable');
     setMethodology(initialMethodology);
-    setDefaultView(config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban'));
+    setDefaultView(initialDefaultView);
     setModeState(config.mode || 'single');
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
-      sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
-      release: config.enabledTabs?.release !== false
+      sprint: isSprintOn,
+      release: isReleaseOn
     });
     setAutoSave(config.autoSave ?? true);
     setRankingEnabled(config.rankingEnabled !== false);
@@ -417,17 +463,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onShowToast?.(t('settings.toastReset'), 'info');
   };
 
-  // DEV-220: Module & Add-ons interactive toggles with immediate persistence
+  // DEV-220, DEV-241: Module & Add-ons interactive toggles with immediate persistence and cross-tab consistency
   const handleToggleSprintModule = async (checked: boolean) => {
-    if (!checked && !enabledTabs.kanban && !enabledTabs.release) return;
-    const nextTabs = { ...enabledTabs, sprint: checked };
-    setEnabledTabs(nextTabs);
+    const nextModules = { ...modulesState, sprint: checked };
+    setModulesState(nextModules);
+    let nextMethodology = methodology;
+    let nextDefaultView = defaultView;
+    if (!checked) {
+      nextMethodology = 'kanban';
+      setMethodology('kanban');
+      if (defaultView === 'sprint') {
+        nextDefaultView = 'kanban';
+        setDefaultView('kanban');
+      }
+    } else {
+      if (methodology === 'kanban') {
+        nextMethodology = 'scrum';
+        setMethodology('scrum');
+      }
+    }
     const nextConfig: GripmConfig = {
       ...builtConfig,
-      enabledTabs: nextTabs,
-      methodology: checked
-        ? (builtConfig.methodology === 'kanban' ? 'scrum' : builtConfig.methodology)
-        : (builtConfig.methodology === 'scrum' ? 'kanban' : builtConfig.methodology)
+      modules: nextModules,
+      methodology: nextMethodology,
+      defaultView: nextDefaultView
     };
     await onSaveConfig(nextConfig);
     onShowToast?.(
@@ -437,12 +496,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleToggleReleaseModule = async (checked: boolean) => {
-    if (!checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
-    const nextTabs = { ...enabledTabs, release: checked };
-    setEnabledTabs(nextTabs);
+    const nextModules = { ...modulesState, release: checked };
+    setModulesState(nextModules);
+    let nextDefaultView = defaultView;
+    if (!checked && defaultView === 'release') {
+      nextDefaultView = 'kanban';
+      setDefaultView('kanban');
+    }
     const nextConfig: GripmConfig = {
       ...builtConfig,
-      enabledTabs: nextTabs
+      modules: nextModules,
+      defaultView: nextDefaultView
     };
     await onSaveConfig(nextConfig);
     onShowToast?.(
@@ -926,85 +990,126 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethodology('kanban')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      methodology === 'kanban'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Layers className="w-4 h-4 text-indigo-500" />
-                      <span>{t('settings.methodologyKanban')}</span>
+                {!modulesState.sprint ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="p-4 rounded-xl border bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs max-w-xl">
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Layers className="w-4 h-4 text-indigo-500" />
+                        <span>{t('settings.methodologyKanban')}</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 ml-auto">
+                          {t('settings.moduleActive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
+                        {t('settings.methodologyKanbanDesc')}
+                      </p>
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                          {t('settings.methodologyKanbanBadgeBoard')}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
+                          {t('settings.methodologyKanbanBadgeSprints')}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {t('settings.methodologyKanbanDesc')}
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                        {t('settings.methodologyKanbanBadgeBoard')}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                        {t('settings.methodologyKanbanBadgeSprints')}
-                      </span>
-                    </div>
-                  </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethodology('scrum')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      methodology === 'scrum'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Target className="w-4 h-4 text-amber-500" />
-                      <span>{t('settings.methodologyScrum')}</span>
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-xl">
+                      <div className="flex items-center gap-2.5">
+                        <Boxes className="w-4 h-4 text-amber-500 shrink-0" />
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {t('settings.methodologySprintModuleHint')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('modules')}
+                        className="self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0"
+                      >
+                        {t('settings.goToModules')}
+                      </button>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {t('settings.methodologyScrumDesc')}
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
-                        {t('settings.methodologyScrumBadgeSprints')}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                        {t('settings.methodologyScrumBadgeBoard')}
-                      </span>
-                    </div>
-                  </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMethodology('kanban')}
+                      className={`p-4 rounded-xl border text-left transition-all ${
+                        methodology === 'kanban'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Layers className="w-4 h-4 text-indigo-500" />
+                        <span>{t('settings.methodologyKanban')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-normal">
+                        {t('settings.methodologyKanbanDesc')}
+                      </p>
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                          {t('settings.methodologyKanbanBadgeBoard')}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
+                          {t('settings.methodologyKanbanBadgeSprints')}
+                        </span>
+                      </div>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethodology('scrumban')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      methodology === 'scrumban'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Sliders className="w-4 h-4 text-emerald-500" />
-                      <span>{t('settings.methodologyScrumban')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {t('settings.methodologyScrumbanDesc')}
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
-                        {t('settings.methodologyScrumbanBadgeBoard')}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
-                        {t('settings.methodologyScrumbanBadgeSprints')}
-                      </span>
-                    </div>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMethodology('scrum')}
+                      className={`p-4 rounded-xl border text-left transition-all ${
+                        methodology === 'scrum'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Target className="w-4 h-4 text-amber-500" />
+                        <span>{t('settings.methodologyScrum')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-normal">
+                        {t('settings.methodologyScrumDesc')}
+                      </p>
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
+                          {t('settings.methodologyScrumBadgeSprints')}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
+                          {t('settings.methodologyScrumBadgeBoard')}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMethodology('scrumban')}
+                      className={`p-4 rounded-xl border text-left transition-all ${
+                        methodology === 'scrumban'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Sliders className="w-4 h-4 text-emerald-500" />
+                        <span>{t('settings.methodologyScrumban')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-normal">
+                        {t('settings.methodologyScrumbanDesc')}
+                      </p>
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
+                          {t('settings.methodologyScrumbanBadgeBoard')}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
+                          {t('settings.methodologyScrumbanBadgeSprints')}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Default View Selector */}
@@ -1030,46 +1135,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Layout className="w-4 h-4 text-indigo-500" />
                       <span>{t('header.kanban')}</span>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
+                    <p className="text-xs text-slate-500 leading-normal">
                       {t('settings.defaultViewKanbanDesc')}
                     </p>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setDefaultView('sprint')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      defaultView === 'sprint'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Target className="w-4 h-4 text-amber-500" />
-                      <span>{t('header.sprints')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {t('settings.defaultViewSprintDesc')}
-                    </p>
-                  </button>
+                  {modulesState.sprint && enabledTabs.sprint && (
+                    <button
+                      type="button"
+                      onClick={() => setDefaultView('sprint')}
+                      className={`p-4 rounded-xl border text-left transition-all ${
+                        defaultView === 'sprint'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Target className="w-4 h-4 text-amber-500" />
+                        <span>{t('header.sprints')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-normal">
+                        {t('settings.defaultViewSprintDesc')}
+                      </p>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setDefaultView('release')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      defaultView === 'release'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Rocket className="w-4 h-4 text-emerald-500" />
-                      <span>{t('header.releases')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {t('settings.defaultViewReleaseDesc')}
-                    </p>
-                  </button>
+                  {modulesState.release && enabledTabs.release && (
+                    <button
+                      type="button"
+                      onClick={() => setDefaultView('release')}
+                      className={`p-4 rounded-xl border text-left transition-all ${
+                        defaultView === 'release'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
+                        <Rocket className="w-4 h-4 text-emerald-500" />
+                        <span>{t('header.releases')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-normal">
+                        {t('settings.defaultViewReleaseDesc')}
+                      </p>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1083,12 +1192,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </p>
 
                 <div className="space-y-3 pt-1">
-                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Layout className="w-4 h-4 text-indigo-500" />
-                      <div>
-                        <div className="text-xs font-semibold text-slate-900 dark:text-white">{t('header.kanban')}</div>
-                        <div className="text-[11px] text-slate-500">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Layout className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.kanban')}</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/20 shrink-0">
+                            {t('settings.coreViewBadge')}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">
                           {methodology === 'scrumban'
                             ? t('settings.kanbanTabScrumbanDesc')
                             : methodology === 'scrum'
@@ -1097,22 +1211,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                       </div>
                     </div>
-                    <SettingsSwitch
-                      checked={enabledTabs.kanban}
-                      onChange={(checked) => {
-                        if (!checked && !enabledTabs.sprint && !enabledTabs.release) return;
-                        setEnabledTabs({ ...enabledTabs, kanban: checked });
-                      }}
-                      ariaLabel={t('header.kanban')}
-                    />
-                  </label>
+                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 shrink-0">
+                      {t('settings.alwaysActive')}
+                    </span>
+                  </div>
 
-                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Target className="w-4 h-4 text-amber-500" />
-                      <div>
-                        <div className="text-xs font-semibold text-slate-900 dark:text-white">{t('header.sprints')}</div>
-                        <div className="text-[11px] text-slate-500">
+                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                    !modulesState.sprint
+                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
+                  }`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Target className={`w-4 h-4 shrink-0 ${modulesState.sprint ? 'text-amber-500' : 'text-slate-400'}`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.sprints')}</span>
+                          {!modulesState.sprint && (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
+                              {t('settings.moduleInactiveHint')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">
                           {methodology === 'kanban'
                             ? t('settings.sprintTabKanbanDesc')
                             : t('settings.sprintTabScrumDesc')}
@@ -1120,28 +1240,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
                     </div>
                     <SettingsSwitch
-                      checked={enabledTabs.sprint}
+                      checked={modulesState.sprint ? Boolean(enabledTabs.sprint) : false}
+                      disabled={!modulesState.sprint}
                       onChange={(checked) => {
                         if (!checked && !enabledTabs.kanban && !enabledTabs.release) return;
                         setEnabledTabs({ ...enabledTabs, sprint: checked });
+                        if (!checked && defaultView === 'sprint') {
+                          setDefaultView('kanban');
+                        }
                       }}
                       ariaLabel={t('header.sprints')}
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Rocket className="w-4 h-4 text-emerald-500" />
-                      <div>
-                        <div className="text-xs font-semibold text-slate-900 dark:text-white">{t('header.releases')}</div>
-                        <div className="text-[11px] text-slate-500">{t('settings.releaseTabDesc')}</div>
+                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                    !modulesState.release
+                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
+                  }`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Rocket className={`w-4 h-4 shrink-0 ${modulesState.release ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.releases')}</span>
+                          {!modulesState.release && (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
+                              {t('settings.moduleInactiveHint')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">{t('settings.releaseTabDesc')}</div>
                       </div>
                     </div>
                     <SettingsSwitch
-                      checked={enabledTabs.release}
+                      checked={modulesState.release ? Boolean(enabledTabs.release) : false}
+                      disabled={!modulesState.release}
                       onChange={(checked) => {
                         if (!checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
                         setEnabledTabs({ ...enabledTabs, release: checked });
+                        if (!checked && defaultView === 'release') {
+                          setDefaultView('kanban');
+                        }
                       }}
                       ariaLabel={t('header.releases')}
                     />
@@ -1203,11 +1342,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {t('settings.moduleSprintsTitle')}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          enabledTabs.sprint
+                          modulesState.sprint
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                             : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
                         }`}>
-                          {enabledTabs.sprint ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                          {modulesState.sprint ? t('settings.moduleActive') : t('settings.moduleInactive')}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
@@ -1217,7 +1356,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
                     <SettingsSwitch
-                      checked={enabledTabs.sprint}
+                      checked={Boolean(modulesState.sprint)}
                       onChange={handleToggleSprintModule}
                       ariaLabel={t('settings.moduleSprintsTitle')}
                     />
@@ -1236,11 +1375,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {t('settings.moduleReleasesTitle')}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          enabledTabs.release
+                          modulesState.release
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                             : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
                         }`}>
-                          {enabledTabs.release ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                          {modulesState.release ? t('settings.moduleActive') : t('settings.moduleInactive')}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
@@ -1250,7 +1389,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                   <div className="flex items-center gap-3 sm:self-center shrink-0">
                     <SettingsSwitch
-                      checked={enabledTabs.release}
+                      checked={Boolean(modulesState.release)}
                       onChange={handleToggleReleaseModule}
                       ariaLabel={t('settings.moduleReleasesTitle')}
                     />
@@ -1554,11 +1693,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2.5 pr-6 py-1 cursor-pointer focus:outline-none transition-colors"
                             >
                               <option value="" disabled>{t('settings.assignStatusPrompt')}</option>
-                              {ALL_ITEM_STATUSES.filter((s) => !col.statuses.includes(s.id)).map((s) => (
-                                <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                                  {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
-                                </option>
-                              ))}
+                              <optgroup label={t('settings.canonicalStatusesGroup')}>
+                                {ALL_ITEM_STATUSES.filter((s) => !s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
+                                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                                    {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label={t('settings.legacyStatusesGroup')}>
+                                {ALL_ITEM_STATUSES.filter((s) => s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
+                                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">
+                                    {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                                  </option>
+                                ))}
+                              </optgroup>
                             </select>
                             <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-2" />
                           </div>

@@ -29,7 +29,6 @@ lerna-debug.log*
 # gripm Local User Data & Projects Registry (Zero-leak policy)
 # Project backlogs reside inside each project repo, NOT in DevBoard!
 data/projects-registry.json
-data/dev-board.json
 data/demo-backlog.json
 data/*.local.json
 
@@ -39,4 +38,3 @@ data/*.local.json
 # gripm local cache
 .gripm/update-cache.json
 .gripm/*.tmp
-.playbook-backups/

@@ -238,9 +238,16 @@ async function main() {
 
   const shouldOpen = !args.includes('--no-open');
 
-  // Set Single-Project or Multi-Project mode (DEV-041 / DEV-161)
+  // Set Single-Project or Multi-Project mode (DEV-041 / DEV-161 / DEV-240)
   const isHub = args.includes('--hub') || args.includes('--multi');
-  process.env.GRIPM_MODE = isHub ? 'multi' : 'single';
+  const isSingle = args.includes('--single');
+  if (isHub) {
+    process.env.GRIPM_MODE = 'multi';
+  } else if (isSingle) {
+    process.env.GRIPM_MODE = 'single';
+  } else {
+    delete process.env.GRIPM_MODE;
+  }
   process.env.GRIPM_TARGET_REPO = targetRepo;
   process.env.GRIPM_HOST = host;
 

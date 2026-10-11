@@ -373,6 +373,14 @@ try {
 }
 
 // 13. Test DEV-109: Interactive / Non-interactive Init Scaffolding Wizard
+const isolatedRegistryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-reg-'));
+const isolatedRegistryPath = path.join(isolatedRegistryDir, 'registry.json');
+fs.writeFileSync(isolatedRegistryPath, JSON.stringify({ activeProjectId: '', projects: [] }), 'utf8');
+const prevEnvReg = process.env.GRIPM_REGISTRY_PATH;
+process.env.GRIPM_REGISTRY_PATH = isolatedRegistryPath;
+
+const registryPath = path.join(__dirname, '../data/projects-registry.json');
+const originalRegistryContent = fs.existsSync(registryPath) ? fs.readFileSync(registryPath, 'utf8') : null;
 const testInitRepo = path.join(__dirname, '../data/test-repo-init');
 try {
   if (fs.existsSync(testInitRepo)) fs.rmSync(testInitRepo, { recursive: true, force: true });
@@ -490,7 +498,18 @@ try {
     if (fs.existsSync(testFullRepo)) fs.rmSync(testFullRepo, { recursive: true, force: true });
   }
 } finally {
+  if (prevEnvReg !== undefined) {
+    process.env.GRIPM_REGISTRY_PATH = prevEnvReg;
+  } else {
+    delete process.env.GRIPM_REGISTRY_PATH;
+  }
+  if (fs.existsSync(isolatedRegistryDir)) fs.rmSync(isolatedRegistryDir, { recursive: true, force: true });
   if (fs.existsSync(testInitRepo)) fs.rmSync(testInitRepo, { recursive: true, force: true });
+  if (originalRegistryContent !== null) {
+    fs.writeFileSync(registryPath, originalRegistryContent, 'utf8');
+  } else if (fs.existsSync(registryPath)) {
+    fs.rmSync(registryPath, { force: true });
+  }
 }
 
 // DEV-115: Desacople seguro. La garantia central es que backlog/ nunca se toca,

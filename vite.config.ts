@@ -227,9 +227,18 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
       }
       existingLocal.name = identity.name || existingLocal.name;
       existingLocal.codePrefix = identity.codePrefix || existingLocal.codePrefix;
-      reg.activeProjectId = existingLocal.id;
+      if (!reg.activeProjectId) {
+        reg.activeProjectId = existingLocal.id;
+      }
     }
   }
+
+  // Filter out non-existent filesystem projects (defensive pruning of deleted repos)
+  reg.projects = reg.projects.filter((p: ProjectMeta) => {
+    if (p.isDemo || p.id === 'demo') return true;
+    if (p.repoPath && !fs.existsSync(p.repoPath)) return false;
+    return true;
+  });
 
   if (reg.projects.length === 0) {
     reg = {
@@ -1369,14 +1378,20 @@ function devBoardApi(): DevBoardPlugin {
             const registry = getRegistry();
             const targetRepoEnv = process.env.GRIPM_TARGET_REPO || process.env.DEVBOARD_TARGET_REPO;
 
-            // In single-project mode: resolve strictly the targeted or active project
+            // In single-project mode: resolve strictly the targeted repo; in multi-project mode: honor registry.activeProjectId
             const targetRepo = targetRepoEnv ? path.resolve(targetRepoEnv) : path.resolve(process.cwd());
-            let activeProject = registry.projects.find(p => {
-              if (p.repoPath && path.resolve(p.repoPath) === targetRepo) {
-                return true;
-              }
-              return false;
-            }) || registry.projects.find(p => p.id === registry.activeProjectId) || registry.projects[0];
+            const targetProject = registry.projects.find(p => p.repoPath && path.resolve(p.repoPath) === targetRepo);
+            const projectConfig = (targetProject || registry.projects[0]) ? readProjectConfig(targetProject || registry.projects[0]) : null;
+            const envMode = process.env.GRIPM_MODE || process.env.DEVBOARD_MODE;
+            const configuredMode = envMode || projectConfig?.mode;
+            const isMultiMode = configuredMode === 'multi';
+            const isSingleMode = configuredMode === 'single'
+              ? true
+              : (isMultiMode ? false : registry.projects.length <= 1);
+
+            let activeProject = isSingleMode
+              ? (targetProject || registry.projects.find(p => p.id === registry.activeProjectId) || registry.projects[0])
+              : (registry.projects.find(p => p.id === registry.activeProjectId) || targetProject || registry.projects[0]);
 
             if (activeProject && activeProject.repoPath) {
               const identity = resolveProjectIdentity(activeProject.repoPath);
@@ -1401,14 +1416,6 @@ function devBoardApi(): DevBoardPlugin {
               };
             }
 
-            const projectConfig = activeProject ? readProjectConfig(activeProject) : null;
-            const envMode = process.env.GRIPM_MODE || process.env.DEVBOARD_MODE;
-            const configuredMode = envMode || projectConfig?.mode;
-            const isMultiMode = configuredMode === 'multi';
-            const isSingleMode = configuredMode === 'single'
-              ? true
-              : (isMultiMode ? false : registry.projects.length <= 1);
-
             // GET /api/settings (DEV-006)
             if (req.method === 'GET' && pathname === '/api/settings') {
               const urlObj = new URL(`http://localhost${url}`);
@@ -1428,6 +1435,9 @@ function devBoardApi(): DevBoardPlugin {
                 ? activeProject
                 : (registry.projects.find(p => p.id === projectId) || registry.projects[0]);
               const configToSave = body.config || body;
+              if (configToSave.mode === 'multi' || configToSave.mode === 'single') {
+                process.env.GRIPM_MODE = configToSave.mode;
+              }
               const savedPath = writeProjectConfig(configToSave, project);
               
               broadcastSse('settings_changed', {

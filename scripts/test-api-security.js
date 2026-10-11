@@ -229,4 +229,62 @@ class MockRequest extends EventEmitter {
   console.log(`✅ Client API Invariant (DEV-237): ${postPutBlocks.length} llamadas POST/PUT en src/api.ts incluyen Content-Type: application/json`);
 }
 
+// Test 13: Runtime Interchangeability & Mode Precedence (DEV-240)
+{
+  const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  delete process.env.DEVBOARD_HOST;
+  process.env.GRIPM_HOST = 'localhost';
+
+  // 1. In multi mode (--hub), GET /api/data reports singleProject === false
+  process.env.GRIPM_MODE = 'multi';
+  const reqMulti = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+  const resMulti = new MockResponse();
+  middlewareHandler(reqMulti, resMulti, () => {});
+  assert.strictEqual(resMulti.statusCode, 200, 'GET /api/data en multi mode responde 200');
+  const payloadMulti = JSON.parse(resMulti.body);
+  assert.strictEqual(payloadMulti.singleProject, false, 'En GRIPM_MODE=multi singleProject debe ser false (DEV-240)');
+
+  // 2. In single mode (--single), GET /api/data reports singleProject === true
+  process.env.GRIPM_MODE = 'single';
+  const reqSingle = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+  const resSingle = new MockResponse();
+  middlewareHandler(reqSingle, resSingle, () => {});
+  assert.strictEqual(resSingle.statusCode, 200, 'GET /api/data en single mode responde 200');
+  const payloadSingle = JSON.parse(resSingle.body);
+  assert.strictEqual(payloadSingle.singleProject, true, 'En GRIPM_MODE=single singleProject debe ser true (DEV-240)');
+
+  // 3. Toggling mode via POST /api/settings updates runtime server mode immediately
+  const configPath = path.resolve(ROOT, '.gripm/config.json');
+  const originalConfigContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : null;
+  try {
+    const reqSettings = new MockRequest('POST', '/api/settings', {
+      host: 'localhost:4100',
+      origin: 'http://localhost:4100',
+      'content-type': 'application/json'
+    });
+    const resSettings = new MockResponse();
+    middlewareHandler(reqSettings, resSettings, () => {});
+    reqSettings.emit('data', JSON.stringify({ config: { mode: 'multi' } }));
+    reqSettings.emit('end');
+
+    await new Promise(r => resSettings.once('finish', r));
+    assert.strictEqual(resSettings.statusCode, 200, 'POST /api/settings responde 200');
+    assert.strictEqual(process.env.GRIPM_MODE, 'multi', 'POST /api/settings con mode=multi actualiza process.env.GRIPM_MODE');
+
+    const reqDataAfter = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+    const resDataAfter = new MockResponse();
+    middlewareHandler(reqDataAfter, resDataAfter, () => {});
+    assert.strictEqual(resDataAfter.statusCode, 200);
+    const payloadAfter = JSON.parse(resDataAfter.body);
+    assert.strictEqual(payloadAfter.singleProject, false, 'Tras guardar mode=multi en settings, GET /api/data devuelve singleProject: false');
+  } finally {
+    if (originalConfigContent !== null) {
+      fs.writeFileSync(configPath, originalConfigContent, 'utf8');
+    }
+  }
+
+  delete process.env.GRIPM_MODE;
+  console.log('✅ Runtime Interchangeability (DEV-240): --hub, --single y settings toggle son intercambiables dinámicamente en runtime');
+}
+
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');

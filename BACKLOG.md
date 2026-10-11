@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (5)
+### 🚀 Ready for Deploy (7)
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -266,7 +266,59 @@ Al evolucionar la configuración de **Modules & Add-ons** (DEV-220) hacia switch
 
 ---
 
-### 📋 Backlog / Draft (18)
+#### [DEV-240] Intercambiabilidad de modos --single y --hub en runtime y persistencia activa del proyecto demo
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Tras ejecutar la inicialización de un repositorio mediante `gripm --init`, las opciones de runtime `--single` y `--hub` (o `--multi`) no funcionaban de forma intercambiable y la experiencia con el proyecto Demo presentaba fallas de activación y persistencia:
+1. **Conflicto de Precedencia CLI vs. Configuración Local:** Al iniciar el servidor web, `src/App.tsx` subordinaba la bandera `singleProject` a la configuración estática `.gripm/config.json` (`config.mode === 'single'`), ignorando la bandera CLI `--hub` recibida por el servidor y ocultando el selector de proyectos.
+2. **Sobreescritura Incondicional de `activeProjectId`:** En `vite.config.ts`, la función `getRegistry()` sobreescribía `reg.activeProjectId = existingLocal.id` en cada petición HTTP si detectaba el repositorio local actual, revirtiendo inmediatamente cualquier selección del usuario hacia el proyecto demo u otro proyecto del Hub.
+3. **Resolución Rígida de `activeProject`:** En `vite.config.ts`, la resolución del proyecto activo priorizaba la ruta del sistema de archivos sobre `registry.activeProjectId`, impidiendo que el backend despachara las tareas y metadatos del proyecto demo en modo Hub.
+4. **Flags de CLI en `bin/gripm.js`:** La ejecución sin banderas (`gripm`) forzaba incondicionalmente `process.env.GRIPM_MODE = 'single'`, impidiendo que proyectos configurados con modo hub en `.gripm/config.json` funcionaran adecuadamente al invocar el binario directamente.
+
+### Solución
+
+1. **Precedencia canónica en CLI (`bin/gripm.js`):**
+   - `--hub` / `--multi` establece `GRIPM_MODE = 'multi'`.
+   - `--single` establece `GRIPM_MODE = 'single'`.
+   - Ejecución sin banderas elimina `GRIPM_MODE` para permitir que el servidor derive el modo desde `.gripm/config.json` o la cantidad de proyectos en el registro.
+2. **Preservación de identidad activa en `vite.config.ts`:**
+   - En `getRegistry()`, solo se asigna `reg.activeProjectId = existingLocal.id` si `reg.activeProjectId` no estaba previamente definido.
+   - En la resolución de `activeProject`, en modo Hub (`!isSingleMode`) se prioriza `registry.activeProjectId`, despachando el proyecto demo y sus tareas completas.
+3. **Precedencia de runtime en cliente (`src/App.tsx`):**
+   - El prop `singleProject` de `Header` consume prioritariamente `boardData.singleProject`, respondiendo dinámicamente a la bandera del CLI.
+   - Ante eventos SSE `settings_changed`, se revalida `loadData(true)` para reflejar cambios de modo en caliente.
+4. **Badge diferenciado en Header (`src/components/Header.tsx`):**
+   - Si se ejecuta en modo mono-proyecto sobre el proyecto demo, se muestra la etiqueta "Demo" en lugar de "Local".
+
+**Criterios de Aceptación:**
+- [x] #1 bin/gripm.js respeta flags CLI --single y --hub explícitas y no fuerza single en ejecuciones sin banderas
+- [x] #2 vite.config.ts preserva registry.activeProjectId sin sobreescribirlo con el repo local en cada petición
+- [x] #3 vite.config.ts en modo hub resuelve activeProject desde registry.activeProjectId permitiendo visualizar proyecto demo
+- [x] #4 src/App.tsx prioriza boardData.singleProject sobre config.mode permitiendo alternar --single y --hub en runtime
+- [x] #5 Header.tsx distingue badge 'Demo' vs 'Local' en modo singleProject
+- [x] #6 Pruebas automatizadas validan la precedencia de flags CLI y la activación del proyecto demo
+
+---
+
+#### [DEV-241] Consistencia condicional de configuraciones segun modulos y add-ons activos
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Garantizar coherencia total en la vista de configuración (`SettingsView`):
+1. **Disponibilidad condicional según módulos instalados/activos:** Solo exponer configuraciones correspondientes a módulos habilitados en *Módulos & Add-ons* (o seleccionados en el onboarding de `--init`).
+2. **Metodologías acopladas al módulo Sprints:** Cuando el módulo Sprints está inactivo (`enabledTabs.sprint === false`), las metodologías Scrum y Scrumban se deshabilitan visual y funcionalmente (mostrando badge de advertencia y tooltip/descripción informativa), forzando y preservando la metodología en `kanban`.
+3. **Vistas predeterminadas consistentes:** Las opciones de vista inicial (`sprint`, `release`) quedan deshabilitadas si sus respectivos módulos están inactivos, con fallback automático a `kanban` para evitar pantallas inaccesibles o rotas.
+4. **Pestañas visibles en cabecera:** Reflejar inequívocamente el estado de los módulos de Sprints y Releases en la sección de pestañas superiores, deshabilitando su conmutación individual cuando el módulo raíz está desactivado e informando al usuario sobre su activación en *Módulos & Add-ons*.
+
+**Criterios de Aceptación:**
+- [x] #1 Scrum y Scrumban quedan visual y funcionalmente deshabilitados en Workflow & Views cuando el modulo Sprints esta inactivo
+- [x] #2 La vista predeterminada no permite seleccionar Sprints o Releases si sus modulos correspondientes estan inactivos y hace fallback limpio a kanban
+- [x] #3 La seccion de pestanas visibles en cabecera bloquea conmutadores de modulos inactivos con indicacion explicita
+- [x] #4 Al desactivar modulos en Modulos & Add-ons, el estado local y persistido ajusta automaticamente methodology y defaultView sin provocar inconsistencias
+- [x] #5 Suite de pruebas y Piramide de Verificacion pasan con codigo 0
+
+---
+
+### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -832,6 +884,53 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 - [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
 - [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
 - [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+
+---
+
+#### [DEV-238] Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Invariante canónico del proyecto: **"Cualquier referencia en código activo a `dev-board`, `devboard`, `.devboard` o `DEVBOARD_*` es un defecto si no es `gripm`"**.
+
+Tras la consolidación como paquete autónomo `@gripm/board`, no existe justificación para sostener capas de compatibilidad con versiones pre-1.0. Esta tarea define la purga atómica e integral de todas las variantes del nombre histórico en el código fuente.
+
+### Inventario de las 5 Capas de Purga
+
+1. **Variables de entorno de proceso:**
+   - Erradicar todos los operadores fallback `|| process.env.DEVBOARD_*` en `vite.config.ts`, `bin/gripm.js`, `scripts/registryConfig.js` y `scripts/updateChecker.js`.
+   - Variables a purgar: `DEVBOARD_MODE`, `DEVBOARD_HOST`, `DEVBOARD_PORT`, `DEVBOARD_OPEN`, `DEVBOARD_ALLOWED_PATHS`, `DEVBOARD_ALLOWED_HOSTS`, `DEVBOARD_HOME`, `DEVBOARD_REGISTRY_PATH`, `DEVBOARD_TARGET_REPO`, `DEVBOARD_NO_UPDATE_CHECK`.
+   - Único contrato válido: `GRIPM_*`.
+
+2. **Directorios y rutas en disco:**
+   - Purgar búsquedas de carpetas `.devboard/` y archivos `.devboard/config.json` o `.devboard/backlog.json` en `vite.config.ts` y scripts.
+   - Purgar referencias a `data/dev-board.json` y `data/projects-registry.json` (incluyendo `.gitignore` y scripts de empaquetado).
+   - Único contrato válido: `.gripm/`.
+
+3. **Claves de almacenamiento en navegador (`src/utils/storage.ts`):**
+   - Retirar los 9 arrays de claves alias legacy (`devboard-theme`, `devboard_active_tab`, `devboard_active_project_id`, `devboard_kanban_sprint`, etc.).
+   - Único contrato válido: `gripm_*` / `gripm-*`.
+
+4. **Nombres internos, plugins y contratos de TypeScript:**
+   - En `vite.config.ts`: renombrar `devBoardApi()` a `gripmApi()`, `DevBoardPlugin` a `GripmPlugin`, y el nombre del plugin `'vite-plugin-dev-board-api'` a `'vite-plugin-gripm-api'`.
+   - En `src/types.ts`: eliminar alias de tipo `export type DevBoardConfig = GripmConfig`.
+   - En `src/api.ts`: renombrar propiedad `hasDevBoard` a `hasGripm`.
+   - En `scripts/registryConfig.js`: renombrar `getDevBoardHomeDir()` a `getGripmHomeDir()`.
+
+5. **Logs de consola y textos de usuario:**
+   - Reemplazar prefijos de log `[DevBoard API]`, `[DevBoard Watcher]`, `[DevBoard FS]`, `[DevBoard Backlog.md]` por `[gripm ...]`.
+   - Corregir descripción del proyecto demo en `vite.config.ts` ("Proyecto de demostración de gripm").
+
+6. **Actualización de suites de test:**
+   - Actualizar `scripts/test-api-security.js`, `scripts/verify-integration.js`, `scripts/verify-optimistic-locking.js`, `scripts/verify-sse.js` y `scripts/verify-legacy-import.js` para buscar e interactuar exclusivamente con `'vite-plugin-gripm-api'` y variables `GRIPM_*`.
+
+**Criterios de Aceptación:**
+- [ ] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
+- [ ] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
+- [ ] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
+- [ ] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
+- [ ] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
+- [ ] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
+- [ ] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
 
 ---
 

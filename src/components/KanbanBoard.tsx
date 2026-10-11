@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Lightbulb, AlertTriangle, Layers, Target, CheckCircle2, Clock, ChevronDown, Pencil, History } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ViewMode, ColumnConfig, GripmConfig, ActiveTab, Sprint } from '../types';
+import { isSprintModuleActive } from '../types';
 import { ItemCard } from './ItemCard';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
@@ -47,7 +48,7 @@ export const SIMPLIFIED_BASE_COLUMNS: ColumnConfig[] = [
     subtitle: 'Priorizado y Refinado',
     color: 'border-slate-300 dark:border-slate-700/60',
     dotColor: 'bg-indigo-500',
-    statuses: ['draft', 'backlog'],
+    statuses: ['draft'],
     dropTargetStatus: 'draft'
   },
   {
@@ -56,7 +57,7 @@ export const SIMPLIFIED_BASE_COLUMNS: ColumnConfig[] = [
     subtitle: 'Doing & Review',
     color: 'border-amber-500/30',
     dotColor: 'bg-amber-500',
-    statuses: ['doing', 'in_progress', 'review', 'testing_qa'],
+    statuses: ['doing', 'review'],
     dropTargetStatus: 'doing'
   },
   {
@@ -65,7 +66,7 @@ export const SIMPLIFIED_BASE_COLUMNS: ColumnConfig[] = [
     subtitle: 'Deployed & Liberado',
     color: 'border-emerald-500/30',
     dotColor: 'bg-emerald-500',
-    statuses: ['done', 'ready', 'finish'],
+    statuses: ['ready', 'done'],
     dropTargetStatus: 'ready'
   }
 ];
@@ -92,7 +93,7 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
     subtitle: 'Backlog & Triaged',
     color: 'border-slate-300 dark:border-slate-700/60',
     dotColor: 'bg-indigo-500',
-    statuses: ['draft', 'ideas', 'backlog'],
+    statuses: ['draft'],
     dropTargetStatus: 'draft'
   },
   {
@@ -101,7 +102,7 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
     subtitle: 'Desarrollo activo',
     color: 'border-amber-500/30',
     dotColor: 'bg-amber-500',
-    statuses: ['doing', 'in_progress'],
+    statuses: ['doing'],
     dropTargetStatus: 'doing'
   },
   {
@@ -110,7 +111,7 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
     subtitle: 'Testing & Code Review',
     color: 'border-purple-500/30',
     dotColor: 'bg-purple-500',
-    statuses: ['review', 'testing_qa'],
+    statuses: ['review'],
     dropTargetStatus: 'review'
   },
   {
@@ -119,7 +120,7 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
     subtitle: 'Ready for deploy',
     color: 'border-teal-500/30',
     dotColor: 'bg-teal-500',
-    statuses: ['ready', 'finish'],
+    statuses: ['ready'],
     dropTargetStatus: 'ready'
   },
   {
@@ -282,9 +283,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return Array.from(set).filter(Boolean).sort().reverse();
   }, [items, availableSprints]);
 
-  const isSprintActive = config?.enabledTabs?.sprint !== undefined
-    ? config.enabledTabs.sprint
-    : (config?.methodology === 'scrum' || config?.methodology === 'scrumban');
+  const isSprintActive = isSprintModuleActive(config);
 
   const [activeSprint, setActiveSprint] = useState<string>(() => {
     try {
@@ -685,7 +684,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 }`}
                 title={isOverWip ? t('kanban.wipExceeded', { count: colItems.length, limit }) : t('kanban.wipLimit', { limit })}
               >
-                {colItems.length}/{limit} WIP
+                {t('kanban.wipBadge', { count: colItems.length, limit })}
               </span>
             ) : (
               <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200 dark:bg-white/[0.06] text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-white/[0.04]">

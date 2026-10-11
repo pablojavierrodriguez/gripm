@@ -13,6 +13,7 @@ import type {
   ActiveTab,
   Sprint
 } from './types';
+import { isSprintModuleActive, isReleaseModuleActive } from './types';
 import { 
   fetchBoardData, 
   createItem, 
@@ -174,16 +175,17 @@ export function App() {
   // Settings / Config State (DEV-006 & DEV-009)
   const [config, setConfig] = useState<GripmConfig>({});
 
-  // Computed tab visibility helpers (DEV-218: Kanban minimalista por defecto, sprints deshabilitados salvo scrum/scrumban)
-  const isKanbanTabEnabled = config?.enabledTabs?.kanban !== undefined
-    ? config.enabledTabs.kanban
-    : config?.methodology !== 'scrum';
+  // Computed tab visibility helpers (DEV-218, DEV-241: Decoupled module capability vs UI visible tabs)
+  const isSprintModule = isSprintModuleActive(config);
+  const isReleaseModule = isReleaseModuleActive(config);
 
-  const isSprintTabEnabled = config?.enabledTabs?.sprint !== undefined
+  const isKanbanTabEnabled = true;
+
+  const isSprintTabEnabled = isSprintModule && (config?.enabledTabs?.sprint !== undefined
     ? config.enabledTabs.sprint
-    : config?.methodology === 'scrum' || config?.methodology === 'scrumban';
+    : config?.methodology === 'scrum' || config?.methodology === 'scrumban');
 
-  const isReleaseTabEnabled = config?.enabledTabs?.release !== false;
+  const isReleaseTabEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
 
   // Auto-redirect activeTab if current tab became disabled
   useEffect(() => {
@@ -288,21 +290,29 @@ export function App() {
       const data = await fetchBoardData();
       setBoardData(data);
       if (data.projects.length > 0) {
-        if (data.singleProject) {
+        if (data.singleProject || data.projects.length <= 1) {
           const activeId = data.activeProjectId || data.projects[0].id;
           setSelectedProjectId(activeId);
           setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, activeId);
         } else {
           const savedLocal = getStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID);
-          const candidate = selectedProjectId || savedLocal || data.activeProjectId || data.projects[0]?.id || '';
-          if (candidate === 'all') {
+          if (selectedProjectId === 'all') {
             setSelectedProjectId('all');
           } else {
-            const exists = candidate && data.projects.some((p) => p.id === candidate);
-            const fallback = exists ? candidate : (data.activeProjectId && data.projects.some(p => p.id === data.activeProjectId) ? data.activeProjectId : (data.projects[0]?.id || ''));
-            setSelectedProjectId(fallback);
-            if (fallback && fallback !== 'all') {
-              setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, fallback);
+            const candidate = (selectedProjectId && selectedProjectId !== 'all')
+              ? selectedProjectId
+              : (savedLocal || data.activeProjectId || data.projects[0]?.id || '');
+            if (candidate === 'all') {
+              setSelectedProjectId('all');
+            } else {
+              const exists = candidate && data.projects.some((p) => p.id === candidate);
+              const fallback = exists 
+                ? candidate 
+                : (data.activeProjectId && data.projects.some(p => p.id === data.activeProjectId) ? data.activeProjectId : (data.projects[0]?.id || ''));
+              setSelectedProjectId(fallback);
+              if (fallback && fallback !== 'all') {
+                setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, fallback);
+              }
             }
           }
         }
@@ -331,6 +341,7 @@ export function App() {
         showToast('Tablero sincronizado con cambios en disco', 'info');
       } else if (event.type === 'settings_changed') {
         loadSettings(selectedProjectId);
+        loadData(true);
         showToast('Configuración sincronizada con cambios en disco', 'info');
       }
     });
@@ -854,14 +865,20 @@ export function App() {
     try {
       await deleteProject(id);
       showToast(t('app.projectUnlinked'), 'info');
-      if (selectedProjectId === id) {
-        setSelectedProjectId('all');
+      const refreshed = await fetchBoardData();
+      setBoardData(refreshed);
+      if (selectedProjectId === id || refreshed.projects.length <= 1) {
+        const remaining = refreshed.projects.filter(p => p.id !== id);
+        const fallbackId = refreshed.activeProjectId || remaining[0]?.id || '';
+        setSelectedProjectId(fallbackId);
+        if (fallbackId) {
+          setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, fallbackId);
+        }
       }
-      await loadData();
     } catch (err: any) {
       showToast(t('app.projectUnlinkError', { error: err.message }), 'error');
     }
-  }, [selectedProjectId, loadData, showToast, t]);
+  }, [selectedProjectId, showToast, t]);
 
   const handleRestoreDemo = useCallback(async () => {
     try {
@@ -870,11 +887,12 @@ export function App() {
       setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, 'demo');
       await setActiveProjectApi('demo');
       showToast(t('app.demoRestored'), 'success');
-      await loadData();
+      const refreshed = await fetchBoardData();
+      setBoardData(refreshed);
     } catch (err: any) {
       showToast(t('app.demoRestoreError', { error: err.message }), 'error');
     }
-  }, [loadData, showToast, t]);
+  }, [showToast, t]);
 
   const handleConvertToMd = useCallback(async (projectId: string) => {
     try {
@@ -898,19 +916,15 @@ export function App() {
 
   const handleExportMonolithic = useCallback(async (projectId: string) => {
     try {
-      const res = await exportMonolithicMd(projectId, true);
-      if (res.savedPath) {
-        showToast(t('app.reportSaved', { path: res.savedPath }), 'success');
-      } else {
-        const blob = new Blob([res.content], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'BACKLOG.md';
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast(t('app.reportDownloaded'), 'success');
-      }
+      const res = await exportMonolithicMd(projectId, false);
+      const blob = new Blob([res.content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'BACKLOG.md';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(t('app.reportDownloaded'), 'success');
     } catch (err: any) {
       showToast(t('app.reportError', { error: err.message }), 'error');
     }
@@ -1229,7 +1243,7 @@ export function App() {
         onOpenImportWizard={() => setImportWizardOpen(true)}
         liveConnected={liveConnected}
         config={config}
-        singleProject={config?.mode !== undefined ? config.mode === 'single' : boardData?.singleProject}
+        singleProject={boardData ? Boolean(boardData.singleProject) : (config?.mode === 'single')}
         updateAvailable={boardData?.updateAvailable}
       />
 

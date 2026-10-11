@@ -22,6 +22,7 @@ import {
   User
 } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, GripmConfig, Sprint, Release } from '../types';
+import { isSprintModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -173,9 +174,7 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [customSprintMode, setCustomSprintMode] = useState(false);
   const [customReleaseMode, setCustomReleaseMode] = useState(false);
   const [customReleaseInput, setCustomReleaseInput] = useState('');
-  const isSprintModuleActive = config?.enabledTabs?.sprint !== undefined
-    ? config.enabledTabs.sprint
-    : (config?.methodology === 'scrum' || config?.methodology === 'scrumban');
+  const isSprintModule = isSprintModuleActive(config);
 
   const currentId = item?.id || '';
   const currentCode = item?.code || '';
@@ -1016,7 +1015,7 @@ export const ItemModal: FC<ItemModalProps> = ({
 
                 {/* Sprint & Multi-Release (DEV-056, DEV-077, DEV-087, DEV-218) */}
                 <div className="space-y-3">
-                  {isSprintModuleActive && (
+                  {isSprintModule && (
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">{t('itemModal.sprintLabel')}</label>

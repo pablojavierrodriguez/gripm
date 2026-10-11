@@ -74,8 +74,26 @@ assert.equal(
   1,
   `SettingsView.tsx must only contain exactly 1 input type="checkbox" (inside SettingsSwitch primitive), found ${checkboxMatches.length} (DEV-239)`,
 );
-assert(settingsSource.includes('checked={enabledTabs.kanban}'), 'Workflows & Views tab must use SettingsSwitch for kanban (DEV-239)');
+assert(settingsSource.includes('settings.coreViewBadge'), 'Workflows & Views tab must treat Kanban as immutable core view (DEV-241)');
 assert(settingsSource.includes('checked={showIdeasByDefault}'), 'Kanban tab must use SettingsSwitch for showIdeasByDefault (DEV-239)');
 assert(settingsSource.includes('checked={autoSave}'), 'Apariencia tab must use SettingsSwitch for autoSave (DEV-239)');
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, and unified SettingsSwitch (DEV-239)');
+// DEV-241: SettingsView must gate options conditionally based on active modules (Scrum, Sprints, Releases)
+assert(settingsSource.includes('!modulesState.sprint ?'), 'When Sprints module is inactive, single Continuous Kanban view with discovery hint is shown (DEV-241)');
+assert(settingsSource.includes('modulesState.sprint && enabledTabs.sprint &&'), 'Sprints options in defaultView must only be exposed when Sprints module is active and tab is enabled (DEV-241)');
+assert(settingsSource.includes('modulesState.release && enabledTabs.release &&'), 'Releases options in defaultView must only be exposed when Releases module is active and tab is enabled (DEV-241)');
+assert(settingsSource.includes('disabled={!modulesState.sprint}'), 'Sprints switch in visibleTabs must be disabled when module is inactive (DEV-241)');
+assert(settingsSource.includes('disabled={!modulesState.release}'), 'Releases switch in visibleTabs must be disabled when module is inactive (DEV-241)');
+assert(settingsSource.includes("nextMethodology = 'kanban'"), 'handleToggleSprintModule must reset methodology to kanban when turning off sprint module (DEV-241)');
+
+// DEV-241: i18n keys for module consistency
+const esLocales = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'locales', 'es.json'), 'utf8'));
+const enLocales = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'locales', 'en.json'), 'utf8'));
+assert(esLocales['settings.methodologySprintModuleHint'], 'es.json must include settings.methodologySprintModuleHint (DEV-241)');
+assert(enLocales['settings.methodologySprintModuleHint'], 'en.json must include settings.methodologySprintModuleHint (DEV-241)');
+assert(esLocales['settings.goToModules'], 'es.json must include settings.goToModules (DEV-241)');
+assert(enLocales['settings.goToModules'], 'en.json must include settings.goToModules (DEV-241)');
+assert(esLocales['settings.moduleInactiveHint'], 'es.json must include settings.moduleInactiveHint (DEV-241)');
+assert(enLocales['settings.moduleInactiveHint'], 'en.json must include settings.moduleInactiveHint (DEV-241)');
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, and module consistency (DEV-241)');
