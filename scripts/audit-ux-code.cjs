@@ -789,7 +789,7 @@ function lineMatches(rule, unit, lines, unitIndex, content) {
 
 function auditFile(filePath, rules, deps, disabledRules, root = ROOT) {
   const findings = [];
-  const relPath = path.relative(root, filePath);
+  const relPath = toPosixPath(path.relative(root, filePath));
 
   let content;
   try {

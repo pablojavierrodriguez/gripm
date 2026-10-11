@@ -1443,6 +1443,7 @@ async function handleToolCall(rawName, args) {
     const statusFilter = args.filterStatus ? normalizeStatus(args.filterStatus) : null;
     let updatedCount = 0;
     const updatedIds = [];
+    const failedUpdates = [];
     if (targetProject.storageType === "markdown" && targetProject.repoPath) {
       const tasksDir = getTasksDir(targetProject);
       if (!fs3.existsSync(tasksDir)) throw new Error("Carpeta de tareas no encontrada.");
@@ -1496,15 +1497,17 @@ async function handleToolCall(rawName, args) {
             updatedCount++;
             updatedIds.push(current.id);
           }
-        } catch {
+        } catch (err) {
+          failedUpdates.push({ id: file, file, error: err?.message || String(err) });
         }
       }
       return {
-        ok: true,
+        ok: failedUpdates.length === 0,
         projectId: targetProject.id,
         storageType: "markdown",
         updatedCount,
-        updatedIds
+        updatedIds,
+        ...failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {}
       };
     }
     const filePath = getProjectJsonBacklogPath(targetProject);
@@ -1913,7 +1916,7 @@ Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, solucion
           const totalChecked = checkedAcs.length;
           if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === "draft" || rawStatus === "doing")) {
             if (autoFix) {
-              const updatedFm = fm.replace(/^status:\s*.*$/m, "status: Done");
+              const updatedFm = fm.replace(/^status:\s*.*$/m, "status: ready");
               const updatedContent = content2.replace(fmMatch[0], `---
 ${updatedFm}
 ---`);

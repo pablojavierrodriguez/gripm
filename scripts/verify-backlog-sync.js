@@ -260,7 +260,8 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
       }
     }
   } catch (docErr) {
-    // Silent catch
+    console.error(`❌ [Error de Documentación] Falló la verificación de documentación: ${docErr.message}`);
+    errorsFound++;
   }
 }
 
@@ -285,7 +286,8 @@ if (fs.existsSync(releasesJsonPath)) {
       }
     }
   } catch (e) {
-    // Si releases.json no es legible
+    console.error(`❌ [Error de Release] No se pudo leer o parsear '${releasesJsonPath}': ${e.message}`);
+    errorsFound++;
   }
 }
 
@@ -303,7 +305,8 @@ if (fs.existsSync(sprintJsonPath)) {
       }
     }
   } catch (e) {
-    // Si sprints.json no es legible
+    console.error(`❌ [Error de Sprint] No se pudo leer o parsear '${sprintJsonPath}': ${e.message}`);
+    errorsFound++;
   }
 }
 

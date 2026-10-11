@@ -49,8 +49,16 @@ const DEFAULT_TIMEOUT_SECONDS = 180;
 
 const args = process.argv.slice(2);
 const timeoutArg = args.indexOf('--timeout');
-const TIMEOUT_SECONDS =
-  timeoutArg !== -1 ? Number(args[timeoutArg + 1]) : DEFAULT_TIMEOUT_SECONDS;
+let TIMEOUT_SECONDS = DEFAULT_TIMEOUT_SECONDS;
+if (timeoutArg !== -1) {
+  const val = Number(args[timeoutArg + 1]);
+  if (!Number.isFinite(val) || val <= 0) {
+    console.error(`❌ Valor inválido para --timeout: "${args[timeoutArg + 1]}". Debe ser un número de segundos positivo.`);
+    process.exit(1);
+  }
+  TIMEOUT_SECONDS = val;
+}
+const shouldBail = !args.includes('--no-bail');
 
 const env = {
   ...process.env,
@@ -104,9 +112,9 @@ const results = [];
 let failed = null;
 
 for (const step of STEPS) {
-  if (failed) {
+  if (failed && shouldBail) {
     // Preserve the original fail-fast chain: once something fails, the rest does
-    // not run, exactly as `&&` behaved.
+    // not run, unless --no-bail is passed.
     results.push({ ...step, code: null, signal: null, timedOut: false, ms: 0, skipped: true });
     continue;
   }

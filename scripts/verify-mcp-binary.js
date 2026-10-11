@@ -11,6 +11,20 @@ const binaryPath = path.resolve(__dirname, '../bin/gripm-mcp.js');
 const backlogPath = path.resolve(__dirname, '../BACKLOG.md');
 const originalBacklogContent = fs.existsSync(backlogPath) ? fs.readFileSync(backlogPath, 'utf8') : null;
 const testTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-998 - Gatekeeper Test Task.md');
+
+function cleanup() {
+  if (fs.existsSync(testTaskPath)) {
+    try { fs.unlinkSync(testTaskPath); } catch {}
+  }
+  if (originalBacklogContent !== null && fs.existsSync(backlogPath)) {
+    try { fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8'); } catch {}
+  }
+}
+
+process.on('exit', cleanup);
+process.on('SIGINT', () => { cleanup(); process.exit(1); });
+process.on('SIGTERM', () => { cleanup(); process.exit(1); });
+
 fs.writeFileSync(
   testTaskPath,
   '---\nid: DEV-998\ntitle: "Gatekeeper Test Task"\nstatus: doing\n---\n\n## Acceptance Criteria\n\n<!-- AC:BEGIN -->\n- [x] #1 AC uno\n- [ ] #2 AC dos\n<!-- AC:END -->\n',
@@ -128,7 +142,8 @@ send({
 });
 
 setTimeout(() => {
-  child.kill();
+  try {
+    child.kill();
 
   const lines = stdoutData.trim().split('\n').filter(Boolean);
   const responses = lines.map(l => {
@@ -217,16 +232,9 @@ setTimeout(() => {
   }
   console.log('✅ [8/8] DEV-224 Gatekeeper: Aprobó transición a ready con todos los ACs y verificación exitosa');
 
-  // Limpieza de tarea de prueba
-  if (fs.existsSync(testTaskPath)) {
-    fs.unlinkSync(testTaskPath);
+    console.log('🎉 MCP Server y catálogo gripm_* completamente validados!');
+    process.exit(0);
+  } finally {
+    cleanup();
   }
-
-  // DEV-160: Restaurar BACKLOG.md original si el test lo mutó para garantizar cero mutación en git status
-  if (originalBacklogContent !== null && fs.existsSync(backlogPath)) {
-    fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8');
-  }
-
-  console.log('🎉 MCP Server y catálogo gripm_* completamente validados!');
-  process.exit(0);
 }, 2500);

@@ -658,6 +658,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     let updatedCount = 0;
     const updatedIds: string[] = [];
+    const failedUpdates: { id: string; file: string; error: string }[] = [];
 
     // Markdown storage
     if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
@@ -720,15 +721,18 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             updatedCount++;
             updatedIds.push(current.id);
           }
-        } catch {}
+        } catch (err: any) {
+          failedUpdates.push({ id: file, file, error: err?.message || String(err) });
+        }
       }
 
       return {
-        ok: true,
+        ok: failedUpdates.length === 0,
         projectId: targetProject.id,
         storageType: 'markdown',
         updatedCount,
-        updatedIds
+        updatedIds,
+        ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {})
       };
     }
 
@@ -1205,10 +1209,10 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
           const totalAcs = allAcs.length;
           const totalChecked = checkedAcs.length;
 
-          // Regla 1: Si todos los AC están marcados, promocionar a Done
+          // Regla 1: Si todos los AC están marcados, promocionar a ready (DEV-235 / GATE-17)
           if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === 'draft' || rawStatus === 'doing')) {
             if (autoFix) {
-              const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: Done');
+              const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: ready');
               const updatedContent = content.replace(fmMatch[0], `---\n${updatedFm}\n---`);
               fs.writeFileSync(filePath, updatedContent, 'utf8');
               fixedCount++;

@@ -20,7 +20,9 @@
  */
 import { _getActiveHandles, _getActiveRequests } from 'node:process';
 
-const DEADLINE_MS = Number(process.env.GRIPM_WATCHDOG_MS || 90_000);
+const rawMs = process.env.GRIPM_WATCHDOG_MS;
+const parsedMs = rawMs ? Number(rawMs) : NaN;
+const DEADLINE_MS = Number.isFinite(parsedMs) && parsedMs > 0 ? parsedMs : 90_000;
 
 const STDIO_FDS = new Set([0, 1, 2]);
 

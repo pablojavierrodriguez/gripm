@@ -10,23 +10,36 @@ const ANOMALOUS_PATH = path.join(TASKS_DIR, ANOMALOUS_FILENAME);
 
 console.log('🧪 Iniciando pruebas de DEV-019 (Resiliencia) y DEV-020 (CLI y token efficiency)...');
 
-// 1. Crear tarea con nombre anómalo sin prefijo de código en el nombre de archivo
-const testTask = {
-  id: TEST_ID,
-  title: 'Tarea de prueba huérfana para resiliencia',
-  status: 'draft',
-  priority: 'p1',
-  type: 'feature',
-  createdDate: '2026-09-16',
-  updatedDate: '2026-09-16',
-  description: 'Esta tarea tiene un nombre de archivo que no sigue el prefijo.',
-  acceptanceCriteria: [{ index: 1, text: 'Debe ser encontrada por frontmatter', checked: false }]
-};
+function cleanup() {
+  if (fs.existsSync(ANOMALOUS_PATH)) {
+    try { fs.unlinkSync(ANOMALOUS_PATH); } catch {}
+  }
+  const canonicalPath = path.join(TASKS_DIR, 'DEV-999 - Tarea de prueba huérfana para resiliencia.md');
+  if (fs.existsSync(canonicalPath)) {
+    try { fs.unlinkSync(canonicalPath); } catch {}
+  }
+}
 
-fs.writeFileSync(ANOMALOUS_PATH, serializeBacklogMd(testTask), 'utf8');
-console.log('✅ Creado archivo anómalo:', ANOMALOUS_FILENAME);
+process.on('exit', cleanup);
+process.on('SIGINT', () => { cleanup(); process.exit(1); });
+process.on('SIGTERM', () => { cleanup(); process.exit(1); });
 
 try {
+  // 1. Crear tarea con nombre anómalo sin prefijo de código en el nombre de archivo
+  const testTask = {
+    id: TEST_ID,
+    title: 'Tarea de prueba huérfana para resiliencia',
+    status: 'draft',
+    priority: 'p1',
+    type: 'feature',
+    createdDate: '2026-09-16',
+    updatedDate: '2026-09-16',
+    description: 'Esta tarea tiene un nombre de archivo que no sigue el prefijo.',
+    acceptanceCriteria: [{ index: 1, text: 'Debe ser encontrada por frontmatter', checked: false }]
+  };
+
+  fs.writeFileSync(ANOMALOUS_PATH, serializeBacklogMd(testTask), 'utf8');
+  console.log('✅ Creado archivo anómalo:', ANOMALOUS_FILENAME);
   // 2. Verificar que gripm-cli la lista correctamente reconociendo el ID de frontmatter
   const cliOutput = execSync('node --experimental-strip-types scripts/gripm-cli.ts list --open --search "huérfana"', {
     encoding: 'utf8'

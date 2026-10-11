@@ -70,8 +70,8 @@ let tarballPath = null;
 let failed = false;
 
 try {
-  // 1. Empaquetar de verdad (sin publicar).
-  const out = run('npm', ['pack', '--pack-destination', tmp, '--json']);
+  // 1. Empaquetar de verdad (sin publicar ni disparar scripts que muten git config, DEV-235 / GATE-10).
+  const out = run('npm', ['pack', '--ignore-scripts', '--pack-destination', tmp, '--json']);
   const parsed = JSON.parse(out);
   const filename = parsed[0].filename;
   tarballPath = path.join(tmp, filename);

@@ -69,23 +69,24 @@ const CODE = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx']);
 // the parser error points at the line *after* the real mistake, which is what
 // made the ci.yml break so annoying to diagnose.
 
-function hasPyYaml() {
-  try {
-    execSync("python3 -c 'import yaml'", { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+function getPythonYamlCmd() {
+  for (const cmd of ['python3', 'python', 'py']) {
+    try {
+      execSync(`${cmd} -c "import yaml"`, { stdio: 'ignore' });
+      return cmd;
+    } catch {}
   }
+  return null;
 }
 
-function checkYaml(file, content, pyyamlAvailable) {
-  if (!pyyamlAvailable) {
-    skipped.push(`${file}: YAML sin validar (sin python3+PyYAML; lo cubre CI)`);
+function checkYaml(file, content, pythonCmd) {
+  if (!pythonCmd) {
+    skipped.push(`${file}: YAML sin validar (sin python+PyYAML; lo cubre CI)`);
     return;
   }
 
   try {
-    execSync(`python3 -c 'import yaml,sys; yaml.safe_load(sys.stdin.read())'`, {
+    execSync(`${pythonCmd} -c "import yaml,sys; yaml.safe_load(sys.stdin.read())"`, {
       input: content,
       stdio: ['pipe', 'ignore', 'pipe'],
     });
@@ -225,11 +226,16 @@ function checkScriptRefs() {
 
 // --- run ---------------------------------------------------------------------
 
-const files = stagedFiles();
-const pyyaml = hasPyYaml();
+const isAll = process.argv.includes('--all');
+const files = isAll
+  ? execSync('git ls-files -z', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0').filter(Boolean)
+  : stagedFiles();
+const pyyaml = getPythonYamlCmd();
 
 for (const file of files) {
-  const content = stagedContent(file);
+  const content = isAll
+    ? (fs.existsSync(path.join(ROOT, file)) ? fs.readFileSync(path.join(ROOT, file), 'utf8') : null)
+    : stagedContent(file);
   if (content === null) continue;
 
   const e = ext(file);
@@ -262,5 +268,5 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`   ${files.length} archivo(s) stageado(s) verificado(s).`);
+console.log(`   ${files.length} archivo(s)${isAll ? '' : ' stageado(s)'} verificado(s).`);
 process.exit(0);

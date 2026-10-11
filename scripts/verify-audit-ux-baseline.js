@@ -123,19 +123,6 @@ const isWindows = process.platform === 'win32';
 
   const report = JSON.parse(result.stdout);
 
-  if (isWindows) {
-    // Do not assert a contract the engine cannot honour here. Report the fact and
-    // keep the rest of the suite running: the remaining cases exercise the
-    // fingerprint logic itself, which is OS-independent once paths are normalized.
-    console.warn(
-      '⚠️  DEV-166: baseline snapshot is not portable to Windows. The engine ' +
-        'fingerprints finding.file from path.relative() without normalizing ' +
-        'separators, so no key matches a POSIX-generated snapshot. Known upstream ' +
-        'defect (DEV-188); delta assertions are skipped on this platform.',
-    );
-    console.log('✅ DEV-166: baseline snapshot loaded (delta assertions skipped on Windows)');
-  } else {
-
   // UX-010 is re-enabled (DEV-188). Its 12 remaining findings are false positives
   // from a known upstream defect: `hasVisibleText` does not read a JSX expression
   // child, and every label in this project is a `{t('...')}` expression. They are
@@ -162,7 +149,6 @@ const isWindows = process.platform === 'win32';
     `✅ DEV-166: baseline committed with ${committedTotal} known observations; ` +
       `gate surfaces only ${residual.length} documented UX-010 false positives`,
   );
-  }
 }
 
 // --- 2. A known finding survives unrelated edits above it ------------------
