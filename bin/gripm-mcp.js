@@ -788,18 +788,9 @@ function isUpdateCheckDisabled() {
   return env === "1" || env === "true";
 }
 function formatUpdateBanner(currentVersion2, latestVersion) {
-  const cleanCurrent = currentVersion2.replace(/^v/, "");
-  const cleanLatest = latestVersion.replace(/^v/, "");
-  const versionLine = `  \u2728 \xA1Nueva versi\xF3n disponible!  v${cleanCurrent} \u2192 v${cleanLatest}`;
-  return [
-    "\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
-    `\u2502${versionLine.padEnd(60)}\u2502`,
-    "\u2502                                                            \u2502",
-    "\u2502  Instrucciones para actualizar:                            \u2502",
-    "\u2502  \u2022 Con git: cd <repo> && git pull && npm run build         \u2502",
-    "\u2502  \u2022 Con npm: npm i -g @gripm/board@latest (o gripm@latest)  \u2502",
-    "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
-  ].join("\n");
+  const cleanCurrent = (currentVersion2 || "").replace(/^v/, "").trim();
+  const cleanLatest = (latestVersion || "").replace(/^v/, "").trim();
+  return `  \u{1F4A1} Actualizaci\xF3n disponible: v${cleanCurrent} \u2192 v${cleanLatest} \xB7 npm i -g @gripm/board@latest`;
 }
 function getCachedUpdateInfo(currentVersion2) {
   if (isUpdateCheckDisabled()) return null;

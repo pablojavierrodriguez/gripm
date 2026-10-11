@@ -74,22 +74,13 @@ export function isUpdateCheckDisabled() {
 }
 
 /**
- * Formats a terminal banner notifying about an available update.
+ * Formats a terminal notice notifying about an available update.
+ * Subtle, discreet, and simple (DEV-107).
  */
 export function formatUpdateBanner(currentVersion, latestVersion) {
-  const cleanCurrent = currentVersion.replace(/^v/, '');
-  const cleanLatest = latestVersion.replace(/^v/, '');
-  const versionLine = `  ✨ ¡Nueva versión disponible!  v${cleanCurrent} → v${cleanLatest}`;
-  
-  return [
-    '┌────────────────────────────────────────────────────────────┐',
-    `│${versionLine.padEnd(60)}│`,
-    '│                                                            │',
-    '│  Instrucciones para actualizar:                            │',
-    '│  • Con git: cd <repo> && git pull && npm run build         │',
-    '│  • Con npm: npm i -g @gripm/board@latest (o gripm@latest)  │',
-    '└────────────────────────────────────────────────────────────┘'
-  ].join('\n');
+  const cleanCurrent = (currentVersion || '').replace(/^v/, '').trim();
+  const cleanLatest = (latestVersion || '').replace(/^v/, '').trim();
+  return `  💡 Actualización disponible: v${cleanCurrent} → v${cleanLatest} · npm i -g @gripm/board@latest`;
 }
 
 /**

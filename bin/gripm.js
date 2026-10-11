@@ -389,7 +389,7 @@ ${formatBoxLine('📦 Almacén:        ' + storageType.toUpperCase(), innerWidth
 ${formatBoxLine('🌐 Interfaz Web:   ' + url, innerWidth)}
 ${formatBoxLine('⚡ En Tiempo Real:  Activo (SSE y observador de archivos)', innerWidth)}
 └${'─'.repeat(innerWidth + 4)}┘
-  `);
+`);
 
   const cachedUpdate = getCachedUpdateInfo(currentVersion);
   if (cachedUpdate && cachedUpdate.hasUpdate) {

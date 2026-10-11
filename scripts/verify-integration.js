@@ -331,8 +331,8 @@ assert.strictEqual(semverGreaterThan('0.6.0', 'v0.5.0'), true, 'Should handle v 
 
 const banner = formatUpdateBanner('0.5.0', '0.6.0');
 assert.ok(banner.includes('0.5.0 → v0.6.0'), 'Banner should display version diff');
-assert.ok(banner.includes('git pull'), 'Banner should include git instructions');
-assert.ok(banner.includes('gripm@latest') || banner.includes('dev-board@latest'), 'Banner should include npm instructions');
+assert.ok(!banner.includes('git pull'), 'Banner should not include git instructions');
+assert.ok(banner.includes('@gripm/board@latest'), 'Banner should include npm instructions');
 
 // Test update cache reading and writing
 const tempCacheDir = path.join(__dirname, '../data/test-temp-cache');
