@@ -119,7 +119,7 @@ export const Header: FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#090d15]/85 backdrop-blur-md transition-colors">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#090d15]/85 backdrop-blur-md transition-colors pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
           
           {/* Left: Brand + Project Selector */}

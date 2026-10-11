@@ -3,6 +3,7 @@ import { AlertCircle, Bot, CheckCircle, X, Copy } from 'lucide-react';
 import type { BacklogItem } from '../types';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface PlanGuardModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const PlanGuardModal: FC<PlanGuardModalProps> = ({
   const { t } = useTranslation();
   const [planText, setPlanText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen || !item) return null;
 
@@ -57,8 +59,13 @@ export const PlanGuardModal: FC<PlanGuardModalProps> = ({
     // como la apertura de un hilo nuevo.
     prompt += `## Objetivo\nInvestigá el código afectado, armá el plan de implementación detallado y ejecutá la solución técnica paso a paso, cumpliendo los criterios de aceptación y los gates de calidad del proyecto.`;
 
-    navigator.clipboard.writeText(prompt);
-    onShowToast(t('planGuard.promptCopiedToast', { code: item.code }), 'success');
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(prompt)
+        .then(() => onShowToast(t('planGuard.promptCopiedToast', { code: item.code }), 'success'))
+        .catch(() => onShowToast(t('planGuard.promptCopiedToast', { code: item.code }), 'success'));
+    } else {
+      onShowToast(t('planGuard.promptCopiedToast', { code: item.code }), 'success');
+    }
   };
 
   const handleSaveAndStart = async () => {
@@ -87,72 +94,73 @@ export const PlanGuardModal: FC<PlanGuardModalProps> = ({
     }
   };
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="w-full max-w-xl glass-panel bg-white dark:bg-[#0d1322] rounded-2xl border border-amber-500/30 dark:border-amber-500/30 shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500 dark:text-amber-400">
-              <AlertCircle className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {t('planGuard.headerTitle')}
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {t('planGuard.headerDesc')} <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">{t('status.doing')}</span>
-              </p>
-            </div>
+    <Modal
+      isOpen={isOpen && !!item}
+      onClose={onClose}
+      panelRef={panelRef}
+      maxWidth="max-w-xl"
+      align="center"
+      showMobileHandle={false}
+      className="border-amber-500/30 dark:border-amber-500/30"
+    >
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500 dark:text-amber-400">
+            <AlertCircle className="w-5 h-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {t('planGuard.headerTitle')}
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              {t('planGuard.headerDesc')} <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">{t('status.doing')}</span>
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('common.close') || 'Cerrar modal'}
+          className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="p-5 space-y-4 text-xs">
+        <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06]">
+          <div className="flex items-center gap-2 font-mono font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
+            <span>{item.code}</span>
+            <span className="text-slate-400">•</span>
+            <span className="text-indigo-600 dark:text-indigo-400">{item.type.toUpperCase()}</span>
+          </div>
+          <p className="text-slate-800 dark:text-slate-200 font-medium text-xs leading-snug">
+            {item.title}
+          </p>
+          {item.impactedFile && (
+            <p className="text-[10px] text-slate-500 font-mono mt-1">
+              {t('planGuard.fileLabel')}: {item.impactedFile}
+            </p>
+          )}
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-4 text-xs">
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06]">
-            <div className="flex items-center gap-2 font-mono font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
-              <span>{item.code}</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-indigo-600 dark:text-indigo-400">{item.type.toUpperCase()}</span>
-            </div>
-            <p className="text-slate-800 dark:text-slate-200 font-medium text-xs leading-snug">
-              {item.title}
-            </p>
-            {item.impactedFile && (
-              <p className="text-[10px] text-slate-500 font-mono mt-1">
-                {t('planGuard.fileLabel')}: {item.impactedFile}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
-              {t('planGuard.planLabel')}
-            </label>
-            <textarea
-              value={planText}
-              onChange={(e) => setPlanText(e.target.value)}
-              rows={3}
-              placeholder={t('planGuard.planPlaceholder')}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-              autoFocus
-            />
-          </div>
+        <div>
+          <label htmlFor="plan-guard-plan-input" className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+            {t('planGuard.planLabel')}
+          </label>
+          <textarea
+            id="plan-guard-plan-input"
+            value={planText}
+            onChange={(e) => setPlanText(e.target.value)}
+            rows={3}
+            placeholder={t('planGuard.planPlaceholder')}
+            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+            autoFocus
+          />
+        </div>
 
           {/* Prompt Bridge for AI Agent */}
           <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-between gap-3">
@@ -204,8 +212,6 @@ export const PlanGuardModal: FC<PlanGuardModalProps> = ({
             </button>
           </div>
         </div>
-
-      </div>
-    </div>
+      </Modal>
   );
 };

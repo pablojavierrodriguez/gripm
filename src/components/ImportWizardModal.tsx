@@ -15,6 +15,7 @@ import { parseLegacyMarkdown, type ParsedLegacyItem } from '../utils/legacyParse
 import { importLegacyBacklog } from '../api';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface ImportWizardModalProps {
   isOpen: boolean;
@@ -119,22 +120,22 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const currentProj = projects.find(p => p.id === selectedProjectId);
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100 animate-in zoom-in-95"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      panelRef={panelRef}
+      maxWidth="max-w-5xl"
+      align="center"
+      showMobileHandle={false}
+      className="max-h-[90vh]"
+    >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
@@ -411,8 +412,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
             </button>
           </div>
         </div>
-
-      </div>
-    </div>
+      </Modal>
   );
 };

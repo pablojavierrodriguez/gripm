@@ -15,6 +15,7 @@ import {
 import type { Sprint, BacklogItem } from '../types';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 export interface RetroData {
   whatWentWell: string;
@@ -55,6 +56,8 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
   const [actionInput, setActionInput] = useState<string>('');
   const [actions, setActions] = useState<string[]>([]);
   const [createdActions, setCreatedActions] = useState<Record<number, boolean>>({});
+
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -97,18 +100,16 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
     }
   };
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.08] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      panelRef={panelRef}
+      maxWidth="max-w-lg"
+      align="center"
+      showMobileHandle={false}
+      className="max-h-[90vh]"
+    >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -393,7 +394,6 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
             </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
           </div>
         </div>
-      </div>
-    </div>
+      </Modal>
   );
 };

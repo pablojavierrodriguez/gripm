@@ -25,6 +25,7 @@ import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCr
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -422,20 +423,14 @@ export const ItemModal: FC<ItemModalProps> = ({
     : '1. Modificar el archivo afectado...&#10;2. Ajustar tipos, contrato de datos y tests...&#10;3. Ejecutar tsc, npm test y backlog:check...';
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in"
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="w-full max-w-6xl glass-panel rounded-t-2xl sm:rounded-2xl border-t sm:border shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        panelRef={panelRef}
+        maxWidth="max-w-6xl"
+        className="max-h-[94vh] sm:max-h-[90vh]"
       >
-        {/* Mobile bottom-sheet handle */}
-        <div className="w-12 h-1 bg-slate-300 dark:bg-white/20 rounded-full mx-auto my-2 sm:hidden shrink-0" />
 
         {/* Modal Header */}
         <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between">
@@ -510,10 +505,11 @@ export const ItemModal: FC<ItemModalProps> = ({
             <div className="lg:col-span-8 space-y-5">
               {/* Title */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label htmlFor="item-title-input" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   {t('itemModal.titleLabel')} <span className="text-rose-600 dark:text-rose-400">*</span>
                 </label>
                 <input
+                  id="item-title-input"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -526,7 +522,7 @@ export const ItemModal: FC<ItemModalProps> = ({
               {/* Description */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <label htmlFor="item-description-textarea" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {t('itemModal.reqDescription')}
                   </label>
                   <button
@@ -543,6 +539,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                   </button>
                 </div>
                 <textarea
+                  id="item-description-textarea"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={5}
@@ -1671,8 +1668,7 @@ export const ItemModal: FC<ItemModalProps> = ({
             </button>
           </div>
         </div>
-
-      </div>
+      </Modal>
 
       {item && (
         <ConfirmModal
@@ -1691,6 +1687,6 @@ export const ItemModal: FC<ItemModalProps> = ({
           onClose={() => setShowDeleteConfirm(false)}
         />
       )}
-    </div>
+    </>
   );
 };

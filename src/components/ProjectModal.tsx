@@ -5,6 +5,7 @@ import { detectPathStorage } from '../api';
 import { FolderPickerModal } from './FolderPickerModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -56,6 +57,8 @@ export const ProjectModal: FC<ProjectModalProps> = ({
     return () => clearTimeout(timer);
   }, [repoPath]);
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   // Reset errors when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -91,21 +94,15 @@ export const ProjectModal: FC<ProjectModalProps> = ({
     }
   };
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-        <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-          className="w-full max-w-lg glass-panel rounded-t-2xl sm:rounded-2xl border-t sm:border shadow-2xl overflow-hidden max-h-[92vh] sm:max-h-none flex flex-col"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Mobile bottom-sheet handle */}
-          <div className="w-12 h-1 bg-slate-300 dark:bg-white/20 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        panelRef={panelRef}
+        maxWidth="max-w-lg"
+        className="max-h-[92vh] sm:max-h-none"
+      >
 
           <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -259,8 +256,7 @@ export const ProjectModal: FC<ProjectModalProps> = ({
               </button>
             </div>
           </form>
-        </div>
-      </div>
+        </Modal>
 
       {/* Visual File Explorer Modal */}
       <FolderPickerModal

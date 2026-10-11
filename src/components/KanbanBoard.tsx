@@ -901,6 +901,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <select
                     value={activeSprint}
                     onChange={(e) => setActiveSprint(e.target.value)}
+                    aria-label={t('kanban.activeSprintGoal')}
                     className="appearance-none bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/[0.1] rounded-lg pl-2.5 pr-8 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-xs cursor-pointer"
                   >
                     {availableSprintsList.length >= 2 && (

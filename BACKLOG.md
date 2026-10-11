@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-10 por gripm ⚡
+> Consolidado generado el 2026-10-11 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -115,7 +115,35 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 📋 Backlog / Draft (17)
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Implementación de la Fase 0 del plan de remediación de la auditoría integral (DEV-233):
+Resolución de defectos funcionales P0, crashes en tiempo de ejecución al abrir modales y consolidación del componente primitivo accesible `<Modal>`.
+
+### Problemas abordados
+
+1. **BUG-01 / ARCH-06:** En cinco modales (`ProjectModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), `useFocusTrap` se invocaba después de `if (!isOpen) return null`. Al cambiar `isOpen` a `true`, React lanzaba *"Rendered more hooks than during the previous render"* crasheando la app. Además, el andamiaje de diálogo estaba duplicado a mano en 8 archivos sin un primitivo común y 10 de 13 overlays carecían de portal sobre `document.body` (BUG-16).
+2. **BUG-03:** En `ConfirmModal.tsx`, un listener global de `window` a la tecla `Enter` ejecutaba el borrado incluso cuando el foco del usuario estaba posicionado sobre el botón "Cancelar". Además, `onConfirm()` carecía de `catch`, ocultando excepciones y cerrando el modal erróneamente en caso de fallo.
+3. **BUG-15 / BUG-18 / BUG-19:** Notificaciones `Toast.tsx` invisibles para lectores de pantalla (sin `role="status"` ni `aria-live`), botones de solo icono sin `aria-label` descriptivo, y elementos `<label>` sin vinculación `htmlFor`/`id`.
+4. **BUG-17:** Elementos fijos móviles (barra inferior, header, toasts) sin soporte de `env(safe-area-inset-*)`, provocando solapamiento en dispositivos con home bar o notch.
+5. **GATE-09:** `scripts/verify-focus-trap.js` solo validaba el orden de hooks en `ItemModal`, dejando ciegos a los demás diálogos.
+
+**Criterios de Aceptación:**
+- [x] #1 Extraer primitivo `Modal.tsx` con soporte de portal en `document.body`, `role="dialog"`, `aria-modal="true"`, trampa de foco y backdrop click (ARCH-06, BUG-16)
+- [x] #2 Corregir el orden de hooks en los modales (`ProjectModal`, `PlanGuardModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), invocando `useFocusTrap` antes de cualquier early return condicional (BUG-01)
+- [x] #3 Blindar `ConfirmModal.tsx` removiendo listener global de Enter ciego al foco y manejando rechazos de `onConfirm` con `try/catch` sin cerrar el modal en error (BUG-03)
+- [x] #4 Incorporar accesibilidad en `Toast.tsx` (`role="status"`, `aria-live="polite"`, `aria-label` en botón de descarte) y nombres accesibles en botones icon-only (BUG-15, BUG-18)
+- [x] #5 Asociar etiquetas `<label htmlFor>` con `<input id>` en `PlanGuardModal`, `ItemModal` y selectores (BUG-19)
+- [x] #6 Aplicar variables de `env(safe-area)` en navegación inferior móvil, encabezado superior y toasts (`grep -c 'env(safe-area' src/` >= 3) (BUG-17)
+- [x] #7 Actualizar `scripts/verify-focus-trap.js` para certificar mecánicamente que `hookIndex < closedGuardIndex` en todos los 8 diálogos de la aplicación (GATE-09)
+- [x] #8 Pirámide de verificación pasa en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
+
+---
+
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -607,6 +635,80 @@ Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics
 - [ ] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
 - [ ] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
 - [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codigo de
+`src/`, capa de tooling en `scripts/`, capa de reglas y documentacion, y artefactos de
+proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
+reconstruccion de la cadena de incidentes de CI.
+
+**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
+Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
+proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
+backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
+
+### Como se referencian los hallazgos
+
+El informe asigna un ID estable a cada hallazgo, con prefijo por dominio:
+
+| Prefijo | Significado | Hallazgos |
+|---|---|---|
+| `SEC-xx` | Seguridad | 10 |
+| `BUG-xx` | Defecto funcional | 19 |
+| `GATE-xx` | El gate de calidad no cumple su contrato | 17 |
+| `TOOL-xx` | Defecto de tooling / scripts | 12 |
+| `PROC-xx` | Proceso, datos o trazabilidad | 16 |
+| `DOC-xx` | Documentacion y reglas | 20 |
+| `ARCH-xx` | Deuda tecnica estructural | 9 |
+| `OK-xx` | Acierto a preservar, normativo | 17 |
+
+**Total: 103 hallazgos verificados + 17 aciertos documentados como normativa.**
+
+Conteo obtenido del documento, no estimado: cada ID con definicion aparece como seccion
+`### XXX-nn` (83 de 104) o como fila de tabla en §8.5 y §10 (los `DOC-xx` y `OK-xx`).
+El ID `PROC-17` aparece unicamente dentro de la fe de erratas de §0.4,
+como referencia al numbering anterior.
+
+Los IDs sobreviven al documento: permiten que tareas hijas, commits y revisiones se
+refieran a algo concreto. `SEC-01`, `BUG-01` y `GATE-03` significan lo mismo dentro de seis
+meses.
+
+### El hallazgo que resume todos los demas
+
+**El gate de calidad estuvo verde todo el tiempo porque midio presencia de codigo, no
+comportamiento.**
+
+`npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan
+`Rendered more hooks than during the previous render` y matan la aplicacion al abrirse.
+`scripts/verify-focus-trap.js` tiene el chequeo de orden de hooks correcto y lo aplico
+**unicamente al unico archivo que ya complyia**.
+
+### La razon de esta tarea
+
+La auditoria anterior (`docs/informe-auditoria.md`, cerrada en DEV-181) ejecuto sus
+recomendaciones pero no dejo nada verificable: no habia forma de saber meses despues si un
+hallazgo seguía abierto. Esta tarea existe para no repetir eso. Cada fase de la seccion 11
+del informe tiene una columna "Verificacion de cierre" con un comando ejecutable.
+
+### Regla de cierre heredada del informe
+
+> Un hallazgo pasa a cerrado cuando su comando de verificacion deja de detectar el
+> problema **y** un comando de regresion lo impediria volver a aparecer.
+>
+> Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
+
+**Criterios de Aceptación:**
+- [ ] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [ ] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
+- [ ] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
+- [ ] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
+- [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
+- [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
+- [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
 
 ---
 

@@ -58,36 +58,44 @@ const DIALOGS = [
   console.log('✅ DEV-173 AC #2: useFocusTrap implementa Tab, Shift+Tab, Escape y retorno de foco');
 }
 
-// --- 2. Every dialog opts into the shared hook ------------------------------
+// --- 2. Shared modal primitive and every dialog opts into the shared hook ---
 
 {
   const missing = [];
 
+  // 2.1 The Modal primitive provides the accessible dialog contract and portal (DEV-234, ARCH-06, BUG-16)
+  const modalSrc = fs.readFileSync(path.join(COMPONENTS_DIR, 'Modal.tsx'), 'utf8');
+  assert.ok(/role="dialog"/.test(modalSrc), 'Modal.tsx: falta role="dialog"');
+  assert.ok(/aria-modal="true"/.test(modalSrc), 'Modal.tsx: falta aria-modal="true"');
+  assert.ok(/tabIndex=\{-1\}/.test(modalSrc), 'Modal.tsx: falta tabIndex={-1}');
+  assert.ok(/createPortal\(/.test(modalSrc), 'Modal.tsx: debe montar via createPortal sobre document.body');
+
   for (const name of DIALOGS) {
     const src = fs.readFileSync(path.join(COMPONENTS_DIR, `${name}.tsx`), 'utf8');
 
-    if (!src.includes("from '../hooks/useFocusTrap'")) missing.push(`${name}: sin import`);
+    if (!src.includes("from '../hooks/useFocusTrap'")) missing.push(`${name}: sin import de useFocusTrap`);
     if (!/useFocusTrap<HTMLDivElement>\(isOpen, onClose\)/.test(src)) {
       missing.push(`${name}: no invoca el hook con (isOpen, onClose)`);
     }
-    if (!/ref=\{panelRef\}/.test(src)) missing.push(`${name}: el panel no recibe el ref`);
-    if (!/role="dialog"/.test(src)) missing.push(`${name}: falta role="dialog"`);
-    if (!/aria-modal="true"/.test(src)) missing.push(`${name}: falta aria-modal`);
-    if (!/tabIndex=\{-1\}/.test(src)) {
-      missing.push(`${name}: el panel no es enfocable como último recurso`);
+    if (!/(?:ref=\{panelRef\}|panelRef=\{panelRef\})/.test(src)) {
+      missing.push(`${name}: el panel o Modal no recibe el ref`);
+    }
+    const hasAria = /<Modal\b/.test(src) || (/role="dialog"/.test(src) && /aria-modal="true"/.test(src) && /tabIndex=\{-1\}/.test(src));
+    if (!hasAria) {
+      missing.push(`${name}: no implementa contrato ARIA ni delega en primitivo <Modal>`);
     }
 
-    if (name === 'ItemModal') {
-      const hookIndex = src.indexOf('useFocusTrap<HTMLDivElement>(isOpen, onClose)');
-      const closedGuardIndex = src.indexOf('if (!isOpen) return null;');
-      if (hookIndex === -1 || closedGuardIndex === -1 || hookIndex > closedGuardIndex) {
-        missing.push(`${name}: el hook debe ejecutarse antes del retorno cuando está cerrado`);
-      }
+    // DEV-234 / GATE-09: Verificación estricta de orden de hooks en TODOS los diálogos
+    const hookIndex = src.indexOf('useFocusTrap<HTMLDivElement>(isOpen, onClose)');
+    const closedGuardMatch = src.match(/if \(!isOpen[ )]/);
+    const closedGuardIndex = closedGuardMatch ? closedGuardMatch.index : -1;
+    if (closedGuardIndex !== -1 && (hookIndex === -1 || hookIndex > closedGuardIndex)) {
+      missing.push(`${name}: el hook debe ejecutarse antes del retorno cuando está cerrado`);
     }
   }
 
   assert.deepEqual(missing, [], `Diálogos incompletos:\n  ${missing.join('\n  ')}`);
-  console.log(`✅ DEV-173 AC #2: ${DIALOGS.length} diálogos con trampa de foco y contrato ARIA`);
+  console.log(`✅ DEV-234 AC #7: ${DIALOGS.length} diálogos con trampa de foco, orden de hooks correcto y contrato ARIA`);
 }
 
 // --- 3. No duplicate Escape handlers that would close two dialogs at once ---

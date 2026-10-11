@@ -3,6 +3,7 @@ import { X, Calendar, Target, Clock, Sparkles } from 'lucide-react';
 import type { Sprint } from '../types';
 import { useTranslation, type TranslationKey } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface SprintModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const isEditing = Boolean(sprint);
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   const [name, setName] = useState('');
   const [goal, setGoal] = useState('');
@@ -124,18 +126,15 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     }
   };
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.08] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      panelRef={panelRef}
+      maxWidth="max-w-lg"
+      align="center"
+      showMobileHandle={false}
+    >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.06]">
           <div className="flex items-center gap-2.5">
@@ -154,6 +153,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label={t('common.close') || 'Cerrar modal'}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
           >
             <X className="w-5 h-5" />
@@ -276,7 +276,6 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 };

@@ -1449,7 +1449,7 @@ export function App() {
       {/* Mobile Bottom Navigation Bar (DEV-007) */}
       <nav 
         aria-label={t('app.mobileNav')}
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-[#090d15]/95 backdrop-blur-lg border-t border-slate-200 dark:border-white/[0.08] px-2 py-1 flex items-center justify-around shadow-lg"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-[#090d15]/95 backdrop-blur-lg border-t border-slate-200 dark:border-white/[0.08] px-2 py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around shadow-lg"
       >
         {isKanbanTabEnabled && (
           <button

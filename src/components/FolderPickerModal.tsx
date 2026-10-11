@@ -15,6 +15,7 @@ import { browseDirectory, type FsBrowseResult } from '../api';
 import type { StorageType } from '../types';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './Modal';
 
 interface FolderPickerModalProps {
   isOpen: boolean;
@@ -49,6 +50,8 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
     }
   };
 
+  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   useEffect(() => {
     if (isOpen) {
       loadDir(initialPath);
@@ -75,18 +78,16 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
     onClose();
   };
 
-  const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className="w-full max-w-2xl bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      panelRef={panelRef}
+      maxWidth="max-w-2xl"
+      align="center"
+      showMobileHandle={false}
+      className="max-h-[85vh]"
+    >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -286,7 +287,6 @@ export const FolderPickerModal: FC<FolderPickerModalProps> = ({
             <span>{t('folderPicker.selectFolder')}</span>
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
