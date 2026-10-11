@@ -407,6 +407,7 @@ try {
 
   const gitignoreContent = fs.readFileSync(path.join(testInitRepo, '.gitignore'), 'utf8');
   assert.ok(gitignoreContent.includes('.gripm/update-cache.json'), '.gitignore should contain gripm ignores');
+  assert.ok(!gitignoreContent.includes('.devboard/update-cache.json'), 'Scaffolded .gitignore must NOT contain legacy .devboard entries');
 
   // Test 13.2: Idempotence & Non-destructivity (create a task and re-run with options)
   const sampleTaskFile = path.join(testInitRepo, 'backlog/tasks/DEV-001 - Test Task.md');

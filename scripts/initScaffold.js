@@ -368,14 +368,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       '',
       '# gripm local cache',
       '.gripm/update-cache.json',
-      '.gripm/*.tmp',
-      '.devboard/update-cache.json',
-      '.devboard/*.tmp'
+      '.gripm/*.tmp'
     ].join('\n');
 
     if (fs.existsSync(gitignorePath)) {
       const content = fs.readFileSync(gitignorePath, 'utf8');
-      if (!content.includes('.gripm/update-cache.json') && !content.includes('.devboard/update-cache.json')) {
+      if (!content.includes('.gripm/update-cache.json')) {
         fs.appendFileSync(gitignorePath, ignoreLines + '\n', 'utf8');
         console.log('  ✅ Reglas de gripm añadidas a .gitignore');
       } else {
