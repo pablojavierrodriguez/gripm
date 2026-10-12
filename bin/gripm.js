@@ -60,7 +60,7 @@ function printMainHelp() {
 
   Comandos:
     gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
-    gripm playbook sync            Sincroniza materiales del Playbook en el proyecto actual
+    gripm playbook sync            Sincroniza materiales de Gripm Playbook en el proyecto actual
 
   Opciones de Cockpit:
     --port, -p <puerto>            Puerto para el servidor web (por defecto: 4100)
@@ -75,6 +75,8 @@ function printMainHelp() {
     --minimal                      Inicialización ultraligera AI-First (Kanban puro, sin ceremonias)
     --full                         Inicialización con baterías incluidas (Scrum, Sprints, gobernanza)
     --language, --lang <es|en>     Idioma del proyecto para scaffolding y plantillas (por defecto: es)
+    --with-playbook, --playbook    Instala también Gripm Playbook (@gripm/playbook) con roles de agentes
+    --no-playbook                  Omite la instalación de Gripm Playbook (deja el repositorio limpio)
     --yes, -y                      Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
     --uninstall, --clean           Desacoplar gripm de este repositorio (nunca borra backlog/)
     --global, --all                Con --uninstall: purga también el registro global del dispositivo
@@ -112,24 +114,24 @@ function printMcpHelp() {
 
 function printPlaybookHelp() {
   console.log(`
-  📘 gripm playbook - Herramientas y sincronización del Playbook
+  📘 gripm playbook - Herramientas y sincronización de Gripm Playbook
 
   Uso:
     gripm playbook sync [opciones]
 
   Comandos:
-    sync                           Sincroniza archivos y plantillas del Playbook en el proyecto actual
+    sync                           Sincroniza archivos y plantillas de Gripm Playbook en el proyecto actual
 
   Opciones:
     --repo, -r <ruta>              Proyecto destino (por defecto: carpeta actual)
     --branch, -b <rama>            Rama Git remota a sincronizar (por defecto: main)
-    --remote <url>                 Repositorio remoto del Playbook
+    --remote <url>                 Repositorio remoto de Gripm Playbook
     --dry-run                      Simula los cambios sin escribir en disco
     --force                        Fuerza la sobrescritura de archivos existentes
     --help, -h                     Muestra esta ayuda
 
   Nota:
-    Este comando sincroniza materiales del Playbook en un proyecto; no instala el producto Gripm Playbook.
+    Este comando sincroniza materiales de Gripm Playbook en un proyecto; no instala el producto Gripm Playbook como CLI independiente.
 `);
 }
 
@@ -260,6 +262,8 @@ async function main() {
     const cliLang = langIdx !== -1 && args[langIdx + 1] ? args[langIdx + 1].toLowerCase() : undefined;
     const isMinimal = args.includes('--minimal');
     const isFull = args.includes('--full');
+    const isWithPlaybook = args.includes('--with-playbook') || args.includes('--playbook');
+    const isNoPlaybook = args.includes('--no-playbook');
     
     await runInitWizard(targetRepo, {
       yes: isYes,
@@ -268,6 +272,7 @@ async function main() {
       profile: isMinimal ? 'minimal' : (isFull ? 'full' : undefined),
       mode: isHubInit ? 'multi' : (isSingleInit ? 'single' : undefined),
       language: cliLang,
+      playbook: isNoPlaybook ? false : (isWithPlaybook ? true : undefined),
       skill: args.includes('--no-skill') ? false : (args.includes('--skill') ? true : undefined),
       agentsMd: args.includes('--no-agents') ? false : (args.includes('--agents') ? true : undefined),
       packageJson: args.includes('--no-scripts') ? false : (args.includes('--scripts') ? true : undefined),

@@ -32,6 +32,19 @@ const ROOT = path.resolve(__dirname, '..');
 /** Nombres de archivo que nunca deben publicarse (datos locales del usuario). */
 const FORBIDDEN_BASENAMES = ['projects-registry.json', 'dev-board.json'];
 
+/** Archivos del framework Gripm Playbook que nunca deben empaquetarse en Gripm Board (DEV-250). */
+const FORBIDDEN_PLAYBOOK_ENTRIES = [
+  '.agents/TEAM_PLAYBOOK.md',
+  '.agents/STATE_MACHINE.md',
+  '.agents/rules/git-workflow.md',
+  '.agents/skills/principal-engineer/SKILL.md',
+  '.agents/skills/rigorous-qa-auditor/SKILL.md',
+  '.agents/skills/pm-orchestrator/SKILL.md',
+  '.agents/skills/worldclass-product-designer/SKILL.md',
+  '.agents/skills/code-level-ux-auditor/SKILL.md',
+  '.agents/skills/market-researcher/SKILL.md',
+];
+
 /** Patrones de contenido que revelan entorno local o proyectos privados (SEC-08: soporte multiplataforma sin hardcoding personal). */
 const CONTENT_PATTERNS = [
   { label: 'ruta absoluta de home de usuario (macOS)', re: /\/Users\/[a-zA-Z0-9_-]+\//i },
@@ -109,6 +122,15 @@ try {
     if (FORBIDDEN_BASENAMES.includes(base)) {
       console.error(`   ❌ ARCHIVO PROHIBIDO PUBLICADO: ${file}`);
       console.error(`      Contiene datos locales del usuario. Debe excluirse del campo "files".`);
+      failed = true;
+    }
+  }
+
+  // 4b. Chequeo A2 — archivos del framework Gripm Playbook prohibidos en Gripm Board (DEV-250).
+  for (const forbidden of FORBIDDEN_PLAYBOOK_ENTRIES) {
+    if (allFiles.includes(forbidden)) {
+      console.error(`   ❌ CONTENIDO DE PLAYBOOK FILTRADO EN GRIPM BOARD: ${forbidden}`);
+      console.error(`      Gripm Playbook es un paquete independiente (@gripm/playbook). No debe empaquetarse en @gripm/board.`);
       failed = true;
     }
   }

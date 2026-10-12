@@ -1,4 +1,4 @@
-# Multi-Agent Team Playbook — Agile Autonomous Framework
+# Gripm Playbook — Agile Autonomous Framework
 
 This playbook establishes a collaborative, autonomous operating loop between specialized agent roles and human leads to build and maintain high-grade software products.
 

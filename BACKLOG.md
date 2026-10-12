@@ -115,7 +115,24 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### ⚡ In Progress / Doing (1)
+### 🚀 Ready for Deploy (2)
+
+#### [DEV-249] Tolerancia a CRLF en verify-changes y actualizacion de selector de pestana Sprints en test-ui
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Resolución de dos fallos en el pipeline de GitHub Actions (`ci.yml`):
+
+1. **Falso positivo de `U+D` en `scripts/verify-changes.js` en runner `windows-latest`:**
+   - En runners Windows, Git realiza el checkout por defecto con CRLF (`\r\n`).
+   - `checkCorruption` dividía por `\n`, dejando el retorno de carro `\r` (0x0D / 13) al final de cada línea, evaluando erróneamente `code < 0x20 && code !== 0x09` como verdadero y reportando falso positivo `carácter de control U+D` en cada línea de cada archivo del repositorio.
+   - Mitigación: Normalización en `checkCorruption` descartando `\r` final (`replace(/\r$/, '')`), exclusión explícita de `0x0d` y `0x0a` de la condición de caracteres de control, y creación de `.gitattributes` con `* text=auto eol=lf` para estandarizar checkout en LF.
+
+2. **Timeout en `scripts/test-ui-smoke.js` en runner `ubuntu-latest`:**
+   - La pestaña de Sprints en Header (`src/components/Header.tsx`) utiliza la etiqueta localizada `header.sprints` ("Sprints").
+   - El test de smoke usaba un regex estricto `/^(Sprints & Backlog|Sprints y Backlog)$/` que no contemplaba "Sprints".
+   - Mitigación: Actualización del regex a `/^(Sprints & Backlog|Sprints y Backlog|Sprints)$/`.
+
+---
 
 #### [DEV-250] Desacople de Gripm Playbook en el onboarding de gripm init y superficie limpia de Gripm Board
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -138,31 +155,12 @@ Alinear el onboarding de `@gripm/board` (`gripm --init`) y su superficie de publ
    Documentar en `AGENTS.md` y `docs/` que las skills de Playbook presentes en `.agents/skills/` del repositorio `gripm` residen allí en calidad de dogfooding metodológico para el desarrollo del producto, no como código fuente de Gripm Board.
 
 **Criterios de Aceptación:**
-- [ ] #1 El asistente de inicialización scripts/initScaffold.js pregunta explícitamente si se desea instalar Gripm Playbook, dejando el proyecto completamente limpio si se responde que no.
-- [ ] #2 Si el usuario acepta instalar Gripm Playbook en el init, se dispara la instalación/sincronización canónica de @gripm/playbook.
-- [ ] #3 package.json acota su campo files para incluir únicamente .agents/skills/gripm en lugar del comodín .agents completo, verificado por verify-publish-surface.js.
-- [ ] #4 Todas las menciones residuales de 'Agentic Team Playbook' en CLI, scripts y documentación viva se unifican a 'Gripm Playbook'.
-- [ ] #5 Se documenta formalmente la frontera entre el producto Gripm Board (Cockpit/MCP) y Gripm Playbook (framework metodológico), aclarando el rol del dogfooding en el repo gripm.
-- [ ] #6 Pirámide de verificación en verde (npx tsc --noEmit, npm test, npm run backlog:check, npm run publish:check con código 0).
-
----
-
-### 🚀 Ready for Deploy (1)
-
-#### [DEV-249] Tolerancia a CRLF en verify-changes y actualizacion de selector de pestana Sprints en test-ui
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Resolución de dos fallos en el pipeline de GitHub Actions (`ci.yml`):
-
-1. **Falso positivo de `U+D` en `scripts/verify-changes.js` en runner `windows-latest`:**
-   - En runners Windows, Git realiza el checkout por defecto con CRLF (`\r\n`).
-   - `checkCorruption` dividía por `\n`, dejando el retorno de carro `\r` (0x0D / 13) al final de cada línea, evaluando erróneamente `code < 0x20 && code !== 0x09` como verdadero y reportando falso positivo `carácter de control U+D` en cada línea de cada archivo del repositorio.
-   - Mitigación: Normalización en `checkCorruption` descartando `\r` final (`replace(/\r$/, '')`), exclusión explícita de `0x0d` y `0x0a` de la condición de caracteres de control, y creación de `.gitattributes` con `* text=auto eol=lf` para estandarizar checkout en LF.
-
-2. **Timeout en `scripts/test-ui-smoke.js` en runner `ubuntu-latest`:**
-   - La pestaña de Sprints en Header (`src/components/Header.tsx`) utiliza la etiqueta localizada `header.sprints` ("Sprints").
-   - El test de smoke usaba un regex estricto `/^(Sprints & Backlog|Sprints y Backlog)$/` que no contemplaba "Sprints".
-   - Mitigación: Actualización del regex a `/^(Sprints & Backlog|Sprints y Backlog|Sprints)$/`.
+- [x] #1 El asistente de inicialización scripts/initScaffold.js pregunta explícitamente si se desea instalar Gripm Playbook, dejando el proyecto completamente limpio si se responde que no.
+- [x] #2 Si el usuario acepta instalar Gripm Playbook en el init, se dispara la instalación/sincronización canónica de @gripm/playbook.
+- [x] #3 package.json acota su campo files para incluir únicamente .agents/skills/gripm en lugar del comodín .agents completo, verificado por verify-publish-surface.js.
+- [x] #4 Todas las menciones residuales de 'Agentic Team Playbook' en CLI, scripts y documentación viva se unifican a 'Gripm Playbook'.
+- [x] #5 Se documenta formalmente la frontera entre el producto Gripm Board (Cockpit/MCP) y Gripm Playbook (framework metodológico), aclarando el rol del dogfooding en el repo gripm.
+- [x] #6 Pirámide de verificación en verde (npx tsc --noEmit, npm test, npm run backlog:check, npm run publish:check con código 0).
 
 ---
 

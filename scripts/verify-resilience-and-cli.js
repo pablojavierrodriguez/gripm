@@ -165,6 +165,32 @@ try {
     console.log('✅ DEV-240: Banderas CLI --single / --hub y preservación de proyecto activo validadas');
   }
 
+  // 9. DEV-250: Inicialización limpia por defecto (cero archivos de Playbook en --init)
+  {
+    const tempInitClean = path.join(process.cwd(), 'data/test-init-clean-' + Date.now());
+    fs.mkdirSync(tempInitClean, { recursive: true });
+    try {
+      execSync(`node bin/gripm.js --repo "${tempInitClean}" --init --minimal -y`, { encoding: 'utf8' });
+      const hasTeamPlaybook = fs.existsSync(path.join(tempInitClean, '.agents/TEAM_PLAYBOOK.md'));
+      const hasStateMachine = fs.existsSync(path.join(tempInitClean, '.agents/STATE_MACHINE.md'));
+      const hasAuditScript = fs.existsSync(path.join(tempInitClean, 'scripts/audit-ux-code.cjs'));
+      const hasGripmSkill = fs.existsSync(path.join(tempInitClean, '.agents/skills/gripm/SKILL.md'));
+      const hasBacklog = fs.existsSync(path.join(tempInitClean, 'backlog/tasks'));
+
+      if (hasTeamPlaybook || hasStateMachine || hasAuditScript) {
+        throw new Error('DEV-250 FAILED: gripm --init instaló archivos de Gripm Playbook sin consentimiento.');
+      }
+      if (!hasGripmSkill || !hasBacklog) {
+        throw new Error('DEV-250 FAILED: gripm --init no inicializó la skill gripm o backlog/tasks.');
+      }
+      console.log('✅ DEV-250: gripm --init produce un repositorio 100% limpio sin Playbook por defecto');
+    } finally {
+      if (fs.existsSync(tempInitClean)) {
+        fs.rmSync(tempInitClean, { recursive: true, force: true });
+      }
+    }
+  }
+
 
 } finally {
   // Limpieza

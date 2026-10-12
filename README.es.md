@@ -57,19 +57,26 @@ gripm --init
 El asistente interactivo ofrece tres perfiles de adopción adaptados a tu forma de trabajar:
 
 - **`[1] Minimalista AI-First` (Por defecto / Recomendado):**
-  Configura Kanban esencial, backlog en Markdown (`backlog/tasks/*.md`), reglas para agentes (`AGENTS.md`) y scripts ligeros de integridad (`npm run backlog:check`, `npm run backlog:sync`). Ideal para desarrolladores ágiles que programan en pareja con agentes de IA sin sobrecarga burocrática.
+  Configura Kanban esencial, backlog en Markdown (`backlog/tasks/*.md`), skill de conexión (`.agents/skills/gripm/`) y scripts ligeros de integridad (`npm run backlog:check`, `npm run backlog:sync`). Ideal para desarrolladores ágiles que programan en pareja con agentes de IA sin sobrecarga burocrática.
 - **`[2] Baterías Incluidas:`**
-  Equipa la suite ágil completa: Kanban + Sprints (Scrum) + Releases, hooks de Git pre-commit (`.githooks/pre-commit`), skills de agentes de Playbook (`.agents/skills/`) y auditoría estática de UX (`npm run audit:ux`).
+  Equipa la suite ágil completa: Kanban + Sprints (Scrum) + Releases, hooks de Git pre-commit (`.githooks/pre-commit`) y guía de gobernanza (`AGENTS.md`).
 - **`[3] Personalizado:`**
   Elige interactivamente tu metodología ágil, módulos activos, hooks de git y reglas para agentes paso a paso.
 
+**Integración con Gripm Playbook (Opcional):**
+El asistente de inicio consulta explícitamente si deseas incorporar **Gripm Playbook** (`@gripm/playbook`) con roles de equipo multi-agente (`pm-orchestrator`, `principal-engineer`, `rigorous-qa-auditor`, `worldclass-product-designer`) y auditoría estática de UX (`npm run audit:ux`). Si se rechaza, Gripm Board se mantiene 100% limpio y liviano.
+
 **Flags no interactivas (CI / Automatización):**
 ```bash
-# Perfil minimalista AI-First (equivalente a -y)
+# Perfil minimalista AI-First (equivalente a -y, tablero limpio sin playbook)
 gripm --init --minimal
 
 # Perfil completo Baterías Incluidas
 gripm --init --full
+
+# Incluir o excluir explícitamente Gripm Playbook
+gripm --init --with-playbook
+gripm --init --no-playbook
 ```
 
 ### 3. Abre tu tablero

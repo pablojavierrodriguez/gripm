@@ -43,6 +43,10 @@ try {
   const githooksCount = (tarList.match(/package\/\.githooks\/pre-commit/g) || []).length;
   assert.strictEqual(githooksCount, 1, `El tarball debe contener .githooks/pre-commit exactamente 1 vez, encontrados: ${githooksCount}`);
 
+  // DEV-250: El tarball no debe contener el framework de Gripm Playbook
+  const playbookCount = (tarList.match(/package\/\.agents\/TEAM_PLAYBOOK\.md/g) || []).length;
+  assert.strictEqual(playbookCount, 0, 'El tarball de Gripm Board no debe contener el framework de Gripm Playbook (DEV-250)');
+
   // 3. Extraer tarball a directorio de paquete aislado
   const extractedDir = path.join(tmp, 'extracted');
   fs.mkdirSync(extractedDir, { recursive: true });
@@ -76,6 +80,10 @@ try {
   const agentsEnContent = fs.readFileSync(installedAgentsEn, 'utf8');
   assert.ok(!agentsEnContent.includes('Bienvenido a **demo**'), 'AGENTS.md en inglés no debe ser el stub básico');
   assert.ok(agentsEnContent.includes('AI Agent Contribution Guide'), 'AGENTS.md debe ser la guía canónica');
+
+  // DEV-250: Verificar que gripm --init -y mantiene el repositorio limpio sin Playbook
+  const installedPlaybookTeam = path.join(consumerRepoEn, '.agents/TEAM_PLAYBOOK.md');
+  assert.ok(!fs.existsSync(installedPlaybookTeam), 'El consumidor por defecto debe quedar limpio sin Gripm Playbook (DEV-250)');
 
   // 5. AC #6: Probar gripm --init -y --language es en otro repo consumidor
   const consumerRepoEs = path.join(tmp, 'consumer-repo-es');

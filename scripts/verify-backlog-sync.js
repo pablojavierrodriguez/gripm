@@ -248,7 +248,6 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
     const docsToCheck = [
       readmePath,
       path.join(currentRepoDir, 'docs/ARCHITECTURE.md'),
-      path.join(currentRepoDir, 'docs/AGENTIC_PLAYBOOK.md'),
       path.join(currentRepoDir, 'AGENTS.md')
     ].filter(f => fs.existsSync(f));
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadRegistryFile, saveRegistryFile, resolveProjectIdentity } from './registryConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,10 +65,10 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
 
   console.log(`
 ┌────────────────────────────────────────────────────────────┐
-│  🚀 gripm - Asistente de Inicialización de Repositorio      │
+│  🚀 gripm - Repository Initialization Wizard               │
 │                                                            │
-│  📁 Repositorio:  ${targetRepo.slice(0, 40).padEnd(41)}│
-│  🏷️  Proyecto:     ${projectName.slice(0, 40).padEnd(41)}│
+│  📁 Repository:   ${targetRepo.slice(0, 40).padEnd(41)}│
+│  🏷️  Project:      ${projectName.slice(0, 40).padEnd(41)}│
 └────────────────────────────────────────────────────────────┘
   `);
 
@@ -82,6 +82,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   };
   let installSkill = options.skill !== undefined ? options.skill : true;
   let installAgentsMd = options.agentsMd !== undefined ? options.agentsMd : (profile === 'minimal' ? false : true);
+  let installPlaybook = options.playbook !== undefined ? Boolean(options.playbook) : (options.withPlaybook ? true : false);
   let updatePkgJson = options.packageJson !== undefined ? options.packageJson : true;
   let updateGitignore = options.gitignore !== undefined ? options.gitignore : true;
 
@@ -92,12 +93,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     });
 
     try {
-      console.log('  Configuración inicial:\n');
+      console.log('  Initial configuration / Configuración inicial:\n');
 
       // Question 1: Language
       const langAnswer = await rl.question(
         '  1. Language / Idioma:\n' +
-        '     [1] English (en)\n' +
+        '     [1] English (en) [Default]\n' +
         '     [2] Español (es)\n' +
         '     Select option / Selecciona opción [1]: '
       );
@@ -106,9 +107,14 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       } else {
         language = 'en';
       }
+      const isEn = language === 'en';
 
       // Question 2: Project Name
-      const nameAnswer = await rl.question(`\n  2. Nombre del proyecto [${projectName}]: `);
+      const nameAnswer = await rl.question(
+        isEn
+          ? `\n  2. Project name [${projectName}]: `
+          : `\n  2. Nombre del proyecto [${projectName}]: `
+      );
       if (nameAnswer.trim()) {
         projectName = nameAnswer.trim();
         projectId = projectName.toLowerCase().replace(/^@[^/]+\//, '').replace(/[^a-z0-9_-]/g, '-');
@@ -116,13 +122,18 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       }
 
       // Question 3: Adoption Profile
-      const profileAnswer = await rl.question(
-        '\n  3. Perfil de Adopción:\n' +
-        '     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, solo tareas y skill)\n' +
-        '     [2] Baterías Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n' +
-        '     [3] Personalizado (Configuración manual de cada add-on y opción)\n' +
-        '     Selecciona opción [1]: '
-      );
+      const profilePrompt = isEn
+        ? '\n  3. Adoption Profile:\n' +
+          '     [1] Minimalist AI-First (Recommended: Pure Kanban, no timeboxes or ceremonies, tasks & skill only)\n' +
+          '     [2] Batteries Included (Full Scrum with Sprints, Releases and AGENTS.md)\n' +
+          '     [3] Custom (Manual configuration of each add-on and setting)\n' +
+          '     Select option [1]: '
+        : '\n  3. Perfil de Adopción:\n' +
+          '     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, solo tareas y skill)\n' +
+          '     [2] Baterías Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n' +
+          '     [3] Personalizado (Configuración manual de cada add-on y opción)\n' +
+          '     Selecciona opción [1]: ';
+      const profileAnswer = await rl.question(profilePrompt);
 
       const trimmedProfile = profileAnswer.trim();
       if (trimmedProfile === '2') {
@@ -141,12 +152,16 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
 
       if (profile === 'custom') {
         // Mode
-        const modeAnswer = await rl.question(
-          '\n  3.1 Modo de Instanciación:\n' +
-          '      [1] Mono-Proyecto (Recomendado: tablero aislado y autocontenido para este repo)\n' +
-          '      [2] Multi-Proyecto (Registrar en el Hub global para verlo junto a otros repositorios)\n' +
-          '      Selecciona opción [1]: '
-        );
+        const modePrompt = isEn
+          ? '\n  3.1 Instantiation Mode:\n' +
+            '      [1] Single-Project (Recommended: isolated, self-contained board for this repo)\n' +
+            '      [2] Multi-Project (Register in global Hub to view alongside other repositories)\n' +
+            '      Select option [1]: '
+          : '\n  3.1 Modo de Instanciación:\n' +
+            '      [1] Mono-Proyecto (Recomendado: tablero aislado y autocontenido para este repo)\n' +
+            '      [2] Multi-Proyecto (Registrar en el Hub global para verlo junto a otros repositorios)\n' +
+            '      Selecciona opción [1]: ';
+        const modeAnswer = await rl.question(modePrompt);
         if (modeAnswer.trim() === '2') {
           mode = 'multi';
         } else {
@@ -154,12 +169,16 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         }
 
         // Methodology
-        const methAnswer = await rl.question(
-          '\n  3.2 Metodología:\n' +
-          '      [1] Kanban puro (Flujo continuo, sin timeboxes de sprint)\n' +
-          '      [2] Scrum / Sprints (Timeboxes y sprints activos)\n' +
-          '      Selecciona opción [1]: '
-        );
+        const methPrompt = isEn
+          ? '\n  3.2 Methodology:\n' +
+            '      [1] Pure Kanban (Continuous flow, no sprint timeboxes)\n' +
+            '      [2] Scrum / Sprints (Timeboxes and active sprints)\n' +
+            '      Select option [1]: '
+          : '\n  3.2 Metodología:\n' +
+            '      [1] Kanban puro (Flujo continuo, sin timeboxes de sprint)\n' +
+            '      [2] Scrum / Sprints (Timeboxes y sprints activos)\n' +
+            '      Selecciona opción [1]: ';
+        const methAnswer = await rl.question(methPrompt);
         if (methAnswer.trim() === '2') {
           methodology = 'scrum';
           enabledTabs.sprint = true;
@@ -169,20 +188,43 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         }
 
         // Skill
-        const skillAnswer = await rl.question('\n  3.3 ¿Instalar skill para agentes (.agents/skills/gripm/SKILL.md)? (S/n) [S]: ');
+        const skillPrompt = isEn
+          ? '\n  3.3 Install agent skill (.agents/skills/gripm/SKILL.md)? (Y/n) [Y]: '
+          : '\n  3.3 ¿Instalar skill para agentes (.agents/skills/gripm/SKILL.md)? (S/n) [S]: ';
+        const skillAnswer = await rl.question(skillPrompt);
         installSkill = skillAnswer.trim().toLowerCase() !== 'n';
 
         // AGENTS.md
-        const agentsAnswer = await rl.question('  3.4 ¿Generar guía de gobernanza para agentes (AGENTS.md)? (S/n) [S]: ');
+        const agentsPrompt = isEn
+          ? '  3.4 Generate agent governance guide (AGENTS.md)? (Y/n) [Y]: '
+          : '  3.4 ¿Generar guía de gobernanza para agentes (AGENTS.md)? (S/n) [S]: ';
+        const agentsAnswer = await rl.question(agentsPrompt);
         installAgentsMd = agentsAnswer.trim().toLowerCase() !== 'n';
 
         // package.json scripts
-        const pkgAnswer = await rl.question('  3.5 ¿Configurar scripts de inicio ("board", "mcp") en package.json? (S/n) [S]: ');
+        const pkgPrompt = isEn
+          ? '  3.5 Configure start scripts ("board", "mcp") in package.json? (Y/n) [Y]: '
+          : '  3.5 ¿Configurar scripts de inicio ("board", "mcp") en package.json? (S/n) [S]: ';
+        const pkgAnswer = await rl.question(pkgPrompt);
         updatePkgJson = pkgAnswer.trim().toLowerCase() !== 'n';
 
-        // .gitignore
-        const gitignoreAnswer = await rl.question('  3.6 ¿Añadir reglas recomendadas a .gitignore? (S/n) [S]: ');
-        updateGitignore = gitignoreAnswer.trim().toLowerCase() !== 'n';
+        // Gripm Playbook
+        const playbookPrompt = isEn
+          ? '  3.7 Install Gripm Playbook (@gripm/playbook) with agent roles & UX audit? (y/N) [N]: '
+          : '  3.7 ¿Instalar Gripm Playbook (@gripm/playbook) con roles de equipo de agentes y auditoría de UX? (s/N) [N]: ';
+        const playbookAnswer = await rl.question(playbookPrompt);
+        installPlaybook = isEn
+          ? /^y(es)?$/i.test(playbookAnswer.trim())
+          : /^(s|si|sí)$/i.test(playbookAnswer.trim());
+      } else {
+        // Question 4 for standard profiles (Minimalist / Full)
+        const playbookPrompt = isEn
+          ? '\n  4. Do you want to install Gripm Playbook (@gripm/playbook) with agent roles (PM, Principal Engineer, QA, Designer) and UX audit? (y/N) [N]: '
+          : '\n  4. ¿Deseas instalar también Gripm Playbook (@gripm/playbook) con roles de agentes (PM, Principal Engineer, QA, Designer) y auditoría de UX? (s/N) [N]: ';
+        const playbookAnswer = await rl.question(playbookPrompt);
+        installPlaybook = isEn
+          ? /^y(es)?$/i.test(playbookAnswer.trim())
+          : /^(s|si|sí)$/i.test(playbookAnswer.trim());
       }
 
     } finally {
@@ -190,7 +232,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     }
   }
 
-  console.log('\n  ⚙️  Aplicando configuración elegida...\n');
+  const isEnOutput = language === 'en';
+  console.log(isEnOutput ? '\n  ⚙️  Applying configuration...\n' : '\n  ⚙️  Aplicando configuración elegida...\n');
   const results = {
     projectName,
     projectId,
@@ -203,6 +246,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     tasksDir: false,
     skill: false,
     agentsMd: false,
+    playbook: false,
     packageJson: false,
     gitignore: false,
     registeredInHub: false
@@ -256,15 +300,19 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   }
   fs.writeFileSync(configFile, JSON.stringify(currentConfig, null, 2) + '\n', 'utf8');
   results.gripmConfig = true;
-  console.log(`  ✅ .gripm/config.json guardado (Proyecto: ${projectName}, Idioma: ${currentConfig.language}, Modo: ${mode === 'single' ? 'Mono-Proyecto' : 'Multi-Proyecto Hub'})`);
+  const isEnCurrent = (currentConfig.language || language) === 'en';
+  console.log(isEnCurrent
+    ? `  ✅ .gripm/config.json saved (Project: ${projectName}, Language: ${currentConfig.language}, Mode: ${mode === 'single' ? 'Single-Project' : 'Multi-Project Hub'})`
+    : `  ✅ .gripm/config.json guardado (Proyecto: ${projectName}, Idioma: ${currentConfig.language}, Modo: ${mode === 'single' ? 'Mono-Proyecto' : 'Multi-Proyecto Hub'})`
+  );
 
   // 2. Ensure backlog/tasks directory (Idempotent and non-destructive)
   const tasksDir = path.join(targetRepo, 'backlog/tasks');
   if (!fs.existsSync(tasksDir)) {
     fs.mkdirSync(tasksDir, { recursive: true });
-    console.log('  ✅ Directorio backlog/tasks/ creado para tareas Markdown');
+    console.log(isEnCurrent ? '  ✅ backlog/tasks/ directory created for Markdown tasks' : '  ✅ Directorio backlog/tasks/ creado para tareas Markdown');
   } else {
-    console.log('  ℹ️  Directorio backlog/tasks/ existente preservado');
+    console.log(isEnCurrent ? '  ℹ️  Existing backlog/tasks/ directory preserved' : '  ℹ️  Directorio backlog/tasks/ existente preservado');
   }
   results.tasksDir = true;
 
@@ -292,12 +340,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       registry.activeProjectId = projectId;
       saveRegistryFile(registry, PKG_ROOT);
       results.registeredInHub = true;
-      console.log('  ✅ Proyecto registrado en el Hub global (~/.gripm/registry.json)');
+      console.log(isEnCurrent ? '  ✅ Project registered in global Hub (~/.gripm/registry.json)' : '  ✅ Proyecto registrado en el Hub global (~/.gripm/registry.json)');
     } catch (err) {
-      console.warn('  ⚠️ No se pudo registrar en el Hub global:', err.message);
+      console.warn(isEnCurrent ? '  ⚠️ Could not register in global Hub:' : '  ⚠️ No se pudo registrar en el Hub global:', err.message);
     }
   } else {
-    console.log('  🔒 Modo Mono-Proyecto activo: Ejecución autocontenida sin dependencias externas');
+    console.log(isEnCurrent ? '  🔒 Single-Project mode active: Self-contained execution without external dependencies' : '  🔒 Modo Mono-Proyecto activo: Ejecución autocontenida sin dependencias externas');
   }
 
   // 4. Install Agent Skill
@@ -312,7 +360,10 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     fs.writeFileSync(path.join(gripmSkillDir, 'SKILL.md'), skillContent, 'utf8');
 
     results.skill = true;
-    console.log(`  ✅ Skill para agentes instalada en .agents/skills/gripm/SKILL.md (${currentConfig.language || language})`);
+    console.log(isEnCurrent
+      ? `  ✅ Agent skill installed at .agents/skills/gripm/SKILL.md (${currentConfig.language || language})`
+      : `  ✅ Skill para agentes instalada en .agents/skills/gripm/SKILL.md (${currentConfig.language || language})`
+    );
   }
 
   // 5. Generate AGENTS.md
@@ -321,9 +372,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     if (!fs.existsSync(agentsMdPath) || options.force) {
       fs.writeFileSync(agentsMdPath, getAgentsMdTemplate(projectName, currentConfig.language || language), 'utf8');
       results.agentsMd = true;
-      console.log(`  ✅ Guía de gobernanza generada en AGENTS.md (${currentConfig.language || language})`);
+      console.log(isEnCurrent
+        ? `  ✅ Governance guide generated at AGENTS.md (${currentConfig.language || language})`
+        : `  ✅ Guía de gobernanza generada en AGENTS.md (${currentConfig.language || language})`
+      );
     } else {
-      console.log('  ℹ️  AGENTS.md existente preservado');
+      console.log(isEnCurrent ? '  ℹ️  Existing AGENTS.md preserved' : '  ℹ️  AGENTS.md existente preservado');
       results.agentsMd = true;
     }
   }
@@ -351,13 +405,13 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
 
         if (modified) {
           fs.writeFileSync(hostPkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-          console.log('  ✅ Scripts "board" y "mcp" agregados a package.json');
+          console.log(isEnCurrent ? '  ✅ Scripts "board" and "mcp" added to package.json' : '  ✅ Scripts "board" y "mcp" agregados a package.json');
         } else {
-          console.log('  ℹ️  Scripts de package.json ya estaban configurados');
+          console.log(isEnCurrent ? '  ℹ️  package.json scripts were already configured' : '  ℹ️  Scripts de package.json ya estaban configurados');
         }
         results.packageJson = true;
       } catch (err) {
-        console.warn('  ⚠️ No se pudo actualizar package.json:', err.message);
+        console.warn(isEnCurrent ? '  ⚠️ Could not update package.json:' : '  ⚠️ No se pudo actualizar package.json:', err.message);
       }
     }
   }
@@ -376,18 +430,54 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       const content = fs.readFileSync(gitignorePath, 'utf8');
       if (!content.includes('.gripm/update-cache.json')) {
         fs.appendFileSync(gitignorePath, ignoreLines + '\n', 'utf8');
-        console.log('  ✅ Reglas de gripm añadidas a .gitignore');
+        console.log(isEnCurrent ? '  ✅ gripm rules added to .gitignore' : '  ✅ Reglas de gripm añadidas a .gitignore');
       } else {
-        console.log('  ℹ️  .gitignore ya contenía las reglas de gripm');
+        console.log(isEnCurrent ? '  ℹ️  .gitignore already contained gripm rules' : '  ℹ️  .gitignore ya contenía las reglas de gripm');
       }
     } else {
       fs.writeFileSync(gitignorePath, ignoreLines.trim() + '\n', 'utf8');
-      console.log('  ✅ Archivo .gitignore creado con reglas de gripm');
+      console.log(isEnCurrent ? '  ✅ .gitignore file created with gripm rules' : '  ✅ Archivo .gitignore creado con reglas de gripm');
     }
     results.gitignore = true;
   }
 
-  console.log(`
+  // 8. Gripm Playbook optional installation (DEV-250)
+  if (installPlaybook) {
+    try {
+      console.log(isEnCurrent ? '  📦 Synchronizing Gripm Playbook (@gripm/playbook)...' : '  📦 Sincronizando Gripm Playbook (@gripm/playbook)...');
+      const syncScript = path.join(PKG_ROOT, 'scripts', 'sync-playbook.mjs');
+      if (fs.existsSync(syncScript)) {
+        const { runPlaybookSync } = await import(pathToFileURL(syncScript).href);
+        await runPlaybookSync(targetRepo, { yes: true });
+        results.playbook = true;
+        console.log(isEnCurrent ? '  ✅ Gripm Playbook synchronized successfully.' : '  ✅ Gripm Playbook sincronizado con éxito.');
+      }
+    } catch (err) {
+      console.warn(isEnCurrent ? '  ⚠️ Could not synchronize Gripm Playbook automatically:' : '  ⚠️ No se pudo sincronizar Gripm Playbook automáticamente:', err.message);
+    }
+  } else {
+    console.log(isEnCurrent ? '  ✨ Clean repository: Gripm Board configured without Playbook.' : '  ✨ Repositorio limpio: Gripm Board configurado sin Playbook.');
+  }
+
+  if (isEnCurrent) {
+    console.log(`
+┌────────────────────────────────────────────────────────────┐
+│  ✨ gripm initialized successfully!                         │
+│                                                            │
+│  To open the board:                                        │
+│  • npm run board                                           │
+│    (or direct: npx @gripm/board)                           │
+│                                                            │
+│  To start the MCP server:                                  │
+│  • npm run mcp                                             │
+│    (or: npx -p @gripm/board gripm-mcp)                      │
+│                                                            │
+│  💡 Tip: Run 'npm install -g @gripm/board'                 │
+│  to use the global direct command 'gripm'.                 │
+└────────────────────────────────────────────────────────────┘
+    `);
+  } else {
+    console.log(`
 ┌────────────────────────────────────────────────────────────┐
 │  ✨ ¡gripm inicializado con éxito!                          │
 │                                                            │
@@ -397,12 +487,13 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
 │                                                            │
 │  Para iniciar el servidor MCP:                             │
 │  • npm run mcp                                             │
-│    (o: npx -p @gripm/board gripm-mcp)                      │
+│    (or: npx -p @gripm/board gripm-mcp)                      │
 │                                                            │
 │  💡 Consejo: Ejecuta 'npm install -g @gripm/board'         │
 │  para usar el comando global directo 'gripm'.              │
 └────────────────────────────────────────────────────────────┘
-  `);
+    `);
+  }
 
   return results;
 }

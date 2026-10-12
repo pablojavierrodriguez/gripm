@@ -39,7 +39,7 @@
   },
   "type": "module",
   "files": [
-    ".agents",
+    ".agents/skills/gripm",
     ".githooks",
     "audit-ux-baseline.json",
     "bin",

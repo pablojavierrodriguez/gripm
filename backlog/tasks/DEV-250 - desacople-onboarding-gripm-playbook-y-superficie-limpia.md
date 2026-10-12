@@ -1,9 +1,9 @@
 ---
 id: DEV-250
 title: "Desacople de Gripm Playbook en el onboarding de gripm init y superficie limpia de Gripm Board"
-status: doing
+status: ready
 created_date: '2026-10-12'
-updated_date: '2026-10-12 06:59'
+updated_date: '2026-10-12 07:24'
 labels:
   - "onboarding"
   - "playbook"
@@ -38,12 +38,12 @@ Alinear el onboarding de `@gripm/board` (`gripm --init`) y su superficie de publ
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El asistente de inicialización scripts/initScaffold.js pregunta explícitamente si se desea instalar Gripm Playbook, dejando el proyecto completamente limpio si se responde que no.
-- [ ] #2 Si el usuario acepta instalar Gripm Playbook en el init, se dispara la instalación/sincronización canónica de @gripm/playbook.
-- [ ] #3 package.json acota su campo files para incluir únicamente .agents/skills/gripm en lugar del comodín .agents completo, verificado por verify-publish-surface.js.
-- [ ] #4 Todas las menciones residuales de 'Agentic Team Playbook' en CLI, scripts y documentación viva se unifican a 'Gripm Playbook'.
-- [ ] #5 Se documenta formalmente la frontera entre el producto Gripm Board (Cockpit/MCP) y Gripm Playbook (framework metodológico), aclarando el rol del dogfooding en el repo gripm.
-- [ ] #6 Pirámide de verificación en verde (npx tsc --noEmit, npm test, npm run backlog:check, npm run publish:check con código 0).
+- [x] #1 El asistente de inicialización scripts/initScaffold.js pregunta explícitamente si se desea instalar Gripm Playbook, dejando el proyecto completamente limpio si se responde que no.
+- [x] #2 Si el usuario acepta instalar Gripm Playbook en el init, se dispara la instalación/sincronización canónica de @gripm/playbook.
+- [x] #3 package.json acota su campo files para incluir únicamente .agents/skills/gripm en lugar del comodín .agents completo, verificado por verify-publish-surface.js.
+- [x] #4 Todas las menciones residuales de 'Agentic Team Playbook' en CLI, scripts y documentación viva se unifican a 'Gripm Playbook'.
+- [x] #5 Se documenta formalmente la frontera entre el producto Gripm Board (Cockpit/MCP) y Gripm Playbook (framework metodológico), aclarando el rol del dogfooding en el repo gripm.
+- [x] #6 Pirámide de verificación en verde (npx tsc --noEmit, npm test, npm run backlog:check, npm run publish:check con código 0).
 <!-- AC:END -->
 
 ## Implementation Plan

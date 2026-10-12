@@ -57,19 +57,26 @@ gripm --init
 The interactive setup wizard offers three tailored adoption profiles:
 
 - **`[1] Minimalist AI-First` (Default / Recommended):**
-  Sets up Kanban core, markdown backlog (`backlog/tasks/*.md`), agent guidelines (`AGENTS.md`), and lightweight integrity scripts (`npm run backlog:check`, `npm run backlog:sync`). Ideal for fast-moving developers pairing with AI agents without overhead.
+  Sets up Kanban core, markdown backlog (`backlog/tasks/*.md`), connection skill (`.agents/skills/gripm/`), and lightweight integrity scripts (`npm run backlog:check`, `npm run backlog:sync`). Ideal for fast-moving developers pairing with AI agents without overhead.
 - **`[2] Batteries-Included:`**
-  Equips the full agile suite: Kanban + Sprints (Scrum) + Releases, pre-commit Git quality hooks (`.githooks/pre-commit`), Playbook agent skills (`.agents/skills/`), and static UX auditing (`npm run audit:ux`).
+  Equips the full agile suite: Kanban + Sprints (Scrum) + Releases, pre-commit Git quality hooks (`.githooks/pre-commit`), and governance guidelines (`AGENTS.md`).
 - **`[3] Custom:`**
   Interactively choose your agile methodology, active modules, git hooks, and agent rules step by step.
 
+**Gripm Playbook Integration (Optional):**
+The setup wizard explicitly asks if you want to integrate **Gripm Playbook** (`@gripm/playbook`) with multi-agent team roles (`pm-orchestrator`, `principal-engineer`, `rigorous-qa-auditor`, `worldclass-product-designer`) and static UX auditing (`npm run audit:ux`). If declined, Gripm Board stays 100% clean and lightweight.
+
 **Non-interactive flags (CI / Automation):**
 ```bash
-# Minimal AI-First profile (equivalent to -y)
+# Minimal AI-First profile (equivalent to -y, clean board without playbook)
 gripm --init --minimal
 
 # Batteries-Included full agile profile
 gripm --init --full
+
+# Explicitly include or exclude Gripm Playbook
+gripm --init --with-playbook
+gripm --init --no-playbook
 ```
 
 ### 3. Open your board

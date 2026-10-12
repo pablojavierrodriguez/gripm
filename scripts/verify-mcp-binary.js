@@ -50,6 +50,7 @@ let stdoutData = '';
 
 child.stdout.on('data', (chunk) => {
   stdoutData += chunk.toString();
+  checkReady();
 });
 
 function send(req) {
@@ -283,7 +284,27 @@ send({
   }
 });
 
-setTimeout(() => {
+let finished = false;
+function checkReady() {
+  if (finished) return;
+  const lines = stdoutData.trim().split('\n').filter(Boolean);
+  const count = lines.filter(l => {
+    try { return JSON.parse(l); } catch { return false; }
+  }).length;
+  if (count >= 17) {
+    finished = true;
+    clearTimeout(timeoutHandle);
+    setImmediate(runAssertions);
+  }
+}
+
+const timeoutHandle = setTimeout(() => {
+  if (finished) return;
+  finished = true;
+  runAssertions();
+}, 15000);
+
+function runAssertions() {
   try {
     child.kill();
 
@@ -453,4 +474,4 @@ setTimeout(() => {
   } finally {
     cleanup();
   }
-}, 4500);
+}

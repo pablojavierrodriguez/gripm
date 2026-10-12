@@ -4,6 +4,14 @@ Bienvenido a **gripm**. Este documento establece las normas operativas, el flujo
 
 ---
 
+## 0. Ecosistema Gripm y Dogfooding de Gripm Playbook (DEV-250)
+
+- **Gripm Board (`@gripm/board`, este repositorio):** Es el producto de software (Cockpit visual web, motor de Markdown, servidor MCP y CLI). El paquete publicado en npm distribuye exclusivamente la aplicación, el servidor MCP y la skill de conexión `.agents/skills/gripm/`.
+- **Gripm Playbook (`@gripm/playbook`, repositorio `gripm-playbook`):** Es el framework metodológico autónomo para equipos de agentes (roles, State Machine, Pirámide de Verificación y auditoría de UX).
+- **Dogfooding en este repositorio:** Para desarrollar Gripm Board, el equipo adopta metodológicamente Gripm Playbook. Por esta razón conviven en `.agents/skills/` los roles del playbook (`principal-engineer`, `rigorous-qa-auditor`, `pm-orchestrator`, etc.), gobernados por `.playbook-lock.json`. No forman parte del producto distribuido de Gripm Board y están excluidos del tarball de producción de npm.
+
+---
+
 ## 1. Flujo Ágil de Entrega (Backlog [draft] → Dev [doing] → QA [ready] → Release Management → Prod [done])
 
 Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/`.

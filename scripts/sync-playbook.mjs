@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Agentic Team Playbook Synchronizer
+ * Gripm Playbook Synchronizer
  *
  * Installs or updates the canonical framework layer (rules, core skills, tooling)
  * into any project, without touching the project layer (AGENTS.md, backlog, code).
@@ -202,7 +202,7 @@ function printBanner(targetRepo, remote, ref, pinned, stacks) {
 
   console.log('');
   console.log('┌' + '─'.repeat(width + 2) + '┐');
-  console.log('│  ⚡ Agentic Team Playbook Sync'.padEnd(width + 3) + '│');
+  console.log('│  ⚡ Gripm Playbook Sync'.padEnd(width + 3) + '│');
   for (const [key, value] of rows) {
     const line = `  ${key}: ${value}`;
     console.log('│' + line.padEnd(width + 3) + '│');
