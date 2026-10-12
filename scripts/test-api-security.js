@@ -45,6 +45,7 @@ class MockResponse extends EventEmitter {
     this.statusCode = 200;
     this.headers = {};
     this.body = '';
+    this.finished = false;
   }
   writeHead(status, headers) {
     this.statusCode = status;
@@ -55,6 +56,7 @@ class MockResponse extends EventEmitter {
   }
   end(chunk) {
     if (chunk) this.body += chunk;
+    this.finished = true;
     this.emit('finish');
   }
 }
@@ -66,6 +68,10 @@ class MockRequest extends EventEmitter {
     this.url = url;
     this.headers = headers;
     this.body = body;
+    this.destroyed = false;
+  }
+  destroy() {
+    this.destroyed = true;
   }
 }
 
@@ -318,4 +324,53 @@ class MockRequest extends EventEmitter {
   console.log('✅ MCP Repo Containment (SEC-03): Rechazó raíz protegida del sistema con error de seguridad');
 }
 
+// Test 15: Security Headers en UI y API Middleware (DEV-243)
+{
+  const req = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+  const res = new MockResponse();
+  middlewareHandler(req, res, () => {});
+  assert.strictEqual(res.headers['X-Frame-Options'], 'DENY', 'Debe incluir X-Frame-Options: DENY');
+  assert.strictEqual(res.headers['X-Content-Type-Options'], 'nosniff', 'Debe incluir X-Content-Type-Options: nosniff');
+  assert.strictEqual(res.headers['Referrer-Policy'], 'strict-origin-when-cross-origin', 'Debe incluir Referrer-Policy');
+  assert(res.headers['Content-Security-Policy'] && res.headers['Content-Security-Policy'].includes("frame-ancestors 'none'"), 'CSP debe incluir frame-ancestors none');
+
+  // Verificar también headers en server.headers para requests de Vite estáticos
+  assert.strictEqual(config.server?.headers?.['X-Frame-Options'], 'DENY', 'server.headers debe incluir X-Frame-Options: DENY');
+  assert.strictEqual(config.server?.headers?.['X-Content-Type-Options'], 'nosniff', 'server.headers debe incluir X-Content-Type-Options: nosniff');
+  assert.strictEqual(config.server?.headers?.['Referrer-Policy'], 'strict-origin-when-cross-origin', 'server.headers debe incluir Referrer-Policy');
+  assert(config.server?.headers?.['Content-Security-Policy']?.includes("frame-ancestors 'none'"), 'server.headers CSP debe incluir frame-ancestors none');
+
+  console.log('✅ Security Headers (DEV-243): API Middleware y server.headers inyectan X-Frame-Options, nosniff, Referrer-Policy y CSP frame-ancestors');
+}
+
+// Test 16: Payload Too Large (413) Body Limit (DEV-243)
+{
+  const reqLarge = new MockRequest('POST', '/api/settings', {
+    host: 'localhost:4100',
+    origin: 'http://localhost:4100',
+    'content-type': 'application/json'
+  });
+  const resLarge = new MockResponse();
+  middlewareHandler(reqLarge, resLarge, () => {});
+
+  const finishPromise = new Promise(r => {
+    if (resLarge.finished) return r();
+    resLarge.once('finish', r);
+  });
+
+  const chunk = 'x'.repeat(1024 * 1024); // 1 MB chunk
+  for (let i = 0; i < 11; i++) {
+    reqLarge.emit('data', chunk);
+  }
+  reqLarge.emit('end');
+
+  await finishPromise;
+  assert.strictEqual(resLarge.statusCode, 413, 'Payload que excede 10MB debe responder 413 Payload Too Large');
+  const body = JSON.parse(resLarge.body);
+  assert(body.error && body.error.includes('10MB'), 'El cuerpo debe indicar que excede el límite de 10MB');
+  assert.strictEqual(reqLarge.destroyed, true, 'La request debe abortarse/destruirse al exceder el límite');
+  console.log('✅ Body Size Limit 10MB (DEV-243): Peticiones mutantes que exceden 10MB son rechazadas con HTTP 413');
+}
+
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');
+

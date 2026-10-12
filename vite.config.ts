@@ -1235,6 +1235,17 @@ function devBoardApi(): DevBoardPlugin {
   }
 
   const apiMiddleware = (req: any, res: any, next: any) => {
+    // DEV-243: Security headers (CSP, Anti-Clickjacking, MIME sniffing, Referrer)
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+      );
+    }
+
     const url = req.url || '';
     const pathname = url.split('?')[0];
     if (!pathname.startsWith('/api/')) {
@@ -1351,11 +1362,31 @@ function devBoardApi(): DevBoardPlugin {
       return;
     }
 
+        const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB limit (DEV-243: Anti-DoS)
         const getBody = (): Promise<any> => {
           return new Promise((resolve, reject) => {
             let body = '';
-            req.on('data', (chunk: any) => { body += chunk; });
+            let receivedBytes = 0;
+            let aborted = false;
+
+            req.on('data', (chunk: any) => {
+              if (aborted) return;
+              receivedBytes += chunk ? (chunk.length || Buffer.byteLength(chunk)) : 0;
+              if (receivedBytes > MAX_BODY_SIZE) {
+                aborted = true;
+                const err: any = new Error('Payload Too Large: request body exceeds 10MB limit');
+                err.statusCode = 413;
+                res.statusCode = 413;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Payload Too Large: request body exceeds 10MB limit' }));
+                reject(err);
+                if (typeof req.destroy === 'function') req.destroy();
+                return;
+              }
+              body += chunk;
+            });
             req.on('end', () => {
+              if (aborted) return;
               if (!body) return resolve({});
               try {
                 resolve(JSON.parse(body));
@@ -1363,7 +1394,10 @@ function devBoardApi(): DevBoardPlugin {
                 reject(e);
               }
             });
-            req.on('error', reject);
+            req.on('error', (err: any) => {
+              if (aborted) return;
+              reject(err);
+            });
           });
         };
 
@@ -2617,6 +2651,9 @@ ${Array.isArray(r.actions) && r.actions.length > 0
 
             sendJson(404, { error: 'Endpoint not found' });
           } catch (err: any) {
+            if (err?.statusCode === 413) {
+              return;
+            }
             console.error('[DevBoard API Error]', err);
             sendJson(500, { error: err.message || 'Internal server error' });
           }
@@ -2709,6 +2746,12 @@ export default defineConfig(async () => {
       }
     },
     server: {
+      headers: {
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+      },
       port: resolvedPort,
       strictPort: false,
       host,

@@ -37,9 +37,13 @@ class MockResponse extends EventEmitter {
     this.dataReceived = [];
   }
 
+  setHeader(name, val) {
+    this.headers[name] = val;
+  }
+
   writeHead(status, headers) {
     this.statusCode = status;
-    this.headers = headers;
+    if (headers) Object.assign(this.headers, headers);
   }
 
   write(chunk) {

