@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (2)
+### 🚀 Ready for Deploy (3)
 
 #### [DEV-249] Tolerancia a CRLF en verify-changes y actualizacion de selector de pestana Sprints en test-ui
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -161,6 +161,22 @@ Alinear el onboarding de `@gripm/board` (`gripm --init`) y su superficie de publ
 - [x] #4 Todas las menciones residuales de 'Agentic Team Playbook' en CLI, scripts y documentación viva se unifican a 'Gripm Playbook'.
 - [x] #5 Se documenta formalmente la frontera entre el producto Gripm Board (Cockpit/MCP) y Gripm Playbook (framework metodológico), aclarando el rol del dogfooding en el repo gripm.
 - [x] #6 Pirámide de verificación en verde (npx tsc --noEmit, npm test, npm run backlog:check, npm run publish:check con código 0).
+
+---
+
+#### [DEV-251] Saneamiento de READMEs: retiro de badge y enlace a demo inexistente en Vercel
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Retirar el badge y el párrafo de demostración interactiva que referenciaban a `https://gripm.vercel.app` en `README.md` y `README.es.md`:
+1. La funcionalidad pertenece a la tarea DEV-222, la cual continúa en estado `draft` sin código ni infraestructura de despliegue en Vercel.
+2. Evitar promesas de producto no existentes y enlaces rotos en la portada pública del repositorio en GitHub.
+
+**Criterios de Aceptación:**
+- [x] #1 Removido badge de Live Sandbox en Vercel de README.md
+- [x] #2 Removido bloque con enlace a gripm.vercel.app de README.md
+- [x] #3 Removido badge de Demo en Vivo en Vercel de README.es.md
+- [x] #4 Removido bloque con enlace a gripm.vercel.app de README.es.md
+- [x] #5 npm run backlog:check y npm test pasan con código 0
 
 ---
 

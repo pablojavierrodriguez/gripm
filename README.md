@@ -17,7 +17,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocol%20Ready-6366f1.svg" alt="MCP Protocol: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=20.0.0 (LTS)" /></a>
-  <a href="https://gripm.vercel.app"><img src="https://img.shields.io/badge/Live%20Sandbox-Vercel%20Demo-000000.svg?logo=vercel&logoColor=white" alt="Live Sandbox on Vercel" /></a>
   <a href="#screenshots"><img src="https://img.shields.io/badge/Product-Demo%20Screenshots-6366f1.svg" alt="View product demo screenshots" /></a>
 </p>
 
@@ -26,8 +25,6 @@
 </p>
 
 > **Your roadmap shouldn't live on someone else's servers.** Gripm keeps product and engineering work alongside your code: local-first, versionable with Git, and ready for AI agents.
->
-> 🌐 **Try it in the browser (Zero Install):** Test the interactive web sandbox with preloaded demo data at **[gripm.vercel.app](https://gripm.vercel.app)**. Runs 100% in-memory without requiring any local CLI or daemon.
 
 **gripm** (*"grip-em"*) is a local workspace for managing engineering and product backlogs, iterative planning, and releases. It gives AI agents (Cursor, Claude Code, Copilot, Antigravity) structured specifications and verifiable acceptance criteria without moving your roadmap to a third-party service.
 

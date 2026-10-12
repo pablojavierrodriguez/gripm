@@ -17,7 +17,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-blue.svg" alt="Licencia: MIT" /></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocolo%20Listo-6366f1.svg" alt="Protocolo MCP: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=20.0.0 (LTS)" /></a>
-  <a href="https://gripm.vercel.app"><img src="https://img.shields.io/badge/Demo%20En%20Vivo-Vercel%20Sandbox-000000.svg?logo=vercel&logoColor=white" alt="Demo en Vivo en Vercel" /></a>
   <a href="#capturas-de-pantalla"><img src="https://img.shields.io/badge/Demo-Capturas%20del%20producto-6366f1.svg" alt="Ver capturas de demostración" /></a>
 </p>
 
@@ -26,8 +25,6 @@
 </p>
 
 > **Tu hoja de ruta no debería vivir en servidores ajenos.** Gripm mantiene el trabajo de producto e ingeniería junto a tu código: local-first, versionable con Git y preparado para agentes de IA.
->
-> 🌐 **Pruébalo en el navegador (Sin Instalación):** Explora la sandbox web interactiva con datos de prueba precargados en **[gripm.vercel.app](https://gripm.vercel.app)**. Corre 100% en memoria sin requerir ningún CLI ni daemon local.
 
 **gripm** (*"grip-em"*) es un espacio local para gestionar listas de trabajo de producto e ingeniería, planificar iteraciones y preparar versiones. Da a los agentes de IA (Cursor, Claude Code, Copilot, Antigravity) especificaciones estructuradas y criterios de aceptación verificables sin trasladar tu hoja de ruta a servicios de terceros.
 
