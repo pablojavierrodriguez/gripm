@@ -1,7 +1,7 @@
 ---
 id: DEV-165
 title: "Modularización de vite.config.ts y Extracción de Capa de Servidor a server/"
-status: ready
+status: done
 created_date: '2026-10-04'
 updated_date: '2026-10-12 13:39'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-230
 title: "Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)"
-status: ready
+status: done
 created_date: '2026-10-09'
 updated_date: '2026-10-12 15:25'
 labels:

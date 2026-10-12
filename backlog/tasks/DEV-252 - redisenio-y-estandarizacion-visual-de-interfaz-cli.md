@@ -1,7 +1,7 @@
 ---
 id: DEV-252
 title: "Rediseño y estandarización visual de interfaz CLI según lineamientos modernos"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:

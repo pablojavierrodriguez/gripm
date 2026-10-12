@@ -1,7 +1,7 @@
 ---
 id: DEV-247
 title: "Épica: Sistema Integral de Estimación de Tareas (Story Points y T-Shirt Sizes)"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12 15:25'
 labels:

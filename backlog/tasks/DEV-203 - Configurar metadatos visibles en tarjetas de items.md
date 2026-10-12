@@ -1,7 +1,7 @@
 ---
 id: DEV-203
 title: "Configurar metadatos visibles en tarjetas de ítems"
-status: ready
+status: done
 created_date: '2026-10-07'
 updated_date: '2026-10-12 15:25'
 labels:

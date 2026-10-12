@@ -13,6 +13,40 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.3.0] — 2026-10-12 📐 Sistema Integral de Estimación, Rediseño CLI y Ergonomía de Teclado
+
+### 🎯 Resumen
+*Versión 1.3.0 de Gripm: la estimación se consolida como capacidad de primera clase del tablero, con Story Points (Fibonacci) y T-Shirt Sizes como escalas soportadas de extremo a extremo (épica DEV-247). Se incorpora el rediseño y estandarización visual de la interfaz CLI (DEV-252), el modal de consulta y ayuda de atajos de teclado con disparador `?` (DEV-254), la gestión visual de tareas hijas en épicas e iniciativas (DEV-248) y la exportación liviana de eventos de calendario (DEV-230), sobre una base de saneamiento arquitectónico, documental y de portabilidad (DEV-165, DEV-249, DEV-250, DEV-251).*
+
+### 📐 Sistema Integral de Estimación (Épica DEV-247)
+- **DEV-247 — Épica del Sistema Integral de Estimación:** consolida la estimación como capacidad de primera clase del tablero, con Story Points (Fibonacci) y T-Shirt Sizes como escalas oficialmente soportadas.
+- **DEV-136 — Activación soberana y configuración persistente:** selector Fibonacci vs T-Shirt en Settings, con tipos canónicos `EstimationMethod`/`EstimationConfig` y persistencia de la preferencia.
+- **DEV-137 — Modelo de datos y soporte MCP:** campo `estimate` opcional en el frontmatter Markdown y en el contrato del servidor MCP.
+- **DEV-138 — Selector en ItemModal y badges en tarjetas:** el control de estimación solo se renderiza si el módulo está habilitado, con badges visuales de alto contraste en las tarjetas Kanban.
+- **DEV-139 — Métricas agregadas y filtros:** rollup de Story Points (planificados, completados y pendientes) en SprintView, tabla de backlog y filtros por estimación.
+
+### 🖥️ Rediseño CLI y Ergonomía de la Interfaz
+- **DEV-252 — Rediseño y estandarización visual de la CLI:** fin de la caja rígida y la sopa de emojis en el banner de arranque; jerarquía, alineación y salida alineadas a estándares modernos.
+- **DEV-253 — Ergonomía de estimación, contraste de filtros y desacople de tema:** desplegables de `AdvancedFiltersPopover` con fondo opaco y chevron sin captura de eventos, alto contraste en dark mode y desacople de tema en módulos.
+- **DEV-203 — Metadatos visibles configurables:** activación y desactivación de campos de metadatos mostrados en las tarjetas de ítems.
+
+### ⌨️ Navegación por Teclado y Jerarquías
+- **DEV-254 — Modal de consulta y ayuda de atajos de teclado:** cheat sheet categorizado (Navegación, Tareas y Acciones, Búsqueda y Modales) con badges `kbd` y disparador `?`, construido sobre el primitivo `Modal` y `useFocusTrap`.
+- **DEV-257 — Pie de marca y enlaces de valor real:** footer con la marca `gripm` y la versión vigente en el modal de atajos, sin costo de layout en el tablero.
+- **DEV-256 — Columna `Épica` renombrada a `Parent` en SprintView:** el contenedor puede ser épica o iniciativa, con claves de localización canónicas en ambos catálogos.
+- **DEV-248 — Gestión visual de tareas hijas:** listado completo de ítems dependientes en épicas e iniciativas, con desvinculación bidireccional directa desde `ItemModal`.
+
+### 🧱 Arquitectura, Documentación y Portabilidad
+- **DEV-165 — Modularización de `vite.config.ts` y capa `server/`:** extracción del middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a módulos propios en `server/`.
+- **DEV-250 — Desacople de Gripm Playbook:** el onboarding de `gripm init` pregunta explícitamente por el Playbook y deja el proyecto completamente limpio si se declina.
+- **DEV-251 — Saneamiento de READMEs:** retiro del badge y del enlace a una demo en Vercel que no existe.
+- **DEV-249 — Tolerancia a CRLF en el Quality Gate:** eliminación de falsos positivos `U+D` en archivos con terminaciones CRLF y actualización del selector de pestaña Sprints en el smoke de UI.
+
+### 📅 Exportación de Eventos
+- **DEV-230 — Exportación liviana de eventos de calendario:** Web Intent e iCal para agendar sesión o evento a partir de los datos de la tarea, sin dependencias cloud.
+
+---
+
 ## [1.2.0] — 2026-10-12 🛡️ Endurecimiento Integral de Seguridad, Estabilidad de Modales, Higiene Canónica y Quality Gate
 
 ### 🎯 Resumen

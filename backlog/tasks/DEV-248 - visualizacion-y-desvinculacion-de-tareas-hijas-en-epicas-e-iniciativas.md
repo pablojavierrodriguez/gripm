@@ -1,7 +1,7 @@
 ---
 id: DEV-248
 title: "Gestión Visual de Tareas Hijas en Épicas e Iniciativas con Desvinculación Bidireccional Directa"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12 15:25'
 labels:

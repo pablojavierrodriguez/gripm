@@ -1,7 +1,7 @@
 ---
 id: DEV-136
 title: "Sistema de Estimación en Settings Activación Selector Fibonacci vs Tshirt y Configuración Persistente"
-status: ready
+status: done
 created_date: '2026-09-30'
 updated_date: '2026-10-12 15:25'
 labels:

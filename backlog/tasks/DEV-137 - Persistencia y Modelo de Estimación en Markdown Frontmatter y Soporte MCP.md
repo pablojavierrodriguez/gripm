@@ -1,7 +1,7 @@
 ---
 id: DEV-137
 title: "Persistencia y Modelo de Estimación en Markdown Frontmatter y Soporte MCP"
-status: ready
+status: done
 created_date: '2026-09-30'
 updated_date: '2026-10-12 15:25'
 labels:

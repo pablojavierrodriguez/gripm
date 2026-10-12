@@ -1,7 +1,7 @@
 ---
 id: DEV-254
 title: "Modal de consulta y ayuda de atajos de teclado (Cheat Sheet y disparador ?)"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-250
 title: "Desacople de Gripm Playbook en el onboarding de gripm init y superficie limpia de Gripm Board"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12 07:24'
 labels:

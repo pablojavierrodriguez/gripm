@@ -1,5 +1,37 @@
 [
   {
+    "id": "rel-1-3-0",
+    "projectId": "gripm",
+    "version": "1.3.0",
+    "date": "2026-10-12",
+    "targetDate": "2026-10-12",
+    "status": "released",
+    "title": "v1.3.0 — Sistema Integral de Estimación, Rediseño CLI y Ergonomía de Teclado",
+    "summary": "Versión 1.3.0 de Gripm: la estimación se consolida como capacidad de primera clase del tablero con Story Points (Fibonacci) y T-Shirt Sizes como escalas soportadas de extremo a extremo (épica DEV-247, con activación y persistencia en Settings DEV-136, modelo de datos en frontmatter y soporte MCP DEV-137, selector en ItemModal y badges en tarjetas Kanban DEV-138, y métricas agregadas con filtros por estimación DEV-139). Incorpora además la gestión visual de tareas hijas en épicas e iniciativas con desvinculación bidireccional directa (DEV-248), el rediseño y estandarización visual de la interfaz CLI (DEV-252), optimizaciones de ergonomía de estimación, contraste de filtros y desacople de tema (DEV-253), el modal de consulta y ayuda de atajos de teclado con disparador `?` (DEV-254) con pie de marca y versión vigente (DEV-257), el renombrado de la columna Épica a Parent en SprintView por tratarse de un contenedor genérico (DEV-256), metadatos visibles configurables en tarjetas (DEV-203), la modularización de vite.config.ts con extracción de la capa de servidor a server/ (DEV-165), el desacople del onboarding de Gripm Playbook en `gripm init` con superficie limpia de Gripm Board (DEV-250), el saneamiento de READMEs (DEV-251), la tolerancia a CRLF del Quality Gate (DEV-249) y la exportación liviana de eventos de calendario sin dependencias cloud (DEV-230).",
+    "scopeNotes": "Salto de versión menor 1.3.0: feature de usuario de primera clase (estimación integral), rediseño de la superficie CLI y ampliación de la ergonomía de teclado, sobre una base de saneamiento arquitectónico, documental y de portabilidad.",
+    "itemCodes": [
+      "DEV-136",
+      "DEV-137",
+      "DEV-138",
+      "DEV-139",
+      "DEV-165",
+      "DEV-203",
+      "DEV-230",
+      "DEV-247",
+      "DEV-248",
+      "DEV-249",
+      "DEV-250",
+      "DEV-251",
+      "DEV-252",
+      "DEV-253",
+      "DEV-254",
+      "DEV-256",
+      "DEV-257"
+    ],
+    "markdownContent": "## [1.3.0] — 2026-10-12 📐 Sistema Integral de Estimación, Rediseño CLI y Ergonomía de Teclado\n\n### 🎯 Resumen\n*Versión 1.3.0 de Gripm: la estimación se consolida como capacidad de primera clase del tablero, con Story Points (Fibonacci) y T-Shirt Sizes como escalas soportadas de extremo a extremo (épica DEV-247). Se incorpora el rediseño y estandarización visual de la interfaz CLI (DEV-252), el modal de consulta y ayuda de atajos de teclado con disparador `?` (DEV-254), la gestión visual de tareas hijas en épicas e iniciativas (DEV-248) y la exportación liviana de eventos de calendario (DEV-230), sobre una base de saneamiento arquitectónico, documental y de portabilidad (DEV-165, DEV-249, DEV-250, DEV-251).*\n\n### 📐 Sistema Integral de Estimación (Épica DEV-247)\n- **DEV-247 — Épica del Sistema Integral de Estimación:** consolida la estimación como capacidad de primera clase del tablero, con Story Points (Fibonacci) y T-Shirt Sizes como escalas oficialmente soportadas.\n- **DEV-136 — Activación soberana y configuración persistente:** selector Fibonacci vs T-Shirt en Settings, con tipos canónicos `EstimationMethod`/`EstimationConfig` y persistencia de la preferencia.\n- **DEV-137 — Modelo de datos y soporte MCP:** campo `estimate` opcional en el frontmatter Markdown y en el contrato del servidor MCP.\n- **DEV-138 — Selector en ItemModal y badges en tarjetas:** el control de estimación solo se renderiza si el módulo está habilitado, con badges visuales de alto contraste en las tarjetas Kanban.\n- **DEV-139 — Métricas agregadas y filtros:** rollup de Story Points (planificados, completados y pendientes) en SprintView, tabla de backlog y filtros por estimación.\n\n### 🖥️ Rediseño CLI y Ergonomía de la Interfaz\n- **DEV-252 — Rediseño y estandarización visual de la CLI:** fin de la caja rígida y la sopa de emojis en el banner de arranque; jerarquía, alineación y salida alineadas a estándares modernos.\n- **DEV-253 — Ergonomía de estimación, contraste de filtros y desacople de tema:** desplegables de `AdvancedFiltersPopover` con fondo opaco y chevron sin captura de eventos, alto contraste en dark mode y desacople de tema en módulos.\n- **DEV-203 — Metadatos visibles configurables:** activación y desactivación de campos de metadatos mostrados en las tarjetas de ítems.\n\n### ⌨️ Navegación por Teclado y Jerarquías\n- **DEV-254 — Modal de consulta y ayuda de atajos de teclado:** cheat sheet categorizado (Navegación, Tareas y Acciones, Búsqueda y Modales) con badges `kbd` y disparador `?`, construido sobre el primitivo `Modal` y `useFocusTrap`.\n- **DEV-257 — Pie de marca y enlaces de valor real:** footer con la marca `gripm` y la versión vigente en el modal de atajos, sin costo de layout en el tablero.\n- **DEV-256 — Columna `Épica` renombrada a `Parent` en SprintView:** el contenedor puede ser épica o iniciativa, con claves de localización canónicas en ambos catálogos.\n- **DEV-248 — Gestión visual de tareas hijas:** listado completo de ítems dependientes en épicas e iniciativas, con desvinculación bidireccional directa desde `ItemModal`.\n\n### 🧱 Arquitectura, Documentación y Portabilidad\n- **DEV-165 — Modularización de `vite.config.ts` y capa `server/`:** extracción del middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a módulos propios en `server/`.\n- **DEV-250 — Desacople de Gripm Playbook:** el onboarding de `gripm init` pregunta explícitamente por el Playbook y deja el proyecto completamente limpio si se declina.\n- **DEV-251 — Saneamiento de READMEs:** retiro del badge y del enlace a una demo en Vercel que no existe.\n- **DEV-249 — Tolerancia a CRLF en el Quality Gate:** eliminación de falsos positivos `U+D` en archivos con terminaciones CRLF y actualización del selector de pestaña Sprints en el smoke de UI.\n\n### 📅 Exportación de Eventos\n- **DEV-230 — Exportación liviana de eventos de calendario:** Web Intent e iCal para agendar sesión o evento a partir de los datos de la tarea, sin dependencias cloud.\n",
+    "createdAt": "2026-10-12T22:00:00.000Z"
+  },
+  {
     "id": "rel-1-2-0",
     "projectId": "gripm",
     "version": "1.2.0",

@@ -1,7 +1,7 @@
 ---
 id: DEV-256
 title: "Renombrar la columna de épica a Parent en SprintView (contenedor: épica o iniciativa)"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:

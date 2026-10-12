@@ -1,7 +1,7 @@
 ---
 id: DEV-138
 title: "Selector de Estimación en ItemModal y Badges Visuales en Tarjetas Kanban"
-status: ready
+status: done
 created_date: '2026-09-30'
 updated_date: '2026-10-12 15:25'
 labels:

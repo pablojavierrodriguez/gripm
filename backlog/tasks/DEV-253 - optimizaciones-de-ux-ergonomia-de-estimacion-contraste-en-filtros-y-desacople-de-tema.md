@@ -1,7 +1,7 @@
 ---
 id: DEV-253
 title: "Optimizaciones de UX: ergonomía de estimación, contraste de filtros y desacople de tema en módulos"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:

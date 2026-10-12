@@ -1,7 +1,7 @@
 ---
 id: DEV-249
 title: "Tolerancia a CRLF en verify-changes y actualizacion de selector de pestana Sprints en test-ui"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:

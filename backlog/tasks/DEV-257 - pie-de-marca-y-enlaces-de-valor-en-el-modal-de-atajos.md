@@ -1,7 +1,7 @@
 ---
 id: DEV-257
 title: "Pie de marca y enlaces de valor real en el modal de atajos de teclado (0 px de costo en el tablero)"
-status: ready
+status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:
