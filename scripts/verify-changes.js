@@ -86,9 +86,10 @@ function checkYaml(file, content, pythonCmd) {
   }
 
   try {
-    execSync(`${pythonCmd} -c "import yaml,sys; yaml.safe_load(sys.stdin.read())"`, {
+    execSync(`${pythonCmd} -c "import yaml,sys; yaml.safe_load(sys.stdin.buffer.read().decode('utf-8'))"`, {
       input: content,
       stdio: ['pipe', 'ignore', 'pipe'],
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
     });
   } catch (err) {
     const detail = String(err.stderr || err.message)
