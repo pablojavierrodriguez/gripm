@@ -1098,6 +1098,121 @@ function resolveLegibleSprint(project, val) {
   }
   return clean;
 }
+function validateVerifyCommand(cmd, repoPath) {
+  if (!cmd || typeof cmd !== "string") {
+    return { valid: false, reason: "El comando de verificaci\xF3n debe ser un texto no vac\xEDo." };
+  }
+  const trimmed = cmd.trim();
+  if (!trimmed) {
+    return { valid: false, reason: "El comando de verificaci\xF3n no puede estar vac\xEDo." };
+  }
+  const forbiddenChars = /[|&;`$()<>\n\r'"]/;
+  if (forbiddenChars.test(trimmed)) {
+    return {
+      valid: false,
+      reason: "Contiene metacaracteres o secuencias de encadenamiento de shell no permitidas ('|', '&', ';', '`', '$()', '<', '>', comillas)."
+    };
+  }
+  const tokens = trimmed.split(/\s+/);
+  const runner = tokens[0].toLowerCase();
+  const tokenPattern = /^[a-zA-Z0-9_\-.:/\\=]+$/;
+  for (const token of tokens) {
+    if (!tokenPattern.test(token)) {
+      return {
+        valid: false,
+        reason: `El argumento '${token}' contiene caracteres no permitidos. Solo se permiten caracteres alfanum\xE9ricos y separadores est\xE1ndar (- _ . : / \\ =).`
+      };
+    }
+  }
+  let pkgScripts = {};
+  let pkgDeps = /* @__PURE__ */ new Set();
+  try {
+    const pkgPath = path3.join(repoPath, "package.json");
+    if (fs3.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs3.readFileSync(pkgPath, "utf8"));
+      if (pkg.scripts && typeof pkg.scripts === "object") {
+        pkgScripts = pkg.scripts;
+      }
+      if (pkg.dependencies && typeof pkg.dependencies === "object") {
+        Object.keys(pkg.dependencies).forEach((d) => pkgDeps.add(d));
+      }
+      if (pkg.devDependencies && typeof pkg.devDependencies === "object") {
+        Object.keys(pkg.devDependencies).forEach((d) => pkgDeps.add(d));
+      }
+    }
+  } catch {
+  }
+  if (["npm", "pnpm", "yarn"].includes(runner)) {
+    const subCmd = tokens[1];
+    if (!subCmd) {
+      return {
+        valid: false,
+        reason: `Debe especificar un subcomando para ${runner} (ej: '${runner} test' o '${runner} run <script>').`
+      };
+    }
+    if (subCmd === "test" || subCmd === "t") {
+      if (!pkgScripts["test"]) {
+        return {
+          valid: false,
+          reason: `El script 'test' no est\xE1 definido en el package.json de '${repoPath}'.`
+        };
+      }
+      return { valid: true, command: trimmed };
+    }
+    if (subCmd === "run") {
+      const scriptName = tokens[2];
+      if (!scriptName) {
+        return {
+          valid: false,
+          reason: `Debe especificar el nombre del script a ejecutar (ej: '${runner} run <script>').`
+        };
+      }
+      if (!pkgScripts[scriptName]) {
+        return {
+          valid: false,
+          reason: `El script '${scriptName}' no est\xE1 definido en los scripts de package.json.`
+        };
+      }
+      return { valid: true, command: trimmed };
+    }
+    if ((runner === "yarn" || runner === "pnpm") && pkgScripts[subCmd]) {
+      return { valid: true, command: trimmed };
+    }
+    return {
+      valid: false,
+      reason: `Subcomando '${subCmd}' no autorizado para ${runner}. Solo se permiten '${runner} test' o '${runner} run <script>'.`
+    };
+  }
+  if (runner === "npx") {
+    const tool = tokens[1];
+    if (!tool) {
+      return {
+        valid: false,
+        reason: "Debe especificar la herramienta a ejecutar con npx (ej: 'npx tsc --noEmit')."
+      };
+    }
+    const safeToolsAllowlist = /* @__PURE__ */ new Set([
+      "tsc",
+      "eslint",
+      "vitest",
+      "jest",
+      "playwright",
+      "prettier",
+      "biome"
+    ]);
+    if (!safeToolsAllowlist.has(tool) && !pkgDeps.has(tool)) {
+      return {
+        valid: false,
+        reason: `La herramienta '${tool}' no est\xE1 permitida para ejecuci\xF3n con npx. Solo se permiten herramientas del stack de calidad (${Array.from(safeToolsAllowlist).join(", ")}) o dependencias declaradas en package.json.`
+      };
+    }
+    return { valid: true, command: trimmed };
+  }
+  return {
+    valid: false,
+    reason: `El ejecutable '${runner}' no est\xE1 permitido en verifyCommand. Solo se permiten scripts de package.json ('npm test', 'npm run <script>') o herramientas de verificaci\xF3n ('npx <herramienta>').`
+  };
+}
 function getProjectJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE;
   if (project.repoPath) {
@@ -1861,9 +1976,18 @@ Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y
             }
             const verifyCmd = args.verifyCommand;
             if (verifyCmd && typeof verifyCmd === "string") {
+              const execCwd = project.repoPath || process.cwd();
+              const validation = validateVerifyCommand(verifyCmd, execCwd);
+              if (!validation.valid) {
+                throw new Error(
+                  `[MCP Gatekeeper Security] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' no est\xE1 permitido al intentar mover '${current.id}' a '${targetStatus}':
+${validation.reason}
+
+Acci\xF3n correctiva: Utiliza \xFAnicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
+                );
+              }
               try {
-                const execCwd = project.repoPath || process.cwd();
-                execSync(verifyCmd, {
+                execSync(validation.command || verifyCmd, {
                   cwd: execCwd,
                   stdio: "pipe",
                   encoding: "utf8",
@@ -1964,9 +2088,18 @@ Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y
               }
               const verifyCmd = args.verifyCommand;
               if (verifyCmd && typeof verifyCmd === "string") {
+                const execCwd = project.repoPath || process.cwd();
+                const validation = validateVerifyCommand(verifyCmd, execCwd);
+                if (!validation.valid) {
+                  throw new Error(
+                    `[MCP Gatekeeper Security] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' no est\xE1 permitido al intentar mover '${current.id || current.code}' a '${targetStatus}':
+${validation.reason}
+
+Acci\xF3n correctiva: Utiliza \xFAnicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
+                  );
+                }
                 try {
-                  const execCwd = project.repoPath || process.cwd();
-                  execSync(verifyCmd, {
+                  execSync(validation.command || verifyCmd, {
                     cwd: execCwd,
                     stdio: "pipe",
                     encoding: "utf8",
