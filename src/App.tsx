@@ -47,6 +47,7 @@ import { ItemModal } from './components/ItemModal';
 import { ProjectModal } from './components/ProjectModal';
 import { PlanGuardModal } from './components/PlanGuardModal';
 import { ImportWizardModal } from './components/ImportWizardModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2 } from 'lucide-react';
@@ -186,6 +187,7 @@ export function App() {
   const [defaultNewSprint, setDefaultNewSprint] = useState<string>('');
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 
   // Settings / Config State (DEV-006 & DEV-009)
   const [config, setConfig] = useState<GripmConfig>({});
@@ -392,7 +394,10 @@ export function App() {
         return;
       }
 
-      if (e.key === 'n' || e.key === 'N') {
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShortcutsModalOpen((prev) => !prev);
+      } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         setEditingItem(null);
         setDefaultNewStatus('backlog');
@@ -1283,6 +1288,7 @@ export function App() {
         archivedCount={archivedCount}
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
+        onOpenShortcuts={() => setShortcutsModalOpen(true)}
         onDeleteProject={handleDeleteProject}
         onRestoreDemo={handleRestoreDemo}
         onConvertToMd={handleConvertToMd}
@@ -1516,6 +1522,12 @@ export function App() {
           loadData(true);
           showToast(t('app.itemsImportedSuccess'), 'success');
         }}
+      />
+
+      {/* Keyboard Shortcuts Modal (DEV-254) */}
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
       />
 
       {/* Mobile Bottom Navigation Bar (DEV-007) */}

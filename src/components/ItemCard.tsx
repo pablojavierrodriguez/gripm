@@ -101,6 +101,13 @@ export const getIconByName = (name?: string): React.FC<{ className?: string }> =
   return LUCIDE_ICONS_MAP[name] || Sparkles;
 };
 
+export const cleanParentTitle = (rawTitle: string): string => {
+  if (!rawTitle) return '';
+  return rawTitle
+    .replace(/^(?:(?:[a-z]{2,8}-\d+)\s*[:\-–—]\s*)?(?:épica|epica|iniciativa|epic|initiative)\s*[:\-–—]\s*/i, '')
+    .trim();
+};
+
 const BASE_TYPE_CONFIG: Record<string, { label: string; icon: React.FC<{ className?: string }>; color: string; badge: string }> = {
   bug: {
     label: 'Bug',
@@ -669,13 +676,22 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
         })()}
 
         {visibleCardMetadata?.parent !== false && (parentItem || item.parentId || item.epic) && (
-          <span className="px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border text-xs flex items-center gap-1 min-w-0" title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : t('card.parentTask', { id: item.parentId || item.epic || '' })}>
-            <Layers className="h-3 w-3 shrink-0" />
-            <span className="truncate">
-              {parentItem
-                ? `${parentItem.code || parentItem.id} · ${parentItem.title}`
-                : item.parentId || item.epic}
-            </span>
+          <span
+            className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-white/[0.07] text-xs flex items-center gap-1 min-w-0 max-w-full"
+            title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : t('card.parentTask', { id: item.parentId || item.epic || '' })}
+          >
+            <Layers className="h-3 w-3 shrink-0 text-slate-400 dark:text-slate-500" />
+            {parentItem ? (
+              <span className="truncate flex items-center gap-1 min-w-0">
+                <span className="font-mono opacity-80 shrink-0">{parentItem.code || parentItem.id}</span>
+                <span className="opacity-40 shrink-0">·</span>
+                <span className="truncate">{cleanParentTitle(parentItem.title)}</span>
+              </span>
+            ) : (
+              <span className="truncate font-mono">
+                {cleanParentTitle(item.parentId || item.epic || '')}
+              </span>
+            )}
           </span>
         )}
 

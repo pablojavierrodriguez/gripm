@@ -24,6 +24,7 @@ const DIALOGS = [
   'FolderPickerModal',
   'ImportWizardModal',
   'ItemModal',
+  'KeyboardShortcutsModal',
   'PlanGuardModal',
   'ProjectModal',
   'SprintModal',

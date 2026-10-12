@@ -26,7 +26,7 @@ import {
   Zap
 } from 'lucide-react';
 import type { BacklogItem, ItemStatus, Priority, Sprint, GripmConfig } from '../types';
-import { typeConfig, priorityConfig } from './ItemCard';
+import { typeConfig, priorityConfig, cleanParentTitle } from './ItemCard';
 import { ConfirmModal } from './ConfirmModal';
 import { SprintModal } from './SprintModal';
 import { CompleteSprintModal } from './CompleteSprintModal';
@@ -1065,15 +1065,21 @@ export const SprintView: FC<SprintViewProps> = ({
                                 </div>
                                 {(parentItem || item.parentId || item.epic) && (
                                   <div
-                                    className="mt-1 flex max-w-sm items-center gap-1 truncate text-xs text-muted-foreground"
+                                    className="mt-1 flex max-w-sm items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400"
                                     title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : item.parentId || item.epic}
                                   >
-                                    <Layers className="h-3 w-3 shrink-0" />
-                                    <span className="truncate">
-                                      {parentItem
-                                        ? `${parentItem.code || parentItem.id} · ${parentItem.title}`
-                                        : item.parentId || item.epic}
-                                    </span>
+                                    <Layers className="h-3 w-3 shrink-0 text-slate-400 dark:text-slate-500" />
+                                    {parentItem ? (
+                                      <span className="truncate flex items-center gap-1 min-w-0">
+                                        <span className="font-mono opacity-80 shrink-0">{parentItem.code || parentItem.id}</span>
+                                        <span className="opacity-40 shrink-0">·</span>
+                                        <span className="truncate">{cleanParentTitle(parentItem.title)}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="truncate">
+                                        {cleanParentTitle(item.parentId || item.epic || '')}
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                                 {item.impactedFile && (
@@ -1245,7 +1251,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                   {parentItem || item.epic ? (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-medium">
                                       <Bookmark className="w-2.5 h-2.5" />
-                                      {parentItem ? `${parentItem.code || parentItem.id} · ${parentItem.title}` : item.epic}
+                                      {parentItem ? `${parentItem.code || parentItem.id} · ${cleanParentTitle(parentItem.title)}` : cleanParentTitle(item.epic || '')}
                                     </span>
                                   ) : (
                                     <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>

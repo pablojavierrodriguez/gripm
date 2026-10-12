@@ -914,15 +914,15 @@ export const ItemModal: FC<ItemModalProps> = ({
                       </span>
                     </span>
                     {relationsExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                      <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                     )}
                   </button>
                   {(blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
                     <div className="flex flex-wrap gap-2 pt-2 pl-5">
                       {blockedBy.map(id => (
-                        <div key={`blocked-by-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                        <div key={`blocked-by-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-white/[0.04] pl-2 text-xs text-slate-700 dark:text-slate-300">
                           <span className="break-words py-1">
                             {t('itemModal.relationsBlockedBy')}: {formatRelation(id)}
                           </span>
@@ -931,14 +931,14 @@ export const ItemModal: FC<ItemModalProps> = ({
                             aria-label={`${t('itemModal.relationsRemoveBlocker')}: ${formatRelation(id)}`}
                             title={t('itemModal.relationsRemoveBlocker')}
                             onClick={() => setBlockedBy(previous => previous.filter(value => value !== id))}
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-white/10 active:bg-slate-200 dark:active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ))}
                       {blocks.map(id => (
-                        <div key={`blocks-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                        <div key={`blocks-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-white/[0.04] pl-2 text-xs text-slate-700 dark:text-slate-300">
                           <span className="break-words py-1">
                             {t('itemModal.relationsBlocks')}: {formatRelation(id)}
                           </span>
@@ -947,14 +947,14 @@ export const ItemModal: FC<ItemModalProps> = ({
                             aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(id)}`}
                             title={t('itemModal.relationsRemoveBlocks')}
                             onClick={() => setBlocks(previous => previous.filter(value => value !== id))}
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-white/10 active:bg-slate-200 dark:active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ))}
                       {relatedTo.map(id => (
-                        <div key={`related-to-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/40 pl-2 text-xs text-muted-foreground">
+                        <div key={`related-to-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-white/[0.04] pl-2 text-xs text-slate-700 dark:text-slate-300">
                           <span className="break-words py-1">
                             {t('itemModal.relationsRelatedTo')}: {formatRelation(id)}
                           </span>
@@ -963,7 +963,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                             aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(id)}`}
                             title={t('itemModal.relationsRemoveBlocks')}
                             onClick={() => setRelatedTo(previous => previous.filter(value => value !== id))}
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-white/10 active:bg-slate-200 dark:active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
                             <X className="h-4 w-4" />
                           </button>

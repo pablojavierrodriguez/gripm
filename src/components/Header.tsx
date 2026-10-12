@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   Sparkles,
-  Globe
+  Globe,
+  Keyboard
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
 import { isSprintModuleActive, isReleaseModuleActive } from '../types';
@@ -42,6 +43,7 @@ interface HeaderProps {
   archivedCount?: number;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  onOpenShortcuts?: () => void;
   onConvertToMd?: (projectId: string) => void;
   onConvertToJson?: (projectId: string) => void;
   onOpenImportWizard?: () => void;
@@ -65,6 +67,7 @@ export const Header: FC<HeaderProps> = ({
   archivedCount = 0,
   isDarkMode,
   onToggleTheme,
+  onOpenShortcuts,
   onDeleteProject,
   onRestoreDemo,
   onConvertToMd,
@@ -439,6 +442,16 @@ export const Header: FC<HeaderProps> = ({
               <span className="font-mono text-[10px] font-bold tracking-wider">{language.toUpperCase()}</span>
             </button>
 
+            {/* Keyboard Shortcuts Button */}
+            <button
+              onClick={onOpenShortcuts}
+              title={`${t('shortcuts.title')} (?)`}
+              aria-label={t('shortcuts.title')}
+              className="hidden sm:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+            </button>
+
             {/* Settings Button */}
             <button
               onClick={() => onSelectTab(activeTab === 'settings' ? (config?.defaultView || 'kanban') : 'settings')}
@@ -613,6 +626,17 @@ export const Header: FC<HeaderProps> = ({
                 >
                   <Settings className="w-4 h-4 text-indigo-500" />
                   <span>{t('settings.title')}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenShortcuts?.();
+                  }}
+                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+                >
+                  <Keyboard className="w-4 h-4 text-indigo-500" />
+                  <span>{t('shortcuts.title')}</span>
                 </button>
 
                 <button

@@ -444,11 +444,14 @@ gripm uses Gripm Board to manage its own development. The project backlog and co
 
 ## ⌨️ Keyboard Shortcuts
 
+- `?`: Open keyboard shortcuts cheat sheet
 - `N`: Create new backlog task
-- `⌘K` / `Ctrl+K`: Focus instant search bar
-- `1` - `5`: Switch tabs (`1`: Board, `2`: Sprints & Backlog, `3`: Releases, `4`: Trash, `5`: Settings)
-- `Esc`: Close open modal
-- `⌘+Enter`: Save task / form
+- `⌘K` / `Ctrl+K` or `/`: Focus instant search bar
+- `1` - `4`: Switch tabs (`1`: Board, `2`: Sprints & Backlog, `3`: Releases, `4`: Trash)
+- `⌘,` / `Ctrl+,`: Toggle Settings view
+- `Esc`: Close open modal / drawer
+- `⌘+Enter` / `Ctrl+Enter`: Save task / form
+- `⌘S` / `Ctrl+S`: Save configuration (in Settings)
 
 ---
 

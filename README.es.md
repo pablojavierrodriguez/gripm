@@ -444,11 +444,14 @@ gripm utiliza Gripm Board para gestionar su propio desarrollo. El backlog del pr
 
 ## ⌨️ Atajos de Teclado
 
+- `?`: Abrir panel de atajos de teclado
 - `N`: Crear nueva tarea en el backlog
-- `⌘K` / `Ctrl+K`: Enfocar barra de búsqueda instantánea
-- `1` - `5`: Cambiar de pestaña (`1`: Tablero Kanban, `2`: Sprints y Backlog, `3`: Versiones, `4`: Papelera, `5`: Configuración)
-- `Esc`: Cerrar modales activos
-- `⌘+Enter`: Guardar tarea / formulario
+- `⌘K` / `Ctrl+K` o `/`: Enfocar barra de búsqueda instantánea
+- `1` - `4`: Cambiar de pestaña (`1`: Tablero Kanban, `2`: Sprints y Backlog, `3`: Versiones, `4`: Papelera)
+- `⌘,` / `Ctrl+,`: Alternar pantalla de Configuración
+- `Esc`: Cerrar modales y paneles activos
+- `⌘+Enter` / `Ctrl+Enter`: Guardar tarea / formulario
+- `⌘S` / `Ctrl+S`: Guardar cambios (en Configuración)
 
 ---
 
