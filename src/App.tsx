@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import type { 
   BacklogItem, 
@@ -43,17 +43,24 @@ import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
 import { SprintView } from './components/SprintView';
-import { ReleaseAssembler } from './components/ReleaseAssembler';
 import { ItemModal } from './components/ItemModal';
 import { ProjectModal } from './components/ProjectModal';
 import { PlanGuardModal } from './components/PlanGuardModal';
 import { ImportWizardModal } from './components/ImportWizardModal';
-import { SettingsView } from './components/SettingsView';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
+
+const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
+const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
+
+const ViewLoadingFallback = () => (
+  <div className="flex-1 flex items-center justify-center min-h-[300px] text-slate-400 dark:text-slate-500 text-xs gap-2">
+    <span className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+  </div>
+);
 
 export function App() {
   const { t, setLanguage } = useTranslation();
@@ -1374,14 +1381,16 @@ export function App() {
         )}
 
         {activeTab === 'release' && (
-          <ReleaseAssembler
-            items={allProjectItems}
-            releases={releases}
-            projectId={selectedProjectId}
-            onArchiveRelease={handleArchiveRelease}
-            onDeleteRelease={handleDeleteRelease}
-            onShowToast={showToast}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <ReleaseAssembler
+              items={allProjectItems}
+              releases={releases}
+              projectId={selectedProjectId}
+              onArchiveRelease={handleArchiveRelease}
+              onDeleteRelease={handleDeleteRelease}
+              onShowToast={showToast}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'trash' && (
@@ -1395,16 +1404,18 @@ export function App() {
         )}
 
         {activeTab === 'settings' && (
-          <SettingsView
-            config={config}
-            onSaveConfig={handleSaveConfig}
-            currentProject={projects.find(p => p.id === selectedProjectId)}
-            onBack={() => setActiveTab(config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban'))}
-            onShowToast={showToast}
-            onOpenImportWizard={() => setImportWizardOpen(true)}
-            onExportMonolithic={handleExportMonolithic}
-            onExportJson={handleExportJson}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <SettingsView
+              config={config}
+              onSaveConfig={handleSaveConfig}
+              currentProject={projects.find(p => p.id === selectedProjectId)}
+              onBack={() => setActiveTab(config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban'))}
+              onShowToast={showToast}
+              onOpenImportWizard={() => setImportWizardOpen(true)}
+              onExportMonolithic={handleExportMonolithic}
+              onExportJson={handleExportJson}
+            />
+          </Suspense>
         )}
       </main>
 

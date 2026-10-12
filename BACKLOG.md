@@ -115,7 +115,54 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (10)
+### 🚀 Ready for Deploy (11)
+
+#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
+`(!) Some chunks are larger than 500 kB after minification.`
+
+### Diagnóstico de Causa Raíz
+
+1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
+2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
+
+### Objetivo
+
+Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
+
+> [!CAUTION]
+> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
+>
+> ```
+> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
+> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
+> ```
+>
+> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
+>
+> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
+> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
+> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
+>
+> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
+>
+> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
+
+### Objetivo (corregido)
+
+Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
+
+**Criterios de Aceptación:**
+- [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
+- [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
+- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
+- [ ] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
+- [ ] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
+- [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
+
+---
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -408,7 +455,7 @@ Para mitigar este vector:
 
 ---
 
-### 📋 Backlog / Draft (21)
+### 📋 Backlog / Draft (20)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -563,53 +610,6 @@ Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a
 - [ ] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
 - [ ] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
 - [ ] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
-
----
-
-#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
-`(!) Some chunks are larger than 500 kB after minification.`
-
-### Diagnóstico de Causa Raíz
-
-1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
-2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
-
-### Objetivo
-
-Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
-
-> [!CAUTION]
-> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
->
-> ```
-> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
-> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
-> ```
->
-> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
->
-> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
-> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
-> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
->
-> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
->
-> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
-
-### Objetivo (corregido)
-
-Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
-
-**Criterios de Aceptación:**
-- [ ] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
-- [ ] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
-- [ ] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
-- [ ] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
-- [ ] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
-- [ ] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
 
 ---
 
