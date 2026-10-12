@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish:
@@ -67,9 +67,10 @@ jobs:
 
       - name: Resolve the version to publish
         id: version
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
-          INPUT_TAG="${{ github.event.inputs.tag }}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
 
           if [ -n "$INPUT_TAG" ]; then
@@ -164,23 +165,23 @@ jobs:
       - name: Create or verify GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="v${VERSION}"
+          TAG="v${RELEASE_VERSION}"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "✅ GitHub Release $TAG ya existe. Omitiendo creación duplicada."
           else
             echo "📦 Generando notas de la release desde backlog/releases.json..."
-            node -e "
+            TAG="$TAG" node -e "
               const fs = require('fs');
               const data = JSON.parse(fs.readFileSync('backlog/releases.json', 'utf8'));
               const list = Array.isArray(data) ? data : (data.releases || []);
-              const rel = list.find(r => r.version === '$VERSION') || {};
-              const title = rel.title || (rel.name ? \`$TAG - \${rel.name}\` : '$TAG');
+              const rel = list.find(r => r.version === process.env.RELEASE_VERSION) || {};
+              const title = rel.title || (rel.name ? \`\${process.env.TAG} - \${rel.name}\` : process.env.TAG);
               fs.writeFileSync('release-title.txt', title.trim());
-              const notes = rel.markdownContent ? rel.markdownContent.replace(/\\r\\n|\\n/g, '\n').trim() : (rel.summary || rel.notes || 'Release oficial ' + '$TAG');
+              const notes = rel.markdownContent ? rel.markdownContent.replace(/\\r\\n|\\n/g, '\n').trim() : (rel.summary || rel.notes || 'Release oficial ' + process.env.TAG);
               fs.writeFileSync('release-notes.txt', notes.trim() + '\n');
             "
 

@@ -83,6 +83,7 @@
     "publish:check": "node scripts/verify-publish-surface.js",
     "audit:ux": "node scripts/audit-ux-code.cjs",
     "audit:ux:baseline": "node scripts/audit-ux-code.cjs --update-baseline",
+    "audit:deps": "npm audit --audit-level=critical",
     "changelog": "node scripts/generate-changelog.cjs",
     "lint": "tsc --noEmit",
     "format": "node scripts/verify-backlog-sync.js --fix",

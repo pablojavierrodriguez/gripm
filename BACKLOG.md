@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (11)
+### 🚀 Ready for Deploy (12)
 
 #### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
 - **Prioridad**: `medium` | **Tipo**: `refactor`
@@ -455,7 +455,27 @@ Para mitigar este vector:
 
 ---
 
-### 📋 Backlog / Draft (20)
+#### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workflows/`:
+
+1. **Principio de menor privilegio en workflows:**
+   - Establecer `permissions: contents: read` a nivel global en `ci.yml` y `publish.yml` para impedir que tokens de Actions tengan permisos excesivos de escritura por defecto.
+2. **SCA (Software Composition Analysis):**
+   - Incorporar paso automatizado de `npm audit` en `ci.yml` (`npm run audit:deps`) para bloquear vulnerabilidades críticas en dependencias.
+3. **Erradicación de Script Injection en Workflows:**
+   - En `publish.yml`, evitar interpolación directa `${{ github.event.inputs.tag }}` en scripts de shell; canalizar inputs a través de variables de entorno seguras (`env: INPUT_TAG: ${{ github.event.inputs.tag }}`).
+
+**Criterios de Aceptación:**
+- [x] #1 ci.yml y publish.yml declaran bloque permissions: contents: read a nivel de workflow
+- [x] #2 ci.yml incorpora paso de SCA (npm audit --audit-level=high)
+- [x] #3 publish.yml pasa inputs de dispatch mediante bloque env: en lugar de interpolación directa en script bash
+- [x] #4 Verificación local de sintaxis y coherencia de pipelines
+
+---
+
+### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1041,26 +1061,6 @@ Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN pued
 - [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
 - [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
 - [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
-
----
-
-#### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
-- **Prioridad**: `medium` | **Tipo**: `chore`
-
-Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workflows/`:
-
-1. **Principio de menor privilegio en workflows:**
-   - Establecer `permissions: contents: read` a nivel global en `ci.yml` y `publish.yml` para impedir que tokens de Actions tengan permisos excesivos de escritura por defecto.
-2. **SCA (Software Composition Analysis):**
-   - Incorporar paso automatizado de `npm audit --audit-level=high` en `ci.yml` para bloquear vulnerabilidades críticas en dependencias de producción.
-3. **Erradicación de Script Injection en Workflows:**
-   - En `publish.yml`, evitar interpolación directa `${{ github.event.inputs.tag }}` en scripts de shell; canalizar inputs a través de variables de entorno seguras (`env: RELEASE_TAG: ${{ github.event.inputs.tag }}`).
-
-**Criterios de Aceptación:**
-- [ ] #1 ci.yml y publish.yml declaran bloque permissions: contents: read a nivel de workflow
-- [ ] #2 ci.yml incorpora paso de SCA (npm audit --audit-level=high)
-- [ ] #3 publish.yml pasa inputs de dispatch mediante bloque env: en lugar de interpolación directa en script bash
-- [ ] #4 Verificación local de sintaxis y coherencia de pipelines
 
 ---
 

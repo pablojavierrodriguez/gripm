@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Verify (${{ matrix.os }}, Node ${{ matrix.node-version }})
@@ -51,6 +54,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Dependency security audit (SCA)
+        run: npm run audit:deps
 
       - name: Typecheck (tsc)
         run: npx tsc --noEmit
