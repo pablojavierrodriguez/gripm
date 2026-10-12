@@ -167,7 +167,8 @@ function checkEsmPaths(file, content) {
 // spell-checker's job, and guessing at them here would be noise, not safety.
 
 function checkCorruption(file, content) {
-  content.split('\n').forEach((line, i) => {
+  content.split('\n').forEach((rawLine, i) => {
+    const line = rawLine.replace(/\r$/, '');
     for (const ch of line) {
       const code = ch.codePointAt(0);
       if (code === 0xfffd) {
@@ -178,9 +179,8 @@ function checkCorruption(file, content) {
         );
         return;
       }
-      // Control characters other than tab. Tab is allowed because YAML forbids
-      // it for indentation and checkYamlNoTabs reports that precisely.
-      const isControl = code < 0x20 && code !== 0x09;
+      // Control characters other than tab, LF (0x0A) and CR (0x0D).
+      const isControl = code < 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d;
       const isC1 = code >= 0x7f && code <= 0x9f;
       if (isControl || isC1) {
         fail(file, `Línea ${i + 1}: carácter de control U+${code.toString(16).toUpperCase()}`, 'Suele ser un resto de una edición o reemplazo mal hecho.');

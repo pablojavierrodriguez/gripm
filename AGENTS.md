@@ -53,6 +53,7 @@ Antes de marcar cualquier tarea en `ready` o sellar un release, verificar en ord
 4. ✅ `npm run backlog:sync` && `npm run backlog:check` — Coherencia de tareas, versiones y releases (código 0).
 5. ✅ `npm run publish:check` — Cero fugas de datos y superficie de distribución limpia.
 6. ✅ `npm run build` — Bundle Vite y binarios standalone en `bin/`.
+7. ✅ `node scripts/verify-changes.js --all` — Defectos estructurales y codificación en todo el árbol (obligatorio antes de merge o release).
 
 > [!IMPORTANT]
 > **Gate de Calidad Verificable:** Antes de pasar a `ready`, cada criterio de aceptación tildado (`- [x]`) debe estar respaldado por un comando o verificación ejecutable (tests, types, grep). Prohibido tildar ACs por deducción o inspección superficial sin aserción real.
@@ -106,6 +107,8 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 15. **Resolución absoluta de rutas:** Usar siempre `root: PKG_ROOT` y rutas absolutas en binarios CLI y plugins para ejecución global.
 16. **Metodología Lean / Kanban preferente:** En `gripm`, el desarrollo se opera preferentemente bajo flujo continuo Kanban con una cola de backlog priorizada y entregas agrupadas por valor en Releases, evitando la sobrecarga artificial de timeboxes de sprint cuando el ritmo ágil es continuo.
 17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
+18. **Paridad CI vs Local (DEV-249):** La suite headless (`npm test`) no ejecuta `test:ui` ni `verify-changes.js --all`. Ante cambios en Header/navegación o antes de sellar releases, correr ambos obligatoriamente.
+19. **Inmunidad a CRLF (DEV-249):** Todo script que parsee líneas debe normalizar `\r` (`replace(/\r$/, '')`). El repositorio preserva `.gitattributes` (`* text=auto eol=lf`) para evitar divergencias entre plataformas.
 
 ---
 
