@@ -490,4 +490,61 @@ console.log('✅ DEV-135: Import engine no longer hardcodes a private project');
 }
 console.log('✅ DEV-132: Section markers in free text isolated, escaped and round-tripped without pollution');
 
+// DEV-137: Estimation model, persistence and parsing (Fibonacci & T-shirt)
+{
+  const fibonacciMd = `---
+id: DEV-EST-1
+title: "Fibonacci estimation test"
+status: draft
+estimate: 5
+priority: p2
+---
+
+## Description
+Test
+`;
+  const parsedFib = parseBacklogMd(fibonacciMd);
+  assert.strictEqual(parsedFib.estimate, 5, 'DEV-137: Debe parsear estimación numérica Fibonacci como número');
+
+  const serializedFib = serializeBacklogMd(parsedFib);
+  assert.ok(serializedFib.includes('estimate: 5'), 'DEV-137: Debe serializar estimate numérico en frontmatter');
+  const roundTripFib = parseBacklogMd(serializedFib);
+  assert.strictEqual(roundTripFib.estimate, 5, 'DEV-137: Round-trip numérico debe conservar el valor');
+
+  const tshirtMd = `---
+id: DEV-EST-2
+title: "T-shirt estimation test"
+status: draft
+estimate: XL
+priority: p1
+---
+
+## Description
+Test
+`;
+  const parsedTshirt = parseBacklogMd(tshirtMd);
+  assert.strictEqual(parsedTshirt.estimate, 'XL', 'DEV-137: Debe parsear estimación T-shirt como string');
+
+  const serializedTshirt = serializeBacklogMd(parsedTshirt);
+  assert.ok(serializedTshirt.includes('estimate: "XL"'), 'DEV-137: Debe serializar estimate string en frontmatter');
+  const roundTripTshirt = parseBacklogMd(serializedTshirt);
+  assert.strictEqual(roundTripTshirt.estimate, 'XL', 'DEV-137: Round-trip string debe conservar el valor');
+
+  // Alias support: story_points
+  const aliasMd = `---
+id: DEV-EST-3
+title: "Story points alias test"
+status: draft
+story_points: 13
+---
+
+## Description
+Test
+`;
+  const parsedAlias = parseBacklogMd(aliasMd);
+  assert.strictEqual(parsedAlias.estimate, 13, 'DEV-137: Debe soportar story_points como alias de estimate');
+}
+console.log('✅ DEV-137: Estimation model parsing, serialization and aliases passed');
+
 console.log('🎉 All parser tests passed successfully!');
+

@@ -22,9 +22,10 @@ import {
   Bookmark,
   RotateCcw,
   ScrollText,
-  X
+  X,
+  Zap
 } from 'lucide-react';
-import type { BacklogItem, ItemStatus, Priority, Sprint } from '../types';
+import type { BacklogItem, ItemStatus, Priority, Sprint, GripmConfig } from '../types';
 import { typeConfig, priorityConfig } from './ItemCard';
 import { ConfirmModal } from './ConfirmModal';
 import { SprintModal } from './SprintModal';
@@ -81,6 +82,7 @@ interface SprintViewProps {
   availableSprints?: string[];
   rankingEnabled?: boolean;
   projectId?: string;
+  config?: GripmConfig;
 }
 
 type GroupBy = 'sprint' | 'priority' | 'module' | 'none' | 'epic';
@@ -104,11 +106,13 @@ export const SprintView: FC<SprintViewProps> = ({
   onDeleteItem,
   availableSprints = [],
   rankingEnabled = true,
-  projectId
+  projectId,
+  config
 }) => {
   const { t } = useTranslation();
   const hierarchyItems = allItems || items;
   const getStatusMeta = useStatusMeta();
+  const isEstimationEnabled = config?.estimation?.enabled !== false;
   const [groupBy, setGroupBy] = useState<GroupBy>('sprint');
   const [sortBy, setSortBy] = useState<'order' | 'priority' | 'code' | 'status'>('order');
   const [sortAsc, setSortAsc] = useState(true);
@@ -151,9 +155,9 @@ export const SprintView: FC<SprintViewProps> = ({
   const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
 
   // DEV-051, DEV-078 & DEV-079: Column visibility popover
-  const ALL_OPTIONAL_COLS = ['tipo', 'estado', 'modulo', 'release', 'sprint', 'acProgress', 'assignees', 'labels', 'epic'] as const;
+  const ALL_OPTIONAL_COLS = ['tipo', 'estado', 'modulo', 'release', 'sprint', 'acProgress', 'assignees', 'labels', 'epic', 'estimate'] as const;
   type OptionalCol = typeof ALL_OPTIONAL_COLS[number];
-  const DEFAULT_COLS: OptionalCol[] = ['tipo', 'estado', 'modulo', 'release', 'sprint'];
+  const DEFAULT_COLS: OptionalCol[] = ['tipo', 'estado', 'modulo', 'release', 'sprint', 'estimate'];
 
   const [visibleCols, setVisibleCols] = useState<Set<OptionalCol>>(() => {
     try {
@@ -540,7 +544,8 @@ export const SprintView: FC<SprintViewProps> = ({
                   { id: 'acProgress', label: t('sprint.colCriteria') },
                   { id: 'assignees', label: t('sprint.colAssignee') },
                   { id: 'labels', label: t('sprint.colLabels') },
-                  { id: 'epic', label: t('sprint.colEpic') }
+                  { id: 'epic', label: t('sprint.colEpic') },
+                  { id: 'estimate', label: t('itemModal.estimateLabel') }
                 ] as { id: OptionalCol; label: string }[]).map(col => (
                   <label key={col.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
                     <input
@@ -682,10 +687,60 @@ export const SprintView: FC<SprintViewProps> = ({
                     {group.items.length} {group.items.length === 1 ? t('sprintView.itemSingle') : t('sprintView.itemPlural')}
                   </span>
 
+                  {/* Story Points Rollup (DEV-139) */}
+                  {isEstimationEnabled && (() => {
+                    let totalNum = 0;
+                    let doneNum = 0;
+                    let hasNumbers = false;
+                    const tshirts: Record<string, number> = {};
+                    let hasTshirts = false;
+
+                    for (const it of group.items) {
+                      if (it.estimate !== undefined && it.estimate !== null && it.estimate !== '') {
+                        const num = Number(it.estimate);
+                        if (!isNaN(num) && typeof it.estimate !== 'boolean') {
+                          hasNumbers = true;
+                          totalNum += num;
+                          if (it.status === 'done' || it.status === 'ready') {
+                            doneNum += num;
+                          }
+                        } else {
+                          hasTshirts = true;
+                          const val = String(it.estimate).toUpperCase();
+                          tshirts[val] = (tshirts[val] || 0) + 1;
+                        }
+                      }
+                    }
+
+                    if (hasNumbers) {
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/20 shrink-0"
+                          title={`${doneNum} de ${totalNum} Story Points completados`}
+                        >
+                          <Zap className="w-3 h-3 text-indigo-500" />
+                          <span>{doneNum}/{totalNum} SP</span>
+                        </span>
+                      );
+                    }
+                    if (hasTshirts) {
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/20 shrink-0"
+                          title="Estimación T-shirt"
+                        >
+                          <Zap className="w-3 h-3 text-indigo-500" />
+                          <span>{Object.entries(tshirts).map(([k, v]) => `${v}${k}`).join(', ')}</span>
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   {/* Status Badge */}
                   {sprintObj && (
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide border shrink-0 ${
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide border shrink-0 ${
                         sprintObj.status === 'active'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
                           : sprintObj.status === 'completed'
@@ -885,6 +940,7 @@ export const SprintView: FC<SprintViewProps> = ({
                           {visibleCols.has('assignees') && <th className="py-2.5 px-4">{t('sprint.colAssignee')}</th>}
                           {visibleCols.has('labels') && <th className="py-2.5 px-4">{t('sprint.colLabels')}</th>}
                           {visibleCols.has('epic') && <th className="py-2.5 px-4">{t('sprint.colEpic')}</th>}
+                          {visibleCols.has('estimate') && <th className="py-2.5 px-4 text-center">{t('itemModal.estimateLabel')}</th>}
                           <th className="py-2.5 px-4 text-right">{t('sprint.colActions')}</th>
                         </tr>
                       </thead>
@@ -1190,6 +1246,20 @@ export const SprintView: FC<SprintViewProps> = ({
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-medium">
                                       <Bookmark className="w-2.5 h-2.5" />
                                       {parentItem ? `${parentItem.code || parentItem.id} · ${parentItem.title}` : item.epic}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                  )}
+                                </td>
+                              )}
+
+                              {/* Estimación (DEV-139) */}
+                              {visibleCols.has('estimate') && (
+                                <td className="py-2.5 px-4 text-center whitespace-nowrap">
+                                  {item.estimate !== undefined && item.estimate !== null && item.estimate !== '' ? (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/20">
+                                      <Zap className="w-3 h-3 text-indigo-500" />
+                                      <span>{item.estimate}</span>
                                     </span>
                                   ) : (
                                     <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>

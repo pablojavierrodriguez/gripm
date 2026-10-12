@@ -838,6 +838,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     onShowToast={onShowToast}
                     customItemTypes={config?.customItemTypes}
                     density={config?.density}
+                    estimationConfig={config?.estimation}
+                    visibleCardMetadata={config?.visibleCardMetadata}
                     canMoveUp={idx > 0}
                     canMoveDown={idx < colItems.length - 1}
                     onMoveWithinColumn={(direction) =>

@@ -1,9 +1,9 @@
 ---
 id: DEV-138
 title: "Selector de Estimación en ItemModal y Badges Visuales en Tarjetas Kanban"
-status: draft
+status: ready
 created_date: '2026-09-30'
-updated_date: '2026-09-30 14:07'
+updated_date: '2026-10-12 15:25'
 labels:
   - "estimation"
   - "ui"
@@ -43,12 +43,12 @@ Diseñar e implementar la experiencia de usuario (UX) para la asignación y visu
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 En ItemModal.tsx, mostrar el campo y control de estimación únicamente si config.estimation?.enabled es true
-- [ ] #2 Renderizar un selector ergonómico adaptativo según el método configurado: pills/botones para Fibonacci (0, 1, 2, 3, 5, 8, 13, 21) o T-Shirt Sizes (XS, S, M, L, XL, XXL)
-- [ ] #3 Permitir asignar, cambiar o desasignar (limpiar estimación) con feedback visual inmediato y persistencia en onSave hacia el backend
-- [ ] #4 En ItemCard.tsx, renderizar un badge compacto de estimación en la tarjeta Kanban únicamente si la estimación está habilitada y el ítem tiene un valor asignado
-- [ ] #5 Diseñar el badge de ItemCard con tokens semánticos del sistema, excelente contraste en Light y Dark Mode y cero saltos de layout (Zero-CLS)
-- [ ] #6 Garantizar que al desactivar la estimación desde Settings, los elementos visuales en ItemModal e ItemCard se oculten inmediatamente sin alterar los datos persistidos en disco
+- [x] #1 En ItemModal.tsx, mostrar el campo y control de estimación únicamente si config.estimation?.enabled es true
+- [x] #2 Renderizar un selector ergonómico adaptativo según el método configurado: pills/botones para Fibonacci (0, 1, 2, 3, 5, 8, 13, 21) o T-Shirt Sizes (XS, S, M, L, XL, XXL)
+- [x] #3 Permitir asignar, cambiar o desasignar (limpiar estimación) con feedback visual inmediato y persistencia en onSave hacia el backend
+- [x] #4 En ItemCard.tsx, renderizar un badge compacto de estimación en la tarjeta Kanban únicamente si la estimación está habilitada y el ítem tiene un valor asignado
+- [x] #5 Diseñar el badge de ItemCard con tokens semánticos del sistema, excelente contraste en Light y Dark Mode y cero saltos de layout (Zero-CLS)
+- [x] #6 Garantizar que al desactivar la estimación desde Settings, los elementos visuales en ItemModal e ItemCard se oculten inmediatamente sin alterar los datos persistidos en disco
 <!-- AC:END -->
 
 ## Implementation Plan

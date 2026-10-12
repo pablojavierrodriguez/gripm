@@ -38,7 +38,7 @@ import {
   Star,
   Bookmark
 } from 'lucide-react';
-import type { BacklogItem, ItemStatus, Priority, CustomItemTypeConfig } from '../types';
+import type { BacklogItem, ItemStatus, Priority, CustomItemTypeConfig, EstimationConfig, VisibleCardMetadata } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 interface ItemCardProps {
@@ -55,6 +55,8 @@ interface ItemCardProps {
   epicProgress?: { done: number; total: number };
   customItemTypes?: CustomItemTypeConfig[];
   density?: 'comfortable' | 'compact';
+  estimationConfig?: EstimationConfig;
+  visibleCardMetadata?: VisibleCardMetadata;
   /**
    * Keyboard-accessible reordering (DEV-173, AC #3). Without it, moving a card
    * inside its column is drag-and-drop only, which a keyboard cannot perform.
@@ -213,6 +215,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   epicProgress,
   customItemTypes,
   density = 'comfortable',
+  estimationConfig,
+  visibleCardMetadata,
   canMoveUp = false,
   canMoveDown = false,
   onMoveWithinColumn
@@ -376,27 +380,50 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
         isDragging ? 'is-dragging' : ''
       }`}
     >
-      {/* Top row: Code + Type Badge + Priority + Menu */}
+      {/* Top row: Code + Type Badge + Estimate Badge + Priority + Menu */}
       <div className={`flex items-center justify-between gap-1.5 min-w-0 ${isCompact ? 'mb-1.5' : 'mb-2'}`}>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Item Code */}
-          <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300 tracking-tight">
+          {/* QW-1: Item Code with click-to-copy */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(item.code || item.id);
+              if (onShowToast) onShowToast(t('card.codeCopied', { code: item.code }), 'success');
+            }}
+            title={t('card.copyCode', { code: item.code })}
+            aria-label={t('card.copyCode', { code: item.code })}
+            className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer active:scale-95 transition-transform"
+          >
             {item.code}
-          </span>
+          </button>
 
           {/* Type Badge */}
           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${typeInfo.badge}`}>
             <TypeIcon className="w-3 h-3" />
             <span>{typeInfo.label}</span>
           </span>
+
+          {/* DEV-138: Estimation Badge */}
+          {estimationConfig?.enabled !== false && item.estimate !== undefined && item.estimate !== null && item.estimate !== '' && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-500/30 shrink-0"
+              title={`${t('itemModal.estimateLabel')}: ${item.estimate}`}
+            >
+              <Zap className="w-2.5 h-2.5 text-indigo-500" />
+              <span>{item.estimate}</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Priority Pill */}
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.05] text-[10px] min-w-[70px] justify-center shrink-0">
-            <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.dot} shrink-0`} />
-            <span className={`${priorityInfo.text} truncate`}>{priorityLabel}</span>
-          </div>
+          {/* Priority Pill (conditioned by visibleCardMetadata - DEV-203) */}
+          {visibleCardMetadata?.priority !== false && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.05] text-[10px] min-w-[70px] justify-center shrink-0">
+              <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.dot} shrink-0`} />
+              <span className={`${priorityInfo.text} truncate`}>{priorityLabel}</span>
+            </div>
+          )}
 
           {/* Context Menu Button */}
           <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
@@ -460,7 +487,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                             setMenuOpen(false);
                             setStatusMenuOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left text-[11px] ${
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left text-xs ${
                             item.status === s
                               ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
                               : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
@@ -594,27 +621,38 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
         </div>
       )}
 
-      {/* Meta Pills (Module, Sprint, Release, ACs) */}
+      {/* Meta Pills (Module, Sprint, Release, ACs, Parent, Blocked) */}
       <div className={`flex items-center gap-1.5 flex-wrap ${isCompact ? 'pt-0.5' : 'pt-1'} border-t border-slate-100 dark:border-white/[0.04] text-[10px] text-slate-500 dark:text-slate-400`}>
-        {item.acceptanceCriteriaList && item.acceptanceCriteriaList.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-mono text-[9px] flex items-center gap-1 font-medium">
-            ✓ {item.acceptanceCriteriaList.filter(ac => ac.checked).length}/{item.acceptanceCriteriaList.length} AC
-          </span>
-        )}
+        {visibleCardMetadata?.acProgress !== false && item.acceptanceCriteriaList && item.acceptanceCriteriaList.length > 0 && (() => {
+          const totalAcs = item.acceptanceCriteriaList.length;
+          const checkedAcs = item.acceptanceCriteriaList.filter(ac => ac.checked).length;
+          const allCompleted = totalAcs > 0 && checkedAcs === totalAcs;
+          return (
+            <span
+              className={`px-1.5 py-0.5 rounded font-mono text-xs flex items-center gap-1 font-medium transition-colors ${
+                allCompleted
+                  ? 'bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 font-semibold shadow-xs'
+                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+              }`}
+            >
+              ✓ {checkedAcs}/{totalAcs} AC
+            </span>
+          );
+        })()}
 
-        {item.module && (
+        {visibleCardMetadata?.module !== false && item.module && (
           <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.05] text-slate-700 dark:text-slate-300 truncate max-w-[130px]">
             {item.module}
           </span>
         )}
 
-        {(item.sprint || item.targetSprint) && (
+        {visibleCardMetadata?.sprint !== false && (item.sprint || item.targetSprint) && (
           <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300/90 border border-indigo-200 dark:border-indigo-500/20 truncate max-w-[120px]">
             {item.sprint || item.targetSprint}
           </span>
         )}
 
-        {(() => {
+        {visibleCardMetadata?.release !== false && (() => {
           const rel = item.release || item.targetRelease;
           if (!rel || rel.toLowerCase().includes('sprint')) return null;
           return (
@@ -624,7 +662,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           );
         })()}
 
-        {(parentItem || item.parentId || item.epic) && (
+        {visibleCardMetadata?.parent !== false && (parentItem || item.parentId || item.epic) && (
           <span className="px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border text-xs flex items-center gap-1 min-w-0" title={parentItem ? `${parentItem.code || parentItem.id}: ${parentItem.title}` : t('card.parentTask', { id: item.parentId || item.epic || '' })}>
             <Layers className="h-3 w-3 shrink-0" />
             <span className="truncate">
@@ -635,13 +673,13 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           </span>
         )}
 
-        {item.blockedBy && item.blockedBy.length > 0 && (
+        {visibleCardMetadata?.blocked !== false && item.blockedBy && item.blockedBy.length > 0 && (
           <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}>
             ⛔ {t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}
           </span>
         )}
 
-        {item.blocks && item.blocks.length > 0 && (
+        {visibleCardMetadata?.blocked !== false && item.blocks && item.blocks.length > 0 && (
           <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blocks', { tasks: item.blocks.join(', ') })}>
             ⚠️ {t('card.blocks', { tasks: item.blocks.join(', ') })}
           </span>

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { X, RotateCcw, Check, SlidersHorizontal } from 'lucide-react';
-import type { FilterState, ItemType, Priority, ItemStatus, CustomItemTypeConfig } from '../types';
+import type { FilterState, ItemType, Priority, ItemStatus, CustomItemTypeConfig, EstimationConfig } from '../types';
 import { useTranslation } from '../utils/i18n';
 
 interface AdvancedFiltersPopoverProps {
@@ -15,6 +15,7 @@ interface AdvancedFiltersPopoverProps {
   onResetFilters: () => void;
   customItemTypes?: CustomItemTypeConfig[];
   showSprint?: boolean;
+  estimationConfig?: EstimationConfig;
 }
 
 export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
@@ -29,6 +30,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   onResetFilters,
   customItemTypes = [],
   showSprint = true,
+  estimationConfig,
 }) => {
   const { t } = useTranslation();
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -147,6 +149,23 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
       includeDismissedCancelled: hasDismissed,
     });
   };
+
+  // Estimate toggle
+  const toggleEstimate = (est: string | number) => {
+    const currentEstimates = filters.estimates ? [...filters.estimates] : [];
+    const index = currentEstimates.indexOf(est);
+    if (index >= 0) {
+      currentEstimates.splice(index, 1);
+    } else {
+      currentEstimates.push(est);
+    }
+    onChangeFilters({
+      ...filters,
+      estimates: currentEstimates,
+    });
+  };
+
+  const selectedEstimates = new Set(filters.estimates || []);
 
   const selectedTypes = new Set(
     filters.types && filters.types.length > 0
@@ -370,6 +389,44 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* Section 6: Estimación */}
+      {estimationConfig?.enabled && (
+        <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+          <div className="flex items-center justify-between min-w-0">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+              {t('filter.estimation')}
+            </span>
+            {selectedEstimates.size > 0 && (
+              <span className="text-xs text-slate-400 font-mono shrink-0">
+                {t('filter.selectedCount', { count: selectedEstimates.size })}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {(estimationConfig.method === 'tshirt'
+              ? (estimationConfig.customTshirt || ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+              : (estimationConfig.customFibonacci || [0, 1, 2, 3, 5, 8, 13, 21])
+            ).map((val) => {
+              const isSelected = selectedEstimates.has(val);
+              return (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => toggleEstimate(val)}
+                  className={`px-2.5 py-1 rounded-lg border text-xs font-mono font-medium transition-all ${
+                    isSelected
+                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400 font-semibold'
+                      : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {estimationConfig.method === 'fibonacci' ? `${val} pts` : val}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -316,6 +316,18 @@ function parseBacklogMd(content, defaultId = "") {
               result.rawExtraFrontmatter[key] = cleanVal;
             }
             break;
+          case "estimate":
+          case "estimation":
+          case "points":
+          case "story_points":
+          case "storypoints": {
+            const num = Number(cleanVal);
+            result.estimate = !isNaN(num) && cleanVal !== "" && !cleanVal.includes(" ") ? num : cleanVal;
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter.estimate = cleanVal;
+            }
+            break;
+          }
           default:
             if (result.rawExtraFrontmatter) {
               result.rawExtraFrontmatter[key] = cleanVal;
@@ -474,9 +486,16 @@ function serializeBacklogMd(task) {
       frontmatterLines.push(`previousStatus: ${JSON.stringify(task.previousStatus)}`);
     }
   }
+  if (task.estimate !== void 0 && task.estimate !== null && task.estimate !== "") {
+    if (typeof task.estimate === "number") {
+      frontmatterLines.push(`estimate: ${task.estimate}`);
+    } else {
+      frontmatterLines.push(`estimate: ${JSON.stringify(task.estimate)}`);
+    }
+  }
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
-      if (!["id", "title", "status", "assignee", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus"].includes(k.toLowerCase())) {
+      if (!["id", "title", "status", "assignee", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints"].includes(k.toLowerCase())) {
         frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
       }
     }
@@ -1185,6 +1204,7 @@ function readTasksForProject(project) {
           sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
           targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint,
           milestone: task.milestone,
+          estimate: task.estimate,
           createdAt: task.createdDate ? `${task.createdDate}T00:00:00.000Z` : void 0,
           updatedAt: task.updatedDate ? `${task.updatedDate}T00:00:00.000Z` : void 0
         });
@@ -1286,7 +1306,8 @@ var CANONICAL_TOOLS = [
             milestone: { type: "string" },
             sprint: { type: "string", description: "Sprint to assign to matching tasks." },
             implementationNotes: { type: "string" },
-            labels: { type: "array", items: { type: "string" } }
+            labels: { type: "array", items: { type: "string" } },
+            estimate: { description: "Estimation value (story points number or T-shirt size string)." }
           }
         }
       },
@@ -1323,7 +1344,8 @@ var CANONICAL_TOOLS = [
           description: "Plain-text list of acceptance criteria."
         },
         implementationPlan: { type: "string", description: "Step-by-step technical implementation plan." },
-        milestone: { type: "string", description: "Assigned sprint or milestone." }
+        milestone: { type: "string", description: "Assigned sprint or milestone." },
+        estimate: { description: "Estimation value (story points number or T-shirt size string)." }
       },
       required: ["title"]
     }
@@ -1352,6 +1374,7 @@ var CANONICAL_TOOLS = [
             implementationPlan: { type: "string" },
             milestone: { type: "string" },
             sprint: { type: "string" },
+            estimate: { description: "Estimation value (story points number or T-shirt size string)." },
             checkAllAcs: { type: "boolean" }
           }
         },
@@ -1360,6 +1383,7 @@ var CANONICAL_TOOLS = [
         priority: { type: "string", enum: ["urgent", "high", "medium", "low"] },
         implementationPlan: { type: "string", description: "Technical plan update." },
         sprint: { type: "string", description: 'Sprint name to assign (e.g. "Sprint 8").' },
+        estimate: { description: "Estimation value (story points number or T-shirt size string)." },
         toggleAcIndex: { type: "number", description: "AC index (1-indexed) to toggle checked/unchecked." },
         checkAllAcs: { type: "boolean", description: "If true, checks all ACs. If false, unchecks all ACs." },
         verifyCommand: { type: "string", description: "Verification command to execute before certifying transition to ready/done." },
@@ -1646,6 +1670,16 @@ async function handleToolCall(rawName, args) {
             }
             if (updates.implementationNotes !== void 0) current.implementationNotes = updates.implementationNotes;
             if (Array.isArray(updates.labels)) current.labels = updates.labels;
+            if (updates.estimate !== void 0) {
+              if (updates.estimate === "" || updates.estimate === null) {
+                current.estimate = void 0;
+                if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
+              } else {
+                const num = Number(updates.estimate);
+                current.estimate = !isNaN(num) && typeof updates.estimate !== "boolean" && !String(updates.estimate).includes(" ") ? num : updates.estimate;
+                if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(updates.estimate);
+              }
+            }
             current.updatedDate = today;
             const serialized = serializeBacklogMd(current);
             fs3.writeFileSync(fullPath, serialized, "utf8");
@@ -1701,6 +1735,9 @@ async function handleToolCall(rawName, args) {
             current.fix = updates.implementationNotes;
           }
           if (Array.isArray(updates.labels)) current.labels = updates.labels;
+          if (updates.estimate !== void 0) {
+            current.estimate = updates.estimate === "" || updates.estimate === null ? void 0 : updates.estimate;
+          }
           current.updatedAt = now;
           items[i] = current;
           updatedCount++;
@@ -1763,6 +1800,11 @@ async function handleToolCall(rawName, args) {
       text,
       checked: false
     }));
+    let initialEstimate;
+    if (args.estimate !== void 0 && args.estimate !== null && args.estimate !== "") {
+      const num = Number(args.estimate);
+      initialEstimate = !isNaN(num) && typeof args.estimate !== "boolean" && !String(args.estimate).includes(" ") ? num : args.estimate;
+    }
     const taskData = {
       id: code,
       title: args.title,
@@ -1772,6 +1814,7 @@ async function handleToolCall(rawName, args) {
       createdDate: today,
       updatedDate: today,
       milestone: args.milestone,
+      estimate: initialEstimate,
       description: args.description || "",
       acceptanceCriteria: acList,
       implementationPlan: args.implementationPlan || ""
@@ -1874,6 +1917,17 @@ async function handleToolCall(rawName, args) {
                 delete current.rawExtraFrontmatter.sprint;
                 delete current.rawExtraFrontmatter.targetSprint;
               }
+            }
+          }
+          const effectiveEstimate = args.estimate !== void 0 ? args.estimate : args.updates?.estimate;
+          if (effectiveEstimate !== void 0) {
+            if (effectiveEstimate === "" || effectiveEstimate === null) {
+              current.estimate = void 0;
+              if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
+            } else {
+              const num = Number(effectiveEstimate);
+              current.estimate = !isNaN(num) && typeof effectiveEstimate !== "boolean" && !String(effectiveEstimate).includes(" ") ? num : effectiveEstimate;
+              if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(effectiveEstimate);
             }
           }
           current.updatedDate = today;
@@ -1987,6 +2041,10 @@ Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, solucion
               current.sprint = legSprint;
               current.targetSprint = legSprint;
               current.sprints = legSprint ? [legSprint] : [];
+            }
+            const effectiveEstimate = args.estimate !== void 0 ? args.estimate : args.updates?.estimate;
+            if (effectiveEstimate !== void 0) {
+              current.estimate = effectiveEstimate === "" || effectiveEstimate === null ? void 0 : effectiveEstimate;
             }
             current.updatedAt = now;
             if (effectiveCheckAllAcs !== void 0 && current.acceptanceCriteriaList) {

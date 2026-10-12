@@ -1,9 +1,9 @@
 ---
 id: DEV-247
 title: "Épica: Sistema Integral de Estimación de Tareas (Story Points y T-Shirt Sizes)"
-status: draft
+status: ready
 created_date: '2026-10-12'
-updated_date: '2026-10-12'
+updated_date: '2026-10-12 15:25'
 labels:
   - "estimation"
   - "epic"
@@ -35,11 +35,11 @@ Como épica contenedora:
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 DEV-136 completada y certificada: activación soberana, selección de escala Fibonacci/T-Shirt y persistencia en configuración
-- [ ] #2 DEV-137 completada y certificada: modelo tipado en BacklogItem, persistencia del campo estimate en Markdown y soporte completo en MCP
-- [ ] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
-- [ ] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
-- [ ] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
+- [x] #1 DEV-136 completada y certificada: activación soberana, selección de escala Fibonacci/T-Shirt y persistencia en configuración
+- [x] #2 DEV-137 completada y certificada: modelo tipado en BacklogItem, persistencia del campo estimate en Markdown y soporte completo en MCP
+- [x] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
+- [x] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
+- [x] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
 <!-- AC:END -->
 
 ## Implementation Plan

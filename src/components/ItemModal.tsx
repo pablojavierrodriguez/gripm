@@ -4,6 +4,7 @@ import {
   Save, 
   Trash2, 
   Sparkles,
+  Check,
   CheckSquare,
   Plus,
   Trash,
@@ -19,7 +20,12 @@ import {
   ShieldAlert,
   History,
   Tag,
-  User
+  User,
+  Copy,
+  Calendar,
+  Download,
+  ExternalLink,
+  Zap
 } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, GripmConfig, Sprint, Release } from '../types';
 import { isSprintModuleActive } from '../types';
@@ -42,6 +48,7 @@ interface ItemModalProps {
   releases?: Release[];
   onSave: (itemData: Partial<BacklogItem> & { expectedMtime?: number; force?: boolean }) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onUnlinkChild?: (childId: string) => Promise<void>;
   activeProjectId?: string;
   config?: GripmConfig;
   allItems?: BacklogItem[];
@@ -130,6 +137,7 @@ export const ItemModal: FC<ItemModalProps> = ({
   releases = [],
   onSave,
   onDelete,
+  onUnlinkChild,
   activeProjectId,
   config,
   allItems = []
@@ -165,6 +173,11 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [conflictItem, setConflictItem] = useState<BacklogItem | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [estimate, setEstimate] = useState<string | number | undefined>(undefined);
+  const [calendarMenuOpen, setCalendarMenuOpen] = useState(false);
+  const [childTasksExpanded, setChildTasksExpanded] = useState(true);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const calendarMenuRef = useRef<HTMLDivElement>(null);
 
   // Accordion expansion states
   const [acExpanded, setAcExpanded] = useState(true);
@@ -180,12 +193,27 @@ export const ItemModal: FC<ItemModalProps> = ({
   const currentCode = item?.code || '';
   const otherItems = (allItems || []).filter(it => it.id !== currentId && it.code !== currentCode);
   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
+  const childTasks = otherItems.filter(
+    it => (currentId && it.parentId === currentId) || (currentCode && it.parentId === currentCode)
+  );
+  const showChildTasks = type === 'epic' || type === 'initiative' || childTasks.length > 0;
   const formatRelation = (relationId: string) => {
     const relatedItem = otherItems.find(it => it.code === relationId || it.id === relationId);
     return relatedItem ? `${relatedItem.code || relatedItem.id} · ${relatedItem.title}` : relationId;
   };
   const availableLabels = Array.from(new Set(allItems.flatMap(it => it.labels || []))).filter(Boolean);
   const availableAssignees = Array.from(new Set(allItems.flatMap(it => it.assignees || []))).filter(Boolean);
+
+  useEffect(() => {
+    if (!calendarMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (calendarMenuRef.current && !calendarMenuRef.current.contains(e.target as Node)) {
+        setCalendarMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [calendarMenuOpen]);
 
   const populateFromItem = (source: BacklogItem) => {
     setTitle(source.title || '');
@@ -214,6 +242,7 @@ export const ItemModal: FC<ItemModalProps> = ({
     setFix(source.fix || '');
     setImplementationPlan(source.implementationPlan || '');
     setAcceptanceCriteriaList(source.acceptanceCriteriaList || []);
+    setEstimate(source.estimate !== undefined ? source.estimate : undefined);
     setLabels(source.labels || []);
     setLabelInput('');
     setAssignees(source.assignees || []);
@@ -276,6 +305,7 @@ export const ItemModal: FC<ItemModalProps> = ({
         setFix('');
         setImplementationPlan('');
         setAcceptanceCriteriaList([]);
+        setEstimate(undefined);
         setLabels([]);
         setLabelInput('');
         setAssignees([]);
@@ -366,6 +396,7 @@ export const ItemModal: FC<ItemModalProps> = ({
         acceptanceCriteriaList,
         labels: labels.filter(Boolean),
         assignees: assignees.filter(Boolean),
+        estimate: estimate !== undefined && estimate !== '' ? estimate : undefined,
         expectedMtime: item?.mtime,
         force
       });
@@ -411,6 +442,98 @@ export const ItemModal: FC<ItemModalProps> = ({
     );
   };
 
+  const handleCopyCode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const codeToCopy = code || item?.code || item?.id;
+    if (codeToCopy) {
+      navigator.clipboard.writeText(codeToCopy);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleExportGoogleCalendar = () => {
+    if (!item) return;
+    const taskTitle = `[${item.code || code}] ${title}`;
+    let desc = `Status: ${status} | Priority: ${priority}\n`;
+    if (sprint) desc += `Sprint: ${sprint}\n`;
+    if (description) desc += `\n${description}\n`;
+    if (acceptanceCriteriaList.length > 0) {
+      desc += `\nCriterios de Aceptación:\n` + acceptanceCriteriaList.map(c => `- [${c.checked ? 'x' : ' '}] ${c.text}`).join('\n');
+    }
+
+    const matchedSprint = sprints.find(s => s.name === sprint);
+    let datesParam = '';
+    if (matchedSprint?.startDate && matchedSprint?.endDate) {
+      const s = matchedSprint.startDate.replace(/-/g, '');
+      const e = matchedSprint.endDate.replace(/-/g, '');
+      datesParam = `&dates=${s}/${e}`;
+    }
+
+    const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(taskTitle)}&details=${encodeURIComponent(desc)}${datesParam}`;
+    window.open(gcalUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadIcs = () => {
+    if (!item) return;
+    const taskTitle = `[${item.code || code}] ${title}`;
+    let desc = `Status: ${status} | Priority: ${priority}\\n`;
+    if (sprint) desc += `Sprint: ${sprint}\\n`;
+    if (description) desc += `\\n${description.replace(/\n/g, '\\n')}\\n`;
+    if (acceptanceCriteriaList.length > 0) {
+      desc += `\\nCriterios de Aceptacion:\\n` + acceptanceCriteriaList.map(c => `- [${c.checked ? 'x' : ' '}] ${c.text.replace(/\n/g, ' ')}`).join('\\n');
+    }
+
+    const matchedSprint = sprints.find(s => s.name === sprint);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatIcsDate = (d: Date) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+    let dtStart = formatIcsDate(new Date(now.getTime() + 24 * 3600 * 1000));
+    let dtEnd = formatIcsDate(new Date(now.getTime() + 25 * 3600 * 1000));
+
+    if (matchedSprint?.startDate) {
+      const startParts = matchedSprint.startDate.split('-').map(Number);
+      if (startParts.length === 3) {
+        const sd = new Date(Date.UTC(startParts[0], startParts[1] - 1, startParts[2], 9, 0, 0));
+        dtStart = formatIcsDate(sd);
+        if (matchedSprint.endDate) {
+          const endParts = matchedSprint.endDate.split('-').map(Number);
+          if (endParts.length === 3) {
+            const ed = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2], 18, 0, 0));
+            dtEnd = formatIcsDate(ed);
+          }
+        }
+      }
+    }
+
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//gripm//NONSGML Gripm Agile Board//EN',
+      'BEGIN:VEVENT',
+      `UID:${item.code || item.id || Date.now()}@gripm.local`,
+      `DTSTAMP:${formatIcsDate(now)}`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `SUMMARY:${taskTitle.replace(/\n/g, ' ')}`,
+      `DESCRIPTION:${desc}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+
+    const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${item.code || 'task'}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (!isOpen) return null;
 
   const acChecked = acceptanceCriteriaList.filter(c => c.checked).length;
@@ -438,24 +561,87 @@ export const ItemModal: FC<ItemModalProps> = ({
               <Sparkles className="w-4 h-4" />
             </span>
             <div>
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {isEditing ? `${t('itemModal.editTitle')} ${item.code}` : t('itemModal.createTitle')}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {isEditing ? `${t('itemModal.editTitle')} ${item.code}` : t('itemModal.createTitle')}
+                </h2>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    aria-label={`${t('itemModal.copyId')} ${item.code}`}
+                    title={t('itemModal.copyId')}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.12] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/[0.08] transition-colors"
+                  >
+                    {copiedCode ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                    <span>{copiedCode ? t('itemModal.copiedToClipboard') : item.code}</span>
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {isEditing ? t('itemModal.editSubtitle') : t('itemModal.createSubtitle')}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            title={`${t('common.close')} (Esc)`}
-            className="h-10 w-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <div className="relative" ref={calendarMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setCalendarMenuOpen(!calendarMenuOpen)}
+                  aria-label={t('itemModal.calendarExport')}
+                  title={t('itemModal.calendarExport')}
+                  className="h-9 px-2.5 flex items-center gap-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.12] border border-slate-200 dark:border-white/[0.08] text-xs font-medium transition-colors"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="hidden sm:inline">{t('itemModal.calendarExport')}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {calendarMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-white dark:bg-[#131c2f] border border-slate-200 dark:border-white/10 rounded-xl shadow-xl p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleExportGoogleCalendar();
+                        setCalendarMenuOpen(false);
+                      }}
+                      aria-label={t('itemModal.calendarGoogle')}
+                      title={t('itemModal.calendarGoogle')}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{t('itemModal.calendarGoogle')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDownloadIcs();
+                        setCalendarMenuOpen(false);
+                      }}
+                      aria-label={t('itemModal.calendarIcs')}
+                      title={t('itemModal.calendarIcs')}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>{t('itemModal.calendarIcs')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('common.close')}
+              title={`${t('common.close')} (Esc)`}
+              className="h-10 w-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body - 2-Column Linear-style Grid */}
@@ -931,6 +1117,74 @@ export const ItemModal: FC<ItemModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* SECTION: Child Tasks Accordion (DEV-248) */}
+              {showChildTasks && (
+                <div className="rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] overflow-hidden transition-all">
+                  <div 
+                    onClick={() => setChildTasksExpanded(!childTasksExpanded)}
+                    className="px-3.5 py-2.5 bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.05] flex items-center justify-between min-w-0 cursor-pointer select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{t('itemModal.childTasksTitle')}</span>
+                      <span className="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-500/20">
+                        {childTasks.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {childTasksExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </div>
+                  </div>
+
+                  {childTasksExpanded && (
+                    <div className="p-3.5 border-t border-slate-200 dark:border-white/[0.06] space-y-2">
+                      {childTasks.length === 0 ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                          {t('itemModal.childTasksEmpty')}
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {childTasks.map(child => (
+                            <div
+                              key={child.id}
+                              className="flex items-center justify-between min-w-0 gap-2 p-2 rounded-lg bg-white dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.12] transition-colors"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                                  {child.code || child.id}
+                                </span>
+                                <span className="text-xs text-slate-800 dark:text-slate-200 break-words font-medium" title={child.title}>
+                                  {child.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400">
+                                  {child.status}
+                                </span>
+                                {onUnlinkChild && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUnlinkChild(child.id);
+                                    }}
+                                    aria-label={`${t('itemModal.unlinkChild')} ${child.code || child.id}`}
+                                    title={`${t('itemModal.unlinkChild')} (${child.code || child.id})`}
+                                    className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Column (33%): Sidebar "Atributos del Ítem" */}
@@ -1012,6 +1266,53 @@ export const ItemModal: FC<ItemModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* DEV-138: Estimation Selector */}
+                {config?.estimation?.enabled !== false && (
+                  <div>
+                    <div className="flex items-center justify-between min-w-0 mb-1.5">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>{t('itemModal.estimateLabel')}</span>
+                      </label>
+                      {estimate !== undefined && estimate !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => setEstimate(undefined)}
+                          aria-label={t('itemModal.estimateNone')}
+                          title={t('itemModal.estimateNone')}
+                          className="text-xs text-slate-500 hover:text-rose-500 transition-colors"
+                        >
+                          {t('itemModal.estimateNone')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {((config?.estimation?.method === 'tshirt'
+                        ? (config?.estimation?.customTshirt || ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+                        : (config?.estimation?.customFibonacci || [0, 1, 2, 3, 5, 8, 13, 21])) as (string | number)[]
+                      ).map((val) => {
+                        const isSelected = String(estimate) === String(val);
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setEstimate(isSelected ? undefined : val)}
+                            aria-label={`${t('itemModal.estimateLabel')}: ${val}`}
+                            title={`${t('itemModal.estimateLabel')}: ${val}`}
+                            className={`px-2 py-1 rounded-md text-xs font-mono font-semibold transition-all ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/80 dark:border-white/[0.06]'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Sprint & Multi-Release (DEV-056, DEV-077, DEV-087, DEV-218) */}
                 <div className="space-y-3">
@@ -1310,7 +1611,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                                   setSelectedReleases([r.version]);
                                   setCustomReleaseMode(false);
                                 }}
-                                className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                                className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
                               >
                                 + v{r.version}
                               </button>
@@ -1325,7 +1626,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                               setSelectedReleases([]);
                               setCustomReleaseMode(false);
                             }}
-                            className="px-1.5 py-0.5 rounded text-[10px] text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+                            className="px-1.5 py-0.5 rounded text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
                           >
                             {t('itemModal.noReleaseChip')}
                           </button>
@@ -1588,9 +1889,9 @@ export const ItemModal: FC<ItemModalProps> = ({
                 <div className="pt-1 border-t border-slate-200 dark:border-white/[0.06]">
                   <div 
                     onClick={() => setRiskFixExpanded(!riskFixExpanded)}
-                    className="flex items-center justify-between cursor-pointer py-1 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="flex items-center justify-between min-w-0 cursor-pointer py-1 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                       <span>{t('itemModal.riskFixTitle')}</span>
                     </div>
@@ -1600,7 +1901,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                   {riskFixExpanded && (
                     <div className="space-y-2.5 pt-2">
                       <div>
-                        <label className="block text-[10px] font-medium text-amber-600 dark:text-amber-400 mb-1">
+                        <label className="block text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">
                           {t('itemModal.riskLabel')}
                         </label>
                         <textarea
@@ -1613,7 +1914,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+                        <label className="block text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">
                           {t('itemModal.fixLabel')}
                         </label>
                         <textarea

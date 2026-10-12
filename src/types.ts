@@ -93,6 +93,7 @@ export interface BacklogItem {
   completedAt?: string;
   releasedAt?: string;
   mtime?: number; // File modification timestamp (ms) for optimistic concurrency locking
+  estimate?: string | number;
   // DEV-049: Soft delete / Trash fields
   isDeleted?: boolean;
   deletedAt?: string;
@@ -165,6 +166,25 @@ export interface KanbanSettings {
 
 export type ProjectMethodology = 'kanban' | 'scrum' | 'scrumban';
 
+export type EstimationMethod = 'fibonacci' | 'tshirt';
+
+export interface EstimationConfig {
+  enabled: boolean;
+  method: EstimationMethod;
+  customFibonacci?: number[];
+  customTshirt?: string[];
+}
+
+export interface VisibleCardMetadata {
+  module?: boolean;
+  sprint?: boolean;
+  release?: boolean;
+  acProgress?: boolean;
+  priority?: boolean;
+  parent?: boolean;
+  blocked?: boolean;
+}
+
 export interface ModulesConfig {
   sprint?: boolean;
   release?: boolean;
@@ -183,12 +203,16 @@ export interface GripmConfig {
     release?: boolean;
   };
   kanban?: KanbanSettings;
+  estimation?: EstimationConfig;
+  visibleCardMetadata?: VisibleCardMetadata;
   rankingEnabled?: boolean;
   autoSave?: boolean;
   customItemTypes?: CustomItemTypeConfig[];
   locale?: 'es' | 'en';
   version?: string;
 }
+
+export type DevBoardConfig = GripmConfig;
 
 /**
  * Resolves whether the Sprints functional capability is active.
@@ -227,6 +251,7 @@ export interface FilterState {
   sprints?: string[];
   release?: string | "all";
   releases?: string[];
+  estimates?: (string | number)[];
 }
 
 export interface UpdateInfo {

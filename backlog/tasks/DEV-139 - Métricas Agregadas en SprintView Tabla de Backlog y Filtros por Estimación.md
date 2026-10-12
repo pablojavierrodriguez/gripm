@@ -1,9 +1,9 @@
 ---
 id: DEV-139
 title: "Métricas Agregadas en SprintView Tabla de Backlog y Filtros por Estimación"
-status: draft
+status: ready
 created_date: '2026-09-30'
-updated_date: '2026-09-30 14:07'
+updated_date: '2026-10-12 15:25'
 labels:
   - "estimation"
   - "sprints"
@@ -46,12 +46,12 @@ Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 En SprintView.tsx, calcular y visualizar el rollup de Story Points (puntos totales planificados, puntos completados o en ready, y puntos pendientes) cuando el método es Fibonacci
-- [ ] #2 En SprintView.tsx, calcular y visualizar el desglose cuantitativo por tallas (ej: 2 XS, 4 M, 1 XL) cuando el método es T-Shirt Sizes
-- [ ] #3 Agregar columna 'Estimación' en la tabla de tareas de SprintView y vista de Backlog, con capacidad de ordenamiento ascendente y descendente
-- [ ] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
-- [ ] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
-- [ ] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
+- [x] #1 En SprintView.tsx, calcular y visualizar el rollup de Story Points (puntos totales planificados, puntos completados o en ready, y puntos pendientes) cuando el método es Fibonacci
+- [x] #2 En SprintView.tsx, calcular y visualizar el desglose cuantitativo por tallas (ej: 2 XS, 4 M, 1 XL) cuando el método es T-Shirt Sizes
+- [x] #3 Agregar columna 'Estimación' en la tabla de tareas de SprintView y vista de Backlog, con capacidad de ordenamiento ascendente y descendente
+- [x] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
+- [x] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
+- [x] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
 <!-- AC:END -->
 
 ## Implementation Plan

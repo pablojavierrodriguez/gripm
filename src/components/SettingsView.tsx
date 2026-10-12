@@ -30,7 +30,7 @@ import {
   Globe,
   Boxes
 } from 'lucide-react';
-import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig } from '../types';
+import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig, EstimationMethod, VisibleCardMetadata } from '../types';
 import { isSprintModuleActive, isReleaseModuleActive } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
@@ -211,6 +211,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [rankingEnabled, setRankingEnabled] = useState<boolean>(config.rankingEnabled !== false);
   const [showIdeasByDefault, setShowIdeasByDefault] = useState<boolean>(config.kanban?.showIdeasByDefault ?? false);
   const [showDoneHistoryByDefault, setShowDoneHistoryByDefault] = useState<boolean>(config.kanban?.showDoneHistoryByDefault ?? false);
+  const [estimationEnabled, setEstimationEnabled] = useState<boolean>(config.estimation?.enabled ?? false);
+  const [estimationMethod, setEstimationMethod] = useState<EstimationMethod>(config.estimation?.method || 'fibonacci');
+  const [cardMetaState, setCardMetaState] = useState<VisibleCardMetadata>(() => ({
+    module: config.visibleCardMetadata?.module ?? true,
+    sprint: config.visibleCardMetadata?.sprint ?? true,
+    release: config.visibleCardMetadata?.release ?? true,
+    acProgress: config.visibleCardMetadata?.acProgress ?? true,
+    priority: config.visibleCardMetadata?.priority ?? true,
+    parent: config.visibleCardMetadata?.parent ?? true,
+    blocked: config.visibleCardMetadata?.blocked ?? true,
+    ...config.visibleCardMetadata
+  }));
   const [kanbanEditMode, setKanbanEditMode] = useState<'ampliada' | 'simplificada'>('ampliada');
   const [customColumns, setCustomColumns] = useState<ColumnConfig[]>(() => {
     if (config.kanban?.columns && config.kanban.columns.length > 0) {
@@ -283,6 +295,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setRankingEnabled(config.rankingEnabled !== false);
     setShowIdeasByDefault(config.kanban?.showIdeasByDefault ?? false);
     setShowDoneHistoryByDefault(config.kanban?.showDoneHistoryByDefault ?? false);
+    setEstimationEnabled(config.estimation?.enabled ?? false);
+    setEstimationMethod(config.estimation?.method || 'fibonacci');
+    setCardMetaState({
+      module: config.visibleCardMetadata?.module ?? true,
+      sprint: config.visibleCardMetadata?.sprint ?? true,
+      release: config.visibleCardMetadata?.release ?? true,
+      acProgress: config.visibleCardMetadata?.acProgress ?? true,
+      priority: config.visibleCardMetadata?.priority ?? true,
+      parent: config.visibleCardMetadata?.parent ?? true,
+      blocked: config.visibleCardMetadata?.blocked ?? true,
+      ...config.visibleCardMetadata
+    });
     if (config.kanban?.columns && config.kanban.columns.length > 0) {
       setCustomColumns(JSON.parse(JSON.stringify(config.kanban.columns)));
     } else {
@@ -352,6 +376,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       autoSave,
       rankingEnabled,
       customItemTypes,
+      estimation: {
+        enabled: estimationEnabled,
+        method: estimationMethod,
+        ...(config.estimation?.customFibonacci ? { customFibonacci: config.estimation.customFibonacci } : {}),
+        ...(config.estimation?.customTshirt ? { customTshirt: config.estimation.customTshirt } : {})
+      },
+      visibleCardMetadata: cardMetaState,
       kanban: {
         ...config.kanban,
         columns: customColumns,
@@ -361,7 +392,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         wipLimits
       }
     };
-  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits]);
+  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits, estimationEnabled, estimationMethod, cardMetaState]);
 
   // Helper to normalize config object for reliable dirty-checking (DEV-081)
   const normalizeForComparison = (c: Partial<GripmConfig>) => {
@@ -385,6 +416,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       autoSave: c.autoSave ?? true,
       rankingEnabled: c.rankingEnabled !== false,
       customItemTypes: (c.customItemTypes && c.customItemTypes.length > 0) ? c.customItemTypes : undefined,
+      estimation: {
+        enabled: c.estimation?.enabled ?? false,
+        method: c.estimation?.method || 'fibonacci'
+      },
+      visibleCardMetadata: {
+        module: c.visibleCardMetadata?.module ?? true,
+        sprint: c.visibleCardMetadata?.sprint ?? true,
+        release: c.visibleCardMetadata?.release ?? true,
+        acProgress: c.visibleCardMetadata?.acProgress ?? true,
+        priority: c.visibleCardMetadata?.priority ?? true,
+        parent: c.visibleCardMetadata?.parent ?? true,
+        blocked: c.visibleCardMetadata?.blocked ?? true
+      },
       kanban: {
         showIdeasByDefault: kanban.showIdeasByDefault ?? false,
         showDoneHistoryByDefault: kanban.showDoneHistoryByDefault ?? false,
@@ -436,6 +480,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setRankingEnabled(config.rankingEnabled !== false);
     setShowIdeasByDefault(config.kanban?.showIdeasByDefault ?? false);
     setShowDoneHistoryByDefault(config.kanban?.showDoneHistoryByDefault ?? false);
+    setEstimationEnabled(config.estimation?.enabled ?? false);
+    setEstimationMethod(config.estimation?.method || 'fibonacci');
+    setCardMetaState({
+      module: config.visibleCardMetadata?.module ?? true,
+      sprint: config.visibleCardMetadata?.sprint ?? true,
+      release: config.visibleCardMetadata?.release ?? true,
+      acProgress: config.visibleCardMetadata?.acProgress ?? true,
+      priority: config.visibleCardMetadata?.priority ?? true,
+      parent: config.visibleCardMetadata?.parent ?? true,
+      blocked: config.visibleCardMetadata?.blocked ?? true,
+      ...config.visibleCardMetadata
+    });
     if (config.kanban?.columns && config.kanban.columns.length > 0) {
       setCustomColumns(JSON.parse(JSON.stringify(config.kanban.columns)));
     } else {
@@ -1287,6 +1343,126 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </label>
                 </div>
               </div>
+
+              {/* Sección: Estimación de Ítems (DEV-136) */}
+              <div className="pt-6 border-t border-slate-200 dark:border-white/[0.08] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {t('settings.estimationTitle')}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {t('settings.estimationDesc')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Toggle principal */}
+                <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Sliders className={`w-4 h-4 shrink-0 ${estimationEnabled ? 'text-indigo-500' : 'text-slate-400'}`} />
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold text-slate-900 dark:text-white block">
+                        {t('settings.estimationEnableLabel')}
+                      </span>
+                      <span className="text-xs text-slate-500 block">
+                        {t('settings.estimationEnableDesc')}
+                      </span>
+                    </div>
+                  </div>
+                  <SettingsSwitch
+                    checked={estimationEnabled}
+                    onChange={(checked) => setEstimationEnabled(checked)}
+                    ariaLabel={t('settings.estimationEnableLabel')}
+                  />
+                </label>
+
+                {/* Opciones cuando está habilitado */}
+                {estimationEnabled && (
+                  <div className="space-y-4 pt-1 animate-fade-in">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        {t('settings.estimationMethodLabel')}
+                      </label>
+                      <p className="text-xs text-slate-500 mb-3">
+                        {t('settings.estimationMethodDesc')}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setEstimationMethod('fibonacci')}
+                          className={`p-4 rounded-xl border text-left transition-all ${
+                            estimationMethod === 'fibonacci'
+                              ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                              : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between min-w-0 mb-1.5">
+                            <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
+                              {t('settings.estimationMethodFibonacci')}
+                            </span>
+                            {estimationMethod === 'fibonacci' && (
+                              <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 leading-normal mb-3">
+                            {t('settings.estimationMethodFibonacciDesc')}
+                          </p>
+                          {/* Preview pills */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[0, 1, 2, 3, 5, 8, 13, 21].map((val) => (
+                              <span
+                                key={val}
+                                className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/30"
+                              >
+                                {val}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEstimationMethod('tshirt')}
+                          className={`p-4 rounded-xl border text-left transition-all ${
+                            estimationMethod === 'tshirt'
+                              ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                              : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between min-w-0 mb-1.5">
+                            <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
+                              {t('settings.estimationMethodTshirt')}
+                            </span>
+                            {estimationMethod === 'tshirt' && (
+                              <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 leading-normal mb-3">
+                            {t('settings.estimationMethodTshirtDesc')}
+                          </p>
+                          {/* Preview pills */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+                              <span
+                                key={size}
+                                className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-50 dark:bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-500/30"
+                              >
+                                {size}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">
+                      {t('settings.estimationNonDestructiveHint')}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1715,6 +1891,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Sección: Metadatos Visibles en Tarjetas (DEV-203) */}
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-1">
+                    {t('settings.cardMetadataTitle')}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t('settings.cardMetadataDesc')}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaSprint')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.sprint !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, sprint: checked }))}
+                      ariaLabel={t('settings.cardMetaSprint')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaRelease')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.release !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, release: checked }))}
+                      ariaLabel={t('settings.cardMetaRelease')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaModule')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.module !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, module: checked }))}
+                      ariaLabel={t('settings.cardMetaModule')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaAcProgress')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.acProgress !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, acProgress: checked }))}
+                      ariaLabel={t('settings.cardMetaAcProgress')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaPriority')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.priority !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, priority: checked }))}
+                      ariaLabel={t('settings.cardMetaPriority')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaParent')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.parent !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, parent: checked }))}
+                      ariaLabel={t('settings.cardMetaParent')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
+                      {t('settings.cardMetaBlocked')}
+                    </span>
+                    <SettingsSwitch
+                      checked={cardMetaState.blocked !== false}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, blocked: checked }))}
+                      ariaLabel={t('settings.cardMetaBlocked')}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -2336,9 +2603,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* TAB 5: AVANZADO (JSON) */}
           {activeTab === 'advanced' && (
             <div className="space-y-6 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+              <div className="flex items-center justify-between min-w-0">
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 truncate">
                     {t('settings.advancedTitle')}
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">

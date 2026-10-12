@@ -1,9 +1,9 @@
 ---
 id: DEV-230
 title: "Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)"
-status: ideas
+status: ready
 created_date: '2026-10-09'
-updated_date: '2026-10-09'
+updated_date: '2026-10-12 15:25'
 labels:
   - "ui"
   - "calendar"
@@ -26,12 +26,12 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Accion contextual en ItemModal para agendar sesion o evento a partir de los datos de la tarea
-- [ ] #2 Generacion de enlace Web Intent para Google Calendar con titulo y notas de la tarea precargados sin requerir OAuth
-- [ ] #3 Opcion de descarga de archivo .ics universal compatible con clientes de calendario de escritorio
-- [ ] #4 Cero almacenamiento o transmision de credenciales y cero dependencias de APIs cloud
-- [ ] #5 Textos localizados en espanol e ingles en src/utils/i18n.ts
-- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+- [x] #1 Accion contextual en ItemModal para agendar sesion o evento a partir de los datos de la tarea
+- [x] #2 Generacion de enlace Web Intent para Google Calendar con titulo y notas de la tarea precargados sin requerir OAuth
+- [x] #3 Opcion de descarga de archivo .ics universal compatible con clientes de calendario de escritorio
+- [x] #4 Cero almacenamiento o transmision de credenciales y cero dependencias de APIs cloud
+- [x] #5 Textos localizados en espanol e ingles en src/utils/i18n.ts
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
 <!-- AC:END -->
 
 ## Implementation Notes

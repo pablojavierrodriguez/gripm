@@ -47,6 +47,7 @@ export interface BacklogMdTask {
   impactedFile?: string;
   risk?: string;
   fix?: string;
+  estimate?: string | number;
   rawExtraFrontmatter?: Record<string, string>;
 }
 
@@ -426,6 +427,18 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
               result.rawExtraFrontmatter[key] = cleanVal;
             }
             break;
+          case 'estimate':
+          case 'estimation':
+          case 'points':
+          case 'story_points':
+          case 'storypoints': {
+            const num = Number(cleanVal);
+            result.estimate = (!isNaN(num) && cleanVal !== '' && !cleanVal.includes(' ')) ? num : cleanVal;
+            if (result.rawExtraFrontmatter) {
+              result.rawExtraFrontmatter.estimate = cleanVal;
+            }
+            break;
+          }
           default:
             if (result.rawExtraFrontmatter) {
               result.rawExtraFrontmatter[key] = cleanVal;
@@ -624,9 +637,17 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
     }
   }
 
+  if (task.estimate !== undefined && task.estimate !== null && task.estimate !== '') {
+    if (typeof task.estimate === 'number') {
+      frontmatterLines.push(`estimate: ${task.estimate}`);
+    } else {
+      frontmatterLines.push(`estimate: ${JSON.stringify(task.estimate)}`);
+    }
+  }
+
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
-      if (!['id', 'title', 'status', 'assignee', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus'].includes(k.toLowerCase())) {
+      if (!['id', 'title', 'status', 'assignee', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints'].includes(k.toLowerCase())) {
         frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
       }
     }

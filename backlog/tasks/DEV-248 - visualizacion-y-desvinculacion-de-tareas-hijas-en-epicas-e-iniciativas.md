@@ -1,9 +1,9 @@
 ---
 id: DEV-248
 title: "Gestión Visual de Tareas Hijas en Épicas e Iniciativas con Desvinculación Bidireccional Directa"
-status: draft
+status: ready
 created_date: '2026-10-12'
-updated_date: '2026-10-12'
+updated_date: '2026-10-12 15:25'
 labels:
   - "hierarchy"
   - "epics"
@@ -43,12 +43,12 @@ Cuando un ítem en DevBoard/Gripm es de tipo contenedor de alto nivel (`type ===
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 En ItemModal, cuando el ítem sea de tipo 'epic' o 'initiative' (o tenga tareas asociadas con parentId/epic), renderizar la sección 'Tareas Hijas' con la lista completa de ítems dependientes
-- [ ] #2 Cada tarea hija en la lista muestra sus datos más relevantes: ID/código, icono y badge de tipo, título descriptivo, badge de estado con color semántico y prioridad
-- [ ] #3 Permitir abrir el ItemModal de la tarea hija al hacer clic sobre su fila en la lista para navegación jerárquica directa
-- [ ] #4 Incluir botón de desvinculación rápida en cada fila de tarea hija que limpie la propiedad parentId en el archivo del hijo y persista el cambio vía API/disco
-- [ ] #5 La desvinculación reactiva actualiza la vista del padre y recalcula las métricas de progreso rollup (epicProgress) sin requerir recarga
-- [ ] #6 Pirámide de verificación pasa en verde: tsc, npm test, backlog:check y publish:check
+- [x] #1 En ItemModal, cuando el ítem sea de tipo 'epic' o 'initiative' (o tenga tareas asociadas con parentId/epic), renderizar la sección 'Tareas Hijas' con la lista completa de ítems dependientes
+- [x] #2 Cada tarea hija en la lista muestra sus datos más relevantes: ID/código, icono y badge de tipo, título descriptivo, badge de estado con color semántico y prioridad
+- [x] #3 Permitir abrir el ItemModal de la tarea hija al hacer clic sobre su fila en la lista para navegación jerárquica directa
+- [x] #4 Incluir botón de desvinculación rápida en cada fila de tarea hija que limpie la propiedad parentId en el archivo del hijo y persista el cambio vía API/disco
+- [x] #5 La desvinculación reactiva actualiza la vista del padre y recalcula las métricas de progreso rollup (epicProgress) sin requerir recarga
+- [x] #6 Pirámide de verificación pasa en verde: tsc, npm test, backlog:check y publish:check
 <!-- AC:END -->
 
 ## Implementation Plan

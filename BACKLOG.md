@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (6)
+### 💡 Ideas / Discovery (4)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -51,20 +51,6 @@ Investigar y definir mecanismos para evitar que el servidor de desarrollo (`npm 
 
 ---
 
-#### [DEV-203] Configurar metadatos visibles en tarjetas de ítems
-- **Prioridad**: `medium` | **Tipo**: `improvement`
-
-Permitir que cada usuario elija qué información de una tarea se muestra directamente en las tarjetas del Kanban sin abrir el modal, por ejemplo módulo, sprint, release, avance de criterios, etiquetas, asignados y relaciones. La preferencia debe persistir, ser fácil de descubrir desde configuración y evitar saturar las tarjetas, con el mismo resultado en las vistas donde se reutiliza el componente.
-
-**Criterios de Aceptación:**
-- [ ] #1 Configuración permite activar o desactivar campos de metadatos visibles en tarjetas
-- [ ] #2 Las preferencias persisten entre sesiones y cuentan con valores por defecto razonables para instalaciones existentes
-- [ ] #3 Las tarjetas Kanban respetan la selección sin abrir el modal
-- [ ] #4 La opción de jerarquía/relaciones no duplica información ya visible ni colisiona con interacciones de tarjetas
-- [ ] #5 La configuración es accesible, responsiva y localizada en español e inglés
-
----
-
 #### [DEV-205] Evaluar e implementar Gripm Suite
 - **Prioridad**: `medium` | **Tipo**: `feature`
 
@@ -97,25 +83,128 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-#### [DEV-230] Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)
-- **Prioridad**: `low` | **Tipo**: `improvement`
+### 🚀 Ready for Deploy (12)
 
-Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios personales de manera inmediata y sin comprometer la privacidad:
-1. **Web Intent directo de Google Calendar:** Acción contextual en `ItemModal` ("Agendar en Calendario") que construye y abre una URL de intención web directa (`calendar.google.com/calendar/render?action=TEMPLATE...`) con el título `[ID] Título`, enlace local y notas de la tarea precargadas.
-2. **Descarga de archivo estándar iCalendar (.ics):** Generación instantánea en el navegador de un archivo `.ics` para usuarios de Apple Calendar, Outlook o clientes locales de calendario.
-3. **Cero dependencias cloud:** No requiere OAuth, permisos corporativos de Google Workspace, almacenamiento de tokens ni sincronizadores en segundo plano. Privacidad absoluta y cero mantenimiento de servidores.
+#### [DEV-136] Sistema de Estimación en Settings Activación Selector Fibonacci vs Tshirt y Configuración Persistente
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Proveer en DevBoard la capacidad de configurar el sistema de estimación de tareas a nivel de proyecto desde la vista de Configuración (SettingsView).
+
+### Requerimientos Clave:
+1. **Activación / Desactivación Soberana:** El usuario debe poder activar o desactivar la estimación de ítems mediante un toggle principal en Settings.
+2. **Selección de Método de Estimación:** Cuando la estimación está activa, el usuario puede elegir entre dos metodologías canónicas de la industria:
+   - **Story Points (Fibonacci):** Escala numérica estándar [0, 1, 2, 3, 5, 8, 13, 21].
+   - **T-Shirt Sizes:** Escala cualitativa por tallas [XS, S, M, L, XL, XXL].
+3. **Previsualización Interactiva:** La UI de configuración debe mostrar una vista previa visual de la escala elegida (pills con badges de colores/estilos del sistema).
+4. **Persistencia Reactiva:** La preferencia se almacena en el archivo `.devboard/config.json` dentro del campo `estimation` y se propaga en tiempo real al estado global del cockpit.
+5. **No Destructividad:** Desactivar la estimación oculta la funcionalidad en la UI pero preserva los valores asignados previamente en los archivos Markdown locales.
 
 **Criterios de Aceptación:**
-- [ ] #1 Accion contextual en ItemModal para agendar sesion o evento a partir de los datos de la tarea
-- [ ] #2 Generacion de enlace Web Intent para Google Calendar con titulo y notas de la tarea precargados sin requerir OAuth
-- [ ] #3 Opcion de descarga de archivo .ics universal compatible con clientes de calendario de escritorio
-- [ ] #4 Cero almacenamiento o transmision de credenciales y cero dependencias de APIs cloud
-- [ ] #5 Textos localizados en espanol e ingles en src/utils/i18n.ts
-- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
+- [x] #1 Definir tipos canónicos en src/types.ts: EstimationMethod ('fibonacci' | 'tshirt'), EstimationConfig ({ enabled: boolean, method: EstimationMethod }) y extender DevBoardConfig con estimation?: EstimationConfig
+- [x] #2 Inicializar la configuración de estimación con valores seguros por defecto (enabled: false, method: 'fibonacci') para garantizar retrocompatibilidad total
+- [x] #3 Crear sección dedicada 'Estimación de Ítems' en src/components/SettingsView.tsx con un switch/toggle accesible e intuitivo para activar o desactivar la funcionalidad
+- [x] #4 Implementar selector interactivo de método entre 'Story Points (Fibonacci)' y 'T-Shirt Sizes (Tallas de Remera)' con descripción y previsualización gráfica de las escalas correspondientes
+- [x] #5 Persistir los cambios en .devboard/config.json mediante onSaveConfig y sincronizar reactivamente el estado en App.tsx sin recargar la aplicación
+- [x] #6 Asegurar preservación de datos no destructiva: si la estimación se desactiva en Settings, las estimaciones existentes en los archivos Markdown no se borran ni modifican
+- [x] #7 Soportar reversión limpia de cambios mediante el botón 'Deshacer cambios' de Settings restaurando el estado previo de configuración
 
 ---
 
-### 🚀 Ready for Deploy (4)
+#### [DEV-137] Persistencia y Modelo de Estimación en Markdown Frontmatter y Soporte MCP
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Incorporar el soporte del atributo de estimación en el motor de almacenamiento de DevBoard, garantizando persistencia soberana en archivos Markdown individuales (backlog/tasks/*.md), el archivo consolidado (BACKLOG.md) y los contratos de herramientas MCP.
+
+### Requerimientos Técnicos:
+1. **Modelo de Dominio Tipado:**
+   - Añadir `estimate?: string | number;` en `BacklogItem` (`src/types.ts`) y `BacklogMdTask` (`scripts/backlogMdParser.ts`).
+   - Normalización de valores: Story Points numéricos (0, 1, 2, 3, 5, 8, 13, 21) o strings de tallas canónicas (XS, S, M, L, XL, XXL).
+2. **Parser y Serializador Markdown (backlogMdParser.ts):**
+   - Lectura defensiva de `estimate:` en frontmatter YAML.
+   - Serialización limpia: si `task.estimate` está definido, escribir `estimate: ${val}` respetando el formato YAML.
+   - Preservación en sincronización y regeneración de `BACKLOG.md`.
+3. **Contratos API y Middleware (vite.config.ts):**
+   - Propagar `estimate` en endpoints de tareas sin descarte de payload.
+4. **Herramientas MCP (scripts/mcp-server.ts y bin/devboard-mcp.js):**
+   - Permitir asignar o modificar la estimación desde `devboard_create_task` y `devboard_update_task`.
+   - Exponer `estimate` en las consultas de `devboard_get_task` y `devboard_list_tasks`.
+5. **Idempotencia y Retrocompatibilidad:**
+   - Tareas preexistentes sin estimación continúan funcionando sin errores (`estimate: undefined`).
+
+**Criterios de Aceptación:**
+- [x] #1 Extender la interfaz BacklogItem en src/types.ts y BacklogMdTask en scripts/backlogMdParser.ts con el campo opcional estimate?: string | number
+- [x] #2 El parser parseBacklogMd extrae de forma robusta el atributo estimate del frontmatter YAML tanto para números (Story Points) como para cadenas (T-Shirt sizes)
+- [x] #3 El serializador serializeBacklogMd serializa de forma canónica y limpia el campo estimate: en el frontmatter de backlog/tasks/*.md y BACKLOG.md
+- [x] #4 Actualizar los endpoints en vite.config.ts (/api/tasks, /api/backlog) para propagar el campo estimate en lecturas y escrituras sin pérdida de atributos
+- [x] #5 Extender las herramientas MCP devboard_create_task y devboard_update_task para aceptar y procesar el parámetro estimate de forma nativa
+- [x] #6 Exponer el valor de estimate en devboard_get_task y devboard_list_tasks para consumo eficiente por agentes de IA
+- [x] #7 Añadir tests de regresión en scripts/test-parser.js verificando parseo, serialización e idempotencia de tareas con y sin estimación
+
+---
+
+#### [DEV-138] Selector de Estimación en ItemModal y Badges Visuales en Tarjetas Kanban
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+Diseñar e implementar la experiencia de usuario (UX) para la asignación y visualización de estimaciones en la interfaz gráfica del cockpit:
+
+### 1. Edición y Asignación en ItemModal (src/components/ItemModal.tsx):
+- Visualización condicional: el selector de estimación sólo es visible si `config.estimation?.enabled === true`. Si está desactivado, el campo no se dibuja, manteniendo el modal limpio y sin distracciones.
+- Control interactivo moderno:
+  - **Modo Story Points (Fibonacci):** Segmented control o fila de botones tipo pill con los valores canónicos [0, 1, 2, 3, 5, 8, 13, 21], destacando con estilo activo el punto seleccionado.
+  - **Modo T-Shirt Sizes:** Pills interactivas con las tallas estándar [XS, S, M, L, XL, XXL].
+  - Botón o acción de reseteo (`Sin estimar`) para desasignar la estimación de la tarea con un solo click.
+- Integración en `populateFromItem` y transmisión en el payload de guardado `onSave`.
+
+### 2. Visualización en Tarjetas Kanban (src/components/ItemCard.tsx):
+- Badge discreto y elegante en el pie o encabezado de la tarjeta Kanban.
+- Representación contextual:
+  - Para Fibonacci: ej. `5 pts` o badge con icono sutil de estimación + número.
+  - Para T-Shirt: ej. badge con `M`, `L`, etc. con estilo distintivo.
+- Compatibilidad perfecta con Dark Mode y Light Mode (tokens Tailwind existentes en el proyecto).
+- Zero Layout Shifts: dimensiones estables para no alterar la altura ni el drag-and-drop de las tarjetas en el tablero.
+
+**Criterios de Aceptación:**
+- [x] #1 En ItemModal.tsx, mostrar el campo y control de estimación únicamente si config.estimation?.enabled es true
+- [x] #2 Renderizar un selector ergonómico adaptativo según el método configurado: pills/botones para Fibonacci (0, 1, 2, 3, 5, 8, 13, 21) o T-Shirt Sizes (XS, S, M, L, XL, XXL)
+- [x] #3 Permitir asignar, cambiar o desasignar (limpiar estimación) con feedback visual inmediato y persistencia en onSave hacia el backend
+- [x] #4 En ItemCard.tsx, renderizar un badge compacto de estimación en la tarjeta Kanban únicamente si la estimación está habilitada y el ítem tiene un valor asignado
+- [x] #5 Diseñar el badge de ItemCard con tokens semánticos del sistema, excelente contraste en Light y Dark Mode y cero saltos de layout (Zero-CLS)
+- [x] #6 Garantizar que al desactivar la estimación desde Settings, los elementos visuales en ItemModal e ItemCard se oculten inmediatamente sin alterar los datos persistidos en disco
+
+---
+
+#### [DEV-139] Métricas Agregadas en SprintView Tabla de Backlog y Filtros por Estimación
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a través de métricas agregadas de estimación en la vista de Sprints (SprintView), vista tabular de Backlog y filtros avanzados:
+
+### 1. Métricas Agregadas en SprintView (src/components/SprintView.tsx):
+- **Modo Story Points (Fibonacci):**
+  - Conteo total de Story Points del sprint (capacidad comprometida).
+  - Story points completados / listos (avance en puntos vs avance en tarjetas).
+  - Porcentaje de velocidad/avance ponderado por puntos.
+- **Modo T-Shirt Sizes:**
+  - Resumen visual de distribución por tallas (ej. `2 XS · 3 S · 5 M · 1 L`).
+- Visibilidad condicional: estas métricas solo se renderizan si `config.estimation?.enabled === true`.
+
+### 2. Columna de Estimación en Vista Tabular:
+- En la tabla de tareas de Sprints y Backlog, incluir columna "Estimación" que muestre el valor con su formato adecuado (badge compacto).
+- Soportar ordenamiento por estimación (numérico para Fibonacci, orden jerárquico canónico XS < S < M < L < XL < XXL para T-Shirt).
+
+### 3. Filtros Avanzados (src/components/FilterBar.tsx y AdvancedFiltersPopover.tsx):
+- Permitir filtrar por estimación cuando esté activa.
+- Selector multi-talla para T-Shirt sizes o rangos de Story Points.
+- Los filtros operan de manera 100% ortogonal respecto a sprint, release, prioridad y tipo.
+
+**Criterios de Aceptación:**
+- [x] #1 En SprintView.tsx, calcular y visualizar el rollup de Story Points (puntos totales planificados, puntos completados o en ready, y puntos pendientes) cuando el método es Fibonacci
+- [x] #2 En SprintView.tsx, calcular y visualizar el desglose cuantitativo por tallas (ej: 2 XS, 4 M, 1 XL) cuando el método es T-Shirt Sizes
+- [x] #3 Agregar columna 'Estimación' en la tabla de tareas de SprintView y vista de Backlog, con capacidad de ordenamiento ascendente y descendente
+- [x] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
+- [x] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
+- [x] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
+
+---
 
 #### [DEV-165] Modularización de vite.config.ts y Extracción de Capa de Servidor a server/
 - **Prioridad**: `medium` | **Tipo**: `refactor`
@@ -144,6 +233,96 @@ Extraer la capa de backend a módulos dedicados bajo un directorio `server/` (o 
 - [x] #4 Reducir `vite.config.ts` a menos de 300 líneas de código
 - [x] #5 La suite completa de tests de seguridad (`scripts/test-api-security.js`) y de SSE (`scripts/verify-sse.js`) pasan con exit code 0
 - [x] #6 `npm test`, `npm run backlog:check` y `npm run publish:check` pasan sin regresiones
+
+---
+
+#### [DEV-203] Configurar metadatos visibles en tarjetas de ítems
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+Permitir que cada usuario elija qué información de una tarea se muestra directamente en las tarjetas del Kanban sin abrir el modal, por ejemplo módulo, sprint, release, avance de criterios, etiquetas, asignados y relaciones. La preferencia debe persistir, ser fácil de descubrir desde configuración y evitar saturar las tarjetas, con el mismo resultado en las vistas donde se reutiliza el componente.
+
+**Criterios de Aceptación:**
+- [x] #1 Configuración permite activar o desactivar campos de metadatos visibles en tarjetas
+- [x] #2 Las preferencias persisten entre sesiones y cuentan con valores por defecto razonables para instalaciones existentes
+- [x] #3 Las tarjetas Kanban respetan la selección sin abrir el modal
+- [x] #4 La opción de jerarquía/relaciones no duplica información ya visible ni colisiona con interacciones de tarjetas
+- [x] #5 La configuración es accesible, responsiva y localizada en español e inglés
+
+---
+
+#### [DEV-230] Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios personales de manera inmediata y sin comprometer la privacidad:
+1. **Web Intent directo de Google Calendar:** Acción contextual en `ItemModal` ("Agendar en Calendario") que construye y abre una URL de intención web directa (`calendar.google.com/calendar/render?action=TEMPLATE...`) con el título `[ID] Título`, enlace local y notas de la tarea precargadas.
+2. **Descarga de archivo estándar iCalendar (.ics):** Generación instantánea en el navegador de un archivo `.ics` para usuarios de Apple Calendar, Outlook o clientes locales de calendario.
+3. **Cero dependencias cloud:** No requiere OAuth, permisos corporativos de Google Workspace, almacenamiento de tokens ni sincronizadores en segundo plano. Privacidad absoluta y cero mantenimiento de servidores.
+
+**Criterios de Aceptación:**
+- [x] #1 Accion contextual en ItemModal para agendar sesion o evento a partir de los datos de la tarea
+- [x] #2 Generacion de enlace Web Intent para Google Calendar con titulo y notas de la tarea precargados sin requerir OAuth
+- [x] #3 Opcion de descarga de archivo .ics universal compatible con clientes de calendario de escritorio
+- [x] #4 Cero almacenamiento o transmision de credenciales y cero dependencias de APIs cloud
+- [x] #5 Textos localizados en espanol e ingles en src/utils/i18n.ts
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-247] Épica: Sistema Integral de Estimación de Tareas (Story Points y T-Shirt Sizes)
+- **Prioridad**: `high` | **Tipo**: `epic`
+
+Épica paraguas para la incorporación del sistema integral de estimación de tareas en Gripm, permitiendo dimensionar el esfuerzo del backlog bajo estándares ágiles de la industria (Story Points con secuencia Fibonacci o T-Shirt Sizes por tallas cualitativas).
+
+Esta épica agrupa y coordina cuatro fases de entrega técnica y de producto:
+1. **DEV-136 (Configuración y Soberanía):** Activación/desactivación en `SettingsView`, elección de método (Fibonacci vs T-Shirt), previsualización de escalas y persistencia reactiva en configuración.
+2. **DEV-137 (Modelo de Dominio, Persistencia y MCP):** Soporte del campo `estimate` en frontmatter Markdown (`estimate: 5`), parser y serializador en `backlogMdParser.ts`, middleware API y contratos en herramientas MCP (`gripm_create_task`, `gripm_update_task`, `gripm_get_task`, `gripm_list_tasks`).
+3. **DEV-138 (UI/UX en Cockpit):** Selector de estimación en `ItemModal` con feedback visual interactivo y renderizado de badges de estimación en las tarjetas Kanban (`ItemCard`).
+4. **DEV-139 (Métricas Ágiles y Filtros):** Agregación de puntos/tallas en `SprintView` (velocidad, capacidad, total de puntos por estado/columna), vista tabular de Backlog y filtrado avanzado por estimación en `FilterBar`.
+
+### Regla de Ciclo de Vida:
+Como épica contenedora:
+- Entra en `doing` tan pronto como cualquiera de las tareas hijas (`DEV-136` a `DEV-139`) inicie su desarrollo activo.
+- Pasa a `review` una vez que las 4 tareas hijas alcancen el estado `ready` para la verificación y auditoría integral de la funcionalidad.
+
+**Criterios de Aceptación:**
+- [x] #1 DEV-136 completada y certificada: activación soberana, selección de escala Fibonacci/T-Shirt y persistencia en configuración
+- [x] #2 DEV-137 completada y certificada: modelo tipado en BacklogItem, persistencia del campo estimate en Markdown y soporte completo en MCP
+- [x] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
+- [x] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
+- [x] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
+
+---
+
+#### [DEV-248] Gestión Visual de Tareas Hijas en Épicas e Iniciativas con Desvinculación Bidireccional Directa
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Cuando un ítem en DevBoard/Gripm es de tipo contenedor de alto nivel (`type === 'epic'` o `type === 'initiative'`), el cockpit debe brindar visibilidad completa de su desglose de trabajo y permitir la administración directa de sus tareas hijas desde la vista de detalle (`ItemModal`):
+
+### 1. Panel de Tareas Hijas en ItemModal:
+- Detectar dinámicamente si el ítem actual es de tipo `epic` o `initiative` (o si existen ítems en el backlog que declaran `parentId === item.id` o `epic === item.id / item.code`).
+- Mostrar una sección dedicada **"Tareas Hijas" / "Child Tasks"** con la lista de ítems dependientes.
+- Para cada tarea hija, renderizar sus datos más relevantes:
+  - Identificador único (`code` o `id`, ej: `DEV-136`).
+  - Tipo con su icono y color (`feature`, `bug`, `ux`, etc.).
+  - Título descriptivo (truncado con elipsis limpia si excede el ancho pero accesible por title/tooltip).
+  - Badge de Estado actual con su color semántico (`draft`, `doing`, `ready`, etc.).
+  - Prioridad e indicador de estimación / asignado si existen.
+- Clic en la fila de la tarea hija abre directamente dicho ítem en el modal para navegación fluida entre niveles jerárquicos.
+
+### 2. Desvinculación Bidireccional Directa:
+- Cada fila de la lista de hijas cuenta con un botón o acción explícita de **desvincular** (`Quitar relación` / icono de unlink o `X`).
+- Al ejecutar la acción desde la vista de la épica/iniciativa padre:
+  - Se remueve la relación en el ítem hijo (estableciendo `parentId: ''` y `parent: ''` en su definición).
+  - La actualización persiste en disco de forma atómica y reactiva.
+  - La lista de hijas del padre y su barra de progreso rollup (`epicProgress`) se actualizan instantáneamente sin recargar la aplicación.
+
+**Criterios de Aceptación:**
+- [x] #1 En ItemModal, cuando el ítem sea de tipo 'epic' o 'initiative' (o tenga tareas asociadas con parentId/epic), renderizar la sección 'Tareas Hijas' con la lista completa de ítems dependientes
+- [x] #2 Cada tarea hija en la lista muestra sus datos más relevantes: ID/código, icono y badge de tipo, título descriptivo, badge de estado con color semántico y prioridad
+- [x] #3 Permitir abrir el ItemModal de la tarea hija al hacer clic sobre su fila en la lista para navegación jerárquica directa
+- [x] #4 Incluir botón de desvinculación rápida en cada fila de tarea hija que limpie la propiedad parentId en el archivo del hijo y persista el cambio vía API/disco
+- [x] #5 La desvinculación reactiva actualiza la vista del padre y recalcula las métricas de progreso rollup (epicProgress) sin requerir recarga
+- [x] #6 Pirámide de verificación pasa en verde: tsc, npm test, backlog:check y publish:check
 
 ---
 
@@ -210,7 +389,7 @@ Retirar el badge y el párrafo de demostración interactiva que referenciaban a 
 
 ---
 
-### 📋 Backlog / Draft (18)
+### 📋 Backlog / Draft (12)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -244,127 +423,6 @@ Evolución integral del módulo de Releases hacia un centro de control y auditor
 - [ ] #3 Correlación y badge de coherencia con tags locales de Git proveniente de la integración DEV-039
 - [ ] #4 Asistente para detectar discrepancias entre código tageado y tareas asociadas
 - [ ] #5 Botón de copiado en un click del changelog formateado para GitHub Releases
-
----
-
-#### [DEV-136] Sistema de Estimación en Settings Activación Selector Fibonacci vs Tshirt y Configuración Persistente
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Proveer en DevBoard la capacidad de configurar el sistema de estimación de tareas a nivel de proyecto desde la vista de Configuración (SettingsView).
-
-### Requerimientos Clave:
-1. **Activación / Desactivación Soberana:** El usuario debe poder activar o desactivar la estimación de ítems mediante un toggle principal en Settings.
-2. **Selección de Método de Estimación:** Cuando la estimación está activa, el usuario puede elegir entre dos metodologías canónicas de la industria:
-   - **Story Points (Fibonacci):** Escala numérica estándar [0, 1, 2, 3, 5, 8, 13, 21].
-   - **T-Shirt Sizes:** Escala cualitativa por tallas [XS, S, M, L, XL, XXL].
-3. **Previsualización Interactiva:** La UI de configuración debe mostrar una vista previa visual de la escala elegida (pills con badges de colores/estilos del sistema).
-4. **Persistencia Reactiva:** La preferencia se almacena en el archivo `.devboard/config.json` dentro del campo `estimation` y se propaga en tiempo real al estado global del cockpit.
-5. **No Destructividad:** Desactivar la estimación oculta la funcionalidad en la UI pero preserva los valores asignados previamente en los archivos Markdown locales.
-
-**Criterios de Aceptación:**
-- [ ] #1 Definir tipos canónicos en src/types.ts: EstimationMethod ('fibonacci' | 'tshirt'), EstimationConfig ({ enabled: boolean, method: EstimationMethod }) y extender DevBoardConfig con estimation?: EstimationConfig
-- [ ] #2 Inicializar la configuración de estimación con valores seguros por defecto (enabled: false, method: 'fibonacci') para garantizar retrocompatibilidad total
-- [ ] #3 Crear sección dedicada 'Estimación de Ítems' en src/components/SettingsView.tsx con un switch/toggle accesible e intuitivo para activar o desactivar la funcionalidad
-- [ ] #4 Implementar selector interactivo de método entre 'Story Points (Fibonacci)' y 'T-Shirt Sizes (Tallas de Remera)' con descripción y previsualización gráfica de las escalas correspondientes
-- [ ] #5 Persistir los cambios en .devboard/config.json mediante onSaveConfig y sincronizar reactivamente el estado en App.tsx sin recargar la aplicación
-- [ ] #6 Asegurar preservación de datos no destructiva: si la estimación se desactiva en Settings, las estimaciones existentes en los archivos Markdown no se borran ni modifican
-- [ ] #7 Soportar reversión limpia de cambios mediante el botón 'Deshacer cambios' de Settings restaurando el estado previo de configuración
-
----
-
-#### [DEV-137] Persistencia y Modelo de Estimación en Markdown Frontmatter y Soporte MCP
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Incorporar el soporte del atributo de estimación en el motor de almacenamiento de DevBoard, garantizando persistencia soberana en archivos Markdown individuales (backlog/tasks/*.md), el archivo consolidado (BACKLOG.md) y los contratos de herramientas MCP.
-
-### Requerimientos Técnicos:
-1. **Modelo de Dominio Tipado:**
-   - Añadir `estimate?: string | number;` en `BacklogItem` (`src/types.ts`) y `BacklogMdTask` (`scripts/backlogMdParser.ts`).
-   - Normalización de valores: Story Points numéricos (0, 1, 2, 3, 5, 8, 13, 21) o strings de tallas canónicas (XS, S, M, L, XL, XXL).
-2. **Parser y Serializador Markdown (backlogMdParser.ts):**
-   - Lectura defensiva de `estimate:` en frontmatter YAML.
-   - Serialización limpia: si `task.estimate` está definido, escribir `estimate: ${val}` respetando el formato YAML.
-   - Preservación en sincronización y regeneración de `BACKLOG.md`.
-3. **Contratos API y Middleware (vite.config.ts):**
-   - Propagar `estimate` en endpoints de tareas sin descarte de payload.
-4. **Herramientas MCP (scripts/mcp-server.ts y bin/devboard-mcp.js):**
-   - Permitir asignar o modificar la estimación desde `devboard_create_task` y `devboard_update_task`.
-   - Exponer `estimate` en las consultas de `devboard_get_task` y `devboard_list_tasks`.
-5. **Idempotencia y Retrocompatibilidad:**
-   - Tareas preexistentes sin estimación continúan funcionando sin errores (`estimate: undefined`).
-
-**Criterios de Aceptación:**
-- [ ] #1 Extender la interfaz BacklogItem en src/types.ts y BacklogMdTask en scripts/backlogMdParser.ts con el campo opcional estimate?: string | number
-- [ ] #2 El parser parseBacklogMd extrae de forma robusta el atributo estimate del frontmatter YAML tanto para números (Story Points) como para cadenas (T-Shirt sizes)
-- [ ] #3 El serializador serializeBacklogMd serializa de forma canónica y limpia el campo estimate: en el frontmatter de backlog/tasks/*.md y BACKLOG.md
-- [ ] #4 Actualizar los endpoints en vite.config.ts (/api/tasks, /api/backlog) para propagar el campo estimate en lecturas y escrituras sin pérdida de atributos
-- [ ] #5 Extender las herramientas MCP devboard_create_task y devboard_update_task para aceptar y procesar el parámetro estimate de forma nativa
-- [ ] #6 Exponer el valor de estimate en devboard_get_task y devboard_list_tasks para consumo eficiente por agentes de IA
-- [ ] #7 Añadir tests de regresión en scripts/test-parser.js verificando parseo, serialización e idempotencia de tareas con y sin estimación
-
----
-
-#### [DEV-138] Selector de Estimación en ItemModal y Badges Visuales en Tarjetas Kanban
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-Diseñar e implementar la experiencia de usuario (UX) para la asignación y visualización de estimaciones en la interfaz gráfica del cockpit:
-
-### 1. Edición y Asignación en ItemModal (src/components/ItemModal.tsx):
-- Visualización condicional: el selector de estimación sólo es visible si `config.estimation?.enabled === true`. Si está desactivado, el campo no se dibuja, manteniendo el modal limpio y sin distracciones.
-- Control interactivo moderno:
-  - **Modo Story Points (Fibonacci):** Segmented control o fila de botones tipo pill con los valores canónicos [0, 1, 2, 3, 5, 8, 13, 21], destacando con estilo activo el punto seleccionado.
-  - **Modo T-Shirt Sizes:** Pills interactivas con las tallas estándar [XS, S, M, L, XL, XXL].
-  - Botón o acción de reseteo (`Sin estimar`) para desasignar la estimación de la tarea con un solo click.
-- Integración en `populateFromItem` y transmisión en el payload de guardado `onSave`.
-
-### 2. Visualización en Tarjetas Kanban (src/components/ItemCard.tsx):
-- Badge discreto y elegante en el pie o encabezado de la tarjeta Kanban.
-- Representación contextual:
-  - Para Fibonacci: ej. `5 pts` o badge con icono sutil de estimación + número.
-  - Para T-Shirt: ej. badge con `M`, `L`, etc. con estilo distintivo.
-- Compatibilidad perfecta con Dark Mode y Light Mode (tokens Tailwind existentes en el proyecto).
-- Zero Layout Shifts: dimensiones estables para no alterar la altura ni el drag-and-drop de las tarjetas en el tablero.
-
-**Criterios de Aceptación:**
-- [ ] #1 En ItemModal.tsx, mostrar el campo y control de estimación únicamente si config.estimation?.enabled es true
-- [ ] #2 Renderizar un selector ergonómico adaptativo según el método configurado: pills/botones para Fibonacci (0, 1, 2, 3, 5, 8, 13, 21) o T-Shirt Sizes (XS, S, M, L, XL, XXL)
-- [ ] #3 Permitir asignar, cambiar o desasignar (limpiar estimación) con feedback visual inmediato y persistencia en onSave hacia el backend
-- [ ] #4 En ItemCard.tsx, renderizar un badge compacto de estimación en la tarjeta Kanban únicamente si la estimación está habilitada y el ítem tiene un valor asignado
-- [ ] #5 Diseñar el badge de ItemCard con tokens semánticos del sistema, excelente contraste en Light y Dark Mode y cero saltos de layout (Zero-CLS)
-- [ ] #6 Garantizar que al desactivar la estimación desde Settings, los elementos visuales en ItemModal e ItemCard se oculten inmediatamente sin alterar los datos persistidos en disco
-
----
-
-#### [DEV-139] Métricas Agregadas en SprintView Tabla de Backlog y Filtros por Estimación
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a través de métricas agregadas de estimación en la vista de Sprints (SprintView), vista tabular de Backlog y filtros avanzados:
-
-### 1. Métricas Agregadas en SprintView (src/components/SprintView.tsx):
-- **Modo Story Points (Fibonacci):**
-  - Conteo total de Story Points del sprint (capacidad comprometida).
-  - Story points completados / listos (avance en puntos vs avance en tarjetas).
-  - Porcentaje de velocidad/avance ponderado por puntos.
-- **Modo T-Shirt Sizes:**
-  - Resumen visual de distribución por tallas (ej. `2 XS · 3 S · 5 M · 1 L`).
-- Visibilidad condicional: estas métricas solo se renderizan si `config.estimation?.enabled === true`.
-
-### 2. Columna de Estimación en Vista Tabular:
-- En la tabla de tareas de Sprints y Backlog, incluir columna "Estimación" que muestre el valor con su formato adecuado (badge compacto).
-- Soportar ordenamiento por estimación (numérico para Fibonacci, orden jerárquico canónico XS < S < M < L < XL < XXL para T-Shirt).
-
-### 3. Filtros Avanzados (src/components/FilterBar.tsx y AdvancedFiltersPopover.tsx):
-- Permitir filtrar por estimación cuando esté activa.
-- Selector multi-talla para T-Shirt sizes o rangos de Story Points.
-- Los filtros operan de manera 100% ortogonal respecto a sprint, release, prioridad y tipo.
-
-**Criterios de Aceptación:**
-- [ ] #1 En SprintView.tsx, calcular y visualizar el rollup de Story Points (puntos totales planificados, puntos completados o en ready, y puntos pendientes) cuando el método es Fibonacci
-- [ ] #2 En SprintView.tsx, calcular y visualizar el desglose cuantitativo por tallas (ej: 2 XS, 4 M, 1 XL) cuando el método es T-Shirt Sizes
-- [ ] #3 Agregar columna 'Estimación' en la tabla de tareas de SprintView y vista de Backlog, con capacidad de ordenamiento ascendente y descendente
-- [ ] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
-- [ ] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
-- [ ] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
 
 ---
 
@@ -645,64 +703,6 @@ Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN pued
 - [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
 - [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
 - [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
-
----
-
-#### [DEV-247] Épica: Sistema Integral de Estimación de Tareas (Story Points y T-Shirt Sizes)
-- **Prioridad**: `high` | **Tipo**: `epic`
-
-Épica paraguas para la incorporación del sistema integral de estimación de tareas en Gripm, permitiendo dimensionar el esfuerzo del backlog bajo estándares ágiles de la industria (Story Points con secuencia Fibonacci o T-Shirt Sizes por tallas cualitativas).
-
-Esta épica agrupa y coordina cuatro fases de entrega técnica y de producto:
-1. **DEV-136 (Configuración y Soberanía):** Activación/desactivación en `SettingsView`, elección de método (Fibonacci vs T-Shirt), previsualización de escalas y persistencia reactiva en configuración.
-2. **DEV-137 (Modelo de Dominio, Persistencia y MCP):** Soporte del campo `estimate` en frontmatter Markdown (`estimate: 5`), parser y serializador en `backlogMdParser.ts`, middleware API y contratos en herramientas MCP (`gripm_create_task`, `gripm_update_task`, `gripm_get_task`, `gripm_list_tasks`).
-3. **DEV-138 (UI/UX en Cockpit):** Selector de estimación en `ItemModal` con feedback visual interactivo y renderizado de badges de estimación en las tarjetas Kanban (`ItemCard`).
-4. **DEV-139 (Métricas Ágiles y Filtros):** Agregación de puntos/tallas en `SprintView` (velocidad, capacidad, total de puntos por estado/columna), vista tabular de Backlog y filtrado avanzado por estimación en `FilterBar`.
-
-### Regla de Ciclo de Vida:
-Como épica contenedora:
-- Entra en `doing` tan pronto como cualquiera de las tareas hijas (`DEV-136` a `DEV-139`) inicie su desarrollo activo.
-- Pasa a `review` una vez que las 4 tareas hijas alcancen el estado `ready` para la verificación y auditoría integral de la funcionalidad.
-
-**Criterios de Aceptación:**
-- [ ] #1 DEV-136 completada y certificada: activación soberana, selección de escala Fibonacci/T-Shirt y persistencia en configuración
-- [ ] #2 DEV-137 completada y certificada: modelo tipado en BacklogItem, persistencia del campo estimate en Markdown y soporte completo en MCP
-- [ ] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
-- [ ] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
-- [ ] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
-
----
-
-#### [DEV-248] Gestión Visual de Tareas Hijas en Épicas e Iniciativas con Desvinculación Bidireccional Directa
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Cuando un ítem en DevBoard/Gripm es de tipo contenedor de alto nivel (`type === 'epic'` o `type === 'initiative'`), el cockpit debe brindar visibilidad completa de su desglose de trabajo y permitir la administración directa de sus tareas hijas desde la vista de detalle (`ItemModal`):
-
-### 1. Panel de Tareas Hijas en ItemModal:
-- Detectar dinámicamente si el ítem actual es de tipo `epic` o `initiative` (o si existen ítems en el backlog que declaran `parentId === item.id` o `epic === item.id / item.code`).
-- Mostrar una sección dedicada **"Tareas Hijas" / "Child Tasks"** con la lista de ítems dependientes.
-- Para cada tarea hija, renderizar sus datos más relevantes:
-  - Identificador único (`code` o `id`, ej: `DEV-136`).
-  - Tipo con su icono y color (`feature`, `bug`, `ux`, etc.).
-  - Título descriptivo (truncado con elipsis limpia si excede el ancho pero accesible por title/tooltip).
-  - Badge de Estado actual con su color semántico (`draft`, `doing`, `ready`, etc.).
-  - Prioridad e indicador de estimación / asignado si existen.
-- Clic en la fila de la tarea hija abre directamente dicho ítem en el modal para navegación fluida entre niveles jerárquicos.
-
-### 2. Desvinculación Bidireccional Directa:
-- Cada fila de la lista de hijas cuenta con un botón o acción explícita de **desvincular** (`Quitar relación` / icono de unlink o `X`).
-- Al ejecutar la acción desde la vista de la épica/iniciativa padre:
-  - Se remueve la relación en el ítem hijo (estableciendo `parentId: ''` y `parent: ''` en su definición).
-  - La actualización persiste en disco de forma atómica y reactiva.
-  - La lista de hijas del padre y su barra de progreso rollup (`epicProgress`) se actualizan instantáneamente sin recargar la aplicación.
-
-**Criterios de Aceptación:**
-- [ ] #1 En ItemModal, cuando el ítem sea de tipo 'epic' o 'initiative' (o tenga tareas asociadas con parentId/epic), renderizar la sección 'Tareas Hijas' con la lista completa de ítems dependientes
-- [ ] #2 Cada tarea hija en la lista muestra sus datos más relevantes: ID/código, icono y badge de tipo, título descriptivo, badge de estado con color semántico y prioridad
-- [ ] #3 Permitir abrir el ItemModal de la tarea hija al hacer clic sobre su fila en la lista para navegación jerárquica directa
-- [ ] #4 Incluir botón de desvinculación rápida en cada fila de tarea hija que limpie la propiedad parentId en el archivo del hijo y persista el cambio vía API/disco
-- [ ] #5 La desvinculación reactiva actualiza la vista del padre y recalcula las métricas de progreso rollup (epicProgress) sin requerir recarga
-- [ ] #6 Pirámide de verificación pasa en verde: tsc, npm test, backlog:check y publish:check
 
 ---
 

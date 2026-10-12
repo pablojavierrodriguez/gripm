@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FC } from 'react';
 import { Search, X, SlidersHorizontal, RotateCcw } from 'lucide-react';
-import type { FilterState, ItemType, Priority, CustomItemTypeConfig } from '../types';
+import type { FilterState, ItemType, Priority, CustomItemTypeConfig, EstimationConfig } from '../types';
 import { AdvancedFiltersPopover } from './AdvancedFiltersPopover';
 import { useTranslation } from '../utils/i18n';
 
@@ -18,6 +18,7 @@ interface FilterBarProps {
   };
   customItemTypes?: CustomItemTypeConfig[];
   showSprint?: boolean;
+  estimationConfig?: EstimationConfig;
 }
 
 export const FilterBar: FC<FilterBarProps> = ({
@@ -29,6 +30,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   stats,
   customItemTypes = [],
   showSprint = true,
+  estimationConfig,
 }) => {
   const { t } = useTranslation();
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -50,10 +52,17 @@ export const FilterBar: FC<FilterBarProps> = ({
     return () => clearTimeout(handler);
   }, [localSearch, filters, onChangeFilters]);
 
-  // Keyboard shortcut Cmd+K or Ctrl+K to focus search input
+  // Keyboard shortcut Cmd+K or Ctrl+K or / to focus search input (QW-2)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (e.key === '/' && !isInput) {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -77,7 +86,8 @@ export const FilterBar: FC<FilterBarProps> = ({
     (hasCustomStatuses ? 1 : 0) +
     (showSprint && filters.sprint && filters.sprint !== 'all' ? 1 : 0) +
     (filters.release && filters.release !== 'all' ? 1 : 0) +
-    (filters.module && filters.module !== 'all' ? 1 : 0);
+    (filters.module && filters.module !== 'all' ? 1 : 0) +
+    (filters.estimates && filters.estimates.length > 0 ? filters.estimates.length : 0);
 
   const resetFilters = () => {
     setLocalSearch('');
@@ -99,6 +109,7 @@ export const FilterBar: FC<FilterBarProps> = ({
       sprints: [],
       release: 'all',
       releases: [],
+      estimates: [],
     });
   };
 
@@ -187,8 +198,8 @@ export const FilterBar: FC<FilterBarProps> = ({
                   <X className="w-3 h-3" />
                 </button>
               ) : (
-                <kbd className="hidden sm:inline absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/[0.06] text-[10px] text-slate-500 dark:text-slate-400 font-mono border border-slate-300 dark:border-white/[0.06]">
-                  ⌘K
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/[0.06] text-xs text-slate-500 dark:text-slate-400 font-mono border border-slate-300 dark:border-white/[0.06]">
+                  ⌘K /
                 </kbd>
               )}
             </div>
@@ -225,6 +236,7 @@ export const FilterBar: FC<FilterBarProps> = ({
                 onResetFilters={resetFilters}
                 customItemTypes={customItemTypes}
                 showSprint={showSprint}
+                estimationConfig={estimationConfig}
               />
             </div>
 

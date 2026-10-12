@@ -1,9 +1,9 @@
 ---
 id: DEV-203
 title: "Configurar metadatos visibles en tarjetas de ítems"
-status: ideas
+status: ready
 created_date: '2026-10-07'
-updated_date: '2026-10-07'
+updated_date: '2026-10-12 15:25'
 labels:
   - "ux"
   - "settings"
@@ -21,11 +21,11 @@ Permitir que cada usuario elija qué información de una tarea se muestra direct
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Configuración permite activar o desactivar campos de metadatos visibles en tarjetas
-- [ ] #2 Las preferencias persisten entre sesiones y cuentan con valores por defecto razonables para instalaciones existentes
-- [ ] #3 Las tarjetas Kanban respetan la selección sin abrir el modal
-- [ ] #4 La opción de jerarquía/relaciones no duplica información ya visible ni colisiona con interacciones de tarjetas
-- [ ] #5 La configuración es accesible, responsiva y localizada en español e inglés
+- [x] #1 Configuración permite activar o desactivar campos de metadatos visibles en tarjetas
+- [x] #2 Las preferencias persisten entre sesiones y cuentan con valores por defecto razonables para instalaciones existentes
+- [x] #3 Las tarjetas Kanban respetan la selección sin abrir el modal
+- [x] #4 La opción de jerarquía/relaciones no duplica información ya visible ni colisiona con interacciones de tarjetas
+- [x] #5 La configuración es accesible, responsiva y localizada en español e inglés
 <!-- AC:END -->
 
 ## Implementation Plan

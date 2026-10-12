@@ -241,6 +241,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         implementationPlan: body.implementationPlan || '',
         assignees: body.assignees || [],
         labels: body.labels || [],
+        estimate: body.estimate !== undefined && body.estimate !== '' ? body.estimate : undefined,
         sourceDoc: body.sourceDoc || undefined,
         order: body.order ?? backlog.items.length + 1,
         createdAt: now,
@@ -320,6 +321,9 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
             updatedItem.targetRelease = rVal || undefined;
             updatedItem.milestone = rVal || undefined;
             updatedItem.releases = relArr;
+          }
+          if (body.estimate !== undefined) {
+            updatedItem.estimate = (body.estimate === '' || body.estimate === null) ? undefined : body.estimate;
           }
 
           if (isBacklogMdProject(p)) {

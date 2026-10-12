@@ -178,6 +178,7 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
             implementationPlan: task.implementationPlan || '',
             assignees: task.assignees || [],
             labels: task.labels || [],
+            estimate: task.estimate !== undefined ? task.estimate : rawFm.estimate,
             order: rawFm.order !== undefined ? Number(rawFm.order) : order++,
             isDeleted: isDeletedVal ? true : undefined,
             deletedAt: deletedAtVal,
@@ -458,6 +459,7 @@ export function saveBacklogMdItem(project: ProjectMeta, item: any) {
     implementationPlan: item.implementationPlan !== undefined ? item.implementationPlan : (existingTask.implementationPlan || ''),
     implementationNotes: item.fix || item.implementationNotes || existingTask.implementationNotes,
     finalSummary: item.finalSummary || existingTask.finalSummary,
+    estimate: item.estimate !== undefined ? (item.estimate === '' ? undefined : item.estimate) : existingTask.estimate,
     rawExtraFrontmatter: {
       ...(existingTask.rawExtraFrontmatter || {})
     }
@@ -486,6 +488,16 @@ export function saveBacklogMdItem(project: ProjectMeta, item: any) {
       delete taskData.rawExtraFrontmatter.deletedAt;
       delete taskData.rawExtraFrontmatter.previousstatus;
       delete taskData.rawExtraFrontmatter.previousStatus;
+    }
+  }
+
+  if (item.estimate !== undefined) {
+    if (item.estimate === '' || item.estimate === null) {
+      taskData.estimate = undefined;
+      if (taskData.rawExtraFrontmatter) delete taskData.rawExtraFrontmatter.estimate;
+    } else {
+      taskData.estimate = item.estimate;
+      if (taskData.rawExtraFrontmatter) taskData.rawExtraFrontmatter.estimate = String(item.estimate);
     }
   }
 

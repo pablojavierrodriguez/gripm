@@ -841,6 +841,22 @@ export function App() {
     }
   }, [boardData, selectedProjectId, showToast, t]);
 
+  const handleUnlinkChildTask = useCallback(async (childId: string) => {
+    if (!boardData) return;
+    const child = boardData.items.find((i) => i.id === childId || i.code === childId);
+    if (!child) return;
+    try {
+      const updated = await updateItem(child.id, { parentId: '' });
+      setBoardData({
+        ...boardData,
+        items: boardData.items.map((it) => (it.id === child.id ? updated : it)),
+      });
+      showToast(`${t('itemModal.unlinkChild')}: ${child.code || child.id}`, 'info');
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`, 'error');
+    }
+  }, [boardData, showToast, t]);
+
   const handleCreateTaskFromAction = useCallback(async (title: string) => {
     try {
       await handleSaveItem({
@@ -1187,6 +1203,13 @@ export function App() {
       // Module
       if (filters.module !== 'all' && item.module !== filters.module) return false;
 
+      // Estimation
+      if (filters.estimates && filters.estimates.length > 0) {
+        if (item.estimate === undefined || !filters.estimates.includes(item.estimate)) {
+          return false;
+        }
+      }
+
       return true;
     });
   }, [allProjectItems, activeTab, filters]);
@@ -1265,6 +1288,7 @@ export function App() {
           stats={stats}
           customItemTypes={config?.customItemTypes}
           showSprint={isSprintTabEnabled}
+          estimationConfig={config?.estimation}
         />
       )}
 
@@ -1335,6 +1359,7 @@ export function App() {
 
         {activeTab === 'sprint' && (
           <SprintView
+            config={config}
             projectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
             items={visibleItems}
             allItems={allProjectItems}
@@ -1438,6 +1463,7 @@ export function App() {
         releases={projectReleases}
         onSave={handleSaveItem}
         onDelete={handleDeleteItem}
+        onUnlinkChild={handleUnlinkChildTask}
         activeProjectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
         config={config}
         allItems={boardData?.items || []}

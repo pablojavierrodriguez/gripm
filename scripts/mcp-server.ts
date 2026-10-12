@@ -420,6 +420,7 @@ function readTasksForProject(project: ProjectMeta): any[] {
           sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
           targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint,
           milestone: task.milestone,
+          estimate: task.estimate,
           createdAt: task.createdDate ? `${task.createdDate}T00:00:00.000Z` : undefined,
           updatedAt: task.updatedDate ? `${task.updatedDate}T00:00:00.000Z` : undefined
         });
@@ -526,7 +527,8 @@ const CANONICAL_TOOLS = [
             milestone: { type: 'string' },
             sprint: { type: 'string', description: 'Sprint to assign to matching tasks.' },
             implementationNotes: { type: 'string' },
-            labels: { type: 'array', items: { type: 'string' } }
+            labels: { type: 'array', items: { type: 'string' } },
+            estimate: { description: 'Estimation value (story points number or T-shirt size string).' }
           }
         }
       },
@@ -563,7 +565,8 @@ const CANONICAL_TOOLS = [
           description: 'Plain-text list of acceptance criteria.'
         },
         implementationPlan: { type: 'string', description: 'Step-by-step technical implementation plan.' },
-        milestone: { type: 'string', description: 'Assigned sprint or milestone.' }
+        milestone: { type: 'string', description: 'Assigned sprint or milestone.' },
+        estimate: { description: 'Estimation value (story points number or T-shirt size string).' }
       },
       required: ['title']
     }
@@ -592,6 +595,7 @@ const CANONICAL_TOOLS = [
             implementationPlan: { type: 'string' },
             milestone: { type: 'string' },
             sprint: { type: 'string' },
+            estimate: { description: 'Estimation value (story points number or T-shirt size string).' },
             checkAllAcs: { type: 'boolean' }
           }
         },
@@ -600,6 +604,7 @@ const CANONICAL_TOOLS = [
         priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low'] },
         implementationPlan: { type: 'string', description: 'Technical plan update.' },
         sprint: { type: 'string', description: 'Sprint name to assign (e.g. "Sprint 8").' },
+        estimate: { description: 'Estimation value (story points number or T-shirt size string).' },
         toggleAcIndex: { type: 'number', description: 'AC index (1-indexed) to toggle checked/unchecked.' },
         checkAllAcs: { type: 'boolean', description: 'If true, checks all ACs. If false, unchecks all ACs.' },
         verifyCommand: { type: 'string', description: 'Verification command to execute before certifying transition to ready/done.' },
@@ -934,6 +939,16 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             }
             if (updates.implementationNotes !== undefined) current.implementationNotes = updates.implementationNotes;
             if (Array.isArray(updates.labels)) current.labels = updates.labels;
+            if (updates.estimate !== undefined) {
+              if (updates.estimate === '' || updates.estimate === null) {
+                current.estimate = undefined;
+                if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
+              } else {
+                const num = Number(updates.estimate);
+                current.estimate = (!isNaN(num) && typeof updates.estimate !== 'boolean' && !String(updates.estimate).includes(' ')) ? num : updates.estimate;
+                if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(updates.estimate);
+              }
+            }
             current.updatedDate = today;
 
             const serialized = serializeBacklogMd(current);
@@ -999,6 +1014,9 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             current.fix = updates.implementationNotes;
           }
           if (Array.isArray(updates.labels)) current.labels = updates.labels;
+          if (updates.estimate !== undefined) {
+            current.estimate = (updates.estimate === '' || updates.estimate === null) ? undefined : updates.estimate;
+          }
           current.updatedAt = now;
 
           items[i] = current;
@@ -1074,6 +1092,12 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       checked: false
     }));
 
+    let initialEstimate: string | number | undefined;
+    if (args.estimate !== undefined && args.estimate !== null && args.estimate !== '') {
+      const num = Number(args.estimate);
+      initialEstimate = (!isNaN(num) && typeof args.estimate !== 'boolean' && !String(args.estimate).includes(' ')) ? num : args.estimate;
+    }
+
     const taskData: BacklogMdTask = {
       id: code,
       title: args.title,
@@ -1083,6 +1107,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       createdDate: today,
       updatedDate: today,
       milestone: args.milestone,
+      estimate: initialEstimate,
       description: args.description || '',
       acceptanceCriteria: acList,
       implementationPlan: args.implementationPlan || ''
@@ -1199,6 +1224,17 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
                 delete current.rawExtraFrontmatter.sprint;
                 delete current.rawExtraFrontmatter.targetSprint;
               }
+            }
+          }
+          const effectiveEstimate = args.estimate !== undefined ? args.estimate : args.updates?.estimate;
+          if (effectiveEstimate !== undefined) {
+            if (effectiveEstimate === '' || effectiveEstimate === null) {
+              current.estimate = undefined;
+              if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
+            } else {
+              const num = Number(effectiveEstimate);
+              current.estimate = (!isNaN(num) && typeof effectiveEstimate !== 'boolean' && !String(effectiveEstimate).includes(' ')) ? num : effectiveEstimate;
+              if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(effectiveEstimate);
             }
           }
           current.updatedDate = today;
@@ -1327,6 +1363,10 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               current.sprint = legSprint;
               current.targetSprint = legSprint;
               current.sprints = legSprint ? [legSprint] : [];
+            }
+            const effectiveEstimate = args.estimate !== undefined ? args.estimate : args.updates?.estimate;
+            if (effectiveEstimate !== undefined) {
+              current.estimate = (effectiveEstimate === '' || effectiveEstimate === null) ? undefined : effectiveEstimate;
             }
             current.updatedAt = now;
 
