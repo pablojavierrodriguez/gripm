@@ -2,11 +2,14 @@ import type { FC } from 'react';
 import { Keyboard, X, Compass, CheckSquare, Search } from 'lucide-react';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import type { TranslationKey } from '../utils/i18n';
+import type { UpdateInfo } from '../types';
 import { Modal } from './Modal';
 
 export interface KeyboardShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  updateAvailable?: UpdateInfo | null;
 }
 
 interface ShortcutItem {
@@ -20,9 +23,37 @@ interface ShortcutGroup {
   items: ShortcutItem[];
 }
 
+interface FooterLink {
+  labelKey: TranslationKey;
+  titleKey: TranslationKey;
+  href: string;
+}
+
+const REPO_URL = 'https://github.com/pablojavierrodriguez/gripm';
+
+/** Brand + support links rendered in the cheatsheet footer (DEV-257). */
+const FOOTER_LINKS: FooterLink[] = [
+  {
+    labelKey: 'shortcuts.linkRepo',
+    titleKey: 'shortcuts.linkRepoTitle',
+    href: REPO_URL,
+  },
+  {
+    labelKey: 'shortcuts.linkDocs',
+    titleKey: 'shortcuts.linkDocsTitle',
+    href: `${REPO_URL}#readme`,
+  },
+  {
+    labelKey: 'shortcuts.linkReport',
+    titleKey: 'shortcuts.linkReportTitle',
+    href: `${REPO_URL}/issues/new`,
+  },
+];
+
 export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
   isOpen,
   onClose,
+  updateAvailable,
 }) => {
   const { t } = useTranslation();
   const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
@@ -178,20 +209,45 @@ export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 shrink-0">
-          <div className="hidden sm:inline-flex items-center gap-1.5">
-            <span>{t('shortcuts.hint', { key: '' }).replace('{{key}}', '')}</span>
-            <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono font-semibold rounded bg-white dark:bg-white/[0.08] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300">
-              ?
-            </kbd>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-white/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500/50"
+        <div className="px-5 py-2 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between gap-x-4 gap-y-1 flex-wrap text-xs text-slate-500 dark:text-slate-400 shrink-0">
+          {/* Brand + support links (DEV-257): 0 px cost on the board, only inside this modal */}
+          <nav
+            aria-label={t('shortcuts.footerLinks')}
+            className="flex flex-wrap items-center gap-x-3 min-w-0"
           >
-            {t('shortcuts.close')}
-          </button>
+            <span className="font-mono text-xs font-semibold tracking-tight text-slate-500 dark:text-slate-400">
+              gripm{updateAvailable?.currentVersion ? ` v${updateAvailable.currentVersion}` : ''}
+            </span>
+            {FOOTER_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={t(link.titleKey)}
+                className="inline-flex items-center min-h-[44px] text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded transition-colors"
+              >
+                {t(link.labelKey)}
+                <span className="sr-only"> {t('shortcuts.newTab')}</span>
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden sm:inline-flex items-center gap-1.5">
+              <span>{t('shortcuts.hint', { key: '' }).replace('{{key}}', '')}</span>
+              <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono font-semibold rounded bg-white dark:bg-white/[0.08] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300">
+                ?
+              </kbd>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-white/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500/50"
+            >
+              {t('shortcuts.close')}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>

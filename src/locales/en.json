@@ -822,5 +822,13 @@
   "shortcuts.focusSearch": "Focus search bar",
   "shortcuts.closeDialog": "Close modal, drawer or menu",
   "shortcuts.hint": "Press {{key}} at any time to open this cheatsheet.",
-  "shortcuts.close": "Close"
+  "shortcuts.close": "Close",
+  "shortcuts.footerLinks": "Gripm resources and support",
+  "shortcuts.linkRepo": "GitHub",
+  "shortcuts.linkRepoTitle": "Open the gripm repository",
+  "shortcuts.linkDocs": "Docs",
+  "shortcuts.linkDocsTitle": "Read the usage and CLI documentation",
+  "shortcuts.linkReport": "Report a bug",
+  "shortcuts.linkReportTitle": "Open a bug report on GitHub",
+  "shortcuts.newTab": "(opens in a new tab)"
 }

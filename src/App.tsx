@@ -1528,6 +1528,7 @@ export function App() {
       <KeyboardShortcutsModal
         isOpen={shortcutsModalOpen}
         onClose={() => setShortcutsModalOpen(false)}
+        updateAvailable={boardData?.updateAvailable}
       />
 
       {/* Mobile Bottom Navigation Bar (DEV-007) */}

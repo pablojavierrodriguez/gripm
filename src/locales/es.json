@@ -822,5 +822,13 @@
   "shortcuts.focusSearch": "Hacer foco en la barra de búsqueda",
   "shortcuts.closeDialog": "Cerrar modal, panel o menú",
   "shortcuts.hint": "Presiona {{key}} en cualquier momento para abrir esta guía.",
-  "shortcuts.close": "Cerrar"
+  "shortcuts.close": "Cerrar",
+  "shortcuts.footerLinks": "Recursos y soporte de gripm",
+  "shortcuts.linkRepo": "GitHub",
+  "shortcuts.linkRepoTitle": "Abrir el repositorio de gripm",
+  "shortcuts.linkDocs": "Documentación",
+  "shortcuts.linkDocsTitle": "Leer la documentación de uso y CLI",
+  "shortcuts.linkReport": "Reportar bug",
+  "shortcuts.linkReportTitle": "Abrir un reporte de problema en GitHub",
+  "shortcuts.newTab": "(se abre en una pestaña nueva)"
 }
