@@ -57,12 +57,18 @@ The MCP server is included in the `@gripm/board` package. It exposes Board's bac
 
 | Tool | Purpose | Key Parameters |
 | :--- | :--- | :--- |
-| **`gripm_list_tasks`** | Lists tasks in the active project. Supports compact token-efficient filtering. | `openOnly`, `status`, `format`, `search`, `priority` |
+| **`gripm_list_projects`** | Lists registered projects in the cockpit. | None |
+| **`gripm_get_stats`** | Gets project health and progress metrics. | `projectId` |
+| **`gripm_list_tasks`** | Lists tasks in the active project. Supports compact token-efficient filtering. | `projectId`, `status`, `openOnly`, `search`, `priority`, `format` |
+| **`gripm_bulk_update_tasks`** | Batch updates tasks by IDs or prefix in a single atomic call. | `projectId`, `taskIds`, `updates` |
+| **`gripm_list_releases`** | Inspects releases, changelog notes and associated items. | `projectId`, `version` |
 | **`gripm_get_task`** | Reads full task details and acceptance criteria. | `taskId` (e.g. `"DEV-001"`) |
 | **`gripm_create_task`** | Creates a new task in the backlog. | `title`, `description`, `type`, `priority`, `acceptanceCriteria` |
 | **`gripm_update_task`** | Updates status, plan, or ticks acceptance criteria (AC). | `taskId`, `status`, `toggleAcIndex`, `implementationPlan` |
-| **`gripm_sync_backlog`** | Audits and reconciles out-of-sync tasks with acceptance criteria. | `autoFix` |
-| **`gripm_get_stats`** | Gets project health and progress metrics. | None |
+| **`gripm_export_backlog`** | Exports or refreshes the consolidated `BACKLOG.md` file. | `projectId` |
+| **`gripm_sync_backlog`** | Audits and reconciles out-of-sync tasks with acceptance criteria. | `projectId`, `autoFix` |
+| **`gripm_create_retro`** | Records a structured sprint retrospective in Markdown. | `projectId`, `sprintId`, `sprintName`, `date`, `author` |
+| **`gripm_list_retros`** | Lists recorded sprint retrospectives in `backlog/retros/`. | `projectId` |
 
 ---
 

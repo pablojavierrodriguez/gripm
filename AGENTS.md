@@ -39,7 +39,7 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 
 - **Cadencia Limpia (1 Tarea = 1 Commit Consolidado):** Durante la exploración y el desarrollo no se generan micro-commits ruidosos. Al certificar la tarea y dejarla en `ready` con la Pirámide de Verificación en verde, se realiza un único commit consolidado que incluye el código y el archivo `.md` de la tarea.
 - **Soberanía y Confirmación del Usuario:** El commit se ejecuta con confirmación o pedido explícito del usuario (`feat(DEV-XXX): ...` o `fix(DEV-XXX): ...`), manteniendo trazabilidad unívoca con el ID de la tarea.
-- **Hooks Pre-Commit como Salvaguarda Mecánica:** Los hooks (`verify-backlog-sync.js`) actúan como barrera física de calidad: abortan mecánicamente cualquier commit si el backlog está desincronizado, si hay errores de TypeScript o si las pruebas fallan, sin imponer burocracia manual adicional al desarrollador.
+- **Hooks Pre-Commit como Salvaguarda Mecánica:** Los hooks (`verify-backlog-sync.js` y `verify-changes.js`) actúan como barrera física de calidad: abortan mecánicamente cualquier commit si el backlog está desincronizado, si hay archivos sin trackear o inconsistencias en tareas, sin imponer burocracia manual adicional al desarrollador.
 
 ---
 
@@ -48,8 +48,8 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 Antes de marcar cualquier tarea en `ready` o sellar un release, verificar en orden:
 
 1. ✅ `npx tsc --noEmit` — 0 errores de tipado TypeScript estricto.
-2. ✅ `npm test` — Suite unificada de pruebas (15 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
-3. ✅ `npm run test:linux` — **Obligatorio si el cambio toca runtime, CI, I/O o el sistema de archivos.** Corre la suite completa en un contenedor Linux. La pirámide local corre en macOS y es estructuralmente incapaz de detectar fallas de plataforma (DEV-190).
+2. ✅ `npm test` — Suite unificada de pruebas (16 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
+3. ✅ `npm run test:linux` — **Obligatorio si el cambio toca runtime, CI, I/O o el sistema de archivos.** Corre la suite completa en un contenedor Linux para validar consistencia de plataforma (DEV-190).
 4. ✅ `npm run backlog:sync` && `npm run backlog:check` — Coherencia de tareas, versiones y releases (código 0).
 5. ✅ `npm run publish:check` — Cero fugas de datos y superficie de distribución limpia.
 6. ✅ `npm run build` — Bundle Vite y binarios standalone en `bin/`.
@@ -58,10 +58,7 @@ Antes de marcar cualquier tarea en `ready` o sellar un release, verificar en ord
 > **Gate de Calidad Verificable:** Antes de pasar a `ready`, cada criterio de aceptación tildado (`- [x]`) debe estar respaldado por un comando o verificación ejecutable (tests, types, grep). Prohibido tildar ACs por deducción o inspección superficial sin aserción real.
 
 > [!CAUTION]
-> **Un dato pendiente no es un diagnóstico (DEV-190).** Un `TCPConnectWrap` vivo parecía la causa del cuelgue, y era 1 handle de ~200. Antes de atribuir una causa raíz a una fuga, hay que volcar **todas** las que hay. `scripts/watchdog.js` hace exactamente eso ante cualquier cuelgue futuro.
-
-> [!CAUTION]
-> **La pirámide no cubre las clases de defecto de verificación (DEV-190).** YAML inválido, `import()` con rutas del sistema de archivos (rompe solo en Windows), handles sin cerrar (mueren solo en Linux) y corrupción de codificación no los detecta ni `tsc` ni los tests. Para eso está `scripts/verify-changes.js`, que corre en el pre-commit sobre los archivos stageados. Un check omitido se reporta como omitido, nunca como aprobado; y un check que produce falsos positivos se corrige o se elimina, nunca se ensancia con una lista de permitidos.
+> **La pirámide no cubre las clases de defecto de verificación (DEV-190).** YAML inválido, `import()` con rutas del sistema de archivos (rompe solo en Windows), handles sin cerrar (mueren solo en Linux) y corrupción de codificación no los detecta ni `tsc` ni los tests. Para eso está `scripts/verify-changes.js`, que corre en el pre-commit sobre los archivos stageados. Un check omitido se reporta como omitido, nunca como aprobado; y un check que produce falsos positivos se corrige o se elimina, nunca se ensucia con una lista de permitidos.
 
 > [!CAUTION]
 > **Anti-Browser-Subagent Ineficiente:** Prohibido invocar `browser_subagent` para verificar lógica, estado, contratos de API o persistencia que se auditan en milisegundos de forma headless. Se reserva **exclusivamente** para layouts visuales de CSS no deducibles estáticamente o pedido explícito del usuario.
@@ -100,7 +97,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 8. **Simetría `sprint` vs `sprints`:** Al desasignar sprint en `ItemModal`, enviar `sprint: ""` y `targetSprint: ""` explícitamente para persistir la limpieza en disco.
 
 ### Entorno, Terminal y UI
-9. **Sandbox de Terminal (Prohibido `curl http://localhost:4100`):** El sandbox bloquea peticiones HTTP locales. Para validar si el servidor escucha, usar `lsof -nP -iTCP:4100 -sTCP:LISTEN`. Para interactuar con la UI, usar `browser_subagent`.
+9. **Sandbox de Terminal (Prohibido `curl http://localhost:4100`):** El sandbox bloquea peticiones HTTP locales. Para validar si el servidor escucha en el puerto 4100, verificar el bind local en terminal o logs sin emitir peticiones de red directas. Para interactuar con la UI, usar `browser_subagent`.
 10. **Estabilidad de layout (Zero-CLS):** El elemento raíz `html` debe declarar siempre `overflow-y: scroll; scrollbar-gutter: stable;` en `index.css`.
 11. **Portales para modales y menús (DEV-129, DEV-130):** Renderizar overlays (`ConfirmModal`, dropdowns) vía `createPortal(..., document.body)` para evitar bugs de stacking context y containing block (`transform`, `backdrop-filter`).
 12. **Cero `truncate` en confirmaciones:** En cajas de advertencia o confirmación, usar siempre `break-words text-[11px] leading-relaxed` para nunca cortar texto crítico con elipsis (`…`).
@@ -108,7 +105,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 14. **Anti-Suppression:** NUNCA apagar linters o ignorar tipos (`@ts-ignore`, `eslint-disable`) para tapar síntomas.
 15. **Resolución absoluta de rutas:** Usar siempre `root: PKG_ROOT` y rutas absolutas en binarios CLI y plugins para ejecución global.
 16. **Metodología Lean / Kanban preferente:** En `gripm`, el desarrollo se opera preferentemente bajo flujo continuo Kanban con una cola de backlog priorizada y entregas agrupadas por valor en Releases, evitando la sobrecarga artificial de timeboxes de sprint cuando el ritmo ágil es continuo.
-17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": true, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
+17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
 
 ---
 

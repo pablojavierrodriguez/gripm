@@ -52,8 +52,8 @@ const REQUIRED_ENTRIES = [
   '.agents/skills/gripm/SKILL.md',
   '.agents/skills/gripm/SKILL.en.md',
   '.agents/skills/gripm/SKILL.es.md',
-  '.agents/AGENTS.en.md',
-  '.agents/AGENTS.es.md',
+  'scripts/templates/AGENTS.en.md',
+  'scripts/templates/AGENTS.es.md',
   '.githooks/pre-commit',
 ];
 

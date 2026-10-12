@@ -50,3 +50,9 @@ Ejecutar el saneamiento integral de frontera pública identificado en la auditor
 4. Pulir `README.md`, `README.es.md` y `CHANGELOG.md`.
 5. Ejecutar la suite completa de tests y comprobaciones de empaquetado.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- **Nota de auditoría antecedente (DEV-233):** Esta tarea cerró las recomendaciones de `docs/informe-auditoria.md` sin comandos ejecutables de verificación de regresión ni aserciones mecánicas permanentes, constituyendo el antecedente directo que motivó el régimen verificable por fases de DEV-233.
+<!-- SECTION:NOTES:END -->

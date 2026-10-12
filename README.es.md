@@ -190,7 +190,7 @@ Para usuarios avanzados, integraciones en pipelines de CI y equipos de ingenier�
 │        Gripm Board                   │   │         Gripm Playbook               │
 │     (@gripm/board)                   │   │       (@gripm/playbook)              │
 │                                      │   │                                      │
-│ • Cockpit Web local (React 18/Vite)  │   │ • Catálogo de 12 skills de roles IA  │
+│ • Cockpit Web local (React 18/Vite)  │   │ • Catálogo de skills de roles IA     │
 │ • CLI (`gripm`)                      │   │ • Guías metodológicas (.agents/)     │
 │ • Servidor MCP (`gripm-mcp`)         │   │ • Motor ejecutable de auditoría UX   │
 │ • Motor Markdown / JSON              │   │   (`scripts/audit-ux-code.cjs`)      │
@@ -356,16 +356,6 @@ Activa o desactiva módulos al instante desde la interfaz visual en **Ajustes > 
   }
 }
 ```
-
----
-
-## 💻 Integración Webview para VS Code y Cursor
-
-Elimina la fricción de alternar ventanas entre tu editor y el navegador. Gripm se integra directamente en VS Code y Cursor como un panel lateral nativo:
-
-1. **Webview Embebido:** Carga el cockpit visual responsivo de Gripm dentro de un panel lateral en el editor.
-2. **Sincronización con el Workspace Local:** Lee y escribe directamente sobre los archivos `backlog/tasks/*.md` del proyecto abierto, sin latencia ni APIs externas.
-3. **Flujo Ágil para Agentes de IA:** Supervisa tareas, audita criterios de aceptación e inspecciona en vivo cómo los agentes mueven ítems sin desenfocarte del código.
 
 ---
 

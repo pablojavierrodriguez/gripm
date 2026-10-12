@@ -37,7 +37,10 @@ export function getSkillTemplate(language = 'en') {
  */
 export function getAgentsMdTemplate(projectName, language = 'en') {
   const isEn = String(language).toLowerCase() === 'en';
-  const templatePath = path.join(PKG_ROOT, '.agents', isEn ? 'AGENTS.en.md' : 'AGENTS.es.md');
+  const filename = isEn ? 'AGENTS.en.md' : 'AGENTS.es.md';
+  const primaryPath = path.join(PKG_ROOT, 'scripts', 'templates', filename);
+  const fallbackPath = path.join(PKG_ROOT, '.agents', filename);
+  const templatePath = fs.existsSync(primaryPath) ? primaryPath : fallbackPath;
   if (fs.existsSync(templatePath)) {
     try {
       return fs.readFileSync(templatePath, 'utf8').replace(/\{\{projectName\}\}/g, projectName);

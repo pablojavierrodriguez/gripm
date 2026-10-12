@@ -1,9 +1,9 @@
 ---
 id: DEV-233
 title: "Auditoria integral 2026-10-10 y plan de remediacion por fases"
-status: doing
+status: ready
 created_date: '2026-10-10'
-updated_date: '2026-10-12 05:13'
+updated_date: '2026-10-12 05:55'
 labels:
   - "audit"
   - "quality-gate"
@@ -84,13 +84,18 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
-- [ ] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
-- [ ] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
-- [ ] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
-- [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
-- [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
-- [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
+- [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
+- [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
+- [x] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
+- [x] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
+- [x] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+- [x] #8 Fase 0 (DEV-234) completada y certificada: Primitivo Modal accesible y Estabilidad Funcional P0 (BUG-01, BUG-03, ARCH-06)
+- [x] #9 Fase 1 (DEV-235) completada y certificada: Integridad del Quality Gate y Verificacion Multiplataforma (GATE-01 a GATE-17)
+- [x] #10 Fase 2 (DEV-242, DEV-244, DEV-246) completada y certificada: Remediacion Integral de Seguridad (SEC-01 a SEC-10)
+- [x] #11 Fase 3: Proceso y documentacion (DOC-01 a DOC-22, saneamiento tooling y falsos positivos §8.5, purga DEV-238)
+- [x] #12 Fase 4: Deuda estructural desacoplada formalmente a DEV-165 (modularizacion de vite.config.ts ARCH-01) y backlog
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -161,4 +166,14 @@ es copia byte-identica de `@gripm/playbook` y upstream trae 33 bloques de test c
 4 locales. Re-forkearlo ya se intento y costo 270/358 lineas de divergencia (`DEV-188`).
 La decision legitima es aceptar la cobertura reducida y documentarla, o correr los tests
 de upstream desde este repo. **No re-forkear.**
+
+### Decisiones del PO registradas (AC #4):
+1. **PROC-01 (Historial inicial):** Aceptado el corte histórico de trazabilidad previo a la apertura pública del repositorio; no se reconstruyen commits ficticios.
+2. **TOOL-08 (Motor upstream audit-ux-code.cjs):** Se preserva la paridad byte a byte con `@gripm/playbook` sin bifurcar ni re-forkear el motor, asumiendo la suite upstream como autoridad.
+3. **SEC-06 (Modo LAN --host 0.0.0.0):** Se mantiene el diseño sin autenticación local obligatoria, con advertencia y mitigaciones formales registradas en `SECURITY.md` (SEC-06, SEC-07, SEC-10).
+4. **PROC-10 a 15 (Deuda documental histórica):** Tareas pasadas permanecen inalteradas para evitar ruidos de reescritura retroactiva; las nuevas normas aplican estrictamente de aquí en adelante.
+
+### Cierre de Fase 3 y Desacople de Fase 4 (AC #11, AC #12):
+- Fase 3 completada integralmente: purga de código legacy (DEV-238), retiro de skills no afines (`.agents/skills/` podado a 8 skills canónicas), plantillas trasladadas a `scripts/templates/`, saneamiento de falsos positivos en `AGENTS.md` y retiro de anuncio de Webview en README.
+- Fase 4 (deuda estructural de `vite.config.ts` y monolitos) desacoplada hacia [DEV-165](file:///c:/Users/Pablo/Proyectos/gripm/backlog/tasks/DEV-165%20-%20modularizacion-vite-config-extraccion-server.md) para ejecución en su ciclo técnico dedicado.
 <!-- SECTION:NOTES:END -->

@@ -115,7 +115,54 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### ⚡ In Progress / Doing (1)
+### 🚀 Ready for Deploy (14)
+
+#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
+`(!) Some chunks are larger than 500 kB after minification.`
+
+### Diagnóstico de Causa Raíz
+
+1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
+2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
+
+### Objetivo
+
+Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
+
+> [!CAUTION]
+> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
+>
+> ```
+> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
+> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
+> ```
+>
+> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
+>
+> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
+> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
+> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
+>
+> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
+>
+> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
+
+### Objetivo (corregido)
+
+Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
+
+**Criterios de Aceptación:**
+- [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
+- [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
+- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
+- [ ] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
+- [ ] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
+- [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
+
+---
 
 #### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
 - **Prioridad**: `high` | **Tipo**: `initiative`
@@ -181,62 +228,18 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 > Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
 
 **Criterios de Aceptación:**
-- [ ] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
-- [ ] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
-- [ ] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
-- [ ] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
-- [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
-- [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
-- [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
-
----
-
-### 🚀 Ready for Deploy (13)
-
-#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
-`(!) Some chunks are larger than 500 kB after minification.`
-
-### Diagnóstico de Causa Raíz
-
-1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
-2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
-
-### Objetivo
-
-Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
-
-> [!CAUTION]
-> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
->
-> ```
-> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
-> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
-> ```
->
-> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
->
-> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
-> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
-> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
->
-> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
->
-> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
-
-### Objetivo (corregido)
-
-Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
-
-**Criterios de Aceptación:**
-- [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
-- [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
-- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
-- [ ] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
-- [ ] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
-- [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
+- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
+- [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
+- [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
+- [x] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
+- [x] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
+- [x] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+- [x] #8 Fase 0 (DEV-234) completada y certificada: Primitivo Modal accesible y Estabilidad Funcional P0 (BUG-01, BUG-03, ARCH-06)
+- [x] #9 Fase 1 (DEV-235) completada y certificada: Integridad del Quality Gate y Verificacion Multiplataforma (GATE-01 a GATE-17)
+- [x] #10 Fase 2 (DEV-242, DEV-244, DEV-246) completada y certificada: Remediacion Integral de Seguridad (SEC-01 a SEC-10)
+- [x] #11 Fase 3: Proceso y documentacion (DOC-01 a DOC-22, saneamiento tooling y falsos positivos §8.5, purga DEV-238)
+- [x] #12 Fase 4: Deuda estructural desacoplada formalmente a DEV-165 (modularizacion de vite.config.ts ARCH-01) y backlog
 
 ---
 
@@ -598,7 +601,7 @@ Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workf
 
 ---
 
-### 📋 Backlog / Draft (18)
+### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1088,6 +1091,39 @@ Como épica contenedora:
 - [ ] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
 - [ ] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
 - [ ] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
+
+---
+
+#### [DEV-248] Gestión Visual de Tareas Hijas en Épicas e Iniciativas con Desvinculación Bidireccional Directa
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Cuando un ítem en DevBoard/Gripm es de tipo contenedor de alto nivel (`type === 'epic'` o `type === 'initiative'`), el cockpit debe brindar visibilidad completa de su desglose de trabajo y permitir la administración directa de sus tareas hijas desde la vista de detalle (`ItemModal`):
+
+### 1. Panel de Tareas Hijas en ItemModal:
+- Detectar dinámicamente si el ítem actual es de tipo `epic` o `initiative` (o si existen ítems en el backlog que declaran `parentId === item.id` o `epic === item.id / item.code`).
+- Mostrar una sección dedicada **"Tareas Hijas" / "Child Tasks"** con la lista de ítems dependientes.
+- Para cada tarea hija, renderizar sus datos más relevantes:
+  - Identificador único (`code` o `id`, ej: `DEV-136`).
+  - Tipo con su icono y color (`feature`, `bug`, `ux`, etc.).
+  - Título descriptivo (truncado con elipsis limpia si excede el ancho pero accesible por title/tooltip).
+  - Badge de Estado actual con su color semántico (`draft`, `doing`, `ready`, etc.).
+  - Prioridad e indicador de estimación / asignado si existen.
+- Clic en la fila de la tarea hija abre directamente dicho ítem en el modal para navegación fluida entre niveles jerárquicos.
+
+### 2. Desvinculación Bidireccional Directa:
+- Cada fila de la lista de hijas cuenta con un botón o acción explícita de **desvincular** (`Quitar relación` / icono de unlink o `X`).
+- Al ejecutar la acción desde la vista de la épica/iniciativa padre:
+  - Se remueve la relación en el ítem hijo (estableciendo `parentId: ''` y `parent: ''` en su definición).
+  - La actualización persiste en disco de forma atómica y reactiva.
+  - La lista de hijas del padre y su barra de progreso rollup (`epicProgress`) se actualizan instantáneamente sin recargar la aplicación.
+
+**Criterios de Aceptación:**
+- [ ] #1 En ItemModal, cuando el ítem sea de tipo 'epic' o 'initiative' (o tenga tareas asociadas con parentId/epic), renderizar la sección 'Tareas Hijas' con la lista completa de ítems dependientes
+- [ ] #2 Cada tarea hija en la lista muestra sus datos más relevantes: ID/código, icono y badge de tipo, título descriptivo, badge de estado con color semántico y prioridad
+- [ ] #3 Permitir abrir el ItemModal de la tarea hija al hacer clic sobre su fila en la lista para navegación jerárquica directa
+- [ ] #4 Incluir botón de desvinculación rápida en cada fila de tarea hija que limpie la propiedad parentId en el archivo del hijo y persista el cambio vía API/disco
+- [ ] #5 La desvinculación reactiva actualiza la vista del padre y recalcula las métricas de progreso rollup (epicProgress) sin requerir recarga
+- [ ] #6 Pirámide de verificación pasa en verde: tsc, npm test, backlog:check y publish:check
 
 ---
 
