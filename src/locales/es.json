@@ -137,7 +137,7 @@
   "sprint.colCriteria": "Criterios",
   "sprint.colAssignee": "Asignado",
   "sprint.colLabels": "Etiquetas",
-  "sprint.colEpic": "Épica",
+  "sprint.colParent": "Padre",
   "sprint.colActions": "Acciones",
   "sprint.emptySprint": "No hay tareas en este sprint",
   "sprint.dragDropHint": "Arrastra tareas aquí para asignarlas a {{name}}",

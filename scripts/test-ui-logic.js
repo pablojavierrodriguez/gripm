@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getKanbanColumnItems } from '../src/utils/kanbanColumnItems.ts';
 import { getStatusMeta, normalizeStatus } from '../src/utils/statusMeta.ts';
+import { ALL_OPTIONAL_COLS, normalizeVisibleCols } from '../src/utils/sprintVisibleCols.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readLocale = (language) => JSON.parse(
@@ -47,6 +48,35 @@ for (const [legacy, canonical] of [
 ]) {
   assert.equal(normalizeStatus(legacy), canonical, `${legacy} normalizes to ${canonical}`);
 }
+
+// DEV-256: la columna jerárquica se llama `parent` (el contenedor puede ser épica o iniciativa),
+// no `epic`. El id legacy debe migrar sin perder la visibilidad persistida.
+const migrated = normalizeVisibleCols(['epic', 'labels']);
+assert(
+  migrated.has('parent') && !migrated.has('epic'),
+  "legacy persisted id 'epic' must migrate to 'parent' so the column is not silently lost (DEV-256)",
+);
+assert(migrated.has('labels'), 'unrelated persisted columns survive the migration (DEV-256)');
+for (const core of ['tipo', 'estado', 'modulo', 'release']) {
+  assert(
+    normalizeVisibleCols([]).has(core),
+    `core column '${core}' must always be present even with empty persisted state (DEV-085/DEV-256)`,
+  );
+}
+assert.equal(
+  normalizeVisibleCols(['columna-fantasma']).size,
+  4,
+  'unknown persisted ids must be discarded instead of poisoning the visible column set (DEV-256)',
+);
+const optionalColIds = [...ALL_OPTIONAL_COLS];
+assert(
+  !optionalColIds.includes('epic'),
+  "'epic' must no longer be part of the optional column catalogue (DEV-256)",
+);
+assert(optionalColIds.includes('parent'), "'parent' must be part of the catalogue (DEV-256)");
+const sprintViewSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'SprintView.tsx'), 'utf8');
+assert(!sprintViewSource.includes("has('epic')"), "SprintView must not query the removed 'epic' column id (DEV-256)");
+assert(sprintViewSource.includes("has('parent')"), "SprintView must query the 'parent' column id (DEV-256)");
 
 const english = readLocale('en');
 const spanish = readLocale('es');
@@ -96,4 +126,10 @@ assert(enLocales['settings.goToModules'], 'en.json must include settings.goToMod
 assert(esLocales['settings.moduleInactiveHint'], 'es.json must include settings.moduleInactiveHint (DEV-241)');
 assert(enLocales['settings.moduleInactiveHint'], 'en.json must include settings.moduleInactiveHint (DEV-241)');
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, and module consistency (DEV-241)');
+// DEV-256: la columna jerárquica de SprintView se llama `parent` porque el contenedor puede ser
+// una épica o una iniciativa. La clave i18n y el id persistido deben estar alineados.
+assert(esLocales['sprint.colParent'] === 'Padre', "es.json must expose sprint.colParent as 'Padre' (DEV-256)");
+assert(enLocales['sprint.colParent'] === 'Parent', "en.json must expose sprint.colParent as 'Parent' (DEV-256)");
+assert(!esLocales['sprint.colEpic'] && !enLocales['sprint.colEpic'], 'the obsolete sprint.colEpic key must be removed from both locales (DEV-256)');
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, module consistency (DEV-241) and Parent column migration (DEV-256)');

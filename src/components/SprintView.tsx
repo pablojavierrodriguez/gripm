@@ -33,6 +33,12 @@ import { CompleteSprintModal } from './CompleteSprintModal';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
+import {
+  ALL_OPTIONAL_COLS,
+  DEFAULT_COLS,
+  normalizeVisibleCols,
+  type OptionalCol,
+} from '../utils/sprintVisibleCols';
 
 const normalizePriorityNum = (p?: string): number => {
   if (!p) return 2;
@@ -155,22 +161,12 @@ export const SprintView: FC<SprintViewProps> = ({
   const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
 
   // DEV-051, DEV-078 & DEV-079: Column visibility popover
-  const ALL_OPTIONAL_COLS = ['tipo', 'estado', 'modulo', 'release', 'sprint', 'acProgress', 'assignees', 'labels', 'epic', 'estimate'] as const;
-  type OptionalCol = typeof ALL_OPTIONAL_COLS[number];
-  const DEFAULT_COLS: OptionalCol[] = ['tipo', 'estado', 'modulo', 'release', 'sprint', 'estimate'];
-
+  // DEV-256: catálogo y normalización del estado persistido viven en utils/ para ser testeables.
   const [visibleCols, setVisibleCols] = useState<Set<OptionalCol>>(() => {
     try {
       const saved = getStoredItem(STORAGE_KEYS.BACKLOG_VISIBLE_COLS);
       if (saved) {
-        const parsed = JSON.parse(saved) as OptionalCol[];
-        const set = new Set<OptionalCol>(parsed);
-        // Migración defensiva: asegurar que las columnas núcleo estén presentes si el guardado era antiguo (DEV-085)
-        if (!parsed.includes('tipo')) set.add('tipo');
-        if (!parsed.includes('estado')) set.add('estado');
-        if (!parsed.includes('modulo')) set.add('modulo');
-        if (!parsed.includes('release')) set.add('release');
-        return set;
+        return normalizeVisibleCols(JSON.parse(saved) as string[]);
       }
     } catch {}
     return new Set<OptionalCol>(DEFAULT_COLS);
@@ -544,7 +540,7 @@ export const SprintView: FC<SprintViewProps> = ({
                   { id: 'acProgress', label: t('sprint.colCriteria') },
                   { id: 'assignees', label: t('sprint.colAssignee') },
                   { id: 'labels', label: t('sprint.colLabels') },
-                  { id: 'epic', label: t('sprint.colEpic') },
+                  { id: 'parent', label: t('sprint.colParent') },
                   { id: 'estimate', label: t('itemModal.estimateLabel') }
                 ] as { id: OptionalCol; label: string }[]).map(col => (
                   <label key={col.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
@@ -939,7 +935,7 @@ export const SprintView: FC<SprintViewProps> = ({
                           {visibleCols.has('acProgress') && <th className="py-2.5 px-4">{t('sprint.colCriteria')}</th>}
                           {visibleCols.has('assignees') && <th className="py-2.5 px-4">{t('sprint.colAssignee')}</th>}
                           {visibleCols.has('labels') && <th className="py-2.5 px-4">{t('sprint.colLabels')}</th>}
-                          {visibleCols.has('epic') && <th className="py-2.5 px-4">{t('sprint.colEpic')}</th>}
+                          {visibleCols.has('parent') && <th className="py-2.5 px-4">{t('sprint.colParent')}</th>}
                           {visibleCols.has('estimate') && <th className="py-2.5 px-4 text-center">{t('itemModal.estimateLabel')}</th>}
                           <th className="py-2.5 px-4 text-right">{t('sprint.colActions')}</th>
                         </tr>
@@ -1245,8 +1241,8 @@ export const SprintView: FC<SprintViewProps> = ({
                                 </td>
                               )}
 
-                              {/* Épica (DEV-079) */}
-                              {visibleCols.has('epic') && (
+                              {/* Parent / Épica / Iniciativa (DEV-079, DEV-256) */}
+                              {visibleCols.has('parent') && (
                                 <td className="py-2.5 px-4 whitespace-nowrap">
                                   {parentItem || item.epic ? (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-medium">

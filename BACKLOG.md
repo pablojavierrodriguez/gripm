@@ -83,7 +83,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 🚀 Ready for Deploy (15)
+### 🚀 Ready for Deploy (16)
 
 #### [DEV-136] Sistema de Estimación en Settings Activación Selector Fibonacci vs Tshirt y Configuración Persistente
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -428,6 +428,25 @@ Implementación del diálogo modal accesible de ayuda y consulta de atajos de te
 3. Botón de acceso directo en el `Header` (versión escritorio junto a los controles de tema/idioma y en el cajón de menú móvil) con ícono de teclado y etiquetas accesibles.
 4. Integración estricta con el primitivo accesible `Modal` (`createPortal`, `role="dialog"`, `aria-modal`) y `useFocusTrap` para retorno de foco y cierre con `Esc`.
 5. Inclusión en la suite de verificación de trampa de foco (`scripts/verify-focus-trap.js`).
+
+---
+
+#### [DEV-256] Renombrar la columna de épica a Parent en SprintView (contenedor: épica o iniciativa)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+La columna opcional de SprintView que muestra la relación jerárquica de un ítem se rotula "Épica" / "Epic", pero el dato que renderiza no es exclusivamente una épica: la relación `parentId` acepta cualquier ítem contenedor y en la práctica incluye también iniciativas (y features contenedores, según `candidateParents` en `ItemModal.tsx`). El rótulo miente sobre el dato que muestra.
+
+Además el identificador interno de la columna es `'epic'`, lo que arrastra el mismo sesgo semántico al código y complica futuras columnas jerárquicas.
+
+Este trabajo cierra el ítem que quedó pendiente en la sesión Antigravity `a9edf155-8a09-4a3b-b32c-0969c36ba467` (step 160), donde elmodelo ya mapeó `ALL_OPTIONAL_COLS`, `visibleCols.has('epic')` y `sprint.colEpic`, pero la sesión se cortó antes de aplicar el cambio.
+
+Alcance:
+1. Clave de traducción `sprint.colEpic` → `sprint.colParent` con valores "Padre" (es) y "Parent" (en), eliminando la clave obsoleta.
+2. Identificador de columna `'epic'` → `'parent'` en `ALL_OPTIONAL_COLS`, con **migración defensiva** del estado persistido en `BACKLOG_VISIBLE_COLS`: un usuario que tenga `'epic'` guardado debe conservar la columna visible, no perderla silenciosamente. El catálogo, los aliases legacy y la normalización se extraen a `src/utils/sprintVisibleCols.ts` para ser verificables de forma headless.
+3. Encabezado `<th>`, ítem del popover de columnas y celda de datos alineados al nuevo identificador y etiqueta.
+4. El texto de la celda ya no puede afirmar "Épica": se apoya en `cleanParentTitle()` (DEV-253), que strippea prefijos tipo `Épica:` / `Iniciativa:` del título del padre.
+
+Fuera de alcance (se mantienen sin cambio): el agrupamiento `GroupBy = 'epic'` / `sprint.groupByEpic` y el string hardcodeado `'Sin Épica'`, que pertenecen al agrupamiento por jerarquía y no a la columna.
 
 ---
 
