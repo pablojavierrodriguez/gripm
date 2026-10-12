@@ -77,7 +77,7 @@ export function isUpdateCheckDisabled() {
 export function formatUpdateBanner(currentVersion, latestVersion) {
   const cleanCurrent = (currentVersion || '').replace(/^v/, '').trim();
   const cleanLatest = (latestVersion || '').replace(/^v/, '').trim();
-  return `  💡 Actualización disponible: v${cleanCurrent} → v${cleanLatest} · npm i -g @gripm/board@latest`;
+  return `  ▲ Actualización disponible: v${cleanCurrent} → v${cleanLatest} · npm i -g @gripm/board@latest`;
 }
 
 /**

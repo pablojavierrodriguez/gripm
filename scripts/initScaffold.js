@@ -63,14 +63,13 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   let language = (options.language || options.lang || 'en').toLowerCase();
   if (language !== 'es') language = 'en';
 
+  const isEn = language === 'en';
   console.log(`
-┌────────────────────────────────────────────────────────────┐
-│  🚀 gripm - Repository Initialization Wizard               │
-│                                                            │
-│  📁 Repository:   ${targetRepo.slice(0, 40).padEnd(41)}│
-│  🏷️  Project:      ${projectName.slice(0, 40).padEnd(41)}│
-└────────────────────────────────────────────────────────────┘
-  `);
+  ${isEn ? 'gripm · Repository Initialization Wizard' : 'gripm · Asistente de Inicialización'}
+
+  ➜  ${isEn ? 'Repository:' : 'Repositorio:'}  ${targetRepo}
+  ➜  ${isEn ? 'Project:' : 'Proyecto:'}     ${projectName}
+`);
 
   let mode = options.mode || (options.hub ? 'multi' : 'single');
   let profile = options.profile || (options.minimal ? 'minimal' : (options.full ? 'full' : null));
@@ -461,38 +460,34 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
 
   if (isEnCurrent) {
     console.log(`
-┌────────────────────────────────────────────────────────────┐
-│  ✨ gripm initialized successfully!                         │
-│                                                            │
-│  To open the board:                                        │
-│  • npm run board                                           │
-│    (or direct: npx @gripm/board)                           │
-│                                                            │
-│  To start the MCP server:                                  │
-│  • npm run mcp                                             │
-│    (or: npx -p @gripm/board gripm-mcp)                      │
-│                                                            │
-│  💡 Tip: Run 'npm install -g @gripm/board'                 │
-│  to use the global direct command 'gripm'.                 │
-└────────────────────────────────────────────────────────────┘
-    `);
+  ✔ gripm initialized successfully!
+
+  To open the board:
+  • npm run board
+    (or direct: npx @gripm/board)
+
+  To start the MCP server:
+  • npm run mcp
+    (or: npx -p @gripm/board gripm-mcp)
+
+  Tip: Run 'npm install -g @gripm/board'
+  to use the global direct command 'gripm'.
+`);
   } else {
     console.log(`
-┌────────────────────────────────────────────────────────────┐
-│  ✨ ¡gripm inicializado con éxito!                          │
-│                                                            │
-│  Para abrir el tablero:                                    │
-│  • npm run board                                           │
-│    (o directo: npx @gripm/board)                           │
-│                                                            │
-│  Para iniciar el servidor MCP:                             │
-│  • npm run mcp                                             │
-│    (or: npx -p @gripm/board gripm-mcp)                      │
-│                                                            │
-│  💡 Consejo: Ejecuta 'npm install -g @gripm/board'         │
-│  para usar el comando global directo 'gripm'.              │
-└────────────────────────────────────────────────────────────┘
-    `);
+  ✔ ¡gripm inicializado con éxito!
+
+  Para abrir el tablero:
+  • npm run board
+    (o directo: npx @gripm/board)
+
+  Para iniciar el servidor MCP:
+  • npm run mcp
+    (or: npx -p @gripm/board gripm-mcp)
+
+  Consejo: Ejecuta 'npm install -g @gripm/board'
+  para usar el comando global directo 'gripm'.
+`);
   }
 
   return results;

@@ -25,6 +25,15 @@ const currentVersion = pkgJson.version || '1.0.0';
 
 const args = process.argv.slice(2);
 
+const isColorSupported = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
+const c = {
+  bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[0m` : s),
+  dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[0m` : s),
+  green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[0m` : s),
+  cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[0m` : s),
+  yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[0m` : s),
+};
+
 // Open browser helper
 function openBrowser(url) {
   if (process.platform === 'darwin') {
@@ -52,7 +61,7 @@ function hasHelpFlag(argList) {
 
 function printMainHelp() {
   console.log(`
-  🚀 gripm CLI - productos locales para backlog y trabajo con agentes
+  gripm CLI - productos locales para backlog y trabajo con agentes
 
   Uso:
     gripm [opciones]               Abre Gripm Board en el navegador (por defecto)
@@ -94,7 +103,7 @@ function printMainHelp() {
 
 function printMcpHelp() {
   console.log(`
-  🚀 gripm mcp - Servidor Model Context Protocol (MCP) para agentes de IA
+  gripm mcp - Servidor Model Context Protocol (MCP) para agentes de IA
 
   Uso:
     gripm mcp [opciones]
@@ -114,7 +123,7 @@ function printMcpHelp() {
 
 function printPlaybookHelp() {
   console.log(`
-  📘 gripm playbook - Herramientas y sincronización de Gripm Playbook
+  gripm playbook - Herramientas y sincronización de Gripm Playbook
 
   Uso:
     gripm playbook sync [opciones]
@@ -349,7 +358,7 @@ async function main() {
   
   const resolvedPort = await findAvailablePort(port, host);
   if (resolvedPort !== port) {
-    console.log(`ℹ️  Puerto ${port} ocupado en el sistema. Utilizando puerto disponible ${resolvedPort}...`);
+    console.log(`\n  ${c.yellow('▲')}  Puerto ${port} ocupado en el sistema. Utilizando puerto disponible ${resolvedPort}...`);
   }
 
   const server = await createServer({
@@ -369,37 +378,12 @@ async function main() {
   const displayHost = host === '127.0.0.1' ? 'localhost' : host;
   const url = `http://${displayHost}:${actualPort}`;
 
-  const getVisualWidth = (str) => {
-    let width = 0;
-    for (const ch of str) {
-      const cp = ch.codePointAt(0);
-      if ((cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF)) {
-        width += 2;
-      } else {
-        width += 1;
-      }
-    }
-    return width;
-  };
-
-  const formatBoxLine = (content, innerWidth) => {
-    const contentWidth = getVisualWidth(content);
-    const padding = Math.max(0, innerWidth - contentWidth);
-    return '│  ' + content + ' '.repeat(padding) + '  │';
-  };
-
-  const innerWidth = 58;
-  const repoDisplay = targetRepo.length > 38 ? '...' + targetRepo.slice(-35) : targetRepo;
-
   console.log(`
-┌${'─'.repeat(innerWidth + 4)}┐
-${formatBoxLine('🚀 gripm - Tablero Ágil de Ingeniería y Producto con IA', innerWidth)}
-${formatBoxLine('', innerWidth)}
-${formatBoxLine('📁 Repositorio:    ' + repoDisplay, innerWidth)}
-${formatBoxLine('📦 Almacén:        ' + storageType.toUpperCase(), innerWidth)}
-${formatBoxLine('🌐 Interfaz Web:   ' + url, innerWidth)}
-${formatBoxLine('⚡ En Tiempo Real:  Activo (SSE y observador de archivos)', innerWidth)}
-└${'─'.repeat(innerWidth + 4)}┘
+  ${c.bold('gripm')} ${c.dim(`v${currentVersion}`)}  ${c.green('listo')}
+
+  ${c.green('➜')}  ${c.bold('Tablero:')}     ${c.cyan(url)}
+  ${c.dim('➜')}  ${c.dim('Proyecto:')}    ${targetRepo}
+  ${c.dim('➜')}  ${c.dim('Modo:')}        ${storageType.toUpperCase()} ${c.dim('(tiempo real)')}
 `);
 
   const cachedUpdate = getCachedUpdateInfo(currentVersion);

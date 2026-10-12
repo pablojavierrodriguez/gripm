@@ -374,7 +374,7 @@ async function main() {
       }
     }
 
-    console.log(`\n⚡ Actualización masiva completada: ${updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
+    console.log(`\n✔ Actualización masiva completada: ${updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
     return;
   }
 
@@ -391,8 +391,8 @@ async function main() {
     return;
   }
 
-  console.log(`\n📋 Backlog: ${project.name} (${project.storageType.toUpperCase()})`);
-  console.log(`Mostrando ${sliced.length} de ${totalFiltered} tareas ${openOnly ? 'abiertas' : ''}:\n`);
+  console.log(`\n  Backlog: ${project.name} (${project.storageType.toUpperCase()})`);
+  console.log(`  Mostrando ${sliced.length} de ${totalFiltered} tareas ${openOnly ? 'abiertas' : ''}:\n`);
 
   if (sliced.length === 0) {
     console.log('  (No hay tareas que coincidan con los filtros)\n');
@@ -405,9 +405,9 @@ async function main() {
       ? ` [${acList.filter((ac: any) => ac.checked).length}/${acList.length} AC]` 
       : '';
     const sprintTag = t.milestone || t.targetSprint ? ` <${t.milestone || t.targetSprint}>` : '';
-    const statusColor = t.status === 'doing' ? '⚡' : t.status === 'review' ? '👀' : t.status === 'ready' ? '📦' : t.status === 'done' ? '✅' : '⏳';
+    const statusMarker = t.status === 'doing' ? '●' : t.status === 'review' ? '◐' : t.status === 'ready' ? '◎' : t.status === 'done' ? '✔' : '○';
 
-    console.log(`${String(i + 1).padStart(2, ' ')}. ${statusColor} [${t.code || t.id}] (${t.status.toUpperCase()} / ${t.priority})${sprintTag} - ${t.title}${acProgress}`);
+    console.log(`  ${String(i + 1).padStart(2, ' ')}. ${statusMarker} [${t.code || t.id}] (${t.status.toUpperCase()} / ${t.priority})${sprintTag} - ${t.title}${acProgress}`);
   });
 
   if (totalFiltered > limit) {

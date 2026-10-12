@@ -277,30 +277,26 @@ async function askYesNo(question, rl) {
 }
 
 function printPlan(repoPath, registryInfo) {
-  const repoDisplay = repoPath.length > 39 ? '...' + repoPath.slice(-36) : repoPath;
   const lines = [
     '',
-    '┌────────────────────────────────────────────────────────────┐',
-    '│  🧹 gripm - Desacople Seguro                               │',
-    '│                                                            │'
+    '  gripm · Desacople Seguro',
+    ''
   ];
   if (registryInfo && registryInfo.otherProjects > 0) {
-    const hubText = `  🌐 Hub: ${registryInfo.otherProjects} otros proyectos registrados`;
-    lines.push(`│${hubText.padEnd(60)}│`);
+    lines.push(`  ➜  Hub:          ${registryInfo.otherProjects} otros proyectos registrados`);
   }
-  const repoText = `  📁 Repositorio: ${repoDisplay}`;
   lines.push(
-    `│${repoText.padEnd(60)}│`,
-    '│                                                            │',
-    '│  🔒 Se preservan SIEMPRE:                                  │',
-    '│     • backlog/  (tareas, releases.json, retro/)            │',
-    '│     • BACKLOG.md                                           │',
-    '│                                                            │',
-    '│  Alcance:                                                 │',
-    '│    [1] Desacoplar sólo este proyecto (Recomendado)         │',
-    '│    [2] Desvincular del registro global del Hub             │',
-    '│                                                            │',
-    '│  Selecciona opción [1]: '
+    `  ➜  Repositorio:  ${repoPath}`,
+    '',
+    '  Se preservan siempre:',
+    '    • backlog/  (tareas, releases.json, retro/)',
+    '    • BACKLOG.md',
+    '',
+    '  Alcance:',
+    '    [1] Desacoplar sólo este proyecto (Recomendado)',
+    '    [2] Desvincular del registro global del Hub',
+    '',
+    '  Selecciona opción [1]: '
   );
   return lines.join('\n');
 }

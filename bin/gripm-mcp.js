@@ -746,7 +746,7 @@ function isUpdateCheckDisabled() {
 function formatUpdateBanner(currentVersion2, latestVersion) {
   const cleanCurrent = (currentVersion2 || "").replace(/^v/, "").trim();
   const cleanLatest = (latestVersion || "").replace(/^v/, "").trim();
-  return `  \u{1F4A1} Actualizaci\xF3n disponible: v${cleanCurrent} \u2192 v${cleanLatest} \xB7 npm i -g @gripm/board@latest`;
+  return `  \u25B2 Actualizaci\xF3n disponible: v${cleanCurrent} \u2192 v${cleanLatest} \xB7 npm i -g @gripm/board@latest`;
 }
 function getCachedUpdateInfo(currentVersion2) {
   if (isUpdateCheckDisabled()) return null;
