@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -285,6 +286,36 @@ class MockRequest extends EventEmitter {
 
   delete process.env.GRIPM_MODE;
   console.log('✅ Runtime Interchangeability (DEV-240): --hub, --single y settings toggle son intercambiables dinámicamente en runtime');
+}
+
+// Test 14: MCP Repo Containment (SEC-03)
+{
+  const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const mcpBin = path.join(ROOT, 'bin', 'gripm-mcp.js');
+
+  // Case A: Non-existent directory rejected
+  const invalidPath = path.join(ROOT, 'non_existent_dir_for_test_sec_03');
+  const childA = spawn(process.execPath, [mcpBin, '--repo', invalidPath], {
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  let errOutputA = '';
+  childA.stderr.on('data', d => { errOutputA += d.toString(); });
+  const codeA = await new Promise(resolve => childA.on('close', resolve));
+  assert.strictEqual(codeA, 1, 'Proceso debe terminar con código 1 ante ruta inexistente');
+  assert(errOutputA.includes('[MCP Security] Error') || errOutputA.includes('no existe'), 'Debe rechazar ruta inexistente en --repo');
+  console.log('✅ MCP Repo Containment (SEC-03): Rechazó ruta inexistente con error de seguridad');
+
+  // Case B: System root directory rejected
+  const sysRoot = path.parse(process.cwd()).root;
+  const childB = spawn(process.execPath, [mcpBin, '--repo', sysRoot], {
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  let errOutputB = '';
+  childB.stderr.on('data', d => { errOutputB += d.toString(); });
+  const codeB = await new Promise(resolve => childB.on('close', resolve));
+  assert.strictEqual(codeB, 1, 'Proceso debe terminar con código 1 ante raíz del sistema');
+  assert(errOutputB.includes('[MCP Security] Error'), 'Debe rechazar raíz del sistema en --repo');
+  console.log('✅ MCP Repo Containment (SEC-03): Rechazó raíz protegida del sistema con error de seguridad');
 }
 
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');

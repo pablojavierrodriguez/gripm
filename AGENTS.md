@@ -109,3 +109,16 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 15. **Resolución absoluta de rutas:** Usar siempre `root: PKG_ROOT` y rutas absolutas en binarios CLI y plugins para ejecución global.
 16. **Metodología Lean / Kanban preferente:** En `gripm`, el desarrollo se opera preferentemente bajo flujo continuo Kanban con una cola de backlog priorizada y entregas agrupadas por valor en Releases, evitando la sobrecarga artificial de timeboxes de sprint cuando el ritmo ágil es continuo.
 17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": true, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
+
+---
+
+## 7. Superficie de Riesgo, Seguridad y Mitigaciones (SEC-01 a SEC-10)
+
+- **Daemon local sin autenticación HTTP (SEC-10):** gripm es una herramienta local monousuario. La API REST no incluye autenticación ni tokens. La frontera de aislamiento es el proceso del usuario.
+- **Exposición en LAN con `--host 0.0.0.0` (SEC-06):** Iniciar el servidor en `0.0.0.0` permite el acceso a cualquier dispositivo en la misma red local. Usar exclusivamente en redes de confianza; nunca en redes públicas.
+- **Contención en `/api/fs/browse` (SEC-07):** El explorador de carpetas valida contención estricta mediante `path.relative` y `realpathSync` contra raíces permitidas (`home`, `cwd`, proyectos registrados), evitando traversals.
+- **Servidor MCP stdio y validación estricta (SEC-03, SEC-05):** `gripm-mcp` opera mediante `stdin`/`stdout`. Valida todos los parámetros de entrada (`limit`, `offset`, `taskId`, `toggleAcIndex`) y asegura contención estricta de rutas en `--repo`.
+- **Ejecución segura en el Gatekeeper (SEC-01):** El Gatekeeper de certificación ejecuta `verifyCommand` **únicamente si fue provisto como argumento explícito** en la llamada MCP, con timeout estricto de 15 segundos. **Queda terminantemente prohibido leer o ejecutar comandos desde el frontmatter de los archivos `.md` en disco, y el servidor MCP nunca persiste scripts en el frontmatter.**
+- **Cero fabricación de ACs (SEC-02):** `gripm_sync_backlog` opera con `autoFix: false` por defecto. Queda prohibido alterar checkboxes `- [ ]` a `- [x]` sin verificación real en tareas `done`.
+- **Trazabilidad en bypass (SEC-09):** El uso de `force: true` para sortear el Gatekeeper emite una advertencia formal y persiste metadata de auditoría en la respuesta.
+

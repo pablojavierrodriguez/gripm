@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-11 por gripm ⚡
+> Consolidado generado el 2026-10-12 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -115,7 +115,7 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (7)
+### 🚀 Ready for Deploy (8)
 
 #### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -315,6 +315,39 @@ Garantizar coherencia total en la vista de configuración (`SettingsView`):
 - [x] #3 La seccion de pestanas visibles en cabecera bloquea conmutadores de modulos inactivos con indicacion explicita
 - [x] #4 Al desactivar modulos en Modulos & Add-ons, el estado local y persistido ajusta automaticamente methodology y defaultView sin provocar inconsistencias
 - [x] #5 Suite de pruebas y Piramide de Verificacion pasan con codigo 0
+
+---
+
+#### [DEV-242] Remediacion integral de seguridad Fase 2: erradicacion de RCE en frontmatter y auditoria MCP (SEC-01 a SEC-10)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/auditoria-2026-10-10.md` §4 y §11.2):
+
+1. **SEC-01 · Ejecución ciega de comandos persistidos en frontmatter:**
+   El Gatekeeper de `scripts/mcp-server.ts` leía `verifyCommand` desde `rawExtraFrontmatter` del archivo Markdown en disco y lo persistía tras cada transición. Cualquier tarea con comandos shell maliciosos en su frontmatter lograba ejecución de código (RCE) en la máquina del próximo agente o usuario al transicionar a `ready` o `done`. Se erradica la lectura ciega desde disco y la persistencia de scripts en los archivos Markdown.
+2. **SEC-02 · Mutación silenciosa y fabricación de ACs en `gripm_sync_backlog`:**
+   El parámetro `autoFix` tenía valor por defecto `true`, alterando `- [ ]` a `- [x]` sin verificación real en tareas `done`. Se establece `autoFix` en `false` por defecto (modo seguro/solo lectura de auditoría).
+3. **SEC-03 · Contención de rutas en `--repo` del servidor MCP:**
+   Validar contención de la ruta `--repo` contra límites del sistema para impedir traversals o rutas no autorizadas.
+4. **SEC-05 · Validación estricta de `inputSchema` en herramientas MCP:**
+   Validar parámetros en `handleToolCall` (tipos numéricos, límites y rangos en `limit`, `toggleAcIndex`), rechazando valores inválidos con error descriptivo en lugar de fallos silenciosos.
+5. **SEC-08 · Higiene en `verify-publish-surface.js` y detección multiplataforma:**
+   Eliminar el path privado del autor hardcodeado en la fuente del verificador y extender las expresiones regulares de fuga de rutas de usuario para cubrir Windows (`C:\Users\...`) y Linux (`/home/...`).
+6. **SEC-09 · Trazabilidad auditable en bypass `force: true`:**
+   Registrar advertencia explícita y metadata de auditoría cuando se salten las validaciones del Gatekeeper mediante `force: true`.
+7. **SEC-06, SEC-07, SEC-10 · Declaración explícita de superficie de riesgo:**
+   Crear documento canónico `SECURITY.md` y documentar en `AGENTS.md` el modelo de amenazas, la frontera stdio, la exposición en `--host 0.0.0.0` y las garantías del Gatekeeper.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/mcp-server.ts nunca ejecuta verifyCommand proveniente del frontmatter de un archivo en disco (SEC-01)
+- [x] #2 scripts/mcp-server.ts nunca persiste comandos shell ejecutables en el frontmatter de los archivos .md (SEC-01)
+- [x] #3 gripm_sync_backlog opera con autoFix: false por defecto y no muta ACs ni tareas sin opt-in explícito (SEC-02)
+- [x] #4 scripts/mcp-server.ts valida contención y existencia de --repo impidiendo escape a rutas del sistema (SEC-03)
+- [x] #5 handleToolCall valida tipos y rangos de argumentos (limit, toggleAcIndex) retornando errores explícitos (SEC-05)
+- [x] #6 verify-publish-surface.js no hardcodea rutas privadas de autores y detecta rutas absolutas de Windows, Linux y macOS (SEC-08)
+- [x] #7 El uso de force: true emite advertencia explícita de auditoría en la respuesta del Gatekeeper (SEC-09)
+- [x] #8 SECURITY.md y AGENTS.md documentan formalmente la superficie de riesgo, modelo de amenazas y mitigaciones (SEC-06, SEC-07, SEC-10)
+- [x] #9 Pruebas automatizadas en scripts/verify-mcp-binary.js y scripts/test-api-security.js validan todas las mitigaciones con código 0
 
 ---
 

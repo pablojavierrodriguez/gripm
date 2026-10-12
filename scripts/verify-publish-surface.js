@@ -32,10 +32,11 @@ const ROOT = path.resolve(__dirname, '..');
 /** Nombres de archivo que nunca deben publicarse (datos locales del usuario). */
 const FORBIDDEN_BASENAMES = ['projects-registry.json', 'dev-board.json'];
 
-/** Patrones de contenido que revelan entorno local o proyectos privados. */
+/** Patrones de contenido que revelan entorno local o proyectos privados (SEC-08: soporte multiplataforma sin hardcoding personal). */
 const CONTENT_PATTERNS = [
-  { label: 'ruta absoluta de home de usuario', re: /\/Users\/[a-z0-9_-]+\//i },
-  { label: 'ruta de proyectos del autor', re: /Pablo\/code\// },
+  { label: 'ruta absoluta de home de usuario (macOS)', re: /\/Users\/[a-zA-Z0-9_-]+\//i },
+  { label: 'ruta absoluta de home de usuario (Linux)', re: /\/home\/[a-zA-Z0-9_-]+\//i },
+  { label: 'ruta absoluta de home de usuario (Windows)', re: /[a-zA-Z]:(?:\\|\/|\\\\)Users(?:\\|\/|\\\\)[a-zA-Z0-9_-]+(?:\\|\/|\\\\)/i },
 ];
 
 /** Allowlist explícita: todo lo que SÍ debe estar en el tarball. */

@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
@@ -87,6 +88,75 @@ interface ProjectMeta {
   error?: string;
 }
 
+function isPathContained(targetPath: string, rootDir: string): boolean {
+  const relative = path.relative(rootDir, targetPath);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isSystemRootDir(targetPath: string): boolean {
+  const resolved = path.resolve(targetPath);
+  const parsed = path.parse(resolved);
+  if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
+  const lower = resolved.toLowerCase();
+  const restrictedPrefixes = [
+    'c:\\windows', 'c:\\program files', 'c:\\program files (x86)',
+    '/etc', '/var', '/usr', '/bin', '/sbin', '/sys', '/proc', '/dev'
+  ];
+  return restrictedPrefixes.some(p => lower === p || lower.startsWith(p + path.sep));
+}
+
+function isAllowedBrowsePath(targetPath: string, projectRoots: string[] = []): boolean {
+  if (!targetPath || typeof targetPath !== 'string') return false;
+  try {
+    const resolved = path.resolve(path.normalize(targetPath));
+    if (isSystemRootDir(resolved)) return false;
+
+    const roots: string[] = [];
+    const homedir = os.homedir();
+    if (homedir) {
+      roots.push(path.resolve(homedir));
+      try { roots.push(fs.realpathSync(homedir)); } catch {}
+    }
+    const cwd = process.cwd();
+    if (cwd) {
+      roots.push(path.resolve(cwd));
+      try { roots.push(fs.realpathSync(cwd)); } catch {}
+    }
+    const tmpdir = os.tmpdir();
+    if (tmpdir) {
+      roots.push(path.resolve(tmpdir));
+      try { roots.push(fs.realpathSync(tmpdir)); } catch {}
+    }
+    for (const pr of projectRoots) {
+      if (pr) {
+        roots.push(path.resolve(pr));
+        try { roots.push(fs.realpathSync(pr)); } catch {}
+      }
+    }
+    const extra = process.env.GRIPM_ALLOWED_PATHS || process.env.DEVBOARD_ALLOWED_PATHS;
+    if (extra) {
+      for (const p of extra.split(path.delimiter)) {
+        if (p.trim()) {
+          roots.push(path.resolve(p.trim()));
+          try { roots.push(fs.realpathSync(p.trim())); } catch {}
+        }
+      }
+    }
+
+    const uniqueRoots = [...new Set(roots)];
+    if (uniqueRoots.some(root => isPathContained(resolved, root))) return true;
+
+    try {
+      const real = fs.realpathSync(resolved);
+      if (uniqueRoots.some(root => isPathContained(real, root))) return true;
+    } catch {}
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
   let reg: { activeProjectId: string; projects: ProjectMeta[] } = loadRegistryFile(ROOT_DIR);
   if (!reg || !Array.isArray(reg.projects)) {
@@ -99,6 +169,17 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
   const repoIdx = args.findIndex(a => a === '--repo' || a === '-p');
   if (repoIdx !== -1 && args[repoIdx + 1]) {
     cliRepo = path.resolve(args[repoIdx + 1]);
+    // SEC-03: Validate containment and existence of --repo
+    if (!fs.existsSync(cliRepo) || !fs.statSync(cliRepo).isDirectory()) {
+      throw new Error(`[MCP Security] Error: La ruta provista en --repo '${cliRepo}' no existe o no es un directorio.`);
+    }
+    if (isSystemRootDir(cliRepo)) {
+      throw new Error(`[MCP Security] Error: La ruta provista en --repo '${cliRepo}' es una raíz o directorio protegido del sistema.`);
+    }
+    const knownRoots = (reg.projects || []).map(p => p.repoPath || '').filter(Boolean);
+    if (!isAllowedBrowsePath(cliRepo, knownRoots)) {
+      throw new Error(`[MCP Security] Error: La ruta provista en --repo '${cliRepo}' está fuera de las rutas autorizadas de contención.`);
+    }
   }
 
   const targetRepo = cliRepo || process.cwd();
@@ -541,9 +622,20 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       );
     }
 
+    if (args.limit !== undefined) {
+      if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit <= 0) {
+        throw new Error(`[MCP Validation] Parámetro 'limit' inválido: debe ser un entero positivo, recibido '${args.limit}'.`);
+      }
+    }
+    if (args.offset !== undefined) {
+      if (typeof args.offset !== 'number' || !Number.isInteger(args.offset) || args.offset < 0) {
+        throw new Error(`[MCP Validation] Parámetro 'offset' inválido: debe ser un entero no negativo, recibido '${args.offset}'.`);
+      }
+    }
+
     const totalFiltered = tasks.length;
-    const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;
-    if (args.limit && typeof args.limit === 'number' && args.limit > 0) {
+    const offset = args.offset !== undefined ? args.offset : 0;
+    if (args.limit !== undefined) {
       tasks = tasks.slice(offset, offset + args.limit);
     } else if (offset > 0) {
       tasks = tasks.slice(offset);
@@ -803,6 +895,9 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
   }
 
   if (name === 'gripm_get_task') {
+    if (!args.taskId || typeof args.taskId !== 'string' || !args.taskId.trim()) {
+      throw new Error(`[MCP Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+    }
     const cleanId = String(args.taskId).toLowerCase();
     for (const p of registry.projects) {
       if (args.projectId && p.id !== args.projectId) continue;
@@ -896,6 +991,14 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
   }
 
   if (name === 'gripm_update_task') {
+    if (!args.taskId || typeof args.taskId !== 'string' || !args.taskId.trim()) {
+      throw new Error(`[MCP Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+    }
+    if (args.toggleAcIndex !== undefined) {
+      if (typeof args.toggleAcIndex !== 'number' || !Number.isInteger(args.toggleAcIndex) || args.toggleAcIndex < 1) {
+        throw new Error(`[MCP Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${args.toggleAcIndex}'.`);
+      }
+    }
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
 
@@ -976,8 +1079,13 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               ...ac,
               checked: Boolean(effectiveCheckAllAcs)
             }));
-          } else if (args.toggleAcIndex !== undefined && current.acceptanceCriteria) {
-            current.acceptanceCriteria = current.acceptanceCriteria.map(ac => 
+          } else if (args.toggleAcIndex !== undefined) {
+            const acList = current.acceptanceCriteria || [];
+            const foundAc = acList.find(ac => ac.index === args.toggleAcIndex);
+            if (!foundAc) {
+              throw new Error(`[MCP Validation] Criterio de aceptación #${args.toggleAcIndex} no encontrado en la tarea '${current.id}'.`);
+            }
+            current.acceptanceCriteria = acList.map(ac => 
               ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
             );
           }
@@ -998,12 +1106,9 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               );
             }
 
-            const verifyCmd = args.verifyCommand || 
-              (current.rawExtraFrontmatter && (
-                current.rawExtraFrontmatter.verifyCommand || 
-                current.rawExtraFrontmatter.verify_command || 
-                current.rawExtraFrontmatter.verifyCmd
-              ));
+            // SEC-01: verifyCommand is ONLY accepted if passed explicitly in args.
+            // NEVER read from frontmatter on disk to prevent blind code execution.
+            const verifyCmd = args.verifyCommand;
 
             if (verifyCmd && typeof verifyCmd === 'string') {
               try {
@@ -1012,7 +1117,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
                   cwd: execCwd,
                   stdio: 'pipe',
                   encoding: 'utf8',
-                  timeout: 120000
+                  timeout: 15000
                 });
               } catch (execErr: any) {
                 const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
@@ -1025,9 +1130,11 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             }
           }
 
-          if (args.verifyCommand) {
-            if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
-            current.rawExtraFrontmatter.verifyCommand = args.verifyCommand;
+          // SEC-01: Eradicate persistence of verifyCommand in Markdown frontmatter
+          if (current.rawExtraFrontmatter) {
+            delete current.rawExtraFrontmatter.verifyCommand;
+            delete current.rawExtraFrontmatter.verify_command;
+            delete current.rawExtraFrontmatter.verifyCmd;
           }
 
           const serialized = serializeBacklogMd(current);
@@ -1036,6 +1143,15 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
           const resp: any = { ok: true, updatedTask: current, filePath: fullPath };
           if (usedUpdatesObject) {
             resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+          }
+          // SEC-09: Audit logging when force: true bypasses the Gatekeeper
+          if (args.force) {
+            const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id}', omitiendo las validaciones del Gatekeeper.`;
+            resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
+            resp.audit = {
+              bypassedGatekeeper: true,
+              timestamp: now
+            };
           }
           return resp;
         }
@@ -1081,8 +1197,13 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
                 ...ac,
                 checked: Boolean(effectiveCheckAllAcs)
               }));
-            } else if (args.toggleAcIndex !== undefined && current.acceptanceCriteriaList) {
-              current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) =>
+            } else if (args.toggleAcIndex !== undefined) {
+              const acList = current.acceptanceCriteriaList || [];
+              const foundAc = acList.find((ac: any) => ac.index === args.toggleAcIndex);
+              if (!foundAc) {
+                throw new Error(`[MCP Validation] Criterio de aceptación #${args.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+              }
+              current.acceptanceCriteriaList = acList.map((ac: any) =>
                 ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
               );
             }
@@ -1103,7 +1224,8 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
                 );
               }
 
-              const verifyCmd = args.verifyCommand || current.verifyCommand;
+              // SEC-01: verifyCommand is ONLY accepted if passed explicitly in args.
+              const verifyCmd = args.verifyCommand;
               if (verifyCmd && typeof verifyCmd === 'string') {
                 try {
                   const execCwd = project.repoPath || process.cwd();
@@ -1111,7 +1233,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
                     cwd: execCwd,
                     stdio: 'pipe',
                     encoding: 'utf8',
-                    timeout: 120000
+                    timeout: 15000
                   });
                 } catch (execErr: any) {
                   const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
@@ -1124,15 +1246,23 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               }
             }
 
-            if (args.verifyCommand) {
-              current.verifyCommand = args.verifyCommand;
-            }
+            // SEC-01: Eradicate persistence of verifyCommand in JSON tasks
+            delete current.verifyCommand;
 
             data.items[idx] = current;
             fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
             const resp: any = { ok: true, updatedTask: current, filePath };
             if (usedUpdatesObject) {
               resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+            }
+            // SEC-09: Audit logging when force: true bypasses the Gatekeeper
+            if (args.force) {
+              const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id || current.code}', omitiendo las validaciones del Gatekeeper.`;
+              resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
+              resp.audit = {
+                bypassedGatekeeper: true,
+                timestamp: now
+              };
             }
             return resp;
           }
@@ -1182,7 +1312,8 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     let fixedCount = 0;
     const errors: string[] = [];
-    const autoFix = args.autoFix !== false; // Default true
+    // SEC-02: Default false (safe audit mode). Mutations require explicit opt-in autoFix: true.
+    const autoFix = args.autoFix === true;
 
     if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
       const tasksDir = getTasksDir(targetProject);
@@ -1221,16 +1352,9 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             }
           }
 
-          // Regla 2: Si el estado es done, tildar los ACs pendientes
+          // Regla 2 (SEC-02): Nunca tildar automáticamente ACs en tareas 'done' (prohibido fabricar evidencia).
           if (rawStatus === 'done' && totalAcs > 0 && totalChecked < totalAcs) {
-            if (autoFix) {
-              const fixedAcBlock = acBlock.replace(/-\s*\[ \]/g, '- [x]');
-              const updatedContent = content.replace(acBlock, fixedAcBlock);
-              fs.writeFileSync(filePath, updatedContent, 'utf8');
-              fixedCount++;
-            } else {
-              errors.push(`${taskId}: Status es 'done' pero solo tiene ${totalChecked}/${totalAcs} ACs marcados`);
-            }
+            errors.push(`${taskId}: Status es 'done' pero solo tiene ${totalChecked}/${totalAcs} ACs marcados`);
           }
         }
       }
@@ -1258,6 +1382,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     return {
       ok: true,
+      autoFix,
       fixedCount,
       errorsFound: errors.length,
       errors,
@@ -1486,6 +1611,14 @@ ${Array.isArray(args.actions) && args.actions.length > 0
   }
 
   throw new Error(`Herramienta desconocida: ${name}`);
+}
+
+// SEC-03: Validate CLI flags and registry containment at startup
+try {
+  getRegistry();
+} catch (startupErr: any) {
+  console.error(startupErr.message);
+  process.exit(1);
 }
 
 // JSON-RPC stdio event loop

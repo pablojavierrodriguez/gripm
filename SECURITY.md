@@ -86,6 +86,30 @@ espera de un reporte bien formado.
 | **Media** | Filtración de información entre proyectos | Un proyecto lee tareas de otro por un id mal validado. |
 | **Baja** | Denegación de servicio local o información no sensible | Un `.md` malformado impide arrancar el servidor. |
 
+## Modelo de Amenazas y Superficie de Riesgo
+
+### 1. Ausencia de autenticación HTTP (Daemon local monousuario)
+gripm está concebido como una herramienta local de cockpit de ingeniería para desarrollo en máquina individual. La API HTTP no implementa capas de autenticación, sesiones ni tokens de acceso. La frontera de seguridad es la máquina del desarrollador y el usuario del sistema operativo bajo el cual corre el proceso.
+
+### 2. Exposición a red local vía `--host 0.0.0.0` (SEC-06)
+Al iniciar gripm con `--host 0.0.0.0` (o `GRIPM_HOST=0.0.0.0`), el servidor escucha en todas las interfaces de red de la máquina. Cualquier dispositivo conectado a la misma red local (LAN) puede consultar y mutar el backlog sin credenciales. Esta capacidad es un trade-off documentado para permitir previsualización ergonómica desde dispositivos móviles en redes locales confiables; **nunca debe utilizarse en redes Wi-Fi públicas, servidores compartidos o entornos expuestos a Internet**.
+
+### 3. Alcance del explorador de carpetas y Home Directory (SEC-07)
+El endpoint `/api/fs/browse` permite navegar por el sistema de archivos partiendo de raíces autorizadas (`os.homedir()`, `process.cwd()`, proyectos registrados y rutas en `GRIPM_ALLOWED_PATHS`). Cada consulta valida rigurosamente la contención mediante `path.relative` y resolución de enlaces simbólicos (`fs.realpathSync`), bloqueando cualquier intento de escape o traversal fuera de las raíces designadas.
+
+### 4. Frontera de seguridad del servidor MCP (stdio)
+El servidor MCP (`bin/gripm-mcp.js` / `scripts/mcp-server.ts`) se comunica exclusivamente por canales estándar `stdin`/`stdout`. No abre puertos de red TCP ni endpoints remotos. Su frontera de confianza reside en el proceso padre que lo ejecuta (el IDE o agente de IA). Todos los argumentos son validados estrictamente contra su `inputSchema` (rechazando tipos incorrectos, offsets negativos o índices de AC inexistentes), y el argumento `--repo` está sujeto a comprobaciones de existencia y contención de rutas (SEC-03, SEC-05).
+
+### 5. Gatekeeper y ejecución de comandos de verificación (SEC-01)
+Al certificar tareas hacia estados terminales (`ready` o `done`), el Gatekeeper puede ejecutar un comando de verificación (`verifyCommand`). Para prevenir ejecución arbitraria de código (RCE) proveniente de repositorios externos o archivos compartidos:
+- **Solo se ejecuta si el comando se proporciona explícitamente como argumento de la llamada MCP.**
+- **Nunca se lee ni se ejecuta código proveniente del frontmatter YAML de los archivos Markdown en disco.**
+- **El servidor MCP nunca persiste comandos ejecutables dentro del frontmatter ni del archivo de la tarea.**
+- La ejecución tiene un tiempo límite estricto de 15 segundos (`timeout: 15000`) para evitar bloqueos del servidor.
+
+### 6. Auditoría de bypass con `force: true` (SEC-09)
+El parámetro `force: true` permite saltar mecánicamente las validaciones del Gatekeeper en situaciones excepcionales de intervención humana. Todo uso de `force: true` emite una advertencia explícita en la respuesta y genera una traza de auditoría con timestamp (`audit: { bypassedGatekeeper: true }`).
+
 ## Divulgación
 
 Agradecemos la investigación responsable. Si encontrás algo:

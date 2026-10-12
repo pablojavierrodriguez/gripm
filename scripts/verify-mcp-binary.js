@@ -11,10 +11,14 @@ const binaryPath = path.resolve(__dirname, '../bin/gripm-mcp.js');
 const backlogPath = path.resolve(__dirname, '../BACKLOG.md');
 const originalBacklogContent = fs.existsSync(backlogPath) ? fs.readFileSync(backlogPath, 'utf8') : null;
 const testTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-998 - Gatekeeper Test Task.md');
+const testSecTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-999 - Sec RCE Test Task.md');
 
 function cleanup() {
   if (fs.existsSync(testTaskPath)) {
     try { fs.unlinkSync(testTaskPath); } catch {}
+  }
+  if (fs.existsSync(testSecTaskPath)) {
+    try { fs.unlinkSync(testSecTaskPath); } catch {}
   }
   if (originalBacklogContent !== null && fs.existsSync(backlogPath)) {
     try { fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8'); } catch {}
@@ -28,6 +32,13 @@ process.on('SIGTERM', () => { cleanup(); process.exit(1); });
 fs.writeFileSync(
   testTaskPath,
   '---\nid: DEV-998\ntitle: "Gatekeeper Test Task"\nstatus: doing\n---\n\n## Acceptance Criteria\n\n<!-- AC:BEGIN -->\n- [x] #1 AC uno\n- [ ] #2 AC dos\n<!-- AC:END -->\n',
+  'utf8'
+);
+
+// SEC-01 test fixture: task on disk with failing verifyCommand in frontmatter
+fs.writeFileSync(
+  testSecTaskPath,
+  '---\nid: DEV-999\ntitle: "Sec RCE Test Task"\nstatus: doing\nverifyCommand: node -e "process.exit(1)"\n---\n\n## Acceptance Criteria\n\n<!-- AC:BEGIN -->\n- [x] #1 AC seguro\n<!-- AC:END -->\n',
   'utf8'
 );
 
@@ -87,14 +98,14 @@ send({
   }
 });
 
-// 5. Call gripm_sync_backlog
+// 5. Call gripm_sync_backlog (default arguments: must default to autoFix: false)
 send({
   jsonrpc: '2.0',
   id: 5,
   method: 'tools/call',
   params: {
     name: 'gripm_sync_backlog',
-    arguments: { autoFix: false }
+    arguments: {}
   }
 });
 
@@ -137,6 +148,77 @@ send({
       status: 'ready',
       checkAllAcs: true,
       verifyCommand: 'node -e "process.exit(0)"'
+    }
+  }
+});
+
+// 9. SEC-01: Call gripm_update_task on DEV-999 (frontmatter has failing verifyCommand) without args.verifyCommand
+// Must succeed because frontmatter verifyCommand is ignored!
+send({
+  jsonrpc: '2.0',
+  id: 9,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-999',
+      status: 'ready'
+    }
+  }
+});
+
+// 10. SEC-05: Call gripm_list_tasks with invalid limit (Must fail with validation error)
+send({
+  jsonrpc: '2.0',
+  id: 10,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_list_tasks',
+    arguments: {
+      limit: 'abc'
+    }
+  }
+});
+
+// 11. SEC-05: Call gripm_update_task with negative toggleAcIndex (Must fail with validation error)
+send({
+  jsonrpc: '2.0',
+  id: 11,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-998',
+      toggleAcIndex: -1
+    }
+  }
+});
+
+// 12. SEC-05: Call gripm_update_task with non-existent toggleAcIndex (Must fail with validation error)
+send({
+  jsonrpc: '2.0',
+  id: 12,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-998',
+      toggleAcIndex: 999
+    }
+  }
+});
+
+// 13. SEC-09: Call gripm_update_task with force: true (Must succeed with audit trace)
+send({
+  jsonrpc: '2.0',
+  id: 13,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_update_task',
+    arguments: {
+      taskId: 'DEV-998',
+      status: 'ready',
+      force: true
     }
   }
 });
@@ -230,11 +312,57 @@ setTimeout(() => {
   if (successRes?.result?.isError) {
     throw new Error(`DEV-224: Se esperaba éxito con ACs completos y verifyCommand exitoso, recibido error: ${JSON.stringify(successRes)}`);
   }
-  console.log('✅ [8/8] DEV-224 Gatekeeper: Aprobó transición a ready con todos los ACs y verificación exitosa');
+  console.log('✅ [8/13] DEV-224 Gatekeeper: Aprobó transición a ready con todos los ACs y verificación exitosa');
+
+  // SEC-02: Assert default autoFix is false
+  if (syncData.autoFix !== false) {
+    throw new Error(`SEC-02: Se esperaba autoFix: false por defecto en gripm_sync_backlog, recibido: ${syncData.autoFix}`);
+  }
+  console.log('✅ [9/13] SEC-02 gripm_sync_backlog: Opera con autoFix: false por defecto sin mutar el backlog');
+
+  // SEC-01: Assert frontmatter verifyCommand is NOT executed
+  const secRes = responses.find(r => r.id === 9);
+  if (secRes?.result?.isError) {
+    throw new Error(`SEC-01: Transición falló debido a ejecución de verifyCommand de frontmatter: ${JSON.stringify(secRes)}`);
+  }
+  const updatedSecContent = fs.readFileSync(testSecTaskPath, 'utf8');
+  if (updatedSecContent.includes('verifyCommand:')) {
+    throw new Error(`SEC-01: verifyCommand sigue persistido en el frontmatter de la tarea: ${updatedSecContent}`);
+  }
+  console.log('✅ [10/13] SEC-01 Frontmatter RCE Erradicado: El Gatekeeper ignora comandos de frontmatter y no los persiste');
+
+  // SEC-05: Assert invalid limit parameter rejected
+  const limitRes = responses.find(r => r.id === 10);
+  if (!limitRes?.result?.isError || !limitRes.result.content[0].text.includes("Parámetro 'limit' inválido")) {
+    throw new Error(`SEC-05: Se esperaba rechazo de limit no numérico, recibido: ${JSON.stringify(limitRes)}`);
+  }
+  console.log('✅ [11/13] SEC-05 Validación de schema: Rechazó limit inválido');
+
+  // SEC-05: Assert negative and out-of-bounds toggleAcIndex rejected
+  const negativeAcRes = responses.find(r => r.id === 11);
+  if (!negativeAcRes?.result?.isError || !negativeAcRes.result.content[0].text.includes("Parámetro 'toggleAcIndex' inválido")) {
+    throw new Error(`SEC-05: Se esperaba rechazo de toggleAcIndex negativo, recibido: ${JSON.stringify(negativeAcRes)}`);
+  }
+  const notFoundAcRes = responses.find(r => r.id === 12);
+  if (!notFoundAcRes?.result?.isError || !notFoundAcRes.result.content[0].text.includes("no encontrado")) {
+    throw new Error(`SEC-05: Se esperaba rechazo de toggleAcIndex inexistente, recibido: ${JSON.stringify(notFoundAcRes)}`);
+  }
+  console.log('✅ [12/13] SEC-05 Validación de schema: Rechazó toggleAcIndex negativo y fuera de rango');
+
+  // SEC-09: Assert force: true emits audit warning and metadata
+  const forceRes = responses.find(r => r.id === 13);
+  if (forceRes?.result?.isError) {
+    throw new Error(`SEC-09: Llamada con force: true falló: ${JSON.stringify(forceRes)}`);
+  }
+  const forceData = JSON.parse(forceRes.result.content[0].text);
+  if (!forceData.warning?.includes('[MCP Gatekeeper Audit]') || !forceData.audit?.bypassedGatekeeper) {
+    throw new Error(`SEC-09: Se esperaba warning y traza de auditoría en force: true, recibido: ${JSON.stringify(forceData)}`);
+  }
+  console.log('✅ [13/13] SEC-09 Auditoría de bypass: force: true emite advertencia explícita y traza de auditoría');
 
     console.log('🎉 MCP Server y catálogo gripm_* completamente validados!');
     process.exit(0);
   } finally {
     cleanup();
   }
-}, 2500);
+}, 3500);
