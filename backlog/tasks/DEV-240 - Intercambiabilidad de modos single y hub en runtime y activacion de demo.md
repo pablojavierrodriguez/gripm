@@ -1,7 +1,7 @@
 ---
 id: DEV-240
 title: "Intercambiabilidad de modos --single y --hub en runtime y persistencia activa del proyecto demo"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

@@ -1,7 +1,7 @@
 ---
 id: DEV-234
 title: "Fase 0: Primitivo Modal accesible y Estabilidad Funcional P0"
-status: ready
+status: done
 created_date: '2026-10-10'
 updated_date: '2026-10-10'
 labels:

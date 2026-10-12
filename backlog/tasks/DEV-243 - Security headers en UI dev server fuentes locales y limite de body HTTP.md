@@ -1,9 +1,9 @@
 ---
 id: DEV-243
 title: "Security headers en UI dev server (CSP, frame-ancestors, nosniff), fuentes locales y limite de body HTTP (413)"
-status: ready
+status: done
 created_date: '2026-10-11'
-updated_date: '2026-10-11'
+updated_date: '2026-10-12'
 labels:
   - "security"
   - "ui"

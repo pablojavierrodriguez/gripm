@@ -1,7 +1,7 @@
 ---
 id: DEV-236
 title: "Selector de Proyectos Queda por Detrás de la Barra de Filtros por Conflicto de Stacking Context"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

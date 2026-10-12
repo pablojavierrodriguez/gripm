@@ -1,7 +1,7 @@
 ---
 id: DEV-235
 title: "Fase 1: Integridad del Quality Gate y Verificación Multiplataforma"
-status: ready
+status: done
 created_date: '2026-10-10'
 updated_date: '2026-10-10'
 labels:

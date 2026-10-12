@@ -11,7 +11,31 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
-En preparación: `1.2.0`.
+---
+
+## [1.2.0] — 2026-10-12 🛡️ Endurecimiento Integral de Seguridad, Estabilidad de Modales, Higiene Canónica y Quality Gate
+
+### 🎯 Resumen
+*Versión 1.2.0 de Gripm: implementación y resolución de la auditoría técnica integral (DEV-233). Incorpora el primitivo accesible `<Modal>` montado en `document.body` y corrección de orden de hooks en diálogos (DEV-234), integridad multiplataforma del Quality Gate en CI y Windows (DEV-235), remediación de seguridad Fase 2 con erradicación de RCE en frontmatter y auditoría MCP (DEV-242), endurecimiento de `verifyCommand` en Gatekeeper MCP contra prompt injection (DEV-244), cabeceras de seguridad CSP, fuentes locales offline y límite de body 413 (DEV-243), DevSecOps en GitHub Actions con auditoría SCA y mínimos privilegios (DEV-246), purga integral de referencias históricas legacy a DevBoard en código activo (DEV-238), switches accesibles y consistentes en SettingsView (DEV-239), interoperabilidad de modos CLI `--single` y `--hub` en runtime (DEV-240), consistencia condicional de ajustes según módulos activos (DEV-241), resolución de conflicto de stacking context y z-index (DEV-236), restauración reactiva del proyecto Demo (DEV-237) y code-splitting con `React.lazy` (DEV-164).*
+
+### 🛡️ Seguridad, Gobernanza MCP y DevSecOps (Core)
+- **DEV-242 — Remediación integral de seguridad Fase 2:** erradicación de ejecución de scripts desde frontmatter (SEC-01), `autoFix: false` por defecto en sincronización (SEC-02), contención estricta de rutas en `--repo` (SEC-03) y validación de tipos y rangos en herramientas MCP (SEC-05).
+- **DEV-244 — Endurecimiento de `verifyCommand` contra prompt injection:** restricción estricta a scripts autorizados de `package.json` y rechazo inmediato de metacaracteres shell y subshells (`|`, `&`, `;`, `$()`, backticks).
+- **DEV-243 — Cabeceras de seguridad, fuentes locales y límite de body:** inyección de CSP con `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, tipografías del sistema 100% offline sin peticiones externas a Google Fonts y límite HTTP 413 (10MB) anti-DoS.
+- **DEV-246 — DevSecOps en GitHub Actions:** permisos globales mínimos `contents: read`, paso automatizado de `npm audit` (SCA) e interpolación segura de inputs vía variables de entorno en pipelines de publicación.
+
+### 🧱 Estabilidad del Cockpit, Accesibilidad y Quality Gate (Fases 0 y 1)
+- **DEV-234 — Primitivo accesible `<Modal>` y estabilidad funcional P0:** extracción de `<Modal>` unificado con renderizado vía portal en `document.body`, corrección de orden de hooks invocando `useFocusTrap` antes de early returns condicionales en 5 diálogos, blindaje de `ConfirmModal` ante Enter accidental y etiquetas accesibles con `aria-live`.
+- **DEV-235 — Integridad del Quality Gate y verificación multiplataforma:** soporte nativo de rutas POSIX en Windows para `audit:ux`, eliminación de bloques `catch` silenciosos, limpieza garantizada de fixtures temporales en tests y validación estricta de timeouts.
+- **DEV-238 — Purga de referencias históricas legacy:** unificación canónica total bajo `gripm`, erradicando fallbacks y variables `DEVBOARD_*` en código fuente activo.
+
+### ⚡ UI/UX, Runtime CLI y Configuración
+- **DEV-239 — Switches accesibles `SettingsSwitch` en Settings:** reemplazo de checkboxes nativos desalineados por toggles redondeados consistentes con foco visible y soporte de teclado en todas las pestañas de configuración.
+- **DEV-240 — Modos `--single` y `--hub` intercambiables:** precedencia limpia de banderas CLI en runtime y persistencia reactiva del proyecto activo.
+- **DEV-241 — Consistencia condicional en Settings:** desacople de metodologías Scrum/Scrumban cuando el módulo Sprints está deshabilitado y fallback limpio a Kanban.
+- **DEV-236 — Jerarquía de apilamiento en Header y FilterBar:** corrección de conflicto de z-index evitando que el selector de proyectos quede ocluido detrás de la barra de filtros.
+- **DEV-237 — Restauración del Proyecto Demo:** resolución de error HTTP 415 enviando Content-Type adecuado y activación inmediata del proyecto demo en el estado global.
+- **DEV-164 — Code-splitting y optimización de arranque:** carga diferida con `React.lazy` para vistas pesadas (`SettingsView`, `ReleaseAssembler`), aligerando la transformación de módulos en frío.
 
 ---
 

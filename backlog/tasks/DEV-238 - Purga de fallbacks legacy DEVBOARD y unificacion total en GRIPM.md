@@ -1,7 +1,7 @@
 ---
 id: DEV-238
 title: "Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-12'
 labels:

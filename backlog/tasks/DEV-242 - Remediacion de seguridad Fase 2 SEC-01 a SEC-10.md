@@ -1,7 +1,7 @@
 ---
 id: DEV-242
 title: "Remediacion integral de seguridad Fase 2: erradicacion de RCE en frontmatter y auditoria MCP (SEC-01 a SEC-10)"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

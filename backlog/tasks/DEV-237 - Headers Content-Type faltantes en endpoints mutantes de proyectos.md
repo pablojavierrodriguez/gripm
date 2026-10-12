@@ -1,7 +1,7 @@
 ---
 id: DEV-237
 title: "Resolución integral de Restaurar Proyecto Demo (Error 415 por Content-Type y activación multi-proyecto)"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

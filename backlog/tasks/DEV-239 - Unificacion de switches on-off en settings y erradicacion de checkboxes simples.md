@@ -1,7 +1,7 @@
 ---
 id: DEV-239
 title: "Unificación de switches on/off en Settings y erradicación de checkboxes nativos simples"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

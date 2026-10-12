@@ -1,7 +1,7 @@
 ---
 id: DEV-241
 title: "Consistencia condicional de configuraciones segun modulos y add-ons activos"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-11'
 labels:

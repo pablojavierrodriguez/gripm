@@ -1,7 +1,7 @@
 ---
 id: DEV-233
 title: "Auditoria integral 2026-10-10 y plan de remediacion por fases"
-status: ready
+status: done
 created_date: '2026-10-10'
 updated_date: '2026-10-12 05:55'
 labels:

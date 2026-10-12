@@ -1,7 +1,7 @@
 ---
 id: DEV-246
 title: "Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)"
-status: ready
+status: done
 created_date: '2026-10-11'
 updated_date: '2026-10-12'
 labels:
