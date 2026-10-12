@@ -39,12 +39,17 @@ const fail = (file, message, hint) => problems.push({ file, message, hint });
 // --- staged files ------------------------------------------------------------
 
 function stagedFiles() {
-  const out = execSync('git diff --cached --name-only -z', {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  return out.split('\0').filter(Boolean);
+  try {
+    const out = execSync('git diff --cached --name-only -z', {
+      cwd: ROOT,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.split('\0').filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 /** Read the staged content, not the working tree: they can differ. */

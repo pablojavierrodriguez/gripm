@@ -115,7 +115,37 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (3)
+### 🚀 Ready for Deploy (4)
+
+#### [DEV-165] Modularización de vite.config.ts y Extracción de Capa de Servidor a server/
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+`vite.config.ts` se ha convertido en un monolito de 2.530 líneas y 110 KB. Además de la configuración del bundler y plugins de Vite, contiene la API HTTP completa del producto, middleware de seguridad, lógica de Server-Sent Events (SSE), registro de proyectos multi-repo, watchers de disco y un parser embebido de Markdown.
+
+### Problema
+
+1. **Fricción para contribuidores de código abierto:** Un archivo de configuración de más de 2.500 líneas intimida a nuevos contribuidores y dificulta el code review y la trazabilidad de cambios en PRs.
+2. **Distribución en el tarball:** El archivo viaja directamente en el tarball publicado en npm (`package.json: files`), mezclando la configuración del compilador con el backend embebido.
+3. **Violación de Responsabilidad Única (SRP):** Configuración de empaquetado, lógica de base de datos Markdown y endpoints REST residen en el mismo archivo.
+
+### Objetivo
+
+Extraer la capa de backend a módulos dedicados bajo un directorio `server/` (o `src/server/`):
+- `server/middleware/security.ts`: Validaciones de CSRF (Origin), Host (DNS Rebinding) y Content-Type.
+- `server/routes/api.ts`: Endpoints REST (`/api/data`, `/api/tasks`, `/api/sprints`, `/api/releases`, etc.).
+- `server/routes/sse.ts`: Gestión de clientes de Server-Sent Events y notificaciones de live reload.
+- `server/services/registry.ts`: Detección y persistencia de proyectos multi-repo.
+- Reducir `vite.config.ts` a un archivo esbelto de configuración de plugins y montaje de middleware.
+
+**Criterios de Aceptación:**
+- [x] #1 Extraer middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a `server/middleware/security.ts`
+- [x] #2 Modularizar rutas de API REST en submódulos temáticos (`server/routes/`)
+- [x] #3 Desacoplar la gestión de Server-Sent Events (SSE) a `server/sse/`
+- [x] #4 Reducir `vite.config.ts` a menos de 300 líneas de código
+- [x] #5 La suite completa de tests de seguridad (`scripts/test-api-security.js`) y de SSE (`scripts/verify-sse.js`) pasan con exit code 0
+- [x] #6 `npm test`, `npm run backlog:check` y `npm run publish:check` pasan sin regresiones
+
+---
 
 #### [DEV-249] Tolerancia a CRLF en verify-changes y actualizacion de selector de pestana Sprints en test-ui
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -180,7 +210,7 @@ Retirar el badge y el párrafo de demostración interactiva que referenciaban a 
 
 ---
 
-### 📋 Backlog / Draft (19)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -335,36 +365,6 @@ Incorporar inteligencia analítica ágil y visibilidad consolidada en DevBoard a
 - [ ] #4 Incorporar filtro por estimación en AdvancedFiltersPopover.tsx para filtrar tarjetas por tallas o rangos de Story Points cuando la estimación esté habilitada
 - [ ] #5 Garantizar recálculo reactivo automático de métricas y totales en tiempo real ante modificaciones de estado o estimación en las tareas
 - [ ] #6 Respetar el Principio de Ortogonalidad de Dimensiones: las métricas de estimación complementan pero nunca reemplazan ni interfieren con los conteos de tareas por estado ni con las dimensiones de sprint o release
-
----
-
-#### [DEV-165] Modularización de vite.config.ts y Extracción de Capa de Servidor a server/
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-`vite.config.ts` se ha convertido en un monolito de 2.530 líneas y 110 KB. Además de la configuración del bundler y plugins de Vite, contiene la API HTTP completa del producto, middleware de seguridad, lógica de Server-Sent Events (SSE), registro de proyectos multi-repo, watchers de disco y un parser embebido de Markdown.
-
-### Problema
-
-1. **Fricción para contribuidores de código abierto:** Un archivo de configuración de más de 2.500 líneas intimida a nuevos contribuidores y dificulta el code review y la trazabilidad de cambios en PRs.
-2. **Distribución en el tarball:** El archivo viaja directamente en el tarball publicado en npm (`package.json: files`), mezclando la configuración del compilador con el backend embebido.
-3. **Violación de Responsabilidad Única (SRP):** Configuración de empaquetado, lógica de base de datos Markdown y endpoints REST residen en el mismo archivo.
-
-### Objetivo
-
-Extraer la capa de backend a módulos dedicados bajo un directorio `server/` (o `src/server/`):
-- `server/middleware/security.ts`: Validaciones de CSRF (Origin), Host (DNS Rebinding) y Content-Type.
-- `server/routes/api.ts`: Endpoints REST (`/api/data`, `/api/tasks`, `/api/sprints`, `/api/releases`, etc.).
-- `server/routes/sse.ts`: Gestión de clientes de Server-Sent Events y notificaciones de live reload.
-- `server/services/registry.ts`: Detección y persistencia de proyectos multi-repo.
-- Reducir `vite.config.ts` a un archivo esbelto de configuración de plugins y montaje de middleware.
-
-**Criterios de Aceptación:**
-- [ ] #1 Extraer middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a `server/middleware/security.ts`
-- [ ] #2 Modularizar rutas de API REST en submódulos temáticos (`server/routes/`)
-- [ ] #3 Desacoplar la gestión de Server-Sent Events (SSE) a `server/sse/`
-- [ ] #4 Reducir `vite.config.ts` a menos de 300 líneas de código
-- [ ] #5 La suite completa de tests de seguridad (`scripts/test-api-security.js`) y de SSE (`scripts/verify-sse.js`) pasan con exit code 0
-- [ ] #6 `npm test`, `npm run backlog:check` y `npm run publish:check` pasan sin regresiones
 
 ---
 

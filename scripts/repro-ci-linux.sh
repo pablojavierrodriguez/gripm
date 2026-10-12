@@ -22,6 +22,7 @@ docker run --rm \
   set -euo pipefail
   mkdir -p /work
   tar -cf - -C /src --exclude=node_modules --exclude=.git . | tar -xf - -C /work
+  git -C /work init -q
 
   if [ -d /nm/node_modules ]; then
     cp -R /nm/node_modules /work/node_modules 2>/dev/null

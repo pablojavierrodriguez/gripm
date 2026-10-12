@@ -46,6 +46,7 @@
     "dist",
     "public",
     "scripts",
+    "server",
     "src",
     "data/demo-backlog.json",
     "index.html",

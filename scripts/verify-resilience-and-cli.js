@@ -157,9 +157,11 @@ try {
       throw new Error('DEV-240 FAILED: src/App.tsx no prioriza boardData.singleProject para el selector');
     }
 
-    const viteSource = fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
-    if (!viteSource.includes('if (!reg.activeProjectId) {') || !viteSource.includes('reg.activeProjectId = existingLocal.id;')) {
-      throw new Error('DEV-240 FAILED: vite.config.ts no preserva activeProjectId al descubrir repo local');
+    const registrySource = fs.existsSync(path.join(process.cwd(), 'server/services/registry.ts'))
+      ? fs.readFileSync(path.join(process.cwd(), 'server/services/registry.ts'), 'utf8')
+      : fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
+    if (!registrySource.includes('if (!reg.activeProjectId) {') || !registrySource.includes('reg.activeProjectId = existingLocal.id;')) {
+      throw new Error('DEV-240 FAILED: server/services/registry.ts no preserva activeProjectId al descubrir repo local');
     }
 
     console.log('✅ DEV-240: Banderas CLI --single / --hub y preservación de proyecto activo validadas');

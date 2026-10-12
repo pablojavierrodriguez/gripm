@@ -1,9 +1,9 @@
 ---
 id: DEV-165
 title: "Modularización de vite.config.ts y Extracción de Capa de Servidor a server/"
-status: draft
+status: ready
 created_date: '2026-10-04'
-updated_date: '2026-10-04 19:55'
+updated_date: '2026-10-12 13:39'
 labels:
   - "architecture"
   - "refactor"
@@ -40,12 +40,12 @@ Extraer la capa de backend a módulos dedicados bajo un directorio `server/` (o 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Extraer middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a `server/middleware/security.ts`
-- [ ] #2 Modularizar rutas de API REST en submódulos temáticos (`server/routes/`)
-- [ ] #3 Desacoplar la gestión de Server-Sent Events (SSE) a `server/sse/`
-- [ ] #4 Reducir `vite.config.ts` a menos de 300 líneas de código
-- [ ] #5 La suite completa de tests de seguridad (`scripts/test-api-security.js`) y de SSE (`scripts/verify-sse.js`) pasan con exit code 0
-- [ ] #6 `npm test`, `npm run backlog:check` y `npm run publish:check` pasan sin regresiones
+- [x] #1 Extraer middleware de seguridad (CSRF, DNS Rebinding, Content-Type) a `server/middleware/security.ts`
+- [x] #2 Modularizar rutas de API REST en submódulos temáticos (`server/routes/`)
+- [x] #3 Desacoplar la gestión de Server-Sent Events (SSE) a `server/sse/`
+- [x] #4 Reducir `vite.config.ts` a menos de 300 líneas de código
+- [x] #5 La suite completa de tests de seguridad (`scripts/test-api-security.js`) y de SSE (`scripts/verify-sse.js`) pasan con exit code 0
+- [x] #6 `npm test`, `npm run backlog:check` y `npm run publish:check` pasan sin regresiones
 <!-- AC:END -->
 
 ## Implementation Plan
