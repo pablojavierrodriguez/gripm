@@ -38,7 +38,8 @@ import {
   Star,
   Bookmark
 } from 'lucide-react';
-import type { BacklogItem, ItemStatus, Priority, CustomItemTypeConfig, EstimationConfig, VisibleCardMetadata } from '../types';
+import type { BacklogItem, ItemStatus, Priority, CustomItemTypeConfig, EstimationConfig, VisibleCardMetadata, GripmConfig } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 interface ItemCardProps {
@@ -57,6 +58,7 @@ interface ItemCardProps {
   density?: 'comfortable' | 'compact';
   estimationConfig?: EstimationConfig;
   visibleCardMetadata?: VisibleCardMetadata;
+  config?: GripmConfig;
   /**
    * Keyboard-accessible reordering (DEV-173, AC #3). Without it, moving a card
    * inside its column is drag-and-drop only, which a keyboard cannot perform.
@@ -217,6 +219,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   density = 'comfortable',
   estimationConfig,
   visibleCardMetadata,
+  config,
   canMoveUp = false,
   canMoveDown = false,
   onMoveWithinColumn
@@ -224,6 +227,9 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
   const isCompact = density === 'compact';
+  const isSprintActive = isSprintModuleActive(config);
+  const isReleaseActive = isReleaseModuleActive(config);
+  const isEstimationActive = Boolean(config?.estimation?.enabled ?? estimationConfig?.enabled);
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -405,7 +411,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           </span>
 
           {/* DEV-138: Estimation Badge */}
-          {estimationConfig?.enabled !== false && item.estimate !== undefined && item.estimate !== null && item.estimate !== '' && (
+          {isEstimationActive && visibleCardMetadata?.estimate !== false && item.estimate !== undefined && item.estimate !== null && item.estimate !== '' && (
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-500/30 shrink-0"
               title={`${t('itemModal.estimateLabel')}: ${item.estimate}`}
@@ -646,13 +652,13 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           </span>
         )}
 
-        {visibleCardMetadata?.sprint !== false && (item.sprint || item.targetSprint) && (
+        {isSprintActive && visibleCardMetadata?.sprint !== false && (item.sprint || item.targetSprint) && (
           <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300/90 border border-indigo-200 dark:border-indigo-500/20 truncate max-w-[120px]">
             {item.sprint || item.targetSprint}
           </span>
         )}
 
-        {visibleCardMetadata?.release !== false && (() => {
+        {isReleaseActive && visibleCardMetadata?.release !== false && (() => {
           const rel = item.release || item.targetRelease;
           if (!rel || rel.toLowerCase().includes('sprint')) return null;
           return (

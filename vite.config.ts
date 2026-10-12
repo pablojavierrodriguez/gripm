@@ -20,6 +20,7 @@ export default defineConfig(async () => {
   return {
     plugins: [react(), gripmApi()],
     resolve: {
+      preserveSymlinks: true,
       dedupe: ['react', 'react-dom']
     },
     optimizeDeps: {

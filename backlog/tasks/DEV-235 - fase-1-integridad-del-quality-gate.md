@@ -12,6 +12,7 @@ labels:
   - "p1"
 dependencies:
   - "DEV-233"
+parent: "DEV-233"
 priority: high
 type: chore
 ---

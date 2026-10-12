@@ -28,10 +28,11 @@ import {
   Edit2,
   Check,
   Globe,
-  Boxes
+  Boxes,
+  Calendar
 } from 'lucide-react';
 import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig, EstimationMethod, VisibleCardMetadata } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
@@ -166,8 +167,16 @@ export const SettingsSwitch: React.FC<SettingsSwitchProps> = ({
   );
 };
 
+const getResolvedTheme = (cfgTheme?: string, isDark?: boolean): 'dark' | 'light' | 'system' => {
+  if (cfgTheme === 'system') return 'system';
+  if (isDark !== undefined) return isDark ? 'dark' : 'light';
+  if (cfgTheme === 'dark' || cfgTheme === 'light') return cfgTheme;
+  return 'system';
+};
+
 interface SettingsViewProps {
   config: GripmConfig;
+  isDarkMode?: boolean;
   onSaveConfig: (newConfig: GripmConfig) => Promise<void>;
   currentProject?: Project;
   onBack: () => void;
@@ -179,6 +188,7 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   config,
+  isDarkMode,
   onSaveConfig,
   currentProject,
   onBack,
@@ -192,7 +202,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTabId>('views');
 
   // Form local state
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(config.theme || 'system');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(() =>
+    getResolvedTheme(config.theme, isDarkMode)
+  );
   const [density, setDensity] = useState<'comfortable' | 'compact'>(config.density || 'comfortable');
   const [locale, setLocale] = useState<'es' | 'en'>(config.locale || language || 'es');
   const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
@@ -200,7 +212,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
   const [modulesState, setModulesState] = useState<ModulesConfig>(() => ({
     sprint: isSprintModuleActive(config),
-    release: isReleaseModuleActive(config)
+    release: isReleaseModuleActive(config),
+    calendar: isCalendarModuleActive(config),
   }));
   const [enabledTabs, setEnabledTabs] = useState({
     kanban: config.enabledTabs?.kanban !== false,
@@ -221,6 +234,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     priority: config.visibleCardMetadata?.priority ?? true,
     parent: config.visibleCardMetadata?.parent ?? true,
     blocked: config.visibleCardMetadata?.blocked ?? true,
+    estimate: config.visibleCardMetadata?.estimate ?? true,
     ...config.visibleCardMetadata
   }));
   const [kanbanEditMode, setKanbanEditMode] = useState<'ampliada' | 'simplificada'>('ampliada');
@@ -276,7 +290,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       initialDefaultView = 'kanban';
     }
 
-    setTheme(config.theme || 'system');
+    setTheme(getResolvedTheme(config.theme, isDarkMode));
     setDensity(config.density || 'comfortable');
     setLocale(config.locale || language || 'es');
     setMethodology(initialMethodology);
@@ -284,7 +298,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setModeState(config.mode || 'single');
     setModulesState({
       sprint: isSprintModOn,
-      release: isReleaseModOn
+      release: isReleaseModOn,
+      calendar: isCalendarModuleActive(config)
     });
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
@@ -305,6 +320,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       priority: config.visibleCardMetadata?.priority ?? true,
       parent: config.visibleCardMetadata?.parent ?? true,
       blocked: config.visibleCardMetadata?.blocked ?? true,
+      estimate: config.visibleCardMetadata?.estimate ?? true,
       ...config.visibleCardMetadata
     });
     if (config.kanban?.columns && config.kanban.columns.length > 0) {
@@ -325,12 +341,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
     setRawJson(JSON.stringify(config, null, 2));
     setJsonError(null);
-  }, [config, language]);
+  }, [config, language, isDarkMode]);
 
   const handleLanguageChange = (newLang: Language) => {
     setLocale(newLang);
     setLanguage(newLang);
-    const updated = { ...builtConfig, locale: newLang };
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
+    const updated = { ...builtConfig, theme: activeTheme, locale: newLang };
     onSaveConfig(updated).catch(() => {});
   };
 
@@ -366,8 +383,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       mode: modeState,
       modules: {
         sprint: modulesState.sprint,
-        release: modulesState.release
+        release: modulesState.release,
+        calendar: modulesState.calendar
       },
+      calendarExport: modulesState.calendar !== false,
       enabledTabs: {
         kanban: enabledTabs.kanban,
         sprint: enabledTabs.sprint,
@@ -406,8 +425,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       mode: c.mode || 'single',
       modules: {
         sprint: isSprintModuleActive(c as GripmConfig),
-        release: isReleaseModuleActive(c as GripmConfig)
+        release: isReleaseModuleActive(c as GripmConfig),
+        calendar: isCalendarModuleActive(c as GripmConfig)
       },
+      calendarExport: isCalendarModuleActive(c as GripmConfig),
       enabledTabs: {
         kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
         sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
@@ -427,7 +448,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         acProgress: c.visibleCardMetadata?.acProgress ?? true,
         priority: c.visibleCardMetadata?.priority ?? true,
         parent: c.visibleCardMetadata?.parent ?? true,
-        blocked: c.visibleCardMetadata?.blocked ?? true
+        blocked: c.visibleCardMetadata?.blocked ?? true,
+        estimate: c.visibleCardMetadata?.estimate ?? true
       },
       kanban: {
         showIdeasByDefault: kanban.showIdeasByDefault ?? false,
@@ -466,7 +488,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       initialDefaultView = 'kanban';
     }
 
-    setTheme(config.theme || 'system');
+    setTheme(getResolvedTheme(config.theme, isDarkMode));
     setDensity(config.density || 'comfortable');
     setMethodology(initialMethodology);
     setDefaultView(initialDefaultView);
@@ -538,8 +560,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setMethodology('scrum');
       }
     }
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
     const nextConfig: GripmConfig = {
       ...builtConfig,
+      theme: activeTheme,
       modules: nextModules,
       methodology: nextMethodology,
       defaultView: nextDefaultView
@@ -559,8 +583,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       nextDefaultView = 'kanban';
       setDefaultView('kanban');
     }
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
     const nextConfig: GripmConfig = {
       ...builtConfig,
+      theme: activeTheme,
       modules: nextModules,
       defaultView: nextDefaultView
     };
@@ -571,11 +597,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     );
   };
 
+  const handleToggleCalendarModule = async (checked: boolean) => {
+    const nextModules = { ...modulesState, calendar: checked };
+    setModulesState(nextModules);
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      theme: activeTheme,
+      modules: nextModules,
+      calendarExport: checked
+    };
+    await onSaveConfig(nextConfig);
+    onShowToast?.(
+      checked ? t('settings.toastModuleCalendarEnabled') : t('settings.toastModuleCalendarDisabled'),
+      'success'
+    );
+  };
+
   const handleToggleMultiHub = async (checked: boolean) => {
     const nextMode: 'single' | 'multi' = checked ? 'multi' : 'single';
     setModeState(nextMode);
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
     const nextConfig: GripmConfig = {
       ...builtConfig,
+      theme: activeTheme,
       mode: nextMode
     };
     await onSaveConfig(nextConfig);
@@ -1411,7 +1456,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </p>
                           {/* Preview pills */}
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {[0, 1, 2, 3, 5, 8, 13, 21].map((val) => (
+                            {(builtConfig.estimation?.customFibonacci || DEFAULT_FIBONACCI).map((val) => (
                               <span
                                 key={val}
                                 className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/30"
@@ -1444,7 +1489,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </p>
                           {/* Preview pills */}
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+                            {(builtConfig.estimation?.customTshirt || DEFAULT_TSHIRT).map((size) => (
                               <span
                                 key={size}
                                 className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-50 dark:bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-500/30"
@@ -1601,6 +1646,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       checked={modeState === 'multi'}
                       onChange={handleToggleMultiHub}
                       ariaLabel={t('settings.moduleHubTitle')}
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Calendar Export & Scheduling */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleCalendarTitle')}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                          modulesState.calendar !== false
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
+                        }`}>
+                          {modulesState.calendar !== false ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleCalendarDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:self-center shrink-0">
+                    <SettingsSwitch
+                      checked={modulesState.calendar !== false}
+                      onChange={handleToggleCalendarModule}
+                      ariaLabel={t('settings.moduleCalendarTitle')}
                     />
                   </div>
                 </div>
@@ -1905,25 +1983,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaSprint')}
-                    </span>
+                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
+                    !modulesState.sprint ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
+                  } transition-colors`}>
+                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                        {t('settings.cardMetaSprint')}
+                      </span>
+                      {!modulesState.sprint && (
+                        <span className="text-xs text-slate-400 font-normal shrink-0">
+                          {t('settings.cardMetaModuleDisabled')}
+                        </span>
+                      )}
+                    </div>
                     <SettingsSwitch
-                      checked={cardMetaState.sprint !== false}
+                      checked={Boolean(modulesState.sprint && cardMetaState.sprint !== false)}
+                      disabled={!modulesState.sprint}
                       onChange={(checked) => setCardMetaState(prev => ({ ...prev, sprint: checked }))}
                       ariaLabel={t('settings.cardMetaSprint')}
                     />
                   </label>
 
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaRelease')}
-                    </span>
+                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
+                    !modulesState.release ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
+                  } transition-colors`}>
+                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                        {t('settings.cardMetaRelease')}
+                      </span>
+                      {!modulesState.release && (
+                        <span className="text-xs text-slate-400 font-normal shrink-0">
+                          {t('settings.cardMetaModuleDisabled')}
+                        </span>
+                      )}
+                    </div>
                     <SettingsSwitch
-                      checked={cardMetaState.release !== false}
+                      checked={Boolean(modulesState.release && cardMetaState.release !== false)}
+                      disabled={!modulesState.release}
                       onChange={(checked) => setCardMetaState(prev => ({ ...prev, release: checked }))}
                       ariaLabel={t('settings.cardMetaRelease')}
+                    />
+                  </label>
+
+                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
+                    !estimationEnabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
+                  } transition-colors`}>
+                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                        {t('settings.cardMetaEstimate')}
+                      </span>
+                      {!estimationEnabled && (
+                        <span className="text-xs text-slate-400 font-normal shrink-0">
+                          {t('settings.cardMetaModuleDisabled')}
+                        </span>
+                      )}
+                    </div>
+                    <SettingsSwitch
+                      checked={Boolean(estimationEnabled && cardMetaState.estimate !== false)}
+                      disabled={!estimationEnabled}
+                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, estimate: checked }))}
+                      ariaLabel={t('settings.cardMetaEstimate')}
                     />
                   </label>
 

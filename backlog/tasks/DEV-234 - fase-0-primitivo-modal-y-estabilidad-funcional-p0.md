@@ -12,6 +12,7 @@ labels:
   - "p0"
 dependencies:
   - "DEV-233"
+parent: "DEV-233"
 priority: high
 type: bugfix
 ---

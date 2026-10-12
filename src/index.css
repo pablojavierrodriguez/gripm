@@ -37,6 +37,21 @@ html:not(.dark) {
   color-scheme: light;
 }
 
+/* Native select option theming for dark / light modes */
+html.dark select,
+html.dark select option,
+html.dark select optgroup {
+  background-color: #131c2f;
+  color: #f1f5f9;
+}
+
+html:not(.dark) select,
+html:not(.dark) select option,
+html:not(.dark) select optgroup {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
 /* View Transitions API (Modern smooth theme switch crossfade) */
 ::view-transition-old(root),
 ::view-transition-new(root) {

@@ -83,7 +83,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 🚀 Ready for Deploy (13)
+### 🚀 Ready for Deploy (14)
 
 #### [DEV-136] Sistema de Estimación en Settings Activación Selector Fibonacci vs Tshirt y Configuración Persistente
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -404,6 +404,18 @@ Rediseñar la interfaz de terminal (CLI) de gripm adoptando los estándares de l
 - [x] #3 Modernizados los avisos de actualización y mensajes de scripts/initScaffold.js y scripts/uninstall.js sin recuadros rígidos quebradizos
 - [x] #4 Preservada la compatibilidad con todas las opciones CLI (--repo, --port, --init, --help, mcp, playbook) y suites de prueba existentes
 - [x] #5 Pirámide de Verificación completa en verde (tsc --noEmit, npm test, backlog:check, verify-changes)
+
+---
+
+#### [DEV-253] Optimizaciones de UX: ergonomía de estimación, contraste de filtros y desacople de tema en módulos
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Corrección integral de defectos de experiencia de usuario, contraste y ergonomía visual identificados en uso real:
+1. Alto contraste en desplegables de filtros avanzados (Sprint, Release, Módulo) bajo modo oscuro en Chromium/Windows mediante fondos opacos y estilizado nativo de opciones.
+2. Aislamiento e inmunidad del tema visual al interactuar con switches de módulos y add-ons en Configuración (Sprints, Releases, Hub, Calendar), erradicando el cambio forzado a dark mode.
+3. Desacople del estado del input manual de estimación en ItemModal, eliminando la colisión de foco y vaciado de campo al tipear valores compuestos (como 55 u 89).
+4. Disposición horizontal en una sola línea para pantallas de 1366px con presets canónicos de Planning Poker (0 a 21) y pastilla inline compacta.
+5. Corrección de relaciones jerárquicas hacia la épica DEV-233 y guardias de módulos activos en tarjetas Kanban.
 
 ---
 

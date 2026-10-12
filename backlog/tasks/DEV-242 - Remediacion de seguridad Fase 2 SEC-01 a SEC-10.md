@@ -11,6 +11,7 @@ labels:
   - "quality-gate"
 dependencies:
   - "DEV-233"
+parent: "DEV-233"
 priority: high
 type: bug
 ---

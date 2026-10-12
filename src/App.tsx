@@ -102,13 +102,21 @@ export function App() {
   }, [isDarkMode]);
 
   const handleToggleTheme = useCallback(() => {
+    const applyThemeToggle = () => {
+      setIsDarkMode((prev) => {
+        const nextDark = !prev;
+        setConfig((prevCfg) => prevCfg ? { ...prevCfg, theme: nextDark ? 'dark' : 'light' } : prevCfg);
+        return nextDark;
+      });
+    };
+
     // Respeta la preferencia del sistema: cambio instantaneo, sin animacion.
     const prefersReducedMotion = typeof window !== 'undefined'
       && typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
-      setIsDarkMode((prev) => !prev);
+      applyThemeToggle();
       return;
     }
 
@@ -126,7 +134,7 @@ export function App() {
       root?.classList.add('theme-animating');
       const transition = doc.startViewTransition(() => {
         flushSync(() => {
-          setIsDarkMode((prev) => !prev);
+          applyThemeToggle();
         });
       });
       // cleanup garantizado tanto en exito como en error
@@ -139,7 +147,7 @@ export function App() {
       window.setTimeout(() => {
         root?.classList.remove('theme-transitioning');
       }, 350);
-      setIsDarkMode((prev) => !prev);
+      applyThemeToggle();
     }
   }, []);
 
@@ -211,17 +219,19 @@ export function App() {
   const loadSettings = useCallback(async (projId?: string) => {
     try {
       const cfg = await fetchSettings(projId && projId !== 'all' ? projId : undefined);
-      setConfig(cfg);
-      if (cfg.locale && (cfg.locale === 'es' || cfg.locale === 'en')) {
-        setLanguage(cfg.locale);
-      }
-      if (cfg.theme && (cfg.theme === 'dark' || cfg.theme === 'light')) {
+      if (cfg.theme) {
         // La eleccion explicita del usuario tiene prioridad sobre la config
         // del proyecto: de lo contrario recargar reverte al tema del proyecto.
         const userChoice = getStoredItem(STORAGE_KEYS.THEME);
         if (userChoice !== 'dark' && userChoice !== 'light') {
           setIsDarkMode(cfg.theme === 'dark');
+        } else {
+          cfg.theme = userChoice as 'dark' | 'light';
         }
+      }
+      setConfig(cfg);
+      if (cfg.locale && (cfg.locale === 'es' || cfg.locale === 'en')) {
+        setLanguage(cfg.locale);
       }
     } catch (err: any) {
       console.warn('[gripm] Failed to load config:', err.message);
@@ -237,8 +247,15 @@ export function App() {
     if (saved.locale && (saved.locale === 'es' || saved.locale === 'en')) {
       setLanguage(saved.locale);
     }
-    if (saved.theme && (saved.theme === 'dark' || saved.theme === 'light')) {
-      setIsDarkMode(saved.theme === 'dark');
+    if (saved.theme) {
+      if (saved.theme === 'system') {
+        const systemDark = typeof window !== 'undefined' && window.matchMedia
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          : false;
+        setIsDarkMode(systemDark);
+      } else if (saved.theme === 'dark' || saved.theme === 'light') {
+        setIsDarkMode(saved.theme === 'dark');
+      }
     }
   }, [selectedProjectId, setLanguage]);
 
@@ -1432,6 +1449,7 @@ export function App() {
           <Suspense fallback={<ViewLoadingFallback />}>
             <SettingsView
               config={config}
+              isDarkMode={isDarkMode}
               onSaveConfig={handleSaveConfig}
               currentProject={projects.find(p => p.id === selectedProjectId)}
               onBack={() => setActiveTab(config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban'))}

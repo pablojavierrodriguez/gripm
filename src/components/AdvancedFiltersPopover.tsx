@@ -1,6 +1,15 @@
 import React, { useRef, useEffect } from 'react';
-import { X, RotateCcw, Check, SlidersHorizontal } from 'lucide-react';
-import type { FilterState, ItemType, Priority, ItemStatus, CustomItemTypeConfig, EstimationConfig } from '../types';
+import { X, RotateCcw, Check, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import {
+  type FilterState,
+  type ItemType,
+  type Priority,
+  type ItemStatus,
+  type CustomItemTypeConfig,
+  type EstimationConfig,
+  DEFAULT_FIBONACCI,
+  DEFAULT_TSHIRT,
+} from '../types';
 import { useTranslation } from '../utils/i18n';
 
 interface AdvancedFiltersPopoverProps {
@@ -335,19 +344,22 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
             <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               {t('itemModal.sprintLabel')}
             </label>
-            <select
-              value={filters.sprint || 'all'}
-              onChange={(e) => onChangeFilters({ ...filters, sprint: e.target.value })}
-              className="appearance-none w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="all">{t('filter.allSprints')}</option>
-              {availableSprints.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-              <option value="backlog">{t('filter.noSprint')}</option>
-            </select>
+            <div className="relative">
+              <select
+                value={filters.sprint || 'all'}
+                onChange={(e) => onChangeFilters({ ...filters, sprint: e.target.value })}
+                className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
+              >
+                <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allSprints')}</option>
+                {availableSprints.map((s) => (
+                  <option key={s} value={s} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
+                    {s}
+                  </option>
+                ))}
+                <option value="backlog" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.noSprint')}</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+            </div>
           </div>
         )}
 
@@ -356,18 +368,21 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
           <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             {t('filter.targetRelease')}
           </label>
-          <select
-            value={filters.release || 'all'}
-            onChange={(e) => onChangeFilters({ ...filters, release: e.target.value })}
-            className="appearance-none w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500/50"
-          >
-            <option value="all">{t('filter.allReleases')}</option>
-            {availableReleases.map((r) => (
-              <option key={r} value={r}>
-                v{r}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={filters.release || 'all'}
+              onChange={(e) => onChangeFilters({ ...filters, release: e.target.value })}
+              className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
+            >
+              <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allReleases')}</option>
+              {availableReleases.map((r) => (
+                <option key={r} value={r} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
+                  v{r}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
       </div>
 
@@ -377,18 +392,21 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
           <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             {t('filter.moduleArea')}
           </label>
-          <select
-            value={filters.module || 'all'}
-            onChange={(e) => onChangeFilters({ ...filters, module: e.target.value })}
-            className="appearance-none w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500/50"
-          >
-            <option value="all">{t('filter.allAreas')}</option>
-            {availableModules.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={filters.module || 'all'}
+              onChange={(e) => onChangeFilters({ ...filters, module: e.target.value })}
+              className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
+            >
+              <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allAreas')}</option>
+              {availableModules.map((m) => (
+                <option key={m} value={m} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
+                  {m}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
       )}
 
@@ -407,8 +425,8 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
           </div>
           <div className="flex flex-wrap gap-1.5">
             {(estimationConfig.method === 'tshirt'
-              ? (estimationConfig.customTshirt || ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
-              : (estimationConfig.customFibonacci || [0, 1, 2, 3, 5, 8, 13, 21])
+              ? (estimationConfig.customTshirt || DEFAULT_TSHIRT)
+              : (estimationConfig.customFibonacci || DEFAULT_FIBONACCI)
             ).map((val) => {
               const isSelected = selectedEstimates.has(val);
               return (

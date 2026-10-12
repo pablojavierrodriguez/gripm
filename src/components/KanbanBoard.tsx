@@ -840,6 +840,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     density={config?.density}
                     estimationConfig={config?.estimation}
                     visibleCardMetadata={config?.visibleCardMetadata}
+                    config={config}
                     canMoveUp={idx > 0}
                     canMoveDown={idx < colItems.length - 1}
                     onMoveWithinColumn={(direction) =>

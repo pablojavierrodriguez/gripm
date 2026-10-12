@@ -28,7 +28,7 @@ import {
   Zap
 } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, GripmConfig, Sprint, Release } from '../types';
-import { isSprintModuleActive } from '../types';
+import { isSprintModuleActive, isCalendarModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -174,6 +174,7 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [conflictItem, setConflictItem] = useState<BacklogItem | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimate, setEstimate] = useState<string | number | undefined>(undefined);
+  const [customEstimateInput, setCustomEstimateInput] = useState('');
   const [calendarMenuOpen, setCalendarMenuOpen] = useState(false);
   const [childTasksExpanded, setChildTasksExpanded] = useState(true);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -194,7 +195,8 @@ export const ItemModal: FC<ItemModalProps> = ({
   const otherItems = (allItems || []).filter(it => it.id !== currentId && it.code !== currentCode);
   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
   const childTasks = otherItems.filter(
-    it => (currentId && it.parentId === currentId) || (currentCode && it.parentId === currentCode)
+    it => (currentId && (it.parentId === currentId || it.epic === currentId)) ||
+          (currentCode && (it.parentId === currentCode || it.epic === currentCode))
   );
   const showChildTasks = type === 'epic' || type === 'initiative' || childTasks.length > 0;
   const formatRelation = (relationId: string) => {
@@ -242,7 +244,16 @@ export const ItemModal: FC<ItemModalProps> = ({
     setFix(source.fix || '');
     setImplementationPlan(source.implementationPlan || '');
     setAcceptanceCriteriaList(source.acceptanceCriteriaList || []);
-    setEstimate(source.estimate !== undefined ? source.estimate : undefined);
+    const sourceEst = source.estimate !== undefined ? source.estimate : undefined;
+    setEstimate(sourceEst);
+    const baseEstOptions: (string | number)[] = (config?.estimation?.method === 'tshirt'
+      ? (config?.estimation?.customTshirt || DEFAULT_TSHIRT)
+      : (config?.estimation?.customFibonacci || DEFAULT_FIBONACCI));
+    if (sourceEst !== undefined && sourceEst !== '' && !baseEstOptions.some(v => String(v) === String(sourceEst))) {
+      setCustomEstimateInput(String(sourceEst));
+    } else {
+      setCustomEstimateInput('');
+    }
     setLabels(source.labels || []);
     setLabelInput('');
     setAssignees(source.assignees || []);
@@ -306,6 +317,7 @@ export const ItemModal: FC<ItemModalProps> = ({
         setImplementationPlan('');
         setAcceptanceCriteriaList([]);
         setEstimate(undefined);
+        setCustomEstimateInput('');
         setLabels([]);
         setLabelInput('');
         setAssignees([]);
@@ -585,7 +597,7 @@ export const ItemModal: FC<ItemModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {isEditing && (
+            {isEditing && isCalendarModuleActive(config) && (
               <div className="relative" ref={calendarMenuRef}>
                 <button
                   type="button"
@@ -1268,7 +1280,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                 </div>
 
                 {/* DEV-138: Estimation Selector */}
-                {config?.estimation?.enabled !== false && (
+                {config?.estimation?.enabled && (
                   <div>
                     <div className="flex items-center justify-between min-w-0 mb-1.5">
                       <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
@@ -1278,7 +1290,10 @@ export const ItemModal: FC<ItemModalProps> = ({
                       {estimate !== undefined && estimate !== '' && (
                         <button
                           type="button"
-                          onClick={() => setEstimate(undefined)}
+                          onClick={() => {
+                            setEstimate(undefined);
+                            setCustomEstimateInput('');
+                          }}
                           aria-label={t('itemModal.estimateNone')}
                           title={t('itemModal.estimateNone')}
                           className="text-xs text-slate-500 hover:text-rose-500 transition-colors"
@@ -1287,29 +1302,74 @@ export const ItemModal: FC<ItemModalProps> = ({
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {((config?.estimation?.method === 'tshirt'
-                        ? (config?.estimation?.customTshirt || ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
-                        : (config?.estimation?.customFibonacci || [0, 1, 2, 3, 5, 8, 13, 21])) as (string | number)[]
-                      ).map((val) => {
-                        const isSelected = String(estimate) === String(val);
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(() => {
+                        const baseOptions: (string | number)[] = (config?.estimation?.method === 'tshirt'
+                          ? (config?.estimation?.customTshirt || DEFAULT_TSHIRT)
+                          : (config?.estimation?.customFibonacci || DEFAULT_FIBONACCI));
+                        const isCustomActive = customEstimateInput !== '';
+
                         return (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setEstimate(isSelected ? undefined : val)}
-                            aria-label={`${t('itemModal.estimateLabel')}: ${val}`}
-                            title={`${t('itemModal.estimateLabel')}: ${val}`}
-                            className={`px-2 py-1 rounded-md text-xs font-mono font-semibold transition-all ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/80 dark:border-white/[0.06]'
-                            }`}
-                          >
-                            {val}
-                          </button>
+                          <>
+                            {baseOptions.map((val) => {
+                              const isSelected = !isCustomActive && String(estimate) === String(val);
+                              return (
+                                <button
+                                  key={String(val)}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setEstimate(undefined);
+                                    } else {
+                                      setEstimate(val);
+                                      setCustomEstimateInput('');
+                                    }
+                                  }}
+                                  aria-label={`${t('itemModal.estimateLabel')}: ${val}`}
+                                  title={`${t('itemModal.estimateLabel')}: ${val}`}
+                                  className={`px-2 py-1 min-w-[26px] flex items-center justify-center rounded-md text-xs font-mono font-semibold transition-all ${
+                                    isSelected
+                                      ? 'bg-indigo-600 text-white shadow-xs'
+                                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/80 dark:border-white/[0.06]'
+                                  }`}
+                                >
+                                  {val}
+                                </button>
+                              );
+                            })}
+
+                            {/* Unified inline custom SP pill */}
+                            {config?.estimation?.method !== 'tshirt' && (
+                              <div className="relative inline-flex items-center">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={customEstimateInput}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                                    setCustomEstimateInput(raw);
+                                    if (raw === '') {
+                                      setEstimate(undefined);
+                                    } else {
+                                      const num = parseInt(raw, 10);
+                                      setEstimate(isNaN(num) ? undefined : num);
+                                    }
+                                  }}
+                                  placeholder={t('itemModal.enterPoints')}
+                                  aria-label={t('itemModal.customEstimate')}
+                                  title={t('itemModal.customEstimate')}
+                                  className={`w-14 h-7 px-1.5 text-center text-xs font-mono font-semibold rounded-md border transition-all outline-none ${
+                                    isCustomActive
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs placeholder:text-indigo-200'
+                                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:text-slate-900 dark:focus:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'
+                                  }`}
+                                />{/* ux-audit-ignore UX-001: story points integer counter, not a monetary amount */}
+                              </div>
+                            )}
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
                 )}

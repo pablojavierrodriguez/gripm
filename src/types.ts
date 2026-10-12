@@ -168,6 +168,9 @@ export type ProjectMethodology = 'kanban' | 'scrum' | 'scrumban';
 
 export type EstimationMethod = 'fibonacci' | 'tshirt';
 
+export const DEFAULT_FIBONACCI: number[] = [0, 1, 2, 3, 5, 8, 13, 21];
+export const DEFAULT_TSHIRT: string[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
 export interface EstimationConfig {
   enabled: boolean;
   method: EstimationMethod;
@@ -183,11 +186,13 @@ export interface VisibleCardMetadata {
   priority?: boolean;
   parent?: boolean;
   blocked?: boolean;
+  estimate?: boolean;
 }
 
 export interface ModulesConfig {
   sprint?: boolean;
   release?: boolean;
+  calendar?: boolean;
 }
 
 export interface GripmConfig {
@@ -207,6 +212,7 @@ export interface GripmConfig {
   visibleCardMetadata?: VisibleCardMetadata;
   rankingEnabled?: boolean;
   autoSave?: boolean;
+  calendarExport?: boolean;
   customItemTypes?: CustomItemTypeConfig[];
   locale?: 'es' | 'en';
   version?: string;
@@ -232,6 +238,15 @@ export function isSprintModuleActive(config?: GripmConfig | null): boolean {
 export function isReleaseModuleActive(config?: GripmConfig | null): boolean {
   if (config?.modules?.release !== undefined) return config.modules.release;
   return config?.enabledTabs?.release !== false;
+}
+
+/**
+ * Resolves whether the Calendar Export capability is active.
+ */
+export function isCalendarModuleActive(config?: GripmConfig | null): boolean {
+  if (config?.calendarExport !== undefined) return config.calendarExport;
+  if (config?.modules?.calendar !== undefined) return config.modules.calendar;
+  return true;
 }
 
 

@@ -10,6 +10,7 @@ labels:
   - "ci-cd"
 dependencies:
   - "DEV-242"
+parent: "DEV-233"
 priority: medium
 type: chore
 ---
