@@ -196,7 +196,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     profile,
     methodology,
     enabledTabs,
-    devboardConfig: false,
+    gripmConfig: false,
     tasksDir: false,
     skill: false,
     agentsMd: false,
@@ -212,7 +212,6 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   }
 
   const configFile = path.join(gripmDir, 'config.json');
-  const legacyConfigFile = path.join(targetRepo, '.devboard', 'config.json');
   let currentConfig = {
     projectName,
     projectId,
@@ -236,7 +235,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     version: '1.0.0'
   };
 
-  const existingConfigPath = fs.existsSync(configFile) ? configFile : (fs.existsSync(legacyConfigFile) ? legacyConfigFile : null);
+  const existingConfigPath = fs.existsSync(configFile) ? configFile : null;
   if (existingConfigPath) {
     try {
       const existing = JSON.parse(fs.readFileSync(existingConfigPath, 'utf8'));
@@ -253,7 +252,6 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     } catch {}
   }
   fs.writeFileSync(configFile, JSON.stringify(currentConfig, null, 2) + '\n', 'utf8');
-  results.devboardConfig = true;
   results.gripmConfig = true;
   console.log(`  ✅ .gripm/config.json guardado (Proyecto: ${projectName}, Idioma: ${currentConfig.language}, Modo: ${mode === 'single' ? 'Mono-Proyecto' : 'Multi-Proyecto Hub'})`);
 

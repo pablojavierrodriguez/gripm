@@ -246,7 +246,7 @@ export interface FsBrowseResult {
   folders: Array<{ name: string; path: string; isGit: boolean; hasBacklog: boolean }>;
   isGit: boolean;
   hasBacklog: boolean;
-  hasDevBoard: boolean;
+  hasGripm: boolean;
   warning?: string;
 }
 

@@ -11,6 +11,8 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
+En preparación: `1.2.0`.
+
 ---
 
 ## [1.1.0] — 2026-10-09 🚀 Arquitectura Canónica, Gatekeeper MCP, Perfiles CLI y Desacople de Flujos

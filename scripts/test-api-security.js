@@ -12,10 +12,10 @@ console.log('🛡️  [Security Test] Verificando mitigaciones de CSRF, DNS Rebi
 const viteConfigModule = await import('../vite.config.ts');
 const rawConfig = viteConfigModule.default;
 const config = typeof rawConfig === 'function' ? await rawConfig({ command: 'serve', mode: 'development' }) : rawConfig;
-const devBoardPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-dev-board-api');
+const gripmPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-gripm-api');
 
-if (!devBoardPlugin || typeof devBoardPlugin.configureServer !== 'function') {
-  throw new Error('Plugin vite-plugin-dev-board-api no encontrado en vite.config.ts');
+if (!gripmPlugin || typeof gripmPlugin.configureServer !== 'function') {
+  throw new Error('Plugin vite-plugin-gripm-api no encontrado en vite.config.ts');
 }
 
 let middlewareHandler = null;
@@ -28,7 +28,7 @@ const mockServer = {
   }
 };
 
-devBoardPlugin.configureServer(mockServer);
+gripmPlugin.configureServer(mockServer);
 
 if (!middlewareHandler) {
   throw new Error('configureServer no registró apiMiddleware');
@@ -37,7 +37,7 @@ if (!middlewareHandler) {
 // DEV-190: release the fs.watch handles this hook opened. They are real watches
 // on real directories and, since FSWatcher cannot be unref'd, they kept the
 // process alive after the assertions finished.
-try { devBoardPlugin.closeWatchers?.(); } catch {}
+try { gripmPlugin.closeWatchers?.(); } catch {}
 
 class MockResponse extends EventEmitter {
   constructor() {
@@ -77,7 +77,6 @@ class MockRequest extends EventEmitter {
 
 // Test 1: Malicious Origin blocked (CSRF mitigation)
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'https://malicious.com' });
   const res = new MockResponse();
@@ -90,7 +89,6 @@ class MockRequest extends EventEmitter {
 
 // Test 2: Local Origin allowed
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
   const res = new MockResponse();
@@ -102,7 +100,6 @@ class MockRequest extends EventEmitter {
 
 // Test 3: DNS Rebinding attack blocked
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', '/api/data', { host: 'evil-rebinding.attacker.com:4100' });
   const res = new MockResponse();
@@ -115,7 +112,6 @@ class MockRequest extends EventEmitter {
 
 // Test 4: Mutating request without application/json rejected
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('POST', '/api/projects', { host: 'localhost:4100', 'content-type': 'text/plain' });
   const res = new MockResponse();
@@ -128,7 +124,6 @@ class MockRequest extends EventEmitter {
 
 // Test 5: Host 0.0.0.0 blocks DNS Rebinding domains
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = '0.0.0.0';
   const req = new MockRequest('GET', '/api/data', { host: 'evil-attacker.com:4100' });
   const res = new MockResponse();
@@ -141,7 +136,6 @@ class MockRequest extends EventEmitter {
 
 // Test 6: Host 0.0.0.0 blocks cross-origin requests from arbitrary external websites
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = '0.0.0.0';
   const req = new MockRequest('POST', '/api/projects', { host: '192.168.1.100:4100', origin: 'https://evil.com', 'content-type': 'application/json' });
   const res = new MockResponse();
@@ -154,7 +148,6 @@ class MockRequest extends EventEmitter {
 
 // Test 7: Host 0.0.0.0 allows LAN client with matching IP origin
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = '0.0.0.0';
   const req = new MockRequest('GET', '/api/data', { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100' });
   const res = new MockResponse();
@@ -166,7 +159,6 @@ class MockRequest extends EventEmitter {
 
 // Test 8: OPTIONS preflight sets Vary: Origin
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('OPTIONS', '/api/data', { host: 'localhost:4100', origin: 'http://localhost:4100' });
   const res = new MockResponse();
@@ -179,7 +171,6 @@ class MockRequest extends EventEmitter {
 
 // Test 9: FS Containment: GET /api/fs/browse escaping roots rejected
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', '/api/fs/browse?dir=/etc', { host: 'localhost:4100' });
   const res = new MockResponse();
@@ -193,7 +184,6 @@ class MockRequest extends EventEmitter {
 
 // Test 10: FS Containment: GET /api/fs/browse with path traversal rejected
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', `/api/fs/browse?dir=${os.homedir()}/../../etc`, { host: 'localhost:4100' });
   const res = new MockResponse();
@@ -207,7 +197,6 @@ class MockRequest extends EventEmitter {
 
 // Test 11: FS Containment: Allowed directory returns 200 OK
 {
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
   const req = new MockRequest('GET', `/api/fs/browse?dir=${os.homedir()}`, { host: 'localhost:4100' });
   const res = new MockResponse();
@@ -239,7 +228,6 @@ class MockRequest extends EventEmitter {
 // Test 13: Runtime Interchangeability & Mode Precedence (DEV-240)
 {
   const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  delete process.env.DEVBOARD_HOST;
   process.env.GRIPM_HOST = 'localhost';
 
   // 1. In multi mode (--hub), GET /api/data reports singleProject === false

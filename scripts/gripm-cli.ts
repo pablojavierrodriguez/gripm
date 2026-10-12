@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * DevBoard CLI
+ * gripm CLI
  * Herramienta de línea de comandos para consultar, analizar y mutar en lote tareas del backlog
  * de forma limpia, eficiente en tokens y agnóstica del almacenamiento (Markdown o JSON).
  */
@@ -45,7 +45,7 @@ function getProject(projectId?: string) {
   }
 
   const hasMdBacklog = fs.existsSync(path.join(cwd, 'backlog/tasks'));
-  const hasJsonBacklog = fs.existsSync(path.join(cwd, '.gripm/backlog.json')) || fs.existsSync(path.join(cwd, '.devboard/backlog.json'));
+  const hasJsonBacklog = fs.existsSync(path.join(cwd, '.gripm/backlog.json'));
   if (hasMdBacklog || hasJsonBacklog) {
     const identity = resolveProjectIdentity(cwd);
     return {
@@ -70,11 +70,7 @@ function getProject(projectId?: string) {
 function resolveJsonBacklogPath(p: any): string {
   if (p.isDemo) return DEMO_FILE;
   if (p.repoPath) {
-    const gPath = path.join(p.repoPath, '.gripm/backlog.json');
-    if (fs.existsSync(gPath)) return gPath;
-    const dPath = path.join(p.repoPath, '.devboard/backlog.json');
-    if (fs.existsSync(dPath)) return dPath;
-    return gPath;
+    return path.join(p.repoPath, '.gripm/backlog.json');
   }
   return path.join(ROOT_DIR, `data/${p.id}-backlog.json`);
 }
@@ -190,7 +186,7 @@ async function main() {
 
   const project = getProject(projectId);
   if (!project) {
-    console.error('❌ No se encontró ningún proyecto registrado en DevBoard.');
+    console.error('❌ No se encontró ningún proyecto registrado en gripm.');
     process.exit(1);
   }
 

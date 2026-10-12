@@ -1,9 +1,9 @@
 ---
 id: DEV-238
 title: "Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo"
-status: draft
+status: ready
 created_date: '2026-10-11'
-updated_date: '2026-10-11'
+updated_date: '2026-10-12'
 labels:
   - "tech-debt"
   - "cleanup"
@@ -54,13 +54,13 @@ Tras la consolidación como paquete autónomo `@gripm/board`, no existe justific
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
-- [ ] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
-- [ ] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
-- [ ] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
-- [ ] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
-- [ ] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
-- [ ] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
+- [x] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
+- [x] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
+- [x] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
+- [x] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
+- [x] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
+- [x] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
+- [x] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
 <!-- AC:END -->
 
 ## Implementation Notes

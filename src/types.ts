@@ -210,10 +210,6 @@ export function isReleaseModuleActive(config?: GripmConfig | null): boolean {
   return config?.enabledTabs?.release !== false;
 }
 
-/**
- * @deprecated Use GripmConfig instead. Kept for backwards compatibility.
- */
-export type DevBoardConfig = GripmConfig;
 
 export interface FilterState {
   search: string;

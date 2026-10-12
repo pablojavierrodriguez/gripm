@@ -42,7 +42,7 @@ body:
       description: ¿Qué modalidad de persistencia tiene configurada tu proyecto?
       options:
         - "Markdown distribuido (backlog/tasks/*.md)"
-        - "JSON monolítico (.devboard/backlog.json)"
+        - "JSON monolítico (.gripm/backlog.json)"
         - "No estoy seguro / N/A"
     validations:
       required: true

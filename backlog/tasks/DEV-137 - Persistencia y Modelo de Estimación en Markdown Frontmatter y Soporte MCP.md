@@ -12,6 +12,7 @@ labels:
   - "devboard-core"
 dependencies:
   - "DEV-136"
+parent: "DEV-247"
 priority: high
 type: feature
 ---

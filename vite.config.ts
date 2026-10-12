@@ -140,7 +140,7 @@ function getAllowedBrowseRoots(): string[] {
       }
     }
   } catch {}
-  const extra = process.env.GRIPM_ALLOWED_PATHS || process.env.DEVBOARD_ALLOWED_PATHS;
+  const extra = process.env.GRIPM_ALLOWED_PATHS;
   if (extra) {
     for (const p of extra.split(path.delimiter)) {
       if (p.trim()) {
@@ -198,9 +198,9 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
     reg = { activeProjectId: '', projects: [] };
   }
 
-  // DEV-040: Auto-discover local repo if running inside a repo with .gripm/, .devboard/ or backlog/
+  // DEV-040: Auto-discover local repo if running inside a repo with .gripm/ or backlog/
   const cwd = process.cwd();
-  const hasLocalGripm = fs.existsSync(path.join(cwd, '.gripm')) || fs.existsSync(path.join(cwd, '.devboard')) || fs.existsSync(path.join(cwd, 'backlog'));
+  const hasLocalGripm = fs.existsSync(path.join(cwd, '.gripm')) || fs.existsSync(path.join(cwd, 'backlog'));
   if (hasLocalGripm) {
     const cwdResolved = path.resolve(cwd);
     const existingLocal = reg.projects.find((p: ProjectMeta) => p.repoPath && path.resolve(p.repoPath) === cwdResolved);
@@ -248,7 +248,7 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
           id: 'demo',
           name: 'Proyecto Demo (Tour)',
           codePrefix: 'DEMO',
-          description: 'Proyecto de demostración de DevBoard. Puedes explorarlo o eliminarlo en cualquier momento.',
+          description: 'Proyecto de demostración de gripm. Puedes explorarlo o eliminarlo en cualquier momento.',
           isDemo: true,
           storageType: 'json' as const,
           createdAt: new Date().toISOString()
@@ -287,22 +287,14 @@ function getProjectBacklogPath(project: ProjectMeta): string {
     return DEMO_FILE;
   }
   if (project.repoPath) {
-    const gripmPath = path.join(project.repoPath, '.gripm/backlog.json');
-    if (fs.existsSync(gripmPath)) return gripmPath;
-    const devboardPath = path.join(project.repoPath, '.devboard/backlog.json');
-    if (fs.existsSync(devboardPath)) return devboardPath;
-    return gripmPath;
+    return path.join(project.repoPath, '.gripm/backlog.json');
   }
   return path.resolve(__dirname, `data/${project.id}-backlog.json`);
 }
 
 function getConfigFilepath(project?: ProjectMeta): string {
   const repo = project?.repoPath || process.cwd();
-  const gripmCfg = path.join(repo, '.gripm/config.json');
-  if (fs.existsSync(gripmCfg)) return gripmCfg;
-  const devboardCfg = path.join(repo, '.devboard/config.json');
-  if (fs.existsSync(devboardCfg)) return devboardCfg;
-  return gripmCfg;
+  return path.join(repo, '.gripm/config.json');
 }
 
 const DEFAULT_CONFIG = {
@@ -322,25 +314,7 @@ const DEFAULT_CONFIG = {
 };
 
 function readProjectConfig(project?: ProjectMeta): any {
-  const repo = project?.repoPath || process.cwd();
-  const gripmCfg = path.join(repo, '.gripm/config.json');
-  const devboardCfg = path.join(repo, '.devboard/config.json');
-  let configFile = getConfigFilepath(project);
-
-  // Auto-migrate legacy .devboard/config.json to .gripm/config.json if found
-  if (!fs.existsSync(gripmCfg) && fs.existsSync(devboardCfg)) {
-    try {
-      const legacyData = fs.readFileSync(devboardCfg, 'utf8');
-      if (!fs.existsSync(path.dirname(gripmCfg))) {
-        fs.mkdirSync(path.dirname(gripmCfg), { recursive: true });
-      }
-      fs.writeFileSync(gripmCfg, legacyData, 'utf8');
-      configFile = gripmCfg;
-    } catch {
-      configFile = devboardCfg;
-    }
-  }
-
+  const configFile = getConfigFilepath(project);
   try {
     if (fs.existsSync(configFile)) {
       const raw = fs.readFileSync(configFile, 'utf8');
@@ -536,7 +510,7 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
             mtime: Math.round(fileStat.mtimeMs)
           });
         } catch (err) {
-          console.warn(`[DevBoard Backlog.md] Error reading ${filename}:`, err);
+          console.warn(`[gripm Backlog.md] Error reading ${filename}:`, err);
         }
       }
 
@@ -560,7 +534,7 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
             }
             fs.writeFileSync(releasesPath, JSON.stringify(releases, null, 2), 'utf8');
           } catch (writeErr: any) {
-            console.warn(`[DevBoard API] Error persisting auto-synced releases:`, writeErr.message);
+            console.warn(`[gripm API] Error persisting auto-synced releases:`, writeErr.message);
           }
         }
       }
@@ -685,7 +659,7 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
         lastUpdated: new Date().toISOString()
       };
     } catch (err: any) {
-      console.warn(`[DevBoard API] Error reading Backlog.md tasks for ${project.id} at ${tasksDir}:`, err.message);
+      console.warn(`[gripm API] Error reading Backlog.md tasks for ${project.id} at ${tasksDir}:`, err.message);
       return {
         project: { ...project, storageType: 'markdown', error: err.message },
         items: [],
@@ -712,7 +686,7 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
         }
         fs.writeFileSync(filePath, JSON.stringify(initial, null, 2), 'utf8');
       } catch (writeErr: any) {
-        console.error(`[DevBoard API] Cannot initialize backlog at ${filePath}:`, writeErr.message);
+        console.error(`[gripm API] Cannot initialize backlog at ${filePath}:`, writeErr.message);
       }
       return initial;
     }
@@ -736,7 +710,7 @@ function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
       lastUpdated: parsed.lastUpdated || new Date().toISOString()
     };
   } catch (err: any) {
-    console.error(`[DevBoard API] Error reading backlog for project ${project.id} from ${filePath}:`, err.message);
+    console.error(`[gripm API] Error reading backlog for project ${project.id} from ${filePath}:`, err.message);
     return { project: { ...project, storageType: 'json', error: err.message }, items: [], releases: [], lastUpdated: new Date().toISOString() };
   }
 }
@@ -974,7 +948,7 @@ function saveBacklogMdItem(project: ProjectMeta, item: any) {
             fs.writeFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
           }
         } catch (syncErr: any) {
-          console.warn('[DevBoard API] Error sincronizando releases.json al guardar tarea:', syncErr.message);
+          console.warn('[gripm API] Error sincronizando releases.json al guardar tarea:', syncErr.message);
         }
       }
     }
@@ -1123,7 +1097,7 @@ function writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog) {
           fs.writeFileSync(path.join(dir, 'sprints.json'), JSON.stringify(data.sprints || [], null, 2), 'utf8');
         }
       } catch (err: any) {
-        console.warn(`[DevBoard API] Warning writing releases/sprints: ${err.message}`);
+        console.warn(`[gripm API] Warning writing releases/sprints: ${err.message}`);
       }
     }
     return;
@@ -1138,15 +1112,15 @@ function writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog) {
     }
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
   } catch (err: any) {
-    console.error(`[DevBoard API] Error writing project backlog to ${filePath}:`, err.message);
+    console.error(`[gripm API] Error writing project backlog to ${filePath}:`, err.message);
   }
 }
 
 /** DEV-190: the plugin exposes `closeWatchers` so callers can release the
  *  `fs.watch` handles, which cannot be unref'd. */
-type DevBoardPlugin = PluginOption & { closeWatchers?: () => void };
+type GripmPlugin = PluginOption & { closeWatchers?: () => void };
 
-function devBoardApi(): DevBoardPlugin {
+function gripmApi(): GripmPlugin {
   // SSE clients connection pool for real-time live sync (DEV-014)
   const sseClients = new Set<any>();
 
@@ -1196,11 +1170,9 @@ function devBoardApi(): DevBoardPlugin {
           if (fs.existsSync(backlogDir)) dirsToWatch.add(backlogDir);
           const gripmDir = path.join(p.repoPath, '.gripm');
           if (fs.existsSync(gripmDir)) dirsToWatch.add(gripmDir);
-          const devboardDir = path.join(p.repoPath, '.devboard');
-          if (fs.existsSync(devboardDir)) dirsToWatch.add(devboardDir);
         }
       } catch (err: any) {
-        console.warn(`[DevBoard Watcher] Error checking repoPath for ${p.id}:`, err.message);
+        console.warn(`[gripm Watcher] Error checking repoPath for ${p.id}:`, err.message);
       }
     }
 
@@ -1219,7 +1191,7 @@ function devBoardApi(): DevBoardPlugin {
     for (const dir of dirsToWatch) {
       try {
         const watcher = fs.watch(dir, { recursive: true }, (_eventType, filename) => {
-          if (filename && (filename.endsWith('.log') || filename.endsWith('.tmp') || filename.includes('.git') || (filename.startsWith('.') && !filename.includes('devboard') && !filename.includes('backlog')))) {
+          if (filename && (filename.endsWith('.log') || filename.endsWith('.tmp') || filename.includes('.git') || (filename.startsWith('.') && !filename.includes('gripm') && !filename.includes('backlog')))) {
             return;
           }
           notifyChange(dir, filename);
@@ -1229,7 +1201,7 @@ function devBoardApi(): DevBoardPlugin {
         // was silently dead code. Cleanup goes through closeWatchers().
         activeWatchers.push(watcher);
       } catch (err: any) {
-        console.warn(`[DevBoard Watcher] Could not watch ${dir}:`, err.message);
+        console.warn(`[gripm Watcher] Could not watch ${dir}:`, err.message);
       }
     }
   }
@@ -1254,11 +1226,11 @@ function devBoardApi(): DevBoardPlugin {
 
     const hostHeader = (req.headers.host || '').split(':')[0].toLowerCase();
     const originHeader = req.headers.origin;
-    const configuredHost = (process.env.DEVBOARD_HOST || process.env.GRIPM_HOST || '127.0.0.1').toLowerCase();
+    const configuredHost = (process.env.GRIPM_HOST || '127.0.0.1').toLowerCase();
     const isLoopbackHost = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostHeader);
     const isIpHost = /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(hostHeader) ||
                      hostHeader.includes(':') || hostHeader.endsWith('.local');
-    const extraAllowedHosts = (process.env.GRIPM_ALLOWED_HOSTS || process.env.DEVBOARD_ALLOWED_HOSTS || '')
+    const extraAllowedHosts = (process.env.GRIPM_ALLOWED_HOSTS || '')
       .split(',')
       .map((h: string) => h.trim().toLowerCase())
       .filter(Boolean);
@@ -1410,13 +1382,13 @@ function devBoardApi(): DevBoardPlugin {
         const handle = async () => {
           try {
             const registry = getRegistry();
-            const targetRepoEnv = process.env.GRIPM_TARGET_REPO || process.env.DEVBOARD_TARGET_REPO;
+            const targetRepoEnv = process.env.GRIPM_TARGET_REPO;
 
             // In single-project mode: resolve strictly the targeted repo; in multi-project mode: honor registry.activeProjectId
             const targetRepo = targetRepoEnv ? path.resolve(targetRepoEnv) : path.resolve(process.cwd());
             const targetProject = registry.projects.find(p => p.repoPath && path.resolve(p.repoPath) === targetRepo);
             const projectConfig = (targetProject || registry.projects[0]) ? readProjectConfig(targetProject || registry.projects[0]) : null;
-            const envMode = process.env.GRIPM_MODE || process.env.DEVBOARD_MODE;
+            const envMode = process.env.GRIPM_MODE;
             const configuredMode = envMode || projectConfig?.mode;
             const isMultiMode = configuredMode === 'multi';
             const isSingleMode = configuredMode === 'single'
@@ -1914,7 +1886,7 @@ function devBoardApi(): DevBoardPlugin {
                   id: 'demo',
                   name: 'Proyecto Demo (Tour)',
                   codePrefix: 'DEMO',
-                  description: 'Proyecto de demostración de DevBoard. Puedes explorarlo o eliminarlo en cualquier momento.',
+                  description: 'Proyecto de demostración de gripm. Puedes explorarlo o eliminarlo en cualquier momento.',
                   isDemo: true,
                   storageType: 'json',
                   createdAt: new Date().toISOString()
@@ -1947,7 +1919,7 @@ function devBoardApi(): DevBoardPlugin {
               });
             }
 
-            // DELETE /api/projects/:id (Unlink project from DevBoard)
+            // DELETE /api/projects/:id (Unlink project from gripm)
             if (req.method === 'DELETE' && url.startsWith('/api/projects/')) {
               const id = decodeURIComponent(url.replace('/api/projects/', '').split('?')[0]);
               const initialLen = registry.projects.length;
@@ -2019,7 +1991,7 @@ function devBoardApi(): DevBoardPlugin {
                 try {
                   entries = fs.readdirSync(targetDir, { withFileTypes: true });
                 } catch (readErr: any) {
-                  console.warn(`[DevBoard FS] Cannot scan ${targetDir}: ${readErr.message}`);
+                  console.warn(`[gripm FS] Cannot scan ${targetDir}: ${readErr.message}`);
                   dirWarning = readErr.code === 'EPERM' || readErr.code === 'EACCES'
                     ? `Permiso restringido por el sistema al explorar esta carpeta (${readErr.message}). Puedes escribir o pegar la ruta exacta manualmente.`
                     : `No se pudieron leer subcarpetas: ${readErr.message}`;
@@ -2053,11 +2025,11 @@ function devBoardApi(): DevBoardPlugin {
 
                 let isCurrentGit = false;
                 let hasCurrentBacklog = false;
-                let hasCurrentDevBoard = false;
+                let hasCurrentGripm = false;
                 try {
                   isCurrentGit = fs.existsSync(path.join(targetDir, '.git'));
                   hasCurrentBacklog = fs.existsSync(path.join(targetDir, 'backlog')) || fs.existsSync(path.join(targetDir, '.backlog'));
-                  hasCurrentDevBoard = fs.existsSync(path.join(targetDir, '.gripm')) || fs.existsSync(path.join(targetDir, '.devboard'));
+                  hasCurrentGripm = fs.existsSync(path.join(targetDir, '.gripm'));
                 } catch {}
 
                 return sendJson(200, {
@@ -2067,7 +2039,7 @@ function devBoardApi(): DevBoardPlugin {
                   folders,
                   isGit: isCurrentGit,
                   hasBacklog: hasCurrentBacklog,
-                  hasDevBoard: hasCurrentDevBoard,
+                  hasGripm: hasCurrentGripm,
                   warning: dirWarning
                 });
               } catch (browseErr: any) {
@@ -2340,7 +2312,7 @@ function devBoardApi(): DevBoardPlugin {
                     if (!fs.existsSync(path.dirname(releasesPath))) fs.mkdirSync(path.dirname(releasesPath), { recursive: true });
                     fs.writeFileSync(releasesPath, JSON.stringify(backlog.releases, null, 2), 'utf8');
                   } catch (err: any) {
-                    console.warn(`[DevBoard API] Error saving synced releases:`, err.message);
+                    console.warn(`[gripm API] Error saving synced releases:`, err.message);
                   }
                   broadcastSse('backlog_changed', { projectId: project.id, action: 'releases_synced', timestamp: Date.now() });
                 }
@@ -2618,7 +2590,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
                       if (!fs.existsSync(path.dirname(releasesPath))) fs.mkdirSync(path.dirname(releasesPath), { recursive: true });
                       fs.writeFileSync(releasesPath, JSON.stringify(boardData.releases, null, 2), 'utf8');
                     } catch (relErr: any) {
-                      console.warn('[DevBoard] Error saving releases during import:', relErr.message);
+                      console.warn('[gripm] Error saving releases during import:', relErr.message);
                     }
                   }
 
@@ -2644,7 +2616,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
                   });
                 }
               } catch (importErr: any) {
-                console.error('[DevBoard API] Error in /api/import:', importErr);
+                console.error('[gripm API] Error in /api/import:', importErr);
                 return sendJson(500, { ok: false, error: importErr.message });
               }
             }
@@ -2654,7 +2626,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
             if (err?.statusCode === 413) {
               return;
             }
-            console.error('[DevBoard API Error]', err);
+            console.error('[gripm API Error]', err);
             sendJson(500, { error: err.message || 'Internal server error' });
           }
         };
@@ -2663,7 +2635,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
   };
 
   return {
-    name: 'vite-plugin-dev-board-api',
+    name: 'vite-plugin-gripm-api',
     // DEV-190: exposed so tests (and embedders) can release the filesystem
     // watchers without waiting for a server close event. `fs.watch()` handles
     // cannot be unref'd, so an explicit release is the only way out.
@@ -2715,14 +2687,14 @@ ${Array.isArray(r.actions) && r.actions.length > 0
 }
 
 export default defineConfig(async () => {
-  const host = process.env.GRIPM_HOST || process.env.DEVBOARD_HOST || '127.0.0.1';
-  const defaultPort = parseInt(process.env.GRIPM_PORT || process.env.DEVBOARD_PORT || '4100', 10);
+  const host = process.env.GRIPM_HOST || '127.0.0.1';
+  const defaultPort = parseInt(process.env.GRIPM_PORT || '4100', 10);
   const resolvedPort = await findAvailablePort(defaultPort, host);
   const displayHost = host === '127.0.0.1' ? 'localhost' : host;
-  const isAutoOpenDisabled = process.env.GRIPM_OPEN === 'false' || process.env.DEVBOARD_OPEN === 'false' || process.env.CI === 'true';
+  const isAutoOpenDisabled = process.env.GRIPM_OPEN === 'false' || process.env.CI === 'true';
 
   return {
-    plugins: [react(), devBoardApi()],
+    plugins: [react(), gripmApi()],
     resolve: {
       dedupe: ['react', 'react-dom']
     },
@@ -2763,7 +2735,7 @@ export default defineConfig(async () => {
         ]
       },
       watch: {
-        ignored: ['**/backlog/**', '**/.gripm/**', '**/.devboard/**', '**/data/**']
+        ignored: ['**/backlog/**', '**/.gripm/**', '**/data/**']
       }
     }
   };

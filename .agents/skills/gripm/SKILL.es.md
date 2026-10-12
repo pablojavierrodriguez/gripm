@@ -203,7 +203,7 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 > Subir tareas con secretos, costes, vulnerabilidades no divulgadas o ideas confidenciales a una rama secundaria remota **NO las oculta del público**.
 
 ### Reglas Clave para Agentes de IA:
-1. **Respetar `.gitignore`:** Si el proyecto incluye `.devboard/` o `backlog/` en `.gitignore`, **NUNCA ejecutes `git add -f`** para forzar el versionado del backlog.
+1. **Respetar `.gitignore`:** Si el proyecto incluye `.gripm/` o `backlog/` en `.gitignore`, **NUNCA ejecutes `git add -f`** para forzar el versionado del backlog.
 2. **Backlog Local Soberano:** En repositorios públicos donde la planificación sea confidencial, el backlog se mantiene localmente en la máquina. Las herramientas MCP (`gripm_create_task`, `gripm_update_task`, etc.) funcionan perfectamente sin requerir `git push`.
 3. **Cero Secretos en Tareas:** Nunca agregues claves de API, contraseñas, URLs privadas con tokens o datos sensibles de clientes en títulos, descripciones o planes de tareas.
 4. **Trazabilidad y No Destrucción:** NUNCA elimines físicamente archivos de tareas resueltas (`done`). Las tareas completadas son la justificación histórica de los cambios en el código. Si una tarea es descartada, márcala como `dismissed` (gripm la preservará automáticamente en `backlog/archive/`).

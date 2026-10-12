@@ -115,7 +115,83 @@ Permitir a los usuarios vincular tareas o hitos de entrega con sus calendarios p
 
 ---
 
-### 🚀 Ready for Deploy (12)
+### ⚡ In Progress / Doing (1)
+
+#### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
+- **Prioridad**: `high` | **Tipo**: `initiative`
+
+Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codigo de
+`src/`, capa de tooling en `scripts/`, capa de reglas y documentacion, y artefactos de
+proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
+reconstruccion de la cadena de incidentes de CI.
+
+**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
+Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
+proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
+backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
+
+### Como se referencian los hallazgos
+
+El informe asigna un ID estable a cada hallazgo, con prefijo por dominio:
+
+| Prefijo | Significado | Hallazgos |
+|---|---|---|
+| `SEC-xx` | Seguridad | 10 |
+| `BUG-xx` | Defecto funcional | 19 |
+| `GATE-xx` | El gate de calidad no cumple su contrato | 17 |
+| `TOOL-xx` | Defecto de tooling / scripts | 12 |
+| `PROC-xx` | Proceso, datos o trazabilidad | 16 |
+| `DOC-xx` | Documentacion y reglas | 20 |
+| `ARCH-xx` | Deuda tecnica estructural | 9 |
+| `OK-xx` | Acierto a preservar, normativo | 17 |
+
+**Total: 103 hallazgos verificados + 17 aciertos documentados como normativa.**
+
+Conteo obtenido del documento, no estimado: cada ID con definicion aparece como seccion
+`### XXX-nn` (83 de 104) o como fila de tabla en §8.5 y §10 (los `DOC-xx` y `OK-xx`).
+El ID `PROC-17` aparece unicamente dentro de la fe de erratas de §0.4,
+como referencia al numbering anterior.
+
+Los IDs sobreviven al documento: permiten que tareas hijas, commits y revisiones se
+refieran a algo concreto. `SEC-01`, `BUG-01` y `GATE-03` significan lo mismo dentro de seis
+meses.
+
+### El hallazgo que resume todos los demas
+
+**El gate de calidad estuvo verde todo el tiempo porque midio presencia de codigo, no
+comportamiento.**
+
+`npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan
+`Rendered more hooks than during the previous render` y matan la aplicacion al abrirse.
+`scripts/verify-focus-trap.js` tiene el chequeo de orden de hooks correcto y lo aplico
+**unicamente al unico archivo que ya complyia**.
+
+### La razon de esta tarea
+
+La auditoria anterior (`docs/informe-auditoria.md`, cerrada en DEV-181) ejecuto sus
+recomendaciones pero no dejo nada verificable: no habia forma de saber meses despues si un
+hallazgo seguía abierto. Esta tarea existe para no repetir eso. Cada fase de la seccion 11
+del informe tiene una columna "Verificacion de cierre" con un comando ejecutable.
+
+### Regla de cierre heredada del informe
+
+> Un hallazgo pasa a cerrado cuando su comando de verificacion deja de detectar el
+> problema **y** un comando de regresion lo impediria volver a aparecer.
+>
+> Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
+
+**Criterios de Aceptación:**
+- [ ] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [ ] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
+- [ ] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
+- [ ] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
+- [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
+- [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
+- [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
+
+---
+
+### 🚀 Ready for Deploy (13)
 
 #### [DEV-164] Code-Splitting del Bundle de Producción con React.lazy y manualChunks en Rollup
 - **Prioridad**: `medium` | **Tipo**: `refactor`
@@ -275,6 +351,53 @@ Al invocar la acción "Restaurar Proyecto Demo" desde el selector de proyectos, 
 - [x] #4 handleRestoreDemo en App.tsx conmuta selectedProjectId a demo y renderiza inmediatamente el tablero demo
 - [x] #5 Prueba estática en test-api-security.js valida que todo fetch POST/PUT en src/api.ts incluye Content-Type application/json
 - [x] #6 Pirámide de verificación en verde (tsc --noEmit, npm test, backlog:sync, backlog:check)
+
+---
+
+#### [DEV-238] Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Invariante canónico del proyecto: **"Cualquier referencia en código activo a `dev-board`, `devboard`, `.devboard` o `DEVBOARD_*` es un defecto si no es `gripm`"**.
+
+Tras la consolidación como paquete autónomo `@gripm/board`, no existe justificación para sostener capas de compatibilidad con versiones pre-1.0. Esta tarea define la purga atómica e integral de todas las variantes del nombre histórico en el código fuente.
+
+### Inventario de las 5 Capas de Purga
+
+1. **Variables de entorno de proceso:**
+   - Erradicar todos los operadores fallback `|| process.env.DEVBOARD_*` en `vite.config.ts`, `bin/gripm.js`, `scripts/registryConfig.js` y `scripts/updateChecker.js`.
+   - Variables a purgar: `DEVBOARD_MODE`, `DEVBOARD_HOST`, `DEVBOARD_PORT`, `DEVBOARD_OPEN`, `DEVBOARD_ALLOWED_PATHS`, `DEVBOARD_ALLOWED_HOSTS`, `DEVBOARD_HOME`, `DEVBOARD_REGISTRY_PATH`, `DEVBOARD_TARGET_REPO`, `DEVBOARD_NO_UPDATE_CHECK`.
+   - Único contrato válido: `GRIPM_*`.
+
+2. **Directorios y rutas en disco:**
+   - Purgar búsquedas de carpetas `.devboard/` y archivos `.devboard/config.json` o `.devboard/backlog.json` en `vite.config.ts` y scripts.
+   - Purgar referencias a `data/dev-board.json` y `data/projects-registry.json` (incluyendo `.gitignore` y scripts de empaquetado).
+   - Único contrato válido: `.gripm/`.
+
+3. **Claves de almacenamiento en navegador (`src/utils/storage.ts`):**
+   - Retirar los 9 arrays de claves alias legacy (`devboard-theme`, `devboard_active_tab`, `devboard_active_project_id`, `devboard_kanban_sprint`, etc.).
+   - Único contrato válido: `gripm_*` / `gripm-*`.
+
+4. **Nombres internos, plugins y contratos de TypeScript:**
+   - En `vite.config.ts`: renombrar `devBoardApi()` a `gripmApi()`, `DevBoardPlugin` a `GripmPlugin`, y el nombre del plugin `'vite-plugin-dev-board-api'` a `'vite-plugin-gripm-api'`.
+   - En `src/types.ts`: eliminar alias de tipo `export type DevBoardConfig = GripmConfig`.
+   - En `src/api.ts`: renombrar propiedad `hasDevBoard` a `hasGripm`.
+   - En `scripts/registryConfig.js`: renombrar `getDevBoardHomeDir()` a `getGripmHomeDir()`.
+
+5. **Logs de consola y textos de usuario:**
+   - Reemplazar prefijos de log `[DevBoard API]`, `[DevBoard Watcher]`, `[DevBoard FS]`, `[DevBoard Backlog.md]` por `[gripm ...]`.
+   - Corregir descripción del proyecto demo en `vite.config.ts` ("Proyecto de demostración de gripm").
+
+6. **Actualización de suites de test:**
+   - Actualizar `scripts/test-api-security.js`, `scripts/verify-integration.js`, `scripts/verify-optimistic-locking.js`, `scripts/verify-sse.js` y `scripts/verify-legacy-import.js` para buscar e interactuar exclusivamente con `'vite-plugin-gripm-api'` y variables `GRIPM_*`.
+
+**Criterios de Aceptación:**
+- [x] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
+- [x] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
+- [x] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
+- [x] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
+- [x] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
+- [x] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
+- [x] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
 
 ---
 
@@ -475,7 +598,7 @@ Endurecimiento de la cadena de suministro y workflows de CI/CD en `.github/workf
 
 ---
 
-### 📋 Backlog / Draft (19)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -923,127 +1046,6 @@ Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics
 
 ---
 
-#### [DEV-233] Auditoria integral 2026-10-10 y plan de remediacion por fases
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codigo de
-`src/`, capa de tooling en `scripts/`, capa de reglas y documentacion, y artefactos de
-proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
-reconstruccion de la cadena de incidentes de CI.
-
-**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
-Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
-proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
-backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
-
-### Como se referencian los hallazgos
-
-El informe asigna un ID estable a cada hallazgo, con prefijo por dominio:
-
-| Prefijo | Significado | Hallazgos |
-|---|---|---|
-| `SEC-xx` | Seguridad | 10 |
-| `BUG-xx` | Defecto funcional | 19 |
-| `GATE-xx` | El gate de calidad no cumple su contrato | 17 |
-| `TOOL-xx` | Defecto de tooling / scripts | 12 |
-| `PROC-xx` | Proceso, datos o trazabilidad | 16 |
-| `DOC-xx` | Documentacion y reglas | 20 |
-| `ARCH-xx` | Deuda tecnica estructural | 9 |
-| `OK-xx` | Acierto a preservar, normativo | 17 |
-
-**Total: 103 hallazgos verificados + 17 aciertos documentados como normativa.**
-
-Conteo obtenido del documento, no estimado: cada ID con definicion aparece como seccion
-`### XXX-nn` (83 de 104) o como fila de tabla en §8.5 y §10 (los `DOC-xx` y `OK-xx`).
-El ID `PROC-17` aparece unicamente dentro de la fe de erratas de §0.4,
-como referencia al numbering anterior.
-
-Los IDs sobreviven al documento: permiten que tareas hijas, commits y revisiones se
-refieran a algo concreto. `SEC-01`, `BUG-01` y `GATE-03` significan lo mismo dentro de seis
-meses.
-
-### El hallazgo que resume todos los demas
-
-**El gate de calidad estuvo verde todo el tiempo porque midio presencia de codigo, no
-comportamiento.**
-
-`npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan
-`Rendered more hooks than during the previous render` y matan la aplicacion al abrirse.
-`scripts/verify-focus-trap.js` tiene el chequeo de orden de hooks correcto y lo aplico
-**unicamente al unico archivo que ya complyia**.
-
-### La razon de esta tarea
-
-La auditoria anterior (`docs/informe-auditoria.md`, cerrada en DEV-181) ejecuto sus
-recomendaciones pero no dejo nada verificable: no habia forma de saber meses despues si un
-hallazgo seguía abierto. Esta tarea existe para no repetir eso. Cada fase de la seccion 11
-del informe tiene una columna "Verificacion de cierre" con un comando ejecutable.
-
-### Regla de cierre heredada del informe
-
-> Un hallazgo pasa a cerrado cuando su comando de verificacion deja de detectar el
-> problema **y** un comando de regresion lo impediria volver a aparecer.
->
-> Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
-
-**Criterios de Aceptación:**
-- [ ] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
-- [ ] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
-- [ ] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
-- [ ] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
-- [ ] #5 Cada fase que se abra genera tareas hijas con `dependencies: [DEV-233]` y un ID propio, para que el cierre sea rastreable por tarea y no por opinion
-- [ ] #6 Ningun hallazgo se marca cerrado sin que su comando de verificacion deje de detectar el problema Y exista un comando de regresion que lo impida reaparecer
-- [ ] #7 El informe anterior `docs/informe-auditoria.md` queda referenciado desde DEV-181 con la nota de que fue cerrado sin verificacion, como antecedente del porque de esta tarea
-
----
-
-#### [DEV-238] Erradicación total de referencias legacy DevBoard (devboard, dev-board, .devboard, DEVBOARD_*) en código activo
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-Invariante canónico del proyecto: **"Cualquier referencia en código activo a `dev-board`, `devboard`, `.devboard` o `DEVBOARD_*` es un defecto si no es `gripm`"**.
-
-Tras la consolidación como paquete autónomo `@gripm/board`, no existe justificación para sostener capas de compatibilidad con versiones pre-1.0. Esta tarea define la purga atómica e integral de todas las variantes del nombre histórico en el código fuente.
-
-### Inventario de las 5 Capas de Purga
-
-1. **Variables de entorno de proceso:**
-   - Erradicar todos los operadores fallback `|| process.env.DEVBOARD_*` en `vite.config.ts`, `bin/gripm.js`, `scripts/registryConfig.js` y `scripts/updateChecker.js`.
-   - Variables a purgar: `DEVBOARD_MODE`, `DEVBOARD_HOST`, `DEVBOARD_PORT`, `DEVBOARD_OPEN`, `DEVBOARD_ALLOWED_PATHS`, `DEVBOARD_ALLOWED_HOSTS`, `DEVBOARD_HOME`, `DEVBOARD_REGISTRY_PATH`, `DEVBOARD_TARGET_REPO`, `DEVBOARD_NO_UPDATE_CHECK`.
-   - Único contrato válido: `GRIPM_*`.
-
-2. **Directorios y rutas en disco:**
-   - Purgar búsquedas de carpetas `.devboard/` y archivos `.devboard/config.json` o `.devboard/backlog.json` en `vite.config.ts` y scripts.
-   - Purgar referencias a `data/dev-board.json` y `data/projects-registry.json` (incluyendo `.gitignore` y scripts de empaquetado).
-   - Único contrato válido: `.gripm/`.
-
-3. **Claves de almacenamiento en navegador (`src/utils/storage.ts`):**
-   - Retirar los 9 arrays de claves alias legacy (`devboard-theme`, `devboard_active_tab`, `devboard_active_project_id`, `devboard_kanban_sprint`, etc.).
-   - Único contrato válido: `gripm_*` / `gripm-*`.
-
-4. **Nombres internos, plugins y contratos de TypeScript:**
-   - En `vite.config.ts`: renombrar `devBoardApi()` a `gripmApi()`, `DevBoardPlugin` a `GripmPlugin`, y el nombre del plugin `'vite-plugin-dev-board-api'` a `'vite-plugin-gripm-api'`.
-   - En `src/types.ts`: eliminar alias de tipo `export type DevBoardConfig = GripmConfig`.
-   - En `src/api.ts`: renombrar propiedad `hasDevBoard` a `hasGripm`.
-   - En `scripts/registryConfig.js`: renombrar `getDevBoardHomeDir()` a `getGripmHomeDir()`.
-
-5. **Logs de consola y textos de usuario:**
-   - Reemplazar prefijos de log `[DevBoard API]`, `[DevBoard Watcher]`, `[DevBoard FS]`, `[DevBoard Backlog.md]` por `[gripm ...]`.
-   - Corregir descripción del proyecto demo en `vite.config.ts` ("Proyecto de demostración de gripm").
-
-6. **Actualización de suites de test:**
-   - Actualizar `scripts/test-api-security.js`, `scripts/verify-integration.js`, `scripts/verify-optimistic-locking.js`, `scripts/verify-sse.js` y `scripts/verify-legacy-import.js` para buscar e interactuar exclusivamente con `'vite-plugin-gripm-api'` y variables `GRIPM_*`.
-
-**Criterios de Aceptación:**
-- [ ] #1 Cero ocurrencias de variables process.env.DEVBOARD_* en código fuente activo
-- [ ] #2 Cero referencias a carpetas .devboard/ o archivos dev-board.json en el runtime y scripts
-- [ ] #3 src/utils/storage.ts purgado de arrays de claves de retrocompatibilidad devboard_*
-- [ ] #4 vite.config.ts y types.ts renombran plugins y contratos internos a gripmApi / vite-plugin-gripm-api
-- [ ] #5 Logs de consola y descripciones en runtime estandarizados 100% en gripm
-- [ ] #6 Suites de prueba actualizadas al nuevo estándar sin romper ningún paso de la suite
-- [ ] #7 Pirámide de verificación en verde (tsc --noEmit, npm test con 16 pasos, backlog:sync, backlog:check)
-
----
-
 #### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
 - **Prioridad**: `medium` | **Tipo**: `feature`
 
@@ -1061,6 +1063,31 @@ Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN pued
 - [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
 - [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
 - [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
+
+---
+
+#### [DEV-247] Épica: Sistema Integral de Estimación de Tareas (Story Points y T-Shirt Sizes)
+- **Prioridad**: `high` | **Tipo**: `epic`
+
+Épica paraguas para la incorporación del sistema integral de estimación de tareas en Gripm, permitiendo dimensionar el esfuerzo del backlog bajo estándares ágiles de la industria (Story Points con secuencia Fibonacci o T-Shirt Sizes por tallas cualitativas).
+
+Esta épica agrupa y coordina cuatro fases de entrega técnica y de producto:
+1. **DEV-136 (Configuración y Soberanía):** Activación/desactivación en `SettingsView`, elección de método (Fibonacci vs T-Shirt), previsualización de escalas y persistencia reactiva en configuración.
+2. **DEV-137 (Modelo de Dominio, Persistencia y MCP):** Soporte del campo `estimate` en frontmatter Markdown (`estimate: 5`), parser y serializador en `backlogMdParser.ts`, middleware API y contratos en herramientas MCP (`gripm_create_task`, `gripm_update_task`, `gripm_get_task`, `gripm_list_tasks`).
+3. **DEV-138 (UI/UX en Cockpit):** Selector de estimación en `ItemModal` con feedback visual interactivo y renderizado de badges de estimación en las tarjetas Kanban (`ItemCard`).
+4. **DEV-139 (Métricas Ágiles y Filtros):** Agregación de puntos/tallas en `SprintView` (velocidad, capacidad, total de puntos por estado/columna), vista tabular de Backlog y filtrado avanzado por estimación en `FilterBar`.
+
+### Regla de Ciclo de Vida:
+Como épica contenedora:
+- Entra en `doing` tan pronto como cualquiera de las tareas hijas (`DEV-136` a `DEV-139`) inicie su desarrollo activo.
+- Pasa a `review` una vez que las 4 tareas hijas alcancen el estado `ready` para la verificación y auditoría integral de la funcionalidad.
+
+**Criterios de Aceptación:**
+- [ ] #1 DEV-136 completada y certificada: activación soberana, selección de escala Fibonacci/T-Shirt y persistencia en configuración
+- [ ] #2 DEV-137 completada y certificada: modelo tipado en BacklogItem, persistencia del campo estimate en Markdown y soporte completo en MCP
+- [ ] #3 DEV-138 completada y certificada: edición intuitiva en ItemModal y badges visuales accesibles en tarjetas Kanban
+- [ ] #4 DEV-139 completada y certificada: métricas agregadas por columna y sprint en SprintView y filtros avanzados por estimación
+- [ ] #5 La épica pasa a review y ready únicamente tras la certificación de la Pirámide de Verificación en las cuatro tareas hijas
 
 ---
 

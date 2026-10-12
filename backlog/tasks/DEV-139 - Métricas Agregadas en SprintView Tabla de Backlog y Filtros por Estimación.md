@@ -14,6 +14,7 @@ dependencies:
   - "DEV-136"
   - "DEV-137"
   - "DEV-138"
+parent: "DEV-247"
 priority: medium
 type: feature
 ---

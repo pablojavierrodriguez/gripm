@@ -36,7 +36,7 @@ const BACKLOG_DIR = join(process.cwd(), 'backlog');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // Defaults exactos que inyectaba el serializador. Deben coincidir con los
-// históricos de scripts/backlogMdParser.ts y bin/devboard-mcp.js.
+// históricos de scripts/backlogMdParser.ts y bin/gripm-mcp.js.
 const FABRICATED_DESCRIPTION = 'Sin descripción detallada.';
 const FABRICATED_AC_LINE = '- [ ] #1 Criterio de aceptación inicial definido.';
 const FABRICATED_PLAN =
@@ -144,7 +144,7 @@ for (const file of targets) {
   if (!DRY_RUN) writeFileSync(file, next, 'utf8');
 }
 
-console.log('🔍 [DevBoard Migration] Purgando contenido fabricado de tareas (DEV-127)...');
+console.log('🔍 [gripm Migration] Purgando contenido fabricado de tareas (DEV-127)...');
 console.log(`   Modo: ${DRY_RUN ? 'dry-run (sin escribir)' : 'aplicando'}`);
 console.log(`   Archivos analizados: ${targets.length}`);
 

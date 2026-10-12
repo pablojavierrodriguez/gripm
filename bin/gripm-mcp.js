@@ -595,43 +595,23 @@ import { fileURLToPath } from "node:url";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var DEFAULT_PKG_ROOT = path.resolve(__dirname, "..");
-function getDevBoardHomeDir() {
+function getGripmHomeDir() {
   if (process.env.GRIPM_HOME) {
     return path.resolve(process.env.GRIPM_HOME);
   }
-  if (process.env.DEVBOARD_HOME) {
-    return path.resolve(process.env.DEVBOARD_HOME);
-  }
   if (process.env.XDG_CONFIG_HOME) {
-    const gripmDir = path.join(process.env.XDG_CONFIG_HOME, "gripm");
-    if (fs.existsSync(gripmDir)) return gripmDir;
-    const devboardDir = path.join(process.env.XDG_CONFIG_HOME, "devboard");
-    if (fs.existsSync(devboardDir)) return devboardDir;
-    return gripmDir;
+    return path.join(process.env.XDG_CONFIG_HOME, "gripm");
   }
-  const primaryDir = path.join(os.homedir(), ".gripm");
-  const legacyDir = path.join(os.homedir(), ".devboard");
-  if (fs.existsSync(legacyDir) && !fs.existsSync(primaryDir)) {
-    return legacyDir;
-  }
-  return primaryDir;
+  return path.join(os.homedir(), ".gripm");
 }
 function getRegistryPath(pkgRoot = DEFAULT_PKG_ROOT) {
   if (process.env.GRIPM_REGISTRY_PATH) {
     return path.resolve(process.env.GRIPM_REGISTRY_PATH);
   }
-  if (process.env.DEVBOARD_REGISTRY_PATH) {
-    return path.resolve(process.env.DEVBOARD_REGISTRY_PATH);
-  }
-  return path.join(getDevBoardHomeDir(), "registry.json");
-}
-function getLegacyRegistryPath(pkgRoot = DEFAULT_PKG_ROOT) {
-  if (!pkgRoot) return null;
-  return path.join(pkgRoot, "data/projects-registry.json");
+  return path.join(getGripmHomeDir(), "registry.json");
 }
 function loadRegistryFile(pkgRoot = DEFAULT_PKG_ROOT) {
   const primaryPath = getRegistryPath(pkgRoot);
-  const legacyPath = getLegacyRegistryPath(pkgRoot);
   try {
     if (primaryPath && fs.existsSync(primaryPath)) {
       const content = fs.readFileSync(primaryPath, "utf8");
@@ -642,46 +622,7 @@ function loadRegistryFile(pkgRoot = DEFAULT_PKG_ROOT) {
     }
   } catch {
   }
-  if (legacyPath) {
-    try {
-      if (fs.existsSync(legacyPath)) {
-        const data = JSON.parse(fs.readFileSync(legacyPath, "utf8"));
-        if (data && Array.isArray(data.projects)) {
-          try {
-            saveRegistryFile(data, pkgRoot);
-          } catch {
-          }
-          return data;
-        }
-      }
-    } catch {
-    }
-  }
   return { activeProjectId: "", projects: [] };
-}
-function saveRegistryFile(registry, pkgRoot = DEFAULT_PKG_ROOT) {
-  const targetPath = getRegistryPath(pkgRoot);
-  const legacyPath = getLegacyRegistryPath(pkgRoot);
-  let saved = false;
-  try {
-    const targetDir = path.dirname(targetPath);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-    fs.writeFileSync(targetPath, JSON.stringify(registry, null, 2), "utf8");
-    saved = true;
-  } catch {
-  }
-  if (!saved && legacyPath) {
-    try {
-      const legacyDir = path.dirname(legacyPath);
-      if (!fs.existsSync(legacyDir)) {
-        fs.mkdirSync(legacyDir, { recursive: true });
-      }
-      fs.writeFileSync(legacyPath, JSON.stringify(registry, null, 2), "utf8");
-    } catch {
-    }
-  }
 }
 function resolveProjectIdentity(repoPath) {
   const normalized = path.resolve(repoPath);
@@ -689,11 +630,9 @@ function resolveProjectIdentity(repoPath) {
   let explicitId = null;
   let codePrefix = "";
   const gripmCfgPath = path.join(normalized, ".gripm", "config.json");
-  const devboardCfgPath = path.join(normalized, ".devboard", "config.json");
-  const targetCfgPath = fs.existsSync(gripmCfgPath) ? gripmCfgPath : devboardCfgPath;
-  if (fs.existsSync(targetCfgPath)) {
+  if (fs.existsSync(gripmCfgPath)) {
     try {
-      const cfg = JSON.parse(fs.readFileSync(targetCfgPath, "utf8"));
+      const cfg = JSON.parse(fs.readFileSync(gripmCfgPath, "utf8"));
       if (cfg.projectName || cfg.name) {
         name = cfg.projectName || cfg.name;
       }
@@ -758,10 +697,7 @@ function getUpdateCachePath() {
   if (process.env.GRIPM_UPDATE_CACHE_PATH) {
     return path2.resolve(process.env.GRIPM_UPDATE_CACHE_PATH);
   }
-  if (process.env.DEVBOARD_UPDATE_CACHE_PATH) {
-    return path2.resolve(process.env.DEVBOARD_UPDATE_CACHE_PATH);
-  }
-  return path2.join(getDevBoardHomeDir(), CACHE_FILE_NAME);
+  return path2.join(getGripmHomeDir(), CACHE_FILE_NAME);
 }
 function readUpdateCache() {
   try {
@@ -785,7 +721,7 @@ function writeUpdateCache(data) {
   }
 }
 function isUpdateCheckDisabled() {
-  const env = process.env.GRIPM_NO_UPDATE_CHECK || process.env.DEVBOARD_NO_UPDATE_CHECK;
+  const env = process.env.GRIPM_NO_UPDATE_CHECK;
   return env === "1" || env === "true";
 }
 function formatUpdateBanner(currentVersion2, latestVersion) {
@@ -991,7 +927,7 @@ function isAllowedBrowsePath(targetPath, projectRoots = []) {
         }
       }
     }
-    const extra = process.env.GRIPM_ALLOWED_PATHS || process.env.DEVBOARD_ALLOWED_PATHS;
+    const extra = process.env.GRIPM_ALLOWED_PATHS;
     if (extra) {
       for (const p of extra.split(path3.delimiter)) {
         if (p.trim()) {
@@ -1038,7 +974,7 @@ function getRegistry() {
   }
   const targetRepo = cliRepo || process.cwd();
   const hasMdBacklog = fs3.existsSync(path3.join(targetRepo, "backlog/tasks"));
-  const hasJsonBacklog = fs3.existsSync(path3.join(targetRepo, ".gripm/backlog.json")) || fs3.existsSync(path3.join(targetRepo, ".devboard/backlog.json"));
+  const hasJsonBacklog = fs3.existsSync(path3.join(targetRepo, ".gripm/backlog.json"));
   if (hasMdBacklog || hasJsonBacklog || cliRepo) {
     const existing = reg.projects.find((p) => p.repoPath && path3.resolve(p.repoPath) === targetRepo);
     const identity = resolveProjectIdentity(targetRepo);
@@ -1216,11 +1152,7 @@ function validateVerifyCommand(cmd, repoPath) {
 function getProjectJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE;
   if (project.repoPath) {
-    const gripmPath = path3.join(project.repoPath, ".gripm/backlog.json");
-    if (fs3.existsSync(gripmPath)) return gripmPath;
-    const devboardPath = path3.join(project.repoPath, ".devboard/backlog.json");
-    if (fs3.existsSync(devboardPath)) return devboardPath;
-    return gripmPath;
+    return path3.join(project.repoPath, ".gripm/backlog.json");
   }
   return path3.join(ROOT_DIR, `data/${project.id}-backlog.json`);
 }
@@ -1519,7 +1451,7 @@ async function handleToolCall(rawName, args) {
   }
   if (name === "gripm_list_tasks") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
-    if (!targetProject) throw new Error("No hay proyectos registrados en DevBoard.");
+    if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     let tasks = readTasksForProject(targetProject);
     if (args.openOnly) {
       const closedStatuses = ["done", "dismissed", "cancelled", "released"];
@@ -1612,7 +1544,7 @@ async function handleToolCall(rawName, args) {
   }
   if (name === "gripm_get_stats") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
-    if (!targetProject) throw new Error("No hay proyectos registrados en DevBoard.");
+    if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     const tasks = readTasksForProject(targetProject);
     const total = tasks.length;
     const closedStatuses = ["done", "dismissed", "cancelled", "released"];
@@ -1657,7 +1589,7 @@ async function handleToolCall(rawName, args) {
   }
   if (name === "gripm_bulk_update_tasks") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
-    if (!targetProject) throw new Error("No hay proyectos registrados en DevBoard.");
+    if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     const updates = args.updates || {};
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -2238,12 +2170,11 @@ ${updatedFm}
   }
   if (name === "gripm_list_releases") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
-    if (!targetProject) throw new Error("No hay proyectos registrados en DevBoard.");
+    if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     let releases = [];
     const repoPath = targetProject.repoPath || ROOT_DIR;
     const releasesJsonPath = path3.join(repoPath, targetProject.backlogDir || "backlog", "releases.json");
     const gripmReleasesPath = path3.join(repoPath, ".gripm/releases.json");
-    const legacyReleasesPath = path3.join(repoPath, ".devboard/releases.json");
     const dataReleasesPath = path3.join(ROOT_DIR, "data/releases.json");
     if (fs3.existsSync(releasesJsonPath)) {
       try {
@@ -2253,11 +2184,6 @@ ${updatedFm}
     } else if (fs3.existsSync(gripmReleasesPath)) {
       try {
         releases = JSON.parse(fs3.readFileSync(gripmReleasesPath, "utf8"));
-      } catch {
-      }
-    } else if (fs3.existsSync(legacyReleasesPath)) {
-      try {
-        releases = JSON.parse(fs3.readFileSync(legacyReleasesPath, "utf8"));
       } catch {
       }
     } else if (fs3.existsSync(dataReleasesPath)) {

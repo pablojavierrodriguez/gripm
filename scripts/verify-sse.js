@@ -6,10 +6,10 @@ console.log('🧪 Iniciando prueba unitaria de SSE y Live Watcher (DEV-014)...')
 const viteConfigModule = await import('../vite.config.ts');
 const rawConfig = viteConfigModule.default;
 const config = typeof rawConfig === 'function' ? await rawConfig({ command: 'serve', mode: 'development' }) : rawConfig;
-const devBoardPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-dev-board-api');
+const gripmPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-gripm-api');
 
-if (!devBoardPlugin || typeof devBoardPlugin.configureServer !== 'function') {
-  throw new Error('Plugin vite-plugin-dev-board-api no encontrado o no tiene configureServer.');
+if (!gripmPlugin || typeof gripmPlugin.configureServer !== 'function') {
+  throw new Error('Plugin vite-plugin-gripm-api no encontrado o no tiene configureServer.');
 }
 
 // Mock de Vite server
@@ -22,7 +22,7 @@ const mockServer = {
   }
 };
 
-devBoardPlugin.configureServer(mockServer);
+gripmPlugin.configureServer(mockServer);
 
 if (!middlewareHandler) {
   throw new Error('configureServer no registró middlewares.');

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getDevBoardHomeDir } from './registryConfig.js';
+import { getGripmHomeDir } from './registryConfig.js';
 
 const CACHE_FILE_NAME = 'update-cache.json';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -29,10 +29,7 @@ export function getUpdateCachePath() {
   if (process.env.GRIPM_UPDATE_CACHE_PATH) {
     return path.resolve(process.env.GRIPM_UPDATE_CACHE_PATH);
   }
-  if (process.env.DEVBOARD_UPDATE_CACHE_PATH) {
-    return path.resolve(process.env.DEVBOARD_UPDATE_CACHE_PATH);
-  }
-  return path.join(getDevBoardHomeDir(), CACHE_FILE_NAME);
+  return path.join(getGripmHomeDir(), CACHE_FILE_NAME);
 }
 
 /**
@@ -69,7 +66,7 @@ export function writeUpdateCache(data) {
  * Check if update check should be skipped.
  */
 export function isUpdateCheckDisabled() {
-  const env = process.env.GRIPM_NO_UPDATE_CHECK || process.env.DEVBOARD_NO_UPDATE_CHECK;
+  const env = process.env.GRIPM_NO_UPDATE_CHECK;
   return env === '1' || env === 'true';
 }
 
@@ -104,7 +101,7 @@ export function getCachedUpdateInfo(currentVersion) {
 
 /**
  * Checks for updates against GitHub Releases.
- * Non-blocking, cached for 24h, silentiable via DEVBOARD_NO_UPDATE_CHECK=1.
+ * Non-blocking, cached for 24h, silentiable via GRIPM_NO_UPDATE_CHECK=1.
  */
 export async function checkForUpdates(currentVersion, { force = false, timeoutMs = 2000 } = {}) {
   if (isUpdateCheckDisabled()) {

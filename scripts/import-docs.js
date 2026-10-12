@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 // personal del desarrollador en el repositorio.
 const M3_DOCS_DIR = process.env.M3_DOCS_DIR || '';
 const DATA_DIR = path.join(__dirname, '../data');
-const OUT_FILE = path.join(DATA_DIR, 'dev-board.json');
+const OUT_FILE = path.join(DATA_DIR, 'gripm-board.json');
 
 /**
  * @param {string} [docsDir]
@@ -21,7 +21,7 @@ const OUT_FILE = path.join(DATA_DIR, 'dev-board.json');
  * @returns {{ projects: any[], items: any[], releases: any[], lastUpdated: string }}
  */
 export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, projectMeta = null) {
-  console.log(`[DevBoard Migrator] Starting migration from: ${docsDir}`);
+  console.log(`[gripm Migrator] Starting migration from: ${docsDir}`);
 
   if (!fs.existsSync(docsDir)) {
     throw new Error(`Docs directory not found: ${docsDir}`);
@@ -32,7 +32,7 @@ export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, proje
   // exige que el llamador lo provea, en lugar de inventar un proyecto.
   if (!projectMeta) {
     throw new Error(
-      '[DevBoard Migrator] projectMeta es obligatorio: no se embeben proyectos por defecto. ' +
+      '[gripm Migrator] projectMeta es obligatorio: no se embeben proyectos por defecto. ' +
       'Pasá el proyecto destino o ejecutá la importación desde la UI, que ya lo provee.'
     );
   }
@@ -44,7 +44,7 @@ export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, proje
   const codePrefix = String(projectMeta.codePrefix || '').trim().toUpperCase();
   if (!codePrefix) {
     throw new Error(
-      `[DevBoard Migrator] El proyecto "${projectMeta.name || projectMeta.id}" no define codePrefix, ` +
+      `[gripm Migrator] El proyecto "${projectMeta.name || projectMeta.id}" no define codePrefix, ` +
       'que es necesario para generar los códigos de las tareas importadas.'
     );
   }
@@ -58,7 +58,7 @@ export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, proje
     const content = fs.readFileSync(qualityLogPath, 'utf8');
     parseQualityLog(content, itemsMap, ctx);
   } else {
-    console.warn(`[DevBoard Migrator] Warning: QUALITY_LOG.md not found at ${qualityLogPath}`);
+    console.warn(`[gripm Migrator] Warning: QUALITY_LOG.md not found at ${qualityLogPath}`);
   }
 
   // 2. Parse BACKLOG.md
@@ -67,7 +67,7 @@ export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, proje
     const content = fs.readFileSync(backlogPath, 'utf8');
     parseBacklog(content, itemsMap, ctx);
   } else {
-    console.warn(`[DevBoard Migrator] Warning: BACKLOG.md not found at ${backlogPath}`);
+    console.warn(`[gripm Migrator] Warning: BACKLOG.md not found at ${backlogPath}`);
   }
 
   // 3. Parse specs/ directory
@@ -119,9 +119,9 @@ export function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, proje
       fs.mkdirSync(path.dirname(targetFile), { recursive: true });
     }
     fs.writeFileSync(targetFile, JSON.stringify(boardData, null, 2), 'utf8');
-    console.log(`[DevBoard Migrator] Migration successfully written to ${targetFile}`);
+    console.log(`[gripm Migrator] Migration successfully written to ${targetFile}`);
   }
-  console.log(`[DevBoard Migrator] Summary: ${items.length} items, ${releases.length} releases, 1 project.`);
+  console.log(`[gripm Migrator] Summary: ${items.length} items, ${releases.length} releases, 1 project.`);
 
   return boardData;
 }
@@ -419,12 +419,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     // DEV-118: la ejecución standalone exige las variables de entorno. Antes
     // relied de rutas absolutas embebidas en el archivo.
     if (!process.env.M3_DOCS_DIR) {
-      console.error('[DevBoard Migrator] Falta la variable de entorno M3_DOCS_DIR con la ruta de documentos a importar.');
+      console.error('[gripm Migrator] Falta la variable de entorno M3_DOCS_DIR con la ruta de documentos a importar.');
       process.exit(1);
     }
     runMigration(process.env.M3_DOCS_DIR);
   } catch (err) {
-    console.error('[DevBoard Migrator] Error during migration:', err);
+    console.error('[gripm Migrator] Error during migration:', err);
     process.exit(1);
   }
 }

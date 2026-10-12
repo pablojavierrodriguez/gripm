@@ -290,12 +290,11 @@ async function main() {
   // Detect project storage
   const tasksDir = path.join(targetRepo, 'backlog/tasks');
   const gripmJson = path.join(targetRepo, '.gripm/backlog.json');
-  const devboardJson = path.join(targetRepo, '.devboard/backlog.json');
   let storageType = 'markdown';
 
   if (fs.existsSync(tasksDir)) {
     storageType = 'markdown';
-  } else if (fs.existsSync(gripmJson) || fs.existsSync(devboardJson)) {
+  } else if (fs.existsSync(gripmJson)) {
     storageType = 'json';
   } else {
     // DEV-216: No crear carpetas preventivamente al vuelo; inicialización ocurre con --init o al crear ítems

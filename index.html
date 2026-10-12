@@ -8,7 +8,7 @@
       // parte siempre de dark hasta que React monta y suprime el efecto.
       (function () {
         try {
-          var t = localStorage.getItem('gripm_theme') || localStorage.getItem('devboard-theme');
+          var t = localStorage.getItem('gripm_theme');
           var dark = t ? t !== 'light' : true;
           document.documentElement.classList.toggle('dark', dark);
           document.documentElement.style.backgroundColor = dark ? '#080c14' : '#f8fafc';

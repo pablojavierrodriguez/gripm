@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * DevBoard MCP Server (Model Context Protocol)
+ * gripm MCP Server (Model Context Protocol)
  * stdio-based JSON-RPC 2.0 server for AI Agents (Cursor, Claude Code, Antigravity, etc.)
- * Provides tools to read and mutate the DevBoard backlog without friction.
+ * Provides tools to read and mutate the gripm backlog without friction.
  */
 
 import fs from 'node:fs';
@@ -133,7 +133,7 @@ function isAllowedBrowsePath(targetPath: string, projectRoots: string[] = []): b
         try { roots.push(fs.realpathSync(pr)); } catch {}
       }
     }
-    const extra = process.env.GRIPM_ALLOWED_PATHS || process.env.DEVBOARD_ALLOWED_PATHS;
+    const extra = process.env.GRIPM_ALLOWED_PATHS;
     if (extra) {
       for (const p of extra.split(path.delimiter)) {
         if (p.trim()) {
@@ -184,7 +184,7 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
 
   const targetRepo = cliRepo || process.cwd();
   const hasMdBacklog = fs.existsSync(path.join(targetRepo, 'backlog/tasks'));
-  const hasJsonBacklog = fs.existsSync(path.join(targetRepo, '.gripm/backlog.json')) || fs.existsSync(path.join(targetRepo, '.devboard/backlog.json'));
+  const hasJsonBacklog = fs.existsSync(path.join(targetRepo, '.gripm/backlog.json'));
 
   if (hasMdBacklog || hasJsonBacklog || cliRepo) {
     const existing = reg.projects.find(p => p.repoPath && path.resolve(p.repoPath) === targetRepo);
@@ -385,11 +385,7 @@ function validateVerifyCommand(cmd: string, repoPath: string): VerifyCommandVali
 function getProjectJsonBacklogPath(project: ProjectMeta): string {
   if (project.isDemo) return DEMO_FILE;
   if (project.repoPath) {
-    const gripmPath = path.join(project.repoPath, '.gripm/backlog.json');
-    if (fs.existsSync(gripmPath)) return gripmPath;
-    const devboardPath = path.join(project.repoPath, '.devboard/backlog.json');
-    if (fs.existsSync(devboardPath)) return devboardPath;
-    return gripmPath;
+    return path.join(project.repoPath, '.gripm/backlog.json');
   }
   return path.join(ROOT_DIR, `data/${project.id}-backlog.json`);
 }
@@ -704,7 +700,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects.find(p => p.id === registry.activeProjectId) 
       || registry.projects[0];
 
-    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+    if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
     let tasks = readTasksForProject(targetProject);
 
@@ -818,7 +814,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects.find(p => p.id === registry.activeProjectId) 
       || registry.projects[0];
 
-    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+    if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
     const tasks = readTasksForProject(targetProject);
     const total = tasks.length;
@@ -872,7 +868,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects.find(p => p.id === registry.activeProjectId) 
       || registry.projects[0];
 
-    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+    if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
     const updates = args.updates || {};
     const today = new Date().toISOString().split('T')[0];
@@ -1548,21 +1544,18 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects.find(p => p.id === registry.activeProjectId) 
       || registry.projects[0];
 
-    if (!targetProject) throw new Error('No hay proyectos registrados en DevBoard.');
+    if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
     let releases: any[] = [];
     const repoPath = targetProject.repoPath || ROOT_DIR;
     const releasesJsonPath = path.join(repoPath, targetProject.backlogDir || 'backlog', 'releases.json');
     const gripmReleasesPath = path.join(repoPath, '.gripm/releases.json');
-    const legacyReleasesPath = path.join(repoPath, '.devboard/releases.json');
     const dataReleasesPath = path.join(ROOT_DIR, 'data/releases.json');
 
     if (fs.existsSync(releasesJsonPath)) {
       try { releases = JSON.parse(fs.readFileSync(releasesJsonPath, 'utf8')); } catch {}
     } else if (fs.existsSync(gripmReleasesPath)) {
       try { releases = JSON.parse(fs.readFileSync(gripmReleasesPath, 'utf8')); } catch {}
-    } else if (fs.existsSync(legacyReleasesPath)) {
-      try { releases = JSON.parse(fs.readFileSync(legacyReleasesPath, 'utf8')); } catch {}
     } else if (fs.existsSync(dataReleasesPath)) {
       try { releases = JSON.parse(fs.readFileSync(dataReleasesPath, 'utf8')); } catch {}
     }

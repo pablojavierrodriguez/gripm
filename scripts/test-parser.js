@@ -197,7 +197,7 @@ console.log('✅ DEV-116: Multi-stack port availability and auto-increment verif
 const { resolveProjectIdentity } = await import('./registryConfig.js');
 const os = await import('node:os');
 
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'devboard-id-test-m3-'));
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-id-test-m3-'));
 try {
   // Case A: Pure folder fallback
   const resFallback = resolveProjectIdentity(tempDir);

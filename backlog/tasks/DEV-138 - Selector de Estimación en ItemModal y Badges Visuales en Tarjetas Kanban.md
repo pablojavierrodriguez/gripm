@@ -13,6 +13,7 @@ labels:
 dependencies:
   - "DEV-136"
   - "DEV-137"
+parent: "DEV-247"
 priority: medium
 type: ux
 ---

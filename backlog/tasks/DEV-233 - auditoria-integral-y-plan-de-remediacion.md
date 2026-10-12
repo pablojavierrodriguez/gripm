@@ -1,9 +1,9 @@
 ---
 id: DEV-233
 title: "Auditoria integral 2026-10-10 y plan de remediacion por fases"
-status: draft
+status: doing
 created_date: '2026-10-10'
-updated_date: '2026-10-10'
+updated_date: '2026-10-12 05:13'
 labels:
   - "audit"
   - "quality-gate"
@@ -11,8 +11,10 @@ labels:
   - "security"
   - "documentation"
   - "process"
+dependencies: []
 priority: high
-type: chore
+type: initiative
+order: 10
 ---
 
 ## Description

@@ -5,12 +5,12 @@ import { loadRegistryFile, saveRegistryFile, getRegistryPath } from './registryC
 
 /**
  * scripts/uninstall.js
- * DEV-115: Desacople seguro de DevBoard de un repositorio, con discriminación
+ * DEV-115: Desacople seguro de gripm de un repositorio, con discriminación
  * de alcance entre "sólo este proyecto" y "purgado global del dispositivo".
  *
  * GARANTÍA ESTRUCTURAL DE NO DESTRUCCIÓN
  * --------------------------------------
- * El dato de negocio de DevBoard es el backlog: `backlog/` y `BACKLOG.md`. Este
+ * El dato de negocio de gripm es el backlog: `backlog/` y `BACKLOG.md`. Este
  * módulo **nunca** los borra ni los modifica. Eso no depende de tener cuidado en
  * cada rama del código, sino de que la lista de rutas eliminables es explícita y
  * `backlog/` no está en ella por construcción.
@@ -29,17 +29,14 @@ export const MANAGED_SCRIPTS = ['board', 'mcp'];
 /** Reglas que el init añade a .gitignore y que se sabe quitar. */
 const MANAGED_GITIGNORE_MARKERS = [
   '.gripm/update-cache.json',
-  '.gripm/*.tmp',
-  '.devboard/update-cache.json',
-  '.devboard/*.tmp'
+  '.gripm/*.tmp'
 ];
 
 /**
  * Encabezados de comentario que el init escribe junto a esas reglas.
  */
 const MANAGED_GITIGNORE_HEADERS = [
-  '# gripm local cache',
-  '# DevBoard local cache'
+  '# gripm local cache'
 ];
 
 function isProtected(relPath) {
@@ -77,7 +74,7 @@ function removeIfExists(repoPath, relPath) {
 }
 
 /**
- * Revierte únicamente los scripts de npm que DevBoard gestiona.
+ * Revierte únicamente los scripts de npm que gripm gestiona.
  * No toca ningún otro script del usuario: se comparan contra las formas
  * canónicas que el init inyectó, y si el valor actual difiere se preserva.
  */
@@ -102,18 +99,13 @@ export function revertManagedScripts(repoPath) {
     const value = pkg.scripts?.[name];
     if (value === undefined) continue;
 
-    // Sólo se revierte si el valor actual es una forma inyectada por gripm / DevBoard.
+    // Sólo se revierte si el valor actual es una forma inyectada por gripm.
     // Un script propio del usuario que se llame "board" se conserva.
     const isManaged =
       value === 'gripm' ||
       value === 'gripm-mcp' ||
-      value === 'devboard' ||
-      value === 'devboard-mcp' ||
-      value === 'dev-board' ||
-      value === 'dev-board-mcp' ||
       value.includes('@gripm/board') ||
-      value.includes('github:pablojavierrodriguez/gripm') ||
-      value.includes('github:pablojavierrodriguez/dev-board');
+      value.includes('github:pablojavierrodriguez/gripm');
 
     if (isManaged) {
       delete pkg.scripts[name];
@@ -134,7 +126,7 @@ export function revertManagedScripts(repoPath) {
   return { modified: removed.length > 0, removed, preserved };
 }
 
-/** Quita del .gitignore únicamente las líneas que DevBoard agregó. */
+/** Quita del .gitignore únicamente las líneas que gripm agregó. */
 export function revertGitignoreRules(repoPath) {
   const gitignorePath = path.join(repoPath, '.gitignore');
   if (!fs.existsSync(gitignorePath)) {
@@ -166,7 +158,7 @@ export function revertGitignoreRules(repoPath) {
 }
 
 /**
- * Desacopla DevBoard de un único repositorio.
+ * Desacopla gripm de un único repositorio.
  * Nunca toca `backlog/`, `BACKLOG.md`, ni registro global.
  */
 export function uninstallLocalProject(repoPath, options = {}) {
@@ -182,7 +174,7 @@ export function uninstallLocalProject(repoPath, options = {}) {
   // Artefactos de agente: opcionales porque puede que el usuario quiera seguir
   // colaborando con agentes de IA en este repo.
   if (options.removeAgentArtifacts) {
-    for (const rel of ['.agents/skills/gripm', '.agents/skills/devboard', 'AGENTS.md']) {
+    for (const rel of ['.agents/skills/gripm', 'AGENTS.md']) {
       const r = removeIfExists(repoPath, rel);
       (r.removed ? result.removed : result.skipped).push(
         r.removed ? r.path : `${r.path} (${r.reason})`
@@ -192,8 +184,8 @@ export function uninstallLocalProject(repoPath, options = {}) {
     result.agentArtifacts = 'preservados (skill y AGENTS.md conservados)';
   }
 
-  // Configuración local de gripm y DevBoard. Nótese que NO se borra `backlog/`.
-  for (const dir of ['.gripm', '.devboard']) {
+  // Configuración local de gripm. Nótese que NO se borra `backlog/`.
+  for (const dir of ['.gripm']) {
     const localConfig = removeIfExists(repoPath, dir);
     if (localConfig.removed) {
       result.removed.push(localConfig.path);
@@ -219,7 +211,7 @@ export function uninstallLocalProject(repoPath, options = {}) {
  * Purga global: desacopla el repo actual y limpia el registro central.
  * `backlog/` de este repo se preserva, igual que en el modo local.
  */
-export function purgeGlobalDevBoard(repoPath, options = {}) {
+export function purgeGlobalGripm(repoPath, options = {}) {
   const result = {
     scope: 'global',
     repoPath,
@@ -315,9 +307,7 @@ function printPlan(repoPath, registryInfo) {
 
 function detectScope(repoPath) {
   let mode = 'single';
-  const gripmCfg = path.join(repoPath, '.gripm', 'config.json');
-  const devboardCfg = path.join(repoPath, '.devboard', 'config.json');
-  const configPath = fs.existsSync(gripmCfg) ? gripmCfg : devboardCfg;
+  const configPath = path.join(repoPath, '.gripm', 'config.json');
   if (fs.existsSync(configPath)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -420,7 +410,7 @@ export async function runUninstallCommand(repoPath, options = {}) {
 
   const result =
     scope === 'global'
-      ? purgeGlobalDevBoard(repoPath, { removeAgentArtifacts })
+      ? purgeGlobalGripm(repoPath, { removeAgentArtifacts })
       : uninstallLocalProject(repoPath, { removeAgentArtifacts });
 
   result.scope = scope;

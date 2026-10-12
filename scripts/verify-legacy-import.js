@@ -8,10 +8,10 @@ console.log('🧪 Iniciando prueba de Import Wizard de Backlog Legacy (DEV-018).
 const viteConfigModule = await import('../vite.config.ts');
 const rawConfig = viteConfigModule.default;
 const config = typeof rawConfig === 'function' ? await rawConfig({ command: 'serve', mode: 'development' }) : rawConfig;
-const devBoardPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-dev-board-api');
+const gripmPlugin = (config.plugins || []).find(p => p && p.name === 'vite-plugin-gripm-api');
 
-if (!devBoardPlugin || typeof devBoardPlugin.configureServer !== 'function') {
-  throw new Error('Plugin vite-plugin-dev-board-api no encontrado.');
+if (!gripmPlugin || typeof gripmPlugin.configureServer !== 'function') {
+  throw new Error('Plugin vite-plugin-gripm-api no encontrado.');
 }
 
 let middlewareHandler = null;
@@ -23,7 +23,7 @@ const mockServer = {
   }
 };
 
-devBoardPlugin.configureServer(mockServer);
+gripmPlugin.configureServer(mockServer);
 
 class MockResponse extends EventEmitter {
   constructor() {
@@ -92,6 +92,11 @@ function dispatch(method, url, body = null, headers = {}) {
 const testRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-legacy-'));
 fs.mkdirSync(path.join(testRepo, 'backlog/tasks'), { recursive: true });
 
+const testRegistryPath = path.join(testRepo, 'registry.json');
+fs.writeFileSync(testRegistryPath, JSON.stringify({ activeProjectId: '', projects: [] }), 'utf8');
+const prevEnvReg = process.env.GRIPM_REGISTRY_PATH;
+process.env.GRIPM_REGISTRY_PATH = testRegistryPath;
+
 try {
   // Register isolated test fixture project
   const regRes = await dispatch('POST', '/api/projects', {
@@ -147,6 +152,11 @@ try {
 } finally {
   // Cleanup isolated fixture project and directory
   await dispatch('DELETE', '/api/projects/test-fixture-import');
+  if (prevEnvReg !== undefined) {
+    process.env.GRIPM_REGISTRY_PATH = prevEnvReg;
+  } else {
+    delete process.env.GRIPM_REGISTRY_PATH;
+  }
   if (fs.existsSync(testRepo)) {
     fs.rmSync(testRepo, { recursive: true, force: true });
   }

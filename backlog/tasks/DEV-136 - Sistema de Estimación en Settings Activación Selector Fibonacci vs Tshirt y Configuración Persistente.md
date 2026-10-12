@@ -9,6 +9,7 @@ labels:
   - "settings"
   - "config"
 dependencies: []
+parent: "DEV-247"
 priority: high
 type: feature
 ---

@@ -13,7 +13,7 @@ import {
   generateMonolithicBacklogMd
 } from './backlogMdParser.ts';
 import {
-  getDevBoardHomeDir,
+  getGripmHomeDir,
   getRegistryPath,
   loadRegistryFile,
   saveRegistryFile
@@ -142,13 +142,13 @@ assert.ok(monolithicMd.includes('Tokens JWT firmados y cifrados'));
 
 console.log('✅ Monolithic BACKLOG.md generation verified');
 
-// 6. Test DEV-068: Sprint filtering on dev-board project
-const devBoardTasksDir = path.join(__dirname, '../backlog/tasks');
-if (fs.existsSync(devBoardTasksDir)) {
-  const allDevBoardFiles = fs.readdirSync(devBoardTasksDir).filter(f => f.endsWith('.md'));
+// 6. Test DEV-068: Sprint filtering on gripm project
+const backlogTasksDir = path.join(__dirname, '../backlog/tasks');
+if (fs.existsSync(backlogTasksDir)) {
+  const allTaskFiles = fs.readdirSync(backlogTasksDir).filter(f => f.endsWith('.md'));
   const sprint3Tasks = [];
-  for (const f of allDevBoardFiles) {
-    const raw = fs.readFileSync(path.join(devBoardTasksDir, f), 'utf8');
+  for (const f of allTaskFiles) {
+    const raw = fs.readFileSync(path.join(backlogTasksDir, f), 'utf8');
     const parsed = parseBacklogMd(raw, f.split(' - ')[0]);
     const sp = parsed.sprint || parsed.targetSprint || parsed.rawExtraFrontmatter?.sprint || parsed.milestone;
     if (sp && sp.toLowerCase() === 'sprint 3') {
@@ -276,48 +276,38 @@ assert.strictEqual(parsedConfig.customItemTypes[0].key, 'spike');
 assert.strictEqual(parsedConfig.customItemTypes[0].label, 'Spike Técnico');
 console.log('✅ DEV-059 & DEV-074: Custom item types taxonomy config persistence verified');
 
-// 11. Test DEV-104: XDG and Home Directory Registry Resolution and Migration
+// 11. Test DEV-104: XDG and Home Directory Registry Resolution and Persistence
 const tempHome = path.join(__dirname, '../data/test-temp-home');
-const tempLegacyPkg = path.join(__dirname, '../data/test-temp-pkg');
+const tempPkg = path.join(__dirname, '../data/test-temp-pkg');
 
 try {
   if (fs.existsSync(tempHome)) fs.rmSync(tempHome, { recursive: true, force: true });
-  if (fs.existsSync(tempLegacyPkg)) fs.rmSync(tempLegacyPkg, { recursive: true, force: true });
+  if (fs.existsSync(tempPkg)) fs.rmSync(tempPkg, { recursive: true, force: true });
 
-  process.env.DEVBOARD_HOME = tempHome;
-  assert.strictEqual(getDevBoardHomeDir(), tempHome, 'Should resolve DEVBOARD_HOME when set');
-  const userRegistryFile = getRegistryPath(tempLegacyPkg);
+  process.env.GRIPM_HOME = tempHome;
+  assert.strictEqual(getGripmHomeDir(), tempHome, 'Should resolve GRIPM_HOME when set');
+  const userRegistryFile = getRegistryPath(tempPkg);
   assert.strictEqual(userRegistryFile, path.join(tempHome, 'registry.json'), 'Registry path should be in home dir');
 
-  // Create legacy registry mock
-  const legacyDataDir = path.join(tempLegacyPkg, 'data');
-  fs.mkdirSync(legacyDataDir, { recursive: true });
-  const legacyFile = path.join(legacyDataDir, 'projects-registry.json');
-  fs.writeFileSync(legacyFile, JSON.stringify({
-    activeProjectId: 'migrated-proj',
-    projects: [{ id: 'migrated-proj', name: 'Migrated Project', codePrefix: 'MIG', repoPath: '/tmp/mig' }]
-  }, null, 2), 'utf8');
+  assert.strictEqual(fs.existsSync(userRegistryFile), false, 'User registry should not exist initially');
+  const initial = loadRegistryFile(tempPkg);
+  assert.deepStrictEqual(initial, { activeProjectId: '', projects: [] }, 'Should return empty registry when file does not exist');
 
-  // Load should transparently migrate to tempHome
-  assert.strictEqual(fs.existsSync(userRegistryFile), false, 'User registry should not exist before load');
-  const loaded = loadRegistryFile(tempLegacyPkg);
-  assert.strictEqual(loaded.activeProjectId, 'migrated-proj', 'Should load legacy project');
-  assert.strictEqual(fs.existsSync(userRegistryFile), true, 'User registry should be automatically created upon migration');
+  // Saving should write to userRegistryFile
+  saveRegistryFile({
+    activeProjectId: 'proj-1',
+    projects: [{ id: 'proj-1', name: 'Project 1', codePrefix: 'PRJ' }]
+  }, tempPkg);
 
-  // Mutating and saving should write to userRegistryFile and NOT modify legacy file
-  loaded.projects.push({ id: 'new-proj', name: 'New Project', codePrefix: 'NEW' });
-  saveRegistryFile(loaded, tempLegacyPkg);
-
-  const updatedUserReg = JSON.parse(fs.readFileSync(userRegistryFile, 'utf8'));
-  assert.strictEqual(updatedUserReg.projects.length, 2, 'User registry should have 2 projects');
-
-  const legacyUnchanged = JSON.parse(fs.readFileSync(legacyFile, 'utf8'));
-  assert.strictEqual(legacyUnchanged.projects.length, 1, 'Legacy registry must remain untouched');
-  console.log('✅ DEV-104: XDG/Home directory registry resolution, automatic migration, and isolation verified');
+  assert.strictEqual(fs.existsSync(userRegistryFile), true, 'User registry should exist after save');
+  const loaded = loadRegistryFile(tempPkg);
+  assert.strictEqual(loaded.activeProjectId, 'proj-1', 'Should load persisted project');
+  assert.strictEqual(loaded.projects.length, 1, 'Should have 1 project');
+  console.log('✅ DEV-104: XDG/Home directory registry resolution and canonical persistence verified');
 } finally {
-  delete process.env.DEVBOARD_HOME;
+  delete process.env.GRIPM_HOME;
   if (fs.existsSync(tempHome)) fs.rmSync(tempHome, { recursive: true, force: true });
-  if (fs.existsSync(tempLegacyPkg)) fs.rmSync(tempLegacyPkg, { recursive: true, force: true });
+  if (fs.existsSync(tempPkg)) fs.rmSync(tempPkg, { recursive: true, force: true });
 }
 
 // 12. Test DEV-107: Update Checker, Semver comparison, 24h Caching & Banners
@@ -339,7 +329,7 @@ const tempCacheDir = path.join(__dirname, '../data/test-temp-cache');
 const tempCacheFile = path.join(tempCacheDir, 'update-cache.json');
 try {
   if (fs.existsSync(tempCacheDir)) fs.rmSync(tempCacheDir, { recursive: true, force: true });
-  process.env.DEVBOARD_UPDATE_CACHE_PATH = tempCacheFile;
+  process.env.GRIPM_UPDATE_CACHE_PATH = tempCacheFile;
 
   assert.strictEqual(readUpdateCache(), null, 'Should return null when cache does not exist');
 
@@ -359,16 +349,16 @@ try {
   assert.strictEqual(cachedInfo?.hasUpdate, true, 'Cached info should report hasUpdate');
   assert.strictEqual(cachedInfo?.latestVersion, '0.6.0');
 
-  // Silencing via DEVBOARD_NO_UPDATE_CHECK
-  process.env.DEVBOARD_NO_UPDATE_CHECK = '1';
-  assert.strictEqual(isUpdateCheckDisabled(), true, 'Should detect DEVBOARD_NO_UPDATE_CHECK=1');
+  // Silencing via GRIPM_NO_UPDATE_CHECK
+  process.env.GRIPM_NO_UPDATE_CHECK = '1';
+  assert.strictEqual(isUpdateCheckDisabled(), true, 'Should detect GRIPM_NO_UPDATE_CHECK=1');
   assert.strictEqual(getCachedUpdateInfo('0.5.0'), null, 'Should return null when silenced');
-  delete process.env.DEVBOARD_NO_UPDATE_CHECK;
+  delete process.env.GRIPM_NO_UPDATE_CHECK;
 
   console.log('✅ DEV-107: Update checker semver, 24h cache persistence, silencing, and banners verified');
 } finally {
-  delete process.env.DEVBOARD_UPDATE_CACHE_PATH;
-  delete process.env.DEVBOARD_NO_UPDATE_CHECK;
+  delete process.env.GRIPM_UPDATE_CACHE_PATH;
+  delete process.env.GRIPM_NO_UPDATE_CHECK;
   if (fs.existsSync(tempCacheDir)) fs.rmSync(tempCacheDir, { recursive: true, force: true });
 }
 
@@ -409,8 +399,8 @@ try {
   assert.strictEqual(fs.existsSync(path.join(testInitRepo, 'AGENTS.md')), true, 'AGENTS.md should be created');
 
   const updatedPkg = JSON.parse(fs.readFileSync(path.join(testInitRepo, 'package.json'), 'utf8'));
-  assert.ok((updatedPkg.scripts.board.includes('gripm') || updatedPkg.scripts.board.includes('devboard')) && (updatedPkg.scripts.board.includes('npx -y @gripm/board') || updatedPkg.scripts.board.includes('npx -y github:')), 'Should add resilient board script with fallback');
-  assert.ok((updatedPkg.scripts.mcp.includes('gripm-mcp') || updatedPkg.scripts.mcp.includes('devboard-mcp')) && (updatedPkg.scripts.mcp.includes('npx -y -p @gripm/board') || updatedPkg.scripts.mcp.includes('npx -y -p github:')), 'Should add resilient mcp script with fallback');
+  assert.ok(updatedPkg.scripts.board.includes('gripm') && (updatedPkg.scripts.board.includes('npx -y @gripm/board') || updatedPkg.scripts.board.includes('npx -y github:')), 'Should add resilient board script with fallback');
+  assert.ok(updatedPkg.scripts.mcp.includes('gripm-mcp') && (updatedPkg.scripts.mcp.includes('npx -y -p @gripm/board') || updatedPkg.scripts.mcp.includes('npx -y -p github:')), 'Should add resilient mcp script with fallback');
   assert.strictEqual(updatedPkg.scripts.test, 'vitest', 'Should preserve existing scripts');
 
   const gitignoreContent = fs.readFileSync(path.join(testInitRepo, '.gitignore'), 'utf8');
@@ -518,7 +508,7 @@ try {
   const { uninstallLocalProject, revertManagedScripts, runUninstallCommand, PROTECTED_PATHS } =
     await import('./uninstall.js');
 
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'devboard-uninstall-'));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-uninstall-'));
   try {
     // Fixture: un repo con backlog real, config local, scripts de npm y agentes.
     fs.mkdirSync(path.join(repo, 'backlog', 'tasks'), { recursive: true });
@@ -528,12 +518,10 @@ try {
       'utf8'
     );
     fs.writeFileSync(path.join(repo, 'BACKLOG.md'), '# Backlog\n', 'utf8');
-    fs.mkdirSync(path.join(repo, '.devboard'), { recursive: true });
-    fs.writeFileSync(path.join(repo, '.devboard', 'config.json'), '{"mode":"single"}', 'utf8');
+    fs.mkdirSync(path.join(repo, '.gripm'), { recursive: true });
+    fs.writeFileSync(path.join(repo, '.gripm', 'config.json'), '{"mode":"single"}', 'utf8');
     fs.mkdirSync(path.join(repo, '.agents', 'skills', 'gripm'), { recursive: true });
     fs.writeFileSync(path.join(repo, '.agents', 'skills', 'gripm', 'SKILL.md'), 'skill', 'utf8');
-    fs.mkdirSync(path.join(repo, '.agents', 'skills', 'devboard'), { recursive: true });
-    fs.writeFileSync(path.join(repo, '.agents', 'skills', 'devboard', 'SKILL.md'), 'skill', 'utf8');
     fs.writeFileSync(path.join(repo, 'AGENTS.md'), '# Guion', 'utf8');
     fs.writeFileSync(
       path.join(repo, 'package.json'),
@@ -541,8 +529,8 @@ try {
         {
           name: 'fixture',
           scripts: {
-            board: 'npx -y github:pablojavierrodriguez/dev-board',
-            mcp: 'npx -y -p github:pablojavierrodriguez/dev-board devboard-mcp',
+            board: 'npx -y github:pablojavierrodriguez/gripm',
+            mcp: 'npx -y -p github:pablojavierrodriguez/gripm gripm-mcp',
             test: 'vitest',
             build: 'tsc'
           }
@@ -554,7 +542,7 @@ try {
     );
     fs.writeFileSync(
       path.join(repo, '.gitignore'),
-      'node_modules\n\n# DevBoard local cache\n.devboard/update-cache.json\n.devboard/*.tmp\n',
+      'node_modules\n\n# gripm local cache\n.gripm/update-cache.json\n.gripm/*.tmp\n',
       'utf8'
     );
 
@@ -570,9 +558,8 @@ try {
     assert.strictEqual(fs.existsSync(path.join(repo, 'BACKLOG.md')), true, 'DEV-115: BACKLOG.md debe sobrevivir');
 
     // Config local fuera, artefactos de agente conservados.
-    assert.strictEqual(fs.existsSync(path.join(repo, '.devboard', 'config.json')), false, 'DEV-115: .devboard local debe eliminarse');
+    assert.strictEqual(fs.existsSync(path.join(repo, '.gripm', 'config.json')), false, 'DEV-115: .gripm local debe eliminarse');
     assert.strictEqual(fs.existsSync(path.join(repo, '.agents', 'skills', 'gripm', 'SKILL.md')), true, 'DEV-115: la skill canónica debe preservarse por defecto');
-    assert.strictEqual(fs.existsSync(path.join(repo, '.agents', 'skills', 'devboard', 'SKILL.md')), true, 'DEV-115: la skill debe preservarse por defecto');
     assert.strictEqual(fs.existsSync(path.join(repo, 'AGENTS.md')), true, 'DEV-115: AGENTS.md debe preservarse por defecto');
 
     // Scripts gestionados revertidos, scripts propios intactos.
@@ -582,9 +569,9 @@ try {
     assert.strictEqual(pkgAfter.scripts.test, 'vitest', 'DEV-115: los scripts propios del usuario no se tocan');
     assert.strictEqual(pkgAfter.scripts.build, 'tsc', 'DEV-115: los scripts propios del usuario no se tocan');
 
-    // .gitignore: solo se van las lineas de DevBoard.
+    // .gitignore: solo se van las lineas de gripm.
     const gi = fs.readFileSync(path.join(repo, '.gitignore'), 'utf8');
-    assert.ok(!gi.includes('.devboard/update-cache.json'), 'DEV-115: la regla de DevBoard debe quitarse del .gitignore');
+    assert.ok(!gi.includes('.gripm/update-cache.json'), 'DEV-115: la regla de gripm debe quitarse del .gitignore');
     assert.ok(gi.includes('node_modules'), 'DEV-115: las reglas propias del usuario deben preservarse');
 
     // --- Un script propio llamado "board" NO se toca ---
@@ -605,7 +592,6 @@ try {
     // --- Con eliminacion explicita de artefactos de agente ---
     const res2 = uninstallLocalProject(repo, { removeAgentArtifacts: true });
     assert.strictEqual(fs.existsSync(path.join(repo, '.agents', 'skills', 'gripm')), false, 'DEV-115: --remove-agents debe eliminar la skill canónica');
-    assert.strictEqual(fs.existsSync(path.join(repo, '.agents', 'skills', 'devboard')), false, 'DEV-115: --remove-agents debe eliminar la skill');
     assert.strictEqual(fs.existsSync(path.join(repo, 'AGENTS.md')), false, 'DEV-115: --remove-agents debe eliminar AGENTS.md');
     assert.strictEqual(fs.existsSync(path.join(repo, 'BACKLOG.md')), true, 'DEV-115: ni siquiera en este modo se toca el backlog');
 
@@ -615,11 +601,11 @@ try {
     assert.ok(res.scope === 'local', 'DEV-115: el modo por defecto es local');
     assert.strictEqual(res2.integrityWarning, undefined, 'DEV-115: no debe haber advertencia con el backlog presente');
 
-    // El .gitignore no debe quedar con el comentario de DevBoard huerfano.
+    // El .gitignore no debe quedar con el comentario de gripm huerfano.
     const giFinal = fs.readFileSync(path.join(repo, '.gitignore'), 'utf8');
     assert.ok(
-      !giFinal.includes('# DevBoard local cache'),
-      'DEV-115: al revertir el .gitignore no debe quedar el comentario de DevBoard huerfano'
+      !giFinal.includes('# gripm local cache'),
+      'DEV-115: al revertir el .gitignore no debe quedar el comentario de gripm huerfano'
     );
     assert.ok(giFinal.includes('node_modules'), 'DEV-115: las reglas ajenas al .gitignore se preservan');
   } finally {
@@ -630,15 +616,13 @@ try {
   // Con `agentArtifacts` en un lado y `removeAgentArtifacts` en el otro, el flag
   // `--remove-agents` se aceptaba y se ignoraba en silencio.
   {
-    const repo2 = fs.mkdtempSync(path.join(os.tmpdir(), 'devboard-uninstall-'));
+    const repo2 = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-uninstall-'));
     try {
       fs.mkdirSync(path.join(repo2, 'backlog', 'tasks'), { recursive: true });
       fs.writeFileSync(path.join(repo2, 'backlog', 'tasks', 'DEV-001 - x.md'), 'tarea', 'utf8');
       fs.writeFileSync(path.join(repo2, 'BACKLOG.md'), '# Backlog', 'utf8');
       fs.mkdirSync(path.join(repo2, '.agents', 'skills', 'gripm'), { recursive: true });
       fs.writeFileSync(path.join(repo2, '.agents', 'skills', 'gripm', 'SKILL.md'), 's', 'utf8');
-      fs.mkdirSync(path.join(repo2, '.agents', 'skills', 'devboard'), { recursive: true });
-      fs.writeFileSync(path.join(repo2, '.agents', 'skills', 'devboard', 'SKILL.md'), 's', 'utf8');
       fs.writeFileSync(path.join(repo2, 'AGENTS.md'), 'g', 'utf8');
 
       await runUninstallCommand(repo2, { yes: true, removeAgentArtifacts: true });
@@ -647,11 +631,6 @@ try {
         fs.existsSync(path.join(repo2, '.agents', 'skills', 'gripm')),
         false,
         'DEV-115: removeAgentArtifacts debe eliminar la skill canónica'
-      );
-      assert.strictEqual(
-        fs.existsSync(path.join(repo2, '.agents', 'skills', 'devboard')),
-        false,
-        'DEV-115: removeAgentArtifacts debe eliminar la skill (el nombre de la opcion debe coincidir)'
       );
       assert.strictEqual(
         fs.existsSync(path.join(repo2, 'AGENTS.md')),
@@ -798,9 +777,7 @@ try {
 // DEV-177: Prioritizing localhost in default URL while maintaining IPv4 loopback bind
 {
   delete process.env.GRIPM_HOST;
-  delete process.env.DEVBOARD_HOST;
   delete process.env.GRIPM_OPEN;
-  delete process.env.DEVBOARD_OPEN;
   const originalCi = process.env.CI;
   delete process.env.CI;
 
@@ -817,8 +794,8 @@ try {
     assert.ok(typeof resolvedConfig.server.open === 'string' && resolvedConfig.server.open.startsWith('http://localhost:'), 'DEV-177: server.open must default to http://localhost:<port>/');
 
     // 3. configureServer hook updates server.resolvedUrls.local to localhost
-    const plugin = resolvedConfig.plugins.find(p => p && p.name === 'vite-plugin-dev-board-api');
-    assert.ok(plugin, 'DEV-177: devBoardApi plugin must be present');
+    const plugin = resolvedConfig.plugins.find(p => p && p.name === 'vite-plugin-gripm-api');
+    assert.ok(plugin, 'DEV-177: gripmApi plugin must be present');
     pluginRef = plugin;
 
     let listenCalled = false;
@@ -859,7 +836,7 @@ try {
   }
 }
 
-// DEV-168: Verification of canonical gripm_* localStorage keys with transparent fallback and auto-migration
+// DEV-168 / DEV-238: Verification of canonical gripm_* localStorage keys without legacy fallback
 {
   const mockStore = new Map();
   const mockLocalStorage = {
@@ -889,28 +866,19 @@ try {
     assert.strictEqual(mockStore.get('gripm_theme'), 'light', 'DEV-168: setStoredItem must write canonical gripm_theme');
     assert.strictEqual(getStoredItem(STORAGE_KEYS.THEME), 'light', 'DEV-168: getStoredItem must read canonical gripm_theme');
 
-    // 3. Fallback and auto-migration from legacy devboard-theme
+    // 3. DEV-238: Legacy devboard keys are ignored and not auto-migrated
     mockStore.clear();
     mockStore.set('devboard-theme', 'dark');
-    assert.strictEqual(mockStore.get('gripm_theme'), undefined, 'DEV-168: gripm_theme must not exist yet');
+    assert.strictEqual(getStoredItem(STORAGE_KEYS.THEME), null, 'DEV-238: legacy devboard-theme key must not be read');
+    assert.strictEqual(mockStore.get('gripm_theme'), undefined, 'DEV-238: no auto-migration into gripm_theme');
 
-    const migratedTheme = getStoredItem(STORAGE_KEYS.THEME);
-    assert.strictEqual(migratedTheme, 'dark', 'DEV-168: getStoredItem must fallback to devboard-theme');
-    assert.strictEqual(mockStore.get('gripm_theme'), 'dark', 'DEV-168: getStoredItem must auto-migrate value into gripm_theme');
-
-    // 4. Fallback and auto-migration from legacy devboard_active_tab
-    mockStore.clear();
-    mockStore.set('devboard_active_tab', 'sprint');
-    const migratedTab = getStoredItem(STORAGE_KEYS.ACTIVE_TAB);
-    assert.strictEqual(migratedTab, 'sprint', 'DEV-168: getStoredItem must fallback to devboard_active_tab');
-    assert.strictEqual(mockStore.get('gripm_active_tab'), 'sprint', 'DEV-168: getStoredItem must auto-migrate into gripm_active_tab');
-
-    // 5. Remove removes canonical and legacy
+    // 4. Canonical write & remove
+    setStoredItem(STORAGE_KEYS.ACTIVE_TAB, 'sprint');
+    assert.strictEqual(getStoredItem(STORAGE_KEYS.ACTIVE_TAB), 'sprint');
     removeStoredItem(STORAGE_KEYS.ACTIVE_TAB);
     assert.strictEqual(mockStore.has('gripm_active_tab'), false, 'DEV-168: canonical key must be removed');
-    assert.strictEqual(mockStore.has('devboard_active_tab'), false, 'DEV-168: legacy key must be removed');
 
-    console.log('✅ DEV-168: Canonical gripm_* localStorage keys and resilient auto-migration verified');
+    console.log('✅ DEV-168 / DEV-238: Canonical gripm_* localStorage keys verified');
   } finally {
     globalThis.window = originalWindow;
     globalThis.localStorage = originalLocalStorage;
