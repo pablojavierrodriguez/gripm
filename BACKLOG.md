@@ -83,7 +83,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 🚀 Ready for Deploy (2)
+### 🚀 Ready for Deploy (3)
 
 #### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura
 - **Prioridad**: `low` | **Tipo**: `chore`
@@ -125,6 +125,38 @@ Alcance:
 3. Verificar que el tab de Sprints deshabilitado no deja la app en un estado inconsistente: `App.tsx` ya resuelve el caso con la auto-redirección `sprint → kanban`, de modo que `defaultView: "sprint"` degrada sin intervención.
 
 Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referencia a la que se alinea la config), `defaultView`, y cualquier clave de `theme`, `density` o `language`, que ya coinciden con el canónico.
+
+---
+
+#### [DEV-260] Sistema de ADR (Architecture Decision Records) en docs/adr y registro de las decisiones fundacionales de gripm
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+El Protocolo de Aprendizaje Continuo del playbook (`.agents/TEAM_PLAYBOOK.md`, sección "Continuous Learning Protocol") exige que todo patrón arquitectónico superior quede registrado como *Architectural Decision Record*, y la plantilla de sprint (`docs/sprints/SPRINT_SPEC_TEMPLATE.md`, sección "KNOWLEDGE FEED") reserva un campo `ADR Recorded: [path]` que hoy no tiene destino canónico. En el repositorio no existía ninguna carpeta `docs/adr/`, de modo que el protocolo era inaplicable y las decisiones arquitectónicas más load-bearing de gripm vivían únicamente dispersas en prosa de `AGENTS.md`, `README.md` y `docs/ARCHITECTURE.md`.
+
+Decisiones ya tomadas y consolidadas en el código, hoy sin registro formal:
+
+1. **Markdown como fuente de verdad** (`backlog-md`), con `BACKLOG.md` como consolidado generado y Git como control de versiones.
+2. **Backend embebido como plugin de middleware de Vite** (`server/` + `vite.config.ts`), sin servidor de aplicación propio ni proceso adicional.
+3. **Servidor MCP por stdio** (`scripts/mcp-server.ts` + `bin/gripm-mcp.js`), 12 herramientas JSON-RPC 2.0 sobre el mismo núcleo de persistencia que la UI.
+4. **Daemon local monousuario sin autenticación HTTP** (SEC-10), mitigado con validación de `Host`/`Origin` y cabeceras de seguridad (SEC-01, DEV-243).
+5. **Overlays montados con `createPortal` y layout raíz estable** (Zero-CLS), DEV-129, DEV-130 y gotcha 10 de `AGENTS.md`.
+
+Alcance de esta tarea:
+1. Crear `docs/adr/` con convención de nombres MADR (`NNNN-slug.md`, numeración secuencial e inmutable), estados canónicos y plantilla `0000-plantilla.md`.
+2. Sembrar los 5 ADR fundacionales como registros de decisión **ya aceptados** (documentan el estado del arte, no abren debate).
+3. Enlazar el registro desde `docs/ARCHITECTURE.md` y desde `AGENTS.md` (gotcha de trazabilidad arquitectónica).
+
+Fuera de alcance: validación mecánica de la convención en `scripts/verify-changes.js` (decidido explícitamente con el PO: la convención queda documentada, sin fricción nueva en el gate), y renumerar o reescribir decisiones preexistentes en documentos actuales.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe `docs/adr/README.md` con: propósito del registro, criterio de "esto merece un ADR", anatomía del documento, estados canónicos (`Propuesta`, `Aceptado`, `Reemplazado`, `Obsoleto`), reglas de inmutabilidad y el índice completo de registros
+- [x] #2 Existe `docs/adr/0000-plantilla.md` como plantilla reutilizable con las secciones del formato MADR (Contexto, Decision Drivers, Opciones consideradas, Decisión, Consecuencias, Referencias) y frontmatter de estado y fecha
+- [x] #3 Los 5 ADR semilla existen con numeración `0001`-`0005` y slug kebab-case en español: `0001-markdown-como-fuente-de-verdad.md`, `0002-backend-embebido-como-plugin-de-vite.md`, `0003-servidor-mcp-por-stdio.md`, `0004-daemon-local-sin-autenticacion-http.md`, `0005-overlays-via-portales-y-layout-estable.md`
+- [x] #4 Cada ADR semilla documenta contexto, opciones descartadas **con motivo**, decisión, consecuencias (positivas y negativas) y referencias a tareas del backlog que lo originaron
+- [x] #5 `docs/ARCHITECTURE.md` incluye una sección que enlaza el registro de ADR y aclara que ARCHITECTURE.md describe el estado actual mientras que el ADR registra el porqué de las decisiones
+- [x] #6 `AGENTS.md` incorpora un gotcha de trazabilidad arquitectónica que obliga a registrar en `docs/adr/` toda decisión con trade-offs reales, y remite al campo `ADR Recorded` de la plantilla de sprint
+- [x] #7 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md` (código 0)
+- [x] #8 `node scripts/verify-changes.js --all` valida el árbol completo sin defectos estructurales ni de codificación
 
 ---
 

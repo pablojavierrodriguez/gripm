@@ -23,7 +23,7 @@ gripm es un tablero ágil de gestión de producto e ingeniería *embedded-first*
 │                          PRESENTACIÓN (React UI)                       │
 │                                                                        │
 │  src/App.tsx ── (Orquestador principal, estado global y routing)       │
-│    ├── src/components/Header.tsx (Selector proyecto, filtros, vistas) │
+│    ├── src/components/Header.tsx (Selector proyecto, filtros, vistas)  │
 │    ├── src/components/KanbanBoard.tsx (Tablero interactivo D&D)        │
 │    ├── src/components/SprintView.tsx (Gestión de Sprints y métricas)   │
 │    ├── src/components/ReleaseAssembler.tsx (Releases y Changelogs)     │
@@ -43,7 +43,7 @@ gripm es un tablero ágil de gestión de producto e ingeniería *embedded-first*
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │                    BACKEND EMBEBIDO & MIDDLEWARE                       │
 │                                                                        │
-│  vite.config.ts (Middleware de endpoints API /api/data, /api/items)  │
+│  vite.config.ts (Middleware de endpoints API /api/data, /api/items)    │
 │  scripts/backlogMdParser.ts (Parser y serializador Markdown/YAML)      │
 │  scripts/verify-backlog-sync.js (Guard de sincronización viva)         │
 └───────────────────────────────────┬────────────────────────────────────┘
@@ -162,3 +162,19 @@ Cada tarea en gripm cuando se almacena en modo `backlog-md` reside en `backlog/t
 | `## Implementation Plan` | `<!-- SECTION:PLAN:BEGIN -->` ... `<!-- SECTION:PLAN:END -->` | Plan de ingeniería paso a paso (Plan Guard). |
 | `## Implementation Notes` | `<!-- SECTION:NOTES:BEGIN -->` ... `<!-- SECTION:NOTES:END -->` | Notas técnicas de desarrollo, fixes y riesgos aplicados. |
 | `## Final Summary` | `<!-- SECTION:FINAL_SUMMARY:BEGIN -->` ... `<!-- SECTION:FINAL_SUMMARY:END -->` | Resumen de cierre o entrega de la tarea. |
+
+---
+
+## 7. Registro de Decisiones de Arquitectura (ADR)
+
+Este documento describe **cómo es el sistema hoy**. Las decisiones que explican **por qué es así** -y las alternativas que se descartaron- viven en el registro de ADR, en [`docs/adr/`](adr/README.md).
+
+| # | Decisión |
+| :--- | :--- |
+| [0001](adr/0001-markdown-como-fuente-de-verdad.md) | Markdown como fuente de verdad del backlog |
+| [0002](adr/0002-backend-embebido-como-plugin-de-vite.md) | Backend embebido como plugin de middleware de Vite |
+| [0003](adr/0003-servidor-mcp-por-stdio.md) | Servidor MCP sobre stdio con núcleo de persistencia compartido |
+| [0004](adr/0004-daemon-local-sin-autenticacion-http.md) | Daemon local monousuario sin autenticación HTTP |
+| [0005](adr/0005-overlays-via-portales-y-layout-estable.md) | Overlays montados vía portales y layout raíz estable (cero CLS) |
+
+Toda decisión arquitectónica con _trade-offs_ reales que no sea derivable del código se registra como un ADR nuevo (`NNNN-slug.md`, numeración secuencial e inmutable). La convención, los estados canónicos y el criterio de admisión están en [`docs/adr/README.md`](adr/README.md).

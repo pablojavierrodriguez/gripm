@@ -117,6 +117,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
 18. **Paridad CI vs Local (DEV-249):** La suite headless (`npm test`) no ejecuta `test:ui` ni `verify-changes.js --all`. Ante cambios en Header/navegación o antes de sellar releases, correr ambos obligatoriamente.
 19. **Inmunidad a CRLF (DEV-249):** Todo script que parsee líneas debe normalizar `\r` (`replace(/\r$/, '')`). El repositorio preserva `.gitattributes` (`* text=auto eol=lf`) para evitar divergencias entre plataformas.
+20. **Trazabilidad de arquitectura (ADR, DEV-260):** Toda decisión de arquitectura con trade-offs reales que **no sea derivable del código** se registra como un ADR en `docs/adr/NNNN-slug.md` (numeración secuencial e inmutable, convención y estados en `docs/adr/README.md`). Los ADR aceptados son append-only: una decisión que cambia se documenta en un registro nuevo que marca al anterior como `Reemplazado`. `docs/ARCHITECTURE.md` describe el estado actual; el ADR explica el porqué. Al cerrar un sprint o release, el campo `ADR Recorded` de la plantilla de sprint apunta a la ruta del ADR correspondiente.
 
 ---
 
