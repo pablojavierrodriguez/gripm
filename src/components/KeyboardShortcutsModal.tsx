@@ -160,8 +160,12 @@ export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body / Categorized List */}
-        <div className="p-5 overflow-y-auto space-y-6">
+        {/* Modal Body / Categorized List.
+            The bottom mask dissolves content into the footer instead of hard-cutting
+            it on the border, so a section header landing on the scroll edge reads as
+            "more below" rather than as clipped text. Extra pb keeps the fade over
+            padding once the list is scrolled to the end. */}
+        <div className="p-5 pb-7 overflow-y-auto space-y-6 [mask-image:linear-gradient(to_bottom,#000_calc(100%-28px),#0000)]">
           {groups.map((group) => {
             const Icon = group.icon;
             return (
@@ -233,20 +237,13 @@ export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
             ))}
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden sm:inline-flex items-center gap-1.5">
-              <span>{t('shortcuts.hint', { key: '' }).replace('{{key}}', '')}</span>
-              <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono font-semibold rounded bg-white dark:bg-white/[0.08] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300">
-                ?
-              </kbd>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-white/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500/50"
-            >
-              {t('shortcuts.close')}
-            </button>
+          {/* Reopen hint, inline on the same row. No close button: the header X,
+              the Esc trap and the backdrop click already cover dismissal. */}
+          <div className="hidden sm:inline-flex items-center gap-1.5 shrink-0">
+            <span>{t('shortcuts.hint', { key: '' }).replace('{{key}}', '')}</span>
+            <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono font-semibold rounded bg-white dark:bg-white/[0.08] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300">
+              ?
+            </kbd>
           </div>
         </div>
       </div>

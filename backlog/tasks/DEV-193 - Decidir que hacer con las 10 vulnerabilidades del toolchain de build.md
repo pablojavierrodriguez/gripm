@@ -82,4 +82,15 @@ Aparece al instalar el repo, no al usar `gripm`. Nadie lo ejecutó en el camino 
 ### Verificación mínima si se decide actualizar
 
 El riesgo de un cambio de build toolchain es que el fallo no sea de sintaxis sino de salida. Por eso el AC #4 pide comparar el bundle antes y después, y el AC #2 corre la suite en las dos plataformas. Un `tsc` en verde no dice nada sobre si el CSS compiló bien.
+
+### Reconciliación con el contador de GitHub (verificada 2026-10-13)
+
+El banner de GitHub Security al pushear a `dev` reporta **7 vulnerabilidades (3 high, 4 moderate)** sobre la rama por defecto. `npm audit` local reporta **10 (3 moderate, 7 high)**. No es un conflicto: son dos unidades de conteo distintas sobre el mismo árbol.
+
+- **GitHub cuenta *advisories***, deduplicadas, evaluadas sobre la rama por defecto.
+- **npm cuenta *rutas del árbol***: las 5 transitivas (`braces`, `chokidar`, `fast-glob`, `micromatch`, `source-map-js`) cuelgan de las 2 directas (`vite`, `tailwindcss`), así que cada una se reporta también por separado.
+
+Lo que sí coincide en ambas fuentes, y es lo que decide esta tarea: **ninguna vulnerabilidad alcanza el runtime del consumidor** y **todas son toolchain de build**. Es la misma conclusión que ya sustentan DEV-175 (superficie vigilada) y DEV-246 (bloqueo de críticas en CI).
+
+El escaneo local del 2026-10-13 reproduce exactamente la tabla de la Description — mismos 2 directos, mismos 8 transitivos, misma severidad—, así que la tabla sigue vigente y no requiere actualización.
 <!-- SECTION:NOTES:END -->
