@@ -106,23 +106,39 @@
     ]
   },
   "version": "1.0.0",
-  "mode": "single",
+  "mode": "multi",
   "language": "en",
   "projectName": "gripm",
   "projectId": "gripm",
   "codePrefix": "GRIP",
-  "methodology": "scrum",
+  "methodology": "kanban",
   "enabledTabs": {
     "kanban": true,
-    "sprint": true,
+    "sprint": false,
     "release": true
   },
   "locale": "en",
   "defaultView": "sprint",
   "modules": {
     "sprint": true,
-    "release": true
+    "release": true,
+    "calendar": false
   },
   "rankingEnabled": true,
-  "customItemTypes": []
+  "customItemTypes": [],
+  "calendarExport": false,
+  "estimation": {
+    "enabled": false,
+    "method": "fibonacci"
+  },
+  "visibleCardMetadata": {
+    "module": true,
+    "sprint": true,
+    "release": true,
+    "acProgress": true,
+    "priority": true,
+    "parent": true,
+    "blocked": true,
+    "estimate": true
+  }
 }

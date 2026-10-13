@@ -83,7 +83,7 @@ El tablero está priorizando actualmente el uso en desktop y presenta una experi
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🚀 Ready for Deploy (2)
 
 #### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura
 - **Prioridad**: `low` | **Tipo**: `chore`
@@ -100,6 +100,31 @@ Problemas concretos que corrige:
 5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real —el pie nunca puede superponerse porque el cuerpo scrollea—, sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
 
 Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
+
+---
+
+#### [DEV-259] Alinear .gripm/config.json del repo con la configuración OSS canónica documentada en AGENTS.md
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+El gotcha 17 de `AGENTS.md` declara que `.gripm/config.json` define la configuración OSS canónica del repositorio, y la describe con `"methodology": "kanban"` y `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`. El archivo commiteado no coincidía con esa descripción en dos claves, y además arrastraba defaults de esquema que ya no existían en el modelo de configuración vigente.
+
+Divergencias detectadas al contrastar disco contra documentación:
+
+| Clave | En HEAD | Canónico (gotcha 17) | Motivo del cambio |
+| :--- | :--- | :--- | :--- |
+| `methodology` | `scrum` | `kanban` | El repo opera bajo flujo Kanban continuo (gotcha 16); `scrum` contradecía la propia metodología declarada |
+| `mode` | `single` | — | Estado real del entorno de trabajo, sin efecto en la distribución |
+| `enabledTabs.sprint` | `true` | `false` | Alineación con el canónico documentado |
+| `modules.calendar` | ausente | — | Default de esquema |
+| `estimation` | ausente | — | Default de esquema (DEV-137/DEV-139) |
+| `visibleCardMetadata` | ausente | — | Default de esquema (8 claves) |
+
+Alcance:
+1. `enabledTabs.sprint` pasa a `false` para respetar el canónico documentado.
+2. Se conservan los defaults de esquema incorporados (`calendar`, `estimation`, `visibleCardMetadata`), que son la forma normalizada que el modelo vigente espera y no constituyen preferencias personales.
+3. Verificar que el tab de Sprints deshabilitado no deja la app en un estado inconsistente: `App.tsx` ya resuelve el caso con la auto-redirección `sprint → kanban`, de modo que `defaultView: "sprint"` degrada sin intervención.
+
+Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referencia a la que se alinea la config), `defaultView`, y cualquier clave de `theme`, `density` o `language`, que ya coinciden con el canónico.
 
 ---
 
