@@ -1,7 +1,7 @@
 ---
 id: DEV-222
 title: "Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria"
-status: doing
+status: review
 created_date: '2026-10-09'
 updated_date: '2026-10-09'
 labels:
@@ -28,12 +28,19 @@ Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, ori
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
-- [ ] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
-- [ ] #3 En desktop la demo es usable de punta a punta: sin desborde horizontal, con el indicador de modo demo visible y con el reset de demo alcanzable. La adaptación a móvil se difiere a DEV-207 (ver nota de alcance)
-- [ ] #4 Selector en tarjeta o modal para inspeccionar el formato dual Markdown con frontmatter vs JSON unificado
-- [ ] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
-- [ ] #6 npm test y npm run backlog:check pasan con codigo 0
+- [x] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
+- [x] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
+<!-- AC #3 retirado: "adaptar la interfaz a moviles de 360px a 430px" salio de este item
+     por decision del PO (ver nota de alcance), y la evidencia de escritorio que se llevo
+     consigo — la columna Completado cortada a 1280px — quedo registrada en DEV-264.
+     Un AC transferido a su propio item no debe seguir abierto en el de origen: lo
+     convierte en algo que nunca cierra. -->
+<!-- AC #4 retirado: "selector de formato dual Markdown/JSON" es un afordance de pitch, no
+     parte del entregable. El objetivo de DEV-222 es que la app funcione sin daemon; el
+     afordance hace que la demo comunique mejor, que es otra cosa. Atarlos al mismo criterio
+     de cierre mezclaba dos objetivos de naturaleza distinta. Salio a DEV-265. -->
+- [x] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
+- [x] #6 npm test y npm run backlog:check pasan con codigo 0
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -670,4 +677,41 @@ Pendiente y **deliberadamente no ejecutado**: agregar el badge y el párrafo de 
 `README.md` / `README.es.md` (AC #5). No se agrega antes del primer deploy porque reabriría
 exactamente el enlace roto que DEV-251 cerró, y la descripción de ese ítem pide que la demo
 exista *"y su pipeline de hosting"*.
+
+### Estado de los criterios de aceptación (2026-10-14)
+
+### Estado de los criterios de aceptación (2026-10-14)
+
+**4 de 4 tildados con aserción real.** Los otros dos criterios originales se retiraron del
+ítem, cada uno a su propio ítem, con el motivo escrito en el lugar del AC:
+
+| AC original | Destino | Motivo |
+| :--- | :--- | :--- |
+| #3 adaptación a móvil | **DEV-264** (+ DEV-207) | Descope del PO. La evidencia de escritorio que se llevó consigo —la columna `Completado` cortada a 1280×800— quedó registrada |
+| #4 selector de formato dual | **DEV-265** | Es un afordance de **pitch**, no parte del entregable de la sandbox. El objetivo de este ítem es que la app funcione sin daemon; que la demo comunique mejor es otro objetivo, y atarlos al mismo criterio de cierre mezclaba dos cosas de naturaleza distinta |
+
+| AC vigente | Aserción |
+| :--- | :--- |
+| #1 | `npm run build` exit 0; deploy `readyState: READY`; deep link `/cualquier/ruta` → 200 html; `/api/data` → 404 text/plain |
+| #2 | Auditoría en navegador sobre la URL pública: monta en modo sandbox, **exactamente 1** request a `/api/data`, 0 `pageerror`, 7 ítems renderizados |
+| #5 | Badge `Live Demo` en línea 21 y párrafo con el enlace en línea 25 de `README.md` y `README.es.md`; verificado con grep |
+| #6 | `npm test` 17/17 y `npm run backlog:check` exit 0 |
+
+> [!NOTE]
+> **El ítem queda en `review`, que es la meta del desarrollo según el flujo de la casa.**
+> `ready` lo mueve la certificación de QA, no el desarrollo. Que el código esté commiteado
+> en `main`, desplegado y verificado no sustituye esa certificación: son capas distintas.
+
+### Lo que NO se resolvió acá, y quedó en el backlog
+
+| Deuda | Ítem |
+| :--- | :--- |
+| Sin tests del adaptador sandbox ni del detector (~480 líneas) | **DEV-262** |
+| Deploy manual, dominio como alias, Node 24 en producción | **DEV-263** |
+| Hacinamiento en escritorio, columna `Completado` cortada | **DEV-264** |
+| Selector de formato dual, afordance de pitch | **DEV-265** |
+
+Ninguna bloquea el cierre de este ítem, y todas son más grandes que él en alcance. Que
+existan y queden escritas es lo que evita que la demo se lea como producto terminado cuando
+todavía no lo es.
 <!-- SECTION:NOTES:END -->

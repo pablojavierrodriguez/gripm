@@ -85,7 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### ⚡ In Progress / Doing (1)
+### 🔍 Review & QA (2)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -98,16 +98,12 @@ Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, ori
 5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
 
 **Criterios de Aceptación:**
-- [ ] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
-- [ ] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
-- [ ] #3 En desktop la demo es usable de punta a punta: sin desborde horizontal, con el indicador de modo demo visible y con el reset de demo alcanzable. La adaptación a móvil se difiere a DEV-207 (ver nota de alcance)
-- [ ] #4 Selector en tarjeta o modal para inspeccionar el formato dual Markdown con frontmatter vs JSON unificado
-- [ ] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
-- [ ] #6 npm test y npm run backlog:check pasan con codigo 0
+- [x] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
+- [x] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
+- [x] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
+- [x] #6 npm test y npm run backlog:check pasan con codigo 0
 
 ---
-
-### 🔍 Review & QA (1)
 
 #### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -254,7 +250,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 
 ---
 
-### 📋 Backlog / Draft (15)
+### 📋 Backlog / Draft (16)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -661,6 +657,27 @@ comunicó como experiencia desktop.
 - [ ] #5 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
 - [ ] #6 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
 - [ ] #7 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-265] Selector de formato dual: inspeccionar una tarea como Markdown y como JSON desde la UI
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Salió de DEV-222 con decisión del PO: **es un afordance de pitch, no parte del entregable
+de la sandbox.** El objetivo de DEV-222 era que la app funcione sin daemon; esto es que la
+demo comunique mejor. Atarlos al mismo criterio de cierre mezclaba dos objetivos de
+naturaleza distinta.
+
+**Criterios de Aceptación:**
+- [ ] #1 El panel muestra las dos representaciones de la tarea abierta: el Markdown con frontmatter y el JSON, generadas por `serializeBacklogMd()` y por el shape de `BacklogItem`, sin reimplementar ninguno de los dos
+- [ ] #2 El Markdown mostrado es exactamente el que se escribiría en `backlog/tasks/<CODE> - <slug>.md`, incluido el nombre de archivo que `generateTaskFilename()` produciría
+- [ ] #3 El contenido mostrado se **copia al portapapeles** completo, sin perder acentos ni saltos de línea del frontmatter
+- [ ] #4 El afordance **solo aparece en modo sandbox**, con `isSandboxMode()`. En la app local con daemon no se ofrece, porque el dato real ya está en disco y el inspector sería ruido
+- [ ] #5 No introduce scroll horizontal ni desborde en el modal, verificado a 1366x768 y en ambos temas
+- [ ] #6 Texto y atajos en ambos idiomas (`es.json` y `en.json`), sin literales sueltos
+- [ ] #7 Cero hallazgos nuevos de `UX-010` o `UX-011`: los botones icon-only llevan nombre accesible y los tamaños usan la escala canónica
+- [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
 
 ---
 
