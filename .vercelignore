@@ -1,0 +1,52 @@
+# DEV-222 — qué se sube a Vercel en un deploy.
+#
+# Por qué existe: Vercel sube el repositorio entero al contenedor de build. Sin este
+# archivo, cada deploy arrastraba 258 tareas de `backlog/tasks/` (868 KB) con trabajo
+# privado: decisiones, prioridades, nombres de proyectos. `npm run publish:check` protege
+# el tarball de npm, pero **nadie protegía el upload a Vercel** — la misma clase de fuga
+# que cerraron DEV-118, DEV-120 y DEV-151.
+#
+# `tsconfig.json` incluye solo `src`, `server`, `scripts` y `vite.config.ts`: ninguno de
+# los paths de acá hace falta para compilar.
+
+# --- Trabajo privado: nunca subir ---
+backlog/
+BACKLOG.md
+data/projects-registry.json
+.gripm/
+.playbook-lock.json
+.githooks/
+
+# --- Generado: Vercel lo regenera en cada build ---
+dist/
+bin/
+node_modules/
+
+# --- Documentación: la sirve GitHub, no el sitio ---
+docs/
+agents/
+.agents/
+.github/
+AGENTS.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+CHANGELOG.md
+README.md
+README.es.md
+LICENSE
+
+# --- Credenciales ---
+# `vercel link` crea un `.env.local` con un VERCEL_OIDC_TOKEN **vivo**. Está en
+# `.gitignore`, pero el upload a Vercel NO lee `.gitignore`: sin estas líneas, el token
+# viajaría al contenedor de build en cada deploy.
+.env*
+.vercel/
+
+# --- Metadatos de auditoría: se corren localmente, no en el build ---
+audit-ux-baseline.json
+.uxaudit.json
+
+# IMPORTANTE: `data/demo-backlog.json` **no** se excluye a propósito.
+# `src/data/sandbox.ts` lo importa como módulo, así que es el dataset semilla de la
+# demo y tiene que estar presente para que `vite build` lo empaquete.

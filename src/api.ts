@@ -1,447 +1,116 @@
-import type { BacklogItem, BoardData, Project, Release, StorageType, GripmConfig, Sprint } from './types';
+import { getActiveApi } from './data/runtime';
+import { ensureAdapter } from './data/detect';
+import type { BoardEvent, BoardEventType, FsBrowseResult, GripmApi as GripmApiShape } from './data/types';
 
-const API_BASE = '/api';
+/**
+ * DEV-222 — Fachada pública de la capa de datos.
+ *
+ * Antes de DEV-222 este archivo contenía la implementación HTTP completa. Ahora es
+ * una re-exportación con nombre desde el adaptador activo, de modo que la UI siga
+ * importando igual (`import { fetchBoardData } from './api'`) sin enterarse de si
+ * detrás hay un daemon local o el dataset en memoria de la sandbox.
+ *
+ * Cada punto de entrada espera `ensureAdapter()`. El probe corre una sola vez y se
+ * cachea, así que el costo después del primero es nulo, pero **sí** tiene que pasar
+ * antes del primer render: sin esto la app puede pintar el tablero con
+ * `boardData === null` mientras el probe decide, que es exactamente la pantalla
+ * vacía que este ítem viene a eliminar.
+ *
+ * Las firmas se toman del contrato vía `Parameters<>`: si el contrato deriva, esto
+ * es un error de compilación y no una discrepancia silenciosa.
+ */
+export type { BoardEvent, BoardEventType, FsBrowseResult };
 
-export async function fetchBoardData(): Promise<BoardData> {
-  const res = await fetch(`${API_BASE}/data`);
-  if (!res.ok) {
-    throw new Error(`Error fetching board data: ${res.statusText}`);
-  }
-  return res.json();
+/** Espera la resolución del adaptador y delega. */
+async function withAdapter<T>(fn: (api: GripmApiShape) => Promise<T>): Promise<T> {
+  await ensureAdapter();
+  return fn(getActiveApi());
 }
 
-export async function createItem(item: Partial<BacklogItem>): Promise<BacklogItem> {
-  const res = await fetch(`${API_BASE}/items`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item),
+// --- Tablero ---------------------------------------------------------------
+export const fetchBoardData = () => withAdapter((api) => api.fetchBoardData());
+
+// --- Ítems -----------------------------------------------------------------
+export const createItem = (item: Parameters<GripmApiShape['createItem']>[0]) =>
+  withAdapter((api) => api.createItem(item));
+export const updateItem = (id: string, updates: Parameters<GripmApiShape['updateItem']>[1]) =>
+  withAdapter((api) => api.updateItem(id, updates));
+export const deleteItem = (id: string) => withAdapter((api) => api.deleteItem(id));
+export const restoreItem = (id: string) => withAdapter((api) => api.restoreItem(id));
+export const purgeItem = (id: string) => withAdapter((api) => api.purgeItem(id));
+export const bulkUpdateItems = (items: Parameters<GripmApiShape['bulkUpdateItems']>[0]) =>
+  withAdapter((api) => api.bulkUpdateItems(items));
+
+// --- Proyectos -------------------------------------------------------------
+export const createProject = (project: Parameters<GripmApiShape['createProject']>[0]) =>
+  withAdapter((api) => api.createProject(project));
+export const updateProject = (id: string, updates: Parameters<GripmApiShape['updateProject']>[1]) =>
+  withAdapter((api) => api.updateProject(id, updates));
+export const deleteProject = (id: string) => withAdapter((api) => api.deleteProject(id));
+export const setActiveProjectApi = (projectId: string) =>
+  withAdapter((api) => api.setActiveProjectApi(projectId));
+export const restoreDemoProject = () => withAdapter((api) => api.restoreDemoProject());
+
+// --- Releases --------------------------------------------------------------
+export const createRelease = (release: Parameters<GripmApiShape['createRelease']>[0], itemCodes: string[]) =>
+  withAdapter((api) => api.createRelease(release, itemCodes));
+export const syncLegacyReleases = (projectId?: string) =>
+  withAdapter((api) => api.syncLegacyReleases(projectId));
+export const deleteReleaseApi = (id: string) => withAdapter((api) => api.deleteReleaseApi(id));
+
+// --- Sprints ---------------------------------------------------------------
+export const fetchSprints = (projectId?: string) => withAdapter((api) => api.fetchSprints(projectId));
+export const createSprint = (sprint: Parameters<GripmApiShape['createSprint']>[0]) =>
+  withAdapter((api) => api.createSprint(sprint));
+export const updateSprint = (id: string, updates: Parameters<GripmApiShape['updateSprint']>[1]) =>
+  withAdapter((api) => api.updateSprint(id, updates));
+export const deleteSprint = (id: string, projectId?: string) =>
+  withAdapter((api) => api.deleteSprint(id, projectId));
+
+// --- Importación y exportación --------------------------------------------
+export const triggerResync = (projectId?: string) => withAdapter((api) => api.triggerResync(projectId));
+export const importLegacyBacklog = (params: Parameters<GripmApiShape['importLegacyBacklog']>[0]) =>
+  withAdapter((api) => api.importLegacyBacklog(params));
+export const convertProjectToMd = (projectId: string) =>
+  withAdapter((api) => api.convertProjectToMd(projectId));
+export const convertProjectToJson = (projectId: string) =>
+  withAdapter((api) => api.convertProjectToJson(projectId));
+export const exportProjectJson = (projectId: string) =>
+  withAdapter((api) => api.exportProjectJson(projectId));
+export const exportMonolithicMd = (projectId: string, save = false) =>
+  withAdapter((api) => api.exportMonolithicMd(projectId, save));
+
+// --- Configuración ---------------------------------------------------------
+export const fetchSettings = (projectId?: string) => withAdapter((api) => api.fetchSettings(projectId));
+export const saveSettings = (config: Parameters<GripmApiShape['saveSettings']>[0], projectId?: string) =>
+  withAdapter((api) => api.saveSettings(config, projectId));
+
+// --- Retrospectivas -------------------------------------------------------
+export const fetchRetros = (projectId?: string) => withAdapter((api) => api.fetchRetros(projectId));
+
+// --- Sistema de archivos ---------------------------------------------------
+export const browseDirectory = (dir?: string): Promise<FsBrowseResult> =>
+  withAdapter((api) => api.browseDirectory(dir));
+export const detectPathStorage = (repoPath: string) =>
+  withAdapter((api) => api.detectPathStorage(repoPath));
+
+// --- Eventos ---------------------------------------------------------------
+/**
+ * Suscripción perezosa: si el probe todavía no resolvió, no se abre `EventSource`
+ * todavía. Si la app cae en modo sandbox, el adaptador elegido devuelve un no-op y
+ * no se abre ninguna conexión contra un 404.
+ */
+export const subscribeToBoardEvents = (onEvent: (event: BoardEvent) => void): (() => void) => {
+  let inner: (() => void) | null = null;
+  let cancelled = false;
+
+  void ensureAdapter().then(() => {
+    if (cancelled) return;
+    inner = getActiveApi().subscribeToBoardEvents(onEvent);
   });
-  if (!res.ok) {
-    throw new Error(`Error creating item: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.item;
-}
-
-export async function updateItem(
-  id: string, 
-  updates: Partial<BacklogItem> & { expectedMtime?: number; force?: boolean }
-): Promise<BacklogItem> {
-  const res = await fetch(`${API_BASE}/items/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-  if (res.status === 409) {
-    const errorData = await res.json().catch(() => ({}));
-    const err: any = new Error(errorData.message || 'Conflict: item modificado en disco externamente');
-    err.status = 409;
-    err.conflict = true;
-    err.currentMtime = errorData.currentMtime;
-    err.currentItem = errorData.currentItem;
-    throw err;
-  }
-  if (!res.ok) {
-    throw new Error(`Error updating item: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.item;
-}
-
-export async function deleteItem(id: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/items/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error deleting item: ${res.statusText}`);
-  }
-  return true;
-}
-
-// DEV-049: Restore a soft-deleted item to its previous status
-export async function restoreItem(id: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/items/${encodeURIComponent(id)}/restore`, {
-    method: 'PATCH',
-  });
-  if (!res.ok) {
-    throw new Error(`Error restoring item: ${res.statusText}`);
-  }
-  return true;
-}
-
-// DEV-049: Physically purge an item (irreversible, moves to archive/)
-export async function purgeItem(id: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/items/${encodeURIComponent(id)}?purge=true`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    throw new Error(`Error purging item: ${res.statusText}`);
-  }
-  return true;
-}
-
-export async function bulkUpdateItems(items: Array<Partial<BacklogItem>>): Promise<number> {
-  const res = await fetch(`${API_BASE}/items/bulk`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items }),
-  });
-  if (!res.ok) {
-    throw new Error(`Error bulk updating items: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.count;
-}
-
-export async function createProject(project: Partial<Project>): Promise<Project> {
-  const res = await fetch(`${API_BASE}/projects`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(project),
-  });
-  if (!res.ok) {
-    throw new Error(`Error creating project: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.project;
-}
-
-export async function updateProject(id: string, updates: Partial<Project>): Promise<Project> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-  if (!res.ok) {
-    throw new Error(`Error updating project: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.project;
-}
-
-export async function deleteProject(id: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    throw new Error(`Error deleting project: ${res.statusText}`);
-  }
-  return true;
-}
-
-export async function createRelease(release: Partial<Release>, itemCodes: string[]): Promise<Release> {
-  const res = await fetch(`${API_BASE}/releases`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...release, itemCodes }),
-  });
-  if (!res.ok) {
-    throw new Error(`Error creating release: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.release;
-}
-
-export async function syncLegacyReleases(projectId?: string): Promise<{ ok: boolean; releases: Release[]; count: number }> {
-  const res = await fetch(`${API_BASE}/releases/sync-legacy`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId }),
-  });
-  if (!res.ok) {
-    throw new Error(`Error sincronizando releases: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function deleteReleaseApi(id: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/releases/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-  return res.ok;
-}
-
-export async function triggerResync(projectId?: string): Promise<{
-  ok: boolean;
-  projectId: string;
-  projectName: string;
-  importedCount: number;
-  releasesCount: number;
-  storageType?: string;
-}> {
-  const res = await fetch(`${API_BASE}/import`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error syncing docs: ${res.statusText}`);
-  }
-  return await res.json();
-}
-
-export async function convertProjectToMd(projectId: string): Promise<{ ok: boolean; message: string; convertedCount: number }> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/convert-to-md`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error convirtiendo a Backlog.md: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function convertProjectToJson(projectId: string): Promise<{ ok: boolean; message: string; savedPath: string }> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/convert-to-json`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error convirtiendo a JSON: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function exportProjectJson(projectId: string): Promise<{ ok: boolean; project: Project; data: any }> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/export-json`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error exportando JSON: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function exportMonolithicMd(projectId: string, save = false): Promise<{ ok: boolean; content: string; savedPath?: string }> {
-  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/export-monolithic-md${save ? '?save=true' : ''}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error exportando BACKLOG.md: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function restoreDemoProject(): Promise<{ ok: boolean; projects: Project[] }> {
-  const res = await fetch(`${API_BASE}/projects/restore-demo`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error restaurando demo: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export interface FsBrowseResult {
-  ok: boolean;
-  currentPath: string;
-  parentPath: string | null;
-  folders: Array<{ name: string; path: string; isGit: boolean; hasBacklog: boolean }>;
-  isGit: boolean;
-  hasBacklog: boolean;
-  hasGripm: boolean;
-  warning?: string;
-}
-
-export async function browseDirectory(dir?: string): Promise<FsBrowseResult> {
-  const query = dir ? `?dir=${encodeURIComponent(dir)}` : '';
-  const res = await fetch(`${API_BASE}/fs/browse${query}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error explorando directorios: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function detectPathStorage(repoPath: string): Promise<{
-  ok: boolean;
-  exists: boolean;
-  isGit: boolean;
-  normalizedPath: string;
-  storageType: StorageType;
-  backlogDir: string;
-}> {
-  const res = await fetch(`${API_BASE}/projects/detect-path`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repoPath }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Error detectando ruta: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export type BoardEventType = 'connected' | 'disconnected' | 'backlog_changed';
-
-export interface BoardEvent {
-  type: BoardEventType;
-  data: any;
-}
-
-export function subscribeToBoardEvents(onEvent: (event: BoardEvent) => void): () => void {
-  let es: EventSource | null = null;
-  let reconnectTimer: any = null;
-  let isClosed = false;
-
-  function connect() {
-    if (isClosed) return;
-    try {
-      es = new EventSource(`${API_BASE}/events`);
-
-      es.onopen = () => {
-        onEvent({ type: 'connected', data: null });
-      };
-
-      es.addEventListener('backlog_changed', (evt: any) => {
-        try {
-          const data = JSON.parse(evt.data);
-          onEvent({ type: 'backlog_changed', data });
-        } catch {
-          onEvent({ type: 'backlog_changed', data: null });
-        }
-      });
-
-      es.onerror = () => {
-        if (es) {
-          es.close();
-          es = null;
-        }
-        onEvent({ type: 'disconnected', data: null });
-        if (!isClosed) {
-          reconnectTimer = setTimeout(connect, 3000);
-        }
-      };
-    } catch {
-      onEvent({ type: 'disconnected', data: null });
-      if (!isClosed) {
-        reconnectTimer = setTimeout(connect, 3000);
-      }
-    }
-  }
-
-  connect();
 
   return () => {
-    isClosed = true;
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    if (es) {
-      es.close();
-      es = null;
-    }
+    cancelled = true;
+    inner?.();
   };
-}
-
-export async function importLegacyBacklog(params: {
-  projectId: string;
-  content?: string;
-  items?: any[];
-  defaultMilestone?: string;
-}): Promise<{ ok: boolean; importedCount: number; items: BacklogItem[] }> {
-  const res = await fetch(`${API_BASE}/import/legacy-md`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Error importing legacy backlog: ${res.statusText}`);
-  }
-  return res.json();
-}
-
-export async function fetchSettings(projectId?: string): Promise<GripmConfig> {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await fetch(`${API_BASE}/settings${query}`);
-  if (!res.ok) {
-    throw new Error(`Error fetching settings: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.config;
-}
-
-export async function saveSettings(config: GripmConfig, projectId?: string): Promise<GripmConfig> {
-  const res = await fetch(`${API_BASE}/settings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ config, projectId }),
-  });
-  if (!res.ok) {
-    throw new Error(`Error saving settings: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.config;
-}
-
-export async function setActiveProjectApi(projectId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/projects/active`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-export async function fetchSprints(projectId?: string): Promise<Sprint[]> {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await fetch(`${API_BASE}/sprints${query}`);
-  if (!res.ok) {
-    throw new Error(`Error fetching sprints: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.sprints || [];
-}
-
-export async function createSprint(sprint: Partial<Sprint>): Promise<Sprint> {
-  const res = await fetch(`${API_BASE}/sprints`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sprint),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Error creating sprint: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.sprint;
-}
-
-export async function updateSprint(id: string, updates: Partial<Sprint>): Promise<Sprint> {
-  const res = await fetch(`${API_BASE}/sprints/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Error updating sprint: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.sprint;
-}
-
-export async function deleteSprint(id: string, projectId?: string): Promise<boolean> {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await fetch(`${API_BASE}/sprints/${encodeURIComponent(id)}${query}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Error deleting sprint: ${res.statusText}`);
-  }
-  return true;
-}
-
-
+};

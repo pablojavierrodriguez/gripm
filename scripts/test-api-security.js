@@ -209,20 +209,30 @@ class MockRequest extends EventEmitter {
   console.log('✅ FS Containment: Directorio autorizado devuelve 200 OK');
 }
 
-// Test 12: Client API Invariant (DEV-237): All mutating POST/PUT fetch calls in src/api.ts must declare Content-Type: application/json
+// Test 12: Client API Invariant (DEV-237): All mutating POST/PUT fetch calls in the client data layer must declare Content-Type: application/json
+// DEV-222: the client data layer moved out of src/api.ts into src/data/. The invariant is unchanged,
+// so the check scans the whole directory instead of a single hardcoded file: a future move inside
+// src/data/ must not silently turn this test into a vacuous pass.
 {
   const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const apiSource = fs.readFileSync(path.join(ROOT, 'src', 'api.ts'), 'utf8');
-  const postPutBlocks = apiSource.match(/fetch\([^)]*\{\s*method:\s*['"](?:POST|PUT)['"][\s\S]*?\}\);/g) || [];
-  assert(postPutBlocks.length > 0, 'Debe haber llamadas fetch mutantes en src/api.ts');
+  const dataLayer = path.join(ROOT, 'src', 'data');
+  const files = fs.readdirSync(dataLayer).filter((f) => f.endsWith('.ts'));
+  assert(files.length > 0, 'Debe existir la capa de datos del cliente en src/data/');
+
+  const postPutBlocks = [];
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(dataLayer, file), 'utf8');
+    postPutBlocks.push(...(source.match(/fetch\([^)]*\{\s*method:\s*['"](?:POST|PUT)['"][\s\S]*?\}\);/g) || []));
+  }
+  assert(postPutBlocks.length > 0, 'Debe haber llamadas fetch mutantes en src/data/');
 
   for (const block of postPutBlocks) {
     assert(
       block.includes("'Content-Type': 'application/json'") || block.includes('"Content-Type": "application/json"'),
-      `Llamada mutante en src/api.ts debe declarar Content-Type: application/json para evitar rechazo 415 (DEV-237):\n${block}`,
+      `Llamada mutante en src/data/ debe declarar Content-Type: application/json para evitar rechazo 415 (DEV-237):\n${block}`,
     );
   }
-  console.log(`✅ Client API Invariant (DEV-237): ${postPutBlocks.length} llamadas POST/PUT en src/api.ts incluyen Content-Type: application/json`);
+  console.log(`✅ Client API Invariant (DEV-237): ${postPutBlocks.length} llamadas POST/PUT en src/data/ incluyen Content-Type: application/json`);
 }
 
 // Test 13: Runtime Interchangeability & Mode Precedence (DEV-240)

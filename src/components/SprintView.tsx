@@ -33,6 +33,7 @@ import { CompleteSprintModal } from './CompleteSprintModal';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
+import { fetchRetros } from '../api';
 import {
   ALL_OPTIONAL_COLS,
   DEFAULT_COLS,
@@ -130,10 +131,11 @@ export const SprintView: FC<SprintViewProps> = ({
   const [selectedRetro, setSelectedRetro] = useState<{ title: string; date: string; content: string; sprintName: string } | null>(null);
 
   useEffect(() => {
-    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-    fetch(`/api/retros${query}`)
-      .then(res => res.json())
-      .then(d => {
+    // DEV-222: pasa por el adaptador. Antes era un fetch hardcodeado a /api/retros,
+    // que en la sandbox web devolvía 404 en cada carga y quedaba silenciado por el
+    // catch. El adaptador sandbox responde lista vacía.
+    fetchRetros(projectId)
+      .then((d) => {
         if (d?.retros) setRetros(d.retros);
       })
       .catch(() => {});

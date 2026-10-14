@@ -18,6 +18,13 @@
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocolo%20Listo-6366f1.svg" alt="Protocolo MCP: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=20.0.0 (LTS)" /></a>
   <a href="#capturas-de-pantalla"><img src="https://img.shields.io/badge/Demo-Capturas%20del%20producto-6366f1.svg" alt="Ver capturas de demostración" /></a>
+  <a href="https://gripm.vercel.app"><img src="https://img.shields.io/badge/Demo_Interactiva-6366f1.svg" alt="Demo interactiva en vivo" /></a>
+</p>
+
+<p align="center">
+  <a href="https://gripm.vercel.app">Probala en <strong>gripm.vercel.app</strong></a> — una instancia
+  pública con datos de ejemplo. Sin instalar y sin servidor: creá, mové y tildá tareas en tu
+  navegador. Los cambios se quedan en ese navegador y nunca salen de ahí. <em>Optimizada para escritorio.</em>
 </p>
 
 <p align="center">

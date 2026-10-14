@@ -14,6 +14,9 @@ import type {
   Sprint
 } from './types';
 import { isSprintModuleActive, isReleaseModuleActive } from './types';
+// DEV-222: solo se usa para etiquetar el Header. `loadData` ya espera `ensureAdapter()`
+// a través de la fachada de `./api`, así que para el primer render ya está resuelto.
+import { isSandboxMode } from './data/detect';
 import { 
   fetchBoardData, 
   createItem, 
@@ -50,7 +53,7 @@ import { ImportWizardModal } from './components/ImportWizardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
-import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2 } from 'lucide-react';
+import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 
@@ -1291,6 +1294,7 @@ export function App() {
         onOpenShortcuts={() => setShortcutsModalOpen(true)}
         onDeleteProject={handleDeleteProject}
         onRestoreDemo={handleRestoreDemo}
+        isSandbox={isSandboxMode()}
         onConvertToMd={handleConvertToMd}
         onConvertToJson={handleConvertToJson}
         onOpenImportWizard={() => setImportWizardOpen(true)}
@@ -1299,6 +1303,43 @@ export function App() {
         singleProject={boardData ? Boolean(boardData.singleProject) : (config?.mode === 'single')}
         updateAvailable={boardData?.updateAvailable}
       />
+
+      {/* DEV-222 — Banner de demo. La URL raíz ES la sandbox, así que quien llega no
+          tiene contexto de qué está mirando ni salida hacia el repo o la instalación.
+          Este banner resuelve las dos cosas sin agregar una landing que mantener.
+          Se oculta cuando el detector encuentra daemon, o sea nunca en local. */}
+      {isSandboxMode() && (
+        <div className="mx-4 sm:mx-6 lg:mx-8 mt-3 px-3.5 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+          <span className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-medium">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            {t('app.sandboxBannerTitle')}
+          </span>
+          <span className="text-slate-600 dark:text-slate-400 leading-relaxed min-w-0 flex-1">
+            {t('app.sandboxBannerBody')}
+          </span>
+          <span className="flex items-center gap-1 shrink-0">
+            <a
+              href="https://github.com/pablojavierrodriguez/gripm"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 min-h-[44px] px-2.5 rounded-lg font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/15 transition-colors"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              {t('app.sandboxBannerRepo')}
+            </a>
+            <a
+              href="https://www.npmjs.com/package/@gripm/board"
+              target="_blank"
+              rel="noreferrer"
+              title="npm install -g @gripm/board"
+              className="flex items-center gap-1.5 min-h-[44px] px-2.5 rounded-lg font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/15 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="font-mono">{t('app.sandboxBannerInstall')}</span>
+            </a>
+          </span>
+        </div>
+      )}
 
       {/* Filter Bar (Active in Kanban and Sprint tabs) */}
       {activeTab !== 'release' && activeTab !== 'settings' && activeTab !== 'trash' && (

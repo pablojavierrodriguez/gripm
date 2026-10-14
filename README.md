@@ -18,6 +18,13 @@
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Protocol%20Ready-6366f1.svg" alt="MCP Protocol: 2024-11-05" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933.svg?logo=nodedotjs&logoColor=white" alt="Node.js: >=20.0.0 (LTS)" /></a>
   <a href="#screenshots"><img src="https://img.shields.io/badge/Product-Demo%20Screenshots-6366f1.svg" alt="View product demo screenshots" /></a>
+  <a href="https://gripm.vercel.app"><img src="https://img.shields.io/badge/Live_Demo-6366f1.svg" alt="Live interactive demo" /></a>
+</p>
+
+<p align="center">
+  <a href="https://gripm.vercel.app">Try it at <strong>gripm.vercel.app</strong></a> — a public instance
+  running on sample data. No install, no server: create, move and tick tasks in your browser.
+  Changes stay in that browser and never leave it. <em>Optimized for desktop.</em>
 </p>
 
 <p align="center">

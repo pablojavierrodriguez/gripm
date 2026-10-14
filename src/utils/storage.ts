@@ -13,6 +13,10 @@ export const STORAGE_KEYS = {
   BACKLOG_VISIBLE_COLS: 'gripm_backlog_visible_cols',
   SPRINTVIEW_SHOW_COMPLETED: 'gripm_sprintview_show_completed',
   LANGUAGE: 'gripm_language',
+  /** DEV-222: dataset mutado de la sandbox web. */
+  SANDBOX_BOARD: 'gripm_sandbox_board',
+  /** DEV-222: configuración guardada desde la vista Settings en modo sandbox. */
+  SANDBOX_CONFIG: 'gripm_sandbox_config',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
@@ -46,6 +50,34 @@ export function removeStoredItem(key: string): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(key);
+  } catch {}
+}
+
+/**
+ * DEV-222: lee y deserializa un objeto JSON desde localStorage.
+ *
+ * Devuelve `null` ante ausencia, JSON inválido o cualquier excepción: un valor
+ * corrupto en la caché no puede romper el arranque de la app, tiene que caerse
+ * al dataset semilla.
+ */
+export function getStoredJSON<T>(key: string): T | null {
+  const raw = getStoredItem(key);
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * DEV-222: serializa y guarda un objeto. Silencioso ante cuota excedida o
+ * localStorage bloqueado (modo privado): perder la persistencia de la demo es
+ * aceptable, romper la interacción no.
+ */
+export function setStoredJSON(key: string, value: unknown): void {
+  try {
+    setStoredItem(key, JSON.stringify(value));
   } catch {}
 }
 

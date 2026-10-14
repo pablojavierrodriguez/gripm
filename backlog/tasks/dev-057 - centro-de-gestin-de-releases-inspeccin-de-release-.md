@@ -11,7 +11,7 @@ labels:
 dependencies:
   - "DEV-039"
   - "DEV-056"
-priority: high
+priority: low
 type: feature
 estimate: 1
 order: 20

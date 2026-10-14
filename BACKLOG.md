@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-13 por gripm ⚡
+> Consolidado generado el 2026-10-14 por gripm ⚡
 
 ## Resumen de Estados
 
@@ -74,12 +74,36 @@ Esta iniciativa depende de DEV-204 para que el modelo de productos, los nombres 
 
 El tablero está priorizando actualmente el uso en desktop y presenta una experiencia visual apretada en tablet y mobile: controles de filtros densos, textos y estadísticas que compiten por espacio y vistas de trabajo que necesitan una jerarquía específica para pantallas táctiles. Diseñar una experiencia responsive intencional para resoluciones menores, sin limitarse a envolver controles en filas que dejen espacios vacíos o creen barras visualmente fragmentadas.
 
+Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo de análisis, diseño y definición completa de la experiencia antes de poder implementarse; por eso sigue en `ideas` y no en `draft`.
+
 **Criterios de Aceptación:**
 - [ ] #1 Definir y documentar los anchos objetivo y la jerarquía de información para mobile, tablet y desktop
 - [ ] #2 Reorganizar filtros, estadísticas y acciones del tablero para evitar hacinamiento y saltos de línea accidentales
 - [ ] #3 Validar las vistas Kanban y Backlog en anchos táctiles habituales, incluyendo navegación, acciones y scroll
 - [ ] #4 Mantener la experiencia desktop compacta y sin regresiones en resoluciones amplias
 - [ ] #5 Verificar ambos idiomas y temas, sin overflow horizontal accidental ni pérdida de controles
+
+---
+
+### ⚡ In Progress / Doing (1)
+
+#### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, orientada a demostraciones públicas desde dispositivos móviles y comunidades técnicas sin requerir un CLI ni daemon local:
+1. **Detección automática de entorno y fallback en memoria:** Si la aplicación detecta que está corriendo en la web sin conexión al socket o CLI local, inicializa automáticamente un adaptador en memoria y LocalStorage con un dataset precargado (un sprint activo, tareas en distintas columnas, criterios de aceptación interactivos y un release publicado con changelog) sin mostrar pantallas vacías ni errores de red.
+2. **Selector de formato dual interactivo:** Incorporar en la tarjeta o modal de tarea un selector que permita previsualizar en vivo cómo se serializa esa tarea en Markdown (`backlog/tasks/*.md`) frente a JSON unificado (`.gripm/backlog.json`).
+3. **Optimización móvil estricta (Zero-CLS & Touch Targets):** Interfaz completamente adaptada a pantallas móviles (360px a 430px) con áreas táctiles de al menos 44px de altura/anchura y navegación táctil fluida.
+4. **Configuración de hosting SPA:** Configuración limpia de `vercel.json` para soportar rutas SPA sin errores 404 en navegación directa o recarga.
+5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
+
+**Criterios de Aceptación:**
+- [ ] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
+- [ ] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
+- [ ] #3 En desktop la demo es usable de punta a punta: sin desborde horizontal, con el indicador de modo demo visible y con el reset de demo alcanzable. La adaptación a móvil se difiere a DEV-207 (ver nota de alcance)
+- [ ] #4 Selector en tarjeta o modal para inspeccionar el formato dual Markdown con frontmatter vs JSON unificado
+- [ ] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
+- [ ] #6 npm test y npm run backlog:check pasan con codigo 0
 
 ---
 
@@ -160,7 +184,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 
 ---
 
-### 📋 Backlog / Draft (13)
+### 📋 Backlog / Draft (11)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -177,7 +201,7 @@ Inspección de solo lectura del árbol Git local (commits, ramas, tags) para cor
 ---
 
 #### [DEV-057] Centro de Gestión de Releases: Inspección de Release Notes, Conjunto de Cards y Sincronización con Git
-- **Prioridad**: `high` | **Tipo**: `feature`
+- **Prioridad**: `low` | **Tipo**: `feature`
 
 Evolución integral del módulo de Releases hacia un centro de control y auditoría de entregas:
 1. **Inspección de Releases:** Permitir visualizar en la aplicación la lista completa de releases gestionados con DevBoard, incluyendo:
@@ -258,67 +282,6 @@ Durante el monitoreo automatizado de dependencias (DEV-175), Dependabot intentó
 
 ---
 
-#### [DEV-188] Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Dar de baja el fork local de `scripts/audit-ux-code.cjs` y adoptar el motor de
-`@gripm/playbook` como consumidora común. Es la última pieza de la deuda que dejó
-DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
-upstream.
-
-### Estado actual del fork
-
-`gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
-(`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
-
-- **270 líneas** que solo existen en `gripm`
-- **358 líneas** que solo existen en upstream
-
-La divergencia no es cosmética: el fork tiene el sistema de baselining completo
-(`fingerprint`, multiplicidad, ERROR-nunca-absorbido) y los invariantes `ENV-001` y
-`ENV-002`, ninguno de los cuales existe upstream todavía.
-
-El riesgo del fork no es técnico sino de contrato: **`.agents/skills/` sí se sincroniza,
-así que el skill documenta un comportamiento que el motor que corre no tiene.** Un
-fork se salta por construcción el control que `validate-repo.mjs` upstream existe para
-aplicar.
-
-### Qué resuelve upstream
-
-`@gripm/playbook` ya aterrizo las tres piezas:
-
-1. **Rediseño de `buildUnits`** con anidamiento real y tres granularidades por unidad (`text`, `ownContent`, `scopeText`). Resuelve la causa raíz de UX-010: el segmentador viejo contaba `<` contra `>` como caracteres y no distinguía un self-closing de un elemento con hijos.
-2. **Eliminación del `break` por archivo.** Resultó ser la causa del bug de `needsContent`: cortaba el recorrido antes del segundo caso, lo que hacía el fixture de 2 casos incomprobable.
-3. **Baselining como capacidad del auditor**, con `fingerprint` idéntico al local.
-
-### Decisión tomada con upstream
-
-- `ENV-001` (gutter de scrollbar) **no se promueve**: ya está cubierto por el test 6.3 de `scripts/test-parser.js`, que lee `src/index.css` directamente y es independiente del fork. Solo hay que desacoplar los 4 asserts de 6.2 que sí dependen del archivo bifurcado.
-- `ENV-002` (`truncate` en diálogo) queda en discusión upstream; se promueve a firma propia cuando lo decidan.
-- **La Tarea 1 (dejar de preservar el archivo) NO está bloqueada por `ENV-002`.** Está bloqueada porque el auditor upstream no expone API, así que no hay forma de componer sin bifurcar. Upstream libera la extensión en **2.2.0**.
-- **Mientras tanto: seguir bifurcado, con fecha de fin.**
-
-### Riesgo de la migración
-
-El baseline actual quedó construido sobre una señal no confiable: UX-010 tenía
-~101 falsos positivos sobre 191 candidatos. Esas entradas están lockeadas y
-`audit:ux` reporta 0, así que nadie las va a limpiar jamás.
-
-**No se debe correr `--update-baseline` a ciegas sobre las 487 observaciones.** Eso
-dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
-
-**Criterios de Aceptación:**
-- [ ] #1 Registrar la fecha de fin del fork: dejar de preservar `scripts/audit-ux-code.cjs` en `sync-playbook.mjs` cuando `@gripm/playbook@2.2.0` esté publicado, y quitar la nota que lo justifica
-- [ ] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
-- [ ] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
-- [ ] #4 Desacoplar los 4 asserts de la sección 6.2 de `scripts/test-parser.js` que dependen de la existencia de `ENV_GUTTER` y `auditEnvInvariants`, conservando 6.1 (UX-009 acotado a diálogos) y 6.3 (gutter leído del CSS)
-- [ ] #5 Regenerar el baseline **con revisión manual de los hallazgos**, no con `--update-baseline` ciego: separar lo genuino de los falsos positivos de UX-010 antes de snapshotear
-- [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
-- [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
-- [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
-
----
-
 #### [DEV-193] Decidir qué hacer con las 10 vulnerabilidades del toolchain de build
 - **Prioridad**: `medium` | **Tipo**: `chore`
 
@@ -365,26 +328,6 @@ Esta tarea es una **decisión con trade-off**, no un bug con parche.
 - [ ] #4 Si se actualizan: el bundle publicado se compara contra el actual y el crecimiento se justifica en el release notes
 - [ ] #5 Si se aceptan los avisos: queda escrito por qué el riesgo no alcanza al runtime del consumidor, con la evidencia de que los binarios solo importan built-ins
 - [ ] #6 El aviso no vuelve a sorprender en el `npm ci` de quien integra el repo: queda registrado en el README o en CONTRIBUTING qué esperar
-
----
-
-#### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, orientada a demostraciones públicas desde dispositivos móviles y comunidades técnicas sin requerir un CLI ni daemon local:
-1. **Detección automática de entorno y fallback en memoria:** Si la aplicación detecta que está corriendo en la web sin conexión al socket o CLI local, inicializa automáticamente un adaptador en memoria y LocalStorage con un dataset precargado (un sprint activo, tareas en distintas columnas, criterios de aceptación interactivos y un release publicado con changelog) sin mostrar pantallas vacías ni errores de red.
-2. **Selector de formato dual interactivo:** Incorporar en la tarjeta o modal de tarea un selector que permita previsualizar en vivo cómo se serializa esa tarea en Markdown (`backlog/tasks/*.md`) frente a JSON unificado (`.gripm/backlog.json`).
-3. **Optimización móvil estricta (Zero-CLS & Touch Targets):** Interfaz completamente adaptada a pantallas móviles (360px a 430px) con áreas táctiles de al menos 44px de altura/anchura y navegación táctil fluida.
-4. **Configuración de hosting SPA:** Configuración limpia de `vercel.json` para soportar rutas SPA sin errores 404 en navegación directa o recarga.
-5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
-
-**Criterios de Aceptación:**
-- [ ] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
-- [ ] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
-- [ ] #3 Interfaz adaptada a pantallas moviles de 360px a 430px con areas tactiles accesibles de al menos 44px
-- [ ] #4 Selector en tarjeta o modal para inspeccionar el formato dual Markdown con frontmatter vs JSON unificado
-- [ ] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
-- [ ] #6 npm test y npm run backlog:check pasan con codigo 0
 
 ---
 

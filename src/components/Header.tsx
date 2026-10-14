@@ -51,6 +51,8 @@ interface HeaderProps {
   config?: GripmConfig;
   singleProject?: boolean;
   updateAvailable?: UpdateInfo | null;
+  /** DEV-222: no hay daemon; toda la app corre sobre el dataset en memoria. */
+  isSandbox?: boolean;
 }
 
 export const Header: FC<HeaderProps> = ({
@@ -76,7 +78,8 @@ export const Header: FC<HeaderProps> = ({
   liveConnected = false,
   config,
   singleProject = false,
-  updateAvailable
+  updateAvailable,
+  isSandbox = false,
 }) => {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,8 +157,13 @@ export const Header: FC<HeaderProps> = ({
                   {currentProject?.name || currentProjectName}
                 </span>
                 {currentProject && (
+                  // DEV-222: el className se deja intacto a propósito. Cambiarlo cambia
+                  // el fingerprint que el auditor usa como clave del baseline. Y el texto
+                  // "Demo" ya era lo correcto en los dos casos: sandbox no se distingue por
+                  // el badge, se distingue por el indicador de live y por el reset, que son
+                  // las señales que de verdad importan.
                   <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
-                    {currentProject.isDemo ? 'Demo' : 'Local'}
+                    {isSandbox || currentProject.isDemo ? 'Demo' : 'Local'}
                   </span>
                 )}
                 {currentProject && !currentProject.isDemo && currentProject.storageType && (
@@ -166,6 +174,21 @@ export const Header: FC<HeaderProps> = ({
                   }`}>
                     {currentProject.storageType === 'markdown' ? 'Markdown' : 'JSON'}
                   </span>
+                )}
+                {/* DEV-222: el reset vive acá y no en el desplegable de proyectos
+                    porque en sandbox `singleProject` es true y ese desplegable no se
+                    renderiza. `onRestoreDemo` ya encaja: en el adaptador sandbox
+                    `restoreDemoProject()` es un `resetSandbox()`. Touch target 44px. */}
+                {isSandbox && onRestoreDemo && (
+                  <button
+                    onClick={onRestoreDemo}
+                    title={t('header.resetDemoDesc')}
+                    aria-label={t('header.resetDemo')}
+                    className="flex items-center gap-1 px-2 min-h-[44px] sm:min-h-[28px] rounded-md text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span className="hidden sm:inline">{t('header.resetDemo')}</span>
+                  </button>
                 )}
               </div>
             ) : (
@@ -235,7 +258,10 @@ export const Header: FC<HeaderProps> = ({
                           {selectedProjectId === p.id && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
                         </button>
 
-                        {onDeleteProject && (
+                        {/* DEV-222: en la demo pública borrar el proyecto deja al
+                            visitante con la app vacía y sin forma de recuperar el seed.
+                            El reset explícito lo reemplaza. */}
+                        {onDeleteProject && !isSandbox && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -397,22 +423,31 @@ export const Header: FC<HeaderProps> = ({
               </a>
             )}
 
-            {/* Live Sync Status Indicator (DEV-014) */}
-            <div 
-              title={liveConnected ? t('header.liveConnectedDesc') : t('header.liveReconnectingDesc')}
+            {/* Live Sync Status Indicator (DEV-014).
+                DEV-222: en sandbox no hay daemon al que reconectarse, así que el ámbar
+                "Reconectando" sería falso. Se muestra neutro y etiquetado como demo:
+                la app funciona, no está degradada. */}
+            <div
+              title={isSandbox ? t('header.sandboxModeDesc') : (liveConnected ? t('header.liveConnectedDesc') : t('header.liveReconnectingDesc'))}
               className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
-                liveConnected 
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                  : 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                isSandbox
+                  ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                  : (liveConnected
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400')
               }`}
             >
               <span className="relative flex h-2 w-2">
-                {liveConnected && (
+                {liveConnected && !isSandbox && (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${liveConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                  isSandbox ? 'bg-indigo-500' : (liveConnected ? 'bg-emerald-500' : 'bg-amber-500')
+                }`}></span>
               </span>
-              <span className="hidden xl:inline">{liveConnected ? t('header.liveConnected') : t('header.liveReconnecting')}</span>
+              <span className="hidden xl:inline">
+                {isSandbox ? t('header.sandboxMode') : (liveConnected ? t('header.liveConnected') : t('header.liveReconnecting'))}
+              </span>
             </div>
 
             {/* Theme Switcher Toggle Button (hidden on mobile, in drawer) */}
@@ -666,10 +701,33 @@ export const Header: FC<HeaderProps> = ({
             {/* Live Sync & Version Footer */}
             <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${liveConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                <span>{liveConnected ? t('header.liveConnected') : t('header.liveReconnecting')}</span>
+                <span className={`w-2 h-2 rounded-full ${
+                  isSandbox ? 'bg-indigo-500' : (liveConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')
+                }`} />
+                <span>
+                  {isSandbox ? t('header.sandboxMode') : (liveConnected ? t('header.liveConnected') : t('header.liveReconnecting'))}
+                </span>
               </div>
               <div className="flex items-center gap-2">
+                {/* DEV-222: el reset vive también acá. En móvil el Header es una fila
+                    `grid-cols-[1fr_auto_1fr]` cuyo cluster derecho no refluye y queda
+                    fuera del viewport, así que el botón de la fila superior es
+                    inalcanzable y además queda tapado por el nav: tocarlo navega a
+                    Sprints en vez de resetear. El drawer es el único lugar alcanzable
+                    en móvil. El arreglo de raíz del Header es DEV-207. */}
+                {isSandbox && onRestoreDemo && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onRestoreDemo();
+                    }}
+                    title={t('header.resetDemoDesc')}
+                    className="flex items-center gap-1 min-h-[44px] px-2 rounded-md text-[12px] font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{t('header.resetDemo')}</span>
+                  </button>
+                )}
                 {updateAvailable?.hasUpdate && (
                   <a
                     href={updateAvailable.url || 'https://github.com/pablojavierrodriguez/gripm/releases'}
