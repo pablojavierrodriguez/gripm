@@ -135,6 +135,31 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   archivo seguía afirmando que el aviso al colaborador venía de `engines.node`. La auditoría
   lo detectó; el texto de `CONTRIBUTING.md` y la evidencia de la descripción se corrigieron
   antes de volver a `ready`.
+- **Segunda certificación (2026-10-14): `CERTIFICADO`.** La corrección del AC #5 se verificó
+  campo por campo contra `package.json`, y las Implementation Notes se ejecutaron una por
+  una: los cinco imports relativos de `bin/gripm.js`, el `chmod` sin esbuild, los
+  `engines: ^18.0.0 || >=20.0.0` de Vite, y **cero apariciones de `--experimental-strip-types`
+  en `bin/`**. La medición de Node 20 se **repitió** con tarball real en `node:20.0-bullseye`
+  y `node:20-bookworm` y **coincide exactamente** con la primera; la única diferencia es el
+  conteo de tareas (263 → 266, porque el repo creció). El `onFail: "error"` se comprobó en
+  las dos direcciones: npm 10.8.2 lo ignora en silencio, npm 11.21.0 rechaza la raíz del repo
+  y acepta el tarball.
+- **Lo que esa certificación encontró y quedó corregido en el mismo movimiento:**
+  `CONTRIBUTING.md` declaraba *"16 pasos secuenciales"* cuando la suite corre 17 — le faltaba
+  `json-sprint-persistence`—, y `scripts/build-binaries.js:17` seguía comentando
+  *"Node 18+ native"*, que es exactamente la afirmación que este ítem afirma no hacer. Las dos
+  derivas viven en los archivos que el AC #5 certifica: certificar un archivo que todavía
+  miente sería repetir el defecto que motivó el rechazo.
+- **AC #7 bloquea mecánicamente el paso a `ready`.** `scripts/mcp-server.ts:1260-1272` (el
+  Gatekeeper de DEV-224) rechaza toda transición a `ready` o `done` con ACs sin tildar, salvo
+  `force: true`, que SEC-09 marca con advertencia de auditoría. La nota de "queda abierto a
+  propósito" es correcta **en el fondo** pero no contempló el mecanismo: este ítem no puede
+  llegar a `ready` por la vía sancionada mientras el AC siga abierto. El ítem **permanece en
+  `review`** por esa razón, no por defectos de implementación.
+- **Dos salidas para el AC #7**, ambas legítimas y ninguna tomada todavía: mover el trabajo a
+  DEV-223 —que ya es dependencia declarada— y sacar el AC del alcance de DEV-266; o dejar el
+  ítem en `review` hasta que DEV-223 lo cierre. La segunda es la honesta si se quiere que
+  `ready` signifique "todo cumplido".
 - **El cambio de runtime se sostiene por ejecución, no por argumento.** `engines.node = ">=20.0.0"`
   + `devEngines.runtime = ">=22.6.0"` es correcto porque el tarball arranca en Node 20.0.0.
   Lo que no se sostenía era el estado del ítem, que declaraba hecho un trabajo de

@@ -14,7 +14,10 @@ if (!fs.existsSync(BIN_DIR)) {
 
 console.log('📦 Empaquetando ejecutables standalone para distribución (DEV-015 y DEV-016)...');
 
-// 1. Bundle mcp-server.ts into bin/gripm-mcp.js (Zero-flags, Node 18+ native)
+// 1. Bundle mcp-server.ts into bin/gripm-mcp.js (zero-flags, sin --experimental-strip-types)
+//    `target: 'node18'` es un nivel de SINTAXIS que declara esbuild, no un piso de runtime
+//    medido. El piso real del consumidor es `engines.node` (>=20.0.0), verificado ejecutando
+//    el tarball en Node 20.0.0 y 20.20.2. Nadie ha medido 18: no se afirma que funcione.
 await esbuild.build({
   entryPoints: [path.join(ROOT_DIR, 'scripts/mcp-server.ts')],
   bundle: true,

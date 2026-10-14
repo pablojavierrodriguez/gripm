@@ -68,12 +68,13 @@ baratos y cubren la mayoría de los errores:
 
 ```bash
 npx tsc --noEmit        # 1. Tipado estricto. Debe salir con código 0.
-npm test                # 2. Suite unificada: 16 pasos secuenciales (parser,
+npm test                # 2. Suite unificada: 17 pasos secuenciales (parser,
                         #    integración, seguridad de API, smoke de paquete,
-                        #    locking optimista, SSE, import legacy, binario
-                        #    MCP, resiliencia y CLI, baseline de audit:ux,
-                        #    contraste de badges, lógica UI, trampa de foco,
-                        #    reordenamiento sin puntero, sondeo de puertos, bundle dist).
+                        #    locking optimista, persistencia de sprints en JSON,
+                        #    SSE, import legacy, binario MCP, resiliencia y CLI,
+                        #    baseline de audit:ux, contraste de badges, lógica
+                        #    UI, trampa de foco, reordenamiento sin puntero,
+                        #    sondeo de puertos, bundle dist).
 npm run backlog:check   # 3. Integridad del backlog. Debe salir con código 0.
 ```
 
