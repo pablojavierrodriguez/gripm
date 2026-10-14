@@ -11,7 +11,7 @@ labels:
 dependencies:
   - DEV-113
   - DEV-121
-priority: medium
+priority: high
 type: chore
 ---
 

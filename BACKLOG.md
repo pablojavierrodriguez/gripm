@@ -319,7 +319,7 @@ datos incompleto.
 
 ---
 
-### 📋 Backlog / Draft (17)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -489,7 +489,7 @@ dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 ---
 
 #### [DEV-193] Decidir qué hacer con las 10 vulnerabilidades del toolchain de build
-- **Prioridad**: `medium` | **Tipo**: `chore`
+- **Prioridad**: `high` | **Tipo**: `chore`
 
 `npm audit` reporta 10 vulnerabilidades (3 moderadas, 7 altas) en el árbol de dependencias:
 
@@ -607,7 +607,7 @@ Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics
 ---
 
 #### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
-- **Prioridad**: `medium` | **Tipo**: `feature`
+- **Prioridad**: `high` | **Tipo**: `feature`
 
 Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
 
@@ -704,8 +704,8 @@ menores que sí quedan abiertas. No es urgente.
 
 ---
 
-#### [DEV-264] Hacinamiento horizontal en escritorio: crowding en el tablero a anchos comunes
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
+#### [DEV-264] Estándar de densidad de escritorio a 1366×768: medición, presupuesto y cero scroll horizontal
+- **Prioridad**: `high` | **Tipo**: `ux`
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
@@ -721,13 +721,15 @@ El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**,
 comunicó como experiencia desktop.
 
 **Criterios de Aceptación:**
-- [ ] #1 Medición documentada a 1366×768 (y 1440×900) de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
-- [ ] #2 Inventario de cuáles de los 45 hallazgos `UX-007` se manifiestan también a anchos de escritorio, con el criterio usado para separarlos
-- [ ] #3 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
-- [ ] #4 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
-- [ ] #5 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
-- [ ] #6 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
-- [ ] #7 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+- [ ] #1 Medición documentada a 1366×768 y 1440×900 de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
+- [ ] #2 Presupuesto de densidad declarado y verificable: ancho mínimo por columna del tablero, cuántas son visibles sin scroll en la vista por defecto, ancho máximo de modales y el umbral declarado a partir del cual el scroll horizontal pasa a ser intencional
+- [ ] #3 Inventario de los 45 hallazgos `UX-007` clasificados en "aprieta a escritorio" / "solo móvil", con el criterio escrito y la lista de aceptados dentro de este ítem
+- [ ] #4 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
+- [ ] #5 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
+- [ ] #6 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
+- [ ] #7 La medición, el presupuesto de densidad y la clasificación de `UX-007` quedan escritos en un artefacto versionado bajo `docs/ux/`, y ese artefacto es el estándar contra el que se certifica DEV-265 y se diseña DEV-207
+- [ ] #8 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
+- [ ] #9 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
 
 ---
 
@@ -784,6 +786,41 @@ máquina**, sin forma local de reproducirlo salvo que se haga stash primero.
 - [ ] #4 Demostrado en ambos sentidos: staging del caso que falla y del caso que pasa, con el comando ejecutado y la salida
 - [ ] #5 El check local (`npm run backlog:check`) y el de CI pasan con el árbol limpio, sin necesidad de `git stash`
 - [ ] #6 `npx tsc --noEmit`, `npm test` y `node scripts/verify-changes.js --all` con código 0
+
+---
+
+#### [DEV-269] Calidad visual de escritorio: jerarquía, estados, motion y cero CLS a 1366×768
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Este ítem es **la segunda mitad de DEV-264**, que se dividió porque ampliación de alcance y
+ejecutabilidad son cosas distintas: un ítem de 16 criterios no se puede certificar, y un
+ítem que no se puede certificar no es un estándar, es una lista de deseos.
+
+La división es por **naturaleza del trabajo**, no por tamaño:
+
+- **DEV-264** (núcleo duro, quick win de escritorio) mide el defecto real, declara el
+  presupuesto de densidad, clasifica los 45 `UX-007`, elimina el scroll horizontal de la
+  vista por defecto y desbloquea a DEV-265.
+- **DEV-269** (este) aplica, sobre el presupuesto ya declarado, los criterios de diseño que
+  la skill `worldclass-product-designer` ya define y que hoy **no tienen ninguna auditoría
+  que los vuelva obligatorios**.
+
+**Criterios de Aceptación:**
+- [ ] #1 Escala tipográfica cerrada en las superficies de escritorio: cero `text-[Npx]` arbitrario en `ItemCard`, `ItemModal`, `Header`, barra de filtros y vistas; todo valor nuevo es token o valor de la escala
+- [ ] #2 Cifras tabulares en toda columna numérica y en todo valor que cambia en vivo, sin salto de dígitos al actualizar el tablero
+- [ ] #3 Tokens semánticos en lugar de hex hardcodeado en las superficies tocadas, con el tema cambiando sin editar componentes
+- [ ] #4 Contraste suficiente en **ambos temas** sobre las superficies principales: sin grises muertos ni texto que solo se lea en dark
+- [ ] #5 Tracking fino en mayúsculas pequeñas para etiquetas y ninguna mayúscula en párrafo en las superficies tocadas
+- [ ] #6 Los siete estados (default, hover, active/focus, disabled, loading, empty, error) definidos y resueltos en `ItemCard`, `ItemModal`, `Header`, barra de filtros, `Toast` y vistas
+- [ ] #7 El estado vacío es sereno y ofrece el siguiente paso; **cero** estados vacíos que usen alerta, color de error o el texto "no hay nada"
+- [ ] #8 Focus ring siempre visible para navegación por teclado en toda acción interactiva de escritorio, con `disabled` recordando el motivo
+- [ ] #9 Respuesta en el mismo frame a toda acción interactiva (`active:scale-[0.98]` o cambio de fondo equivalente)
+- [ ] #10 Transiciones de 150–250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
+- [ ] #11 Cero CLS a 1366×768 en las cinco transiciones: carga inicial, cambio de idioma, cambio de filtro, cambio de vista y movimiento de tarjeta entre columnas
+- [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
+- [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`
+- [ ] #14 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
 
 ---
 

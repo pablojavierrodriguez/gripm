@@ -10,7 +10,7 @@ labels:
   - "auth"
 dependencies:
   - "DEV-242"
-priority: medium
+priority: high
 type: feature
 ---
 

@@ -11,6 +11,7 @@ labels:
   - "markdown"
 dependencies:
   - DEV-222
+  - DEV-264
 priority: medium
 type: improvement
 ---
