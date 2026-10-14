@@ -107,6 +107,76 @@ Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, ori
 
 ---
 
+### 🔍 Review & QA (1)
+
+#### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Encontrado al ejecutar DEV-222 (dataset de la sandbox), al verificar dónde Persisten
+los sprints de un proyecto en modo JSON.
+
+**La rama JSON de `readProjectBacklog()` omite el campo `sprints` en el objeto que
+devuelve, pero `writeProjectBacklog()` sí lo escribe completo.** La escritura y la
+lectura no están en simetría: lo que se persiste nunca vuelve a leerse.
+
+### Los dos lados, medidos
+
+`server/services/storage.ts:384-389`, rama JSON del read:
+
+```ts
+return {
+  project: { ...project, storageType: 'json' },
+  items,
+  releases: Array.isArray(parsed.releases) ? parsed.releases : [],
+  lastUpdated: parsed.lastUpdated || new Date().toISOString()
+};
+```
+
+`server/services/storage.ts:799`, `writeProjectBacklog` modo JSON:
+
+```ts
+fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+```
+
+`data` se escribe entero, `sprints` incluido. La interfaz `ProjectBacklog`
+(`server/types.ts:16-22`) declara `sprints?: any[]`, así que el tipo dice que el campo
+existe: **el contrato promete un campo que el read nunca devuelve.**
+
+La rama markdown no tiene el problema: lee y devuelve `sprints` desde
+`backlog/sprints.json` (`storage.ts:262-267` y `:336`).
+
+### Consecuencias observables
+
+1. **`GET /api/sprints` responde `[]` siempre en un proyecto JSON.** La ruta
+   (`server/routes/api.ts:1005`) hace `backlog.sprints || []`, y `backlog` viene del
+   read que ya lo descartó.
+2. **Un sprint creado desde la UI se persiste y después desaparece.** `POST /api/sprints`
+   (`api.ts:1018`) hace `backlog.sprints = backlog.sprints || []`, escribe, y en el
+   siguiente `GET` la lista vuelve a estar vacía.
+3. **Colisión de IDs al crear dos sprints seguidos.** El cálculo de `maxNum`
+   (`api.ts:1038-1045`) parte siempre de un array vacío, así que genera
+   `sprint-${length}` con el mismo valor las dos veces.
+4. **Afecta al proyecto demo.** `isBacklogMdProject()` devuelve `false` para `isDemo`
+   (`registry.ts:34`), así que el demo vive en modo JSON y es uno de los casos rotos.
+
+### Por qué no se notó antes
+
+El modo markdown es el camino feliz y cubre el uso local principal. El modo JSON es
+además el de los proyectos sin `backlog.md`, y ahí no hay ningún test que lea de vuelta
+lo que se escribió. Ninguna suite ejercita hoy el ciclo completo de escritura y relectura
+en modo JSON.
+
+**Criterios de Aceptación:**
+- [x] #1 La rama JSON de `readProjectBacklog()` devuelve `sprints` con guard `Array.isArray`, en los tres puntos de retorno de esa rama (normal, inicial y error)
+- [x] #2 `GET /api/sprints` devuelve los sprints de un proyecto JSON tras un ciclo de escritura completo, y sobrevive a un reinicio del daemon
+- [x] #3 Crear dos sprints consecutivos en modo JSON produce IDs distintos: el cálculo de `maxNum` de `api.ts:1038` parte de la lista leída, no de una lista siempre vacía
+- [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
+- [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
+- [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+
+---
+
 ### 🚀 Ready for Deploy (3)
 
 #### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura

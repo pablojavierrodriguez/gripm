@@ -32,6 +32,7 @@ const STEPS = [
   ['api-security', 'scripts/test-api-security.js'],
   ['package-smoke', 'scripts/test-package-smoke.js'],
   ['optimistic-locking', 'scripts/verify-optimistic-locking.js'],
+  ['json-sprint-persistence', 'scripts/verify-json-sprint-persistence.js'],
   ['sse', 'scripts/verify-sse.js'],
   ['legacy-import', 'scripts/verify-legacy-import.js'],
   ['mcp-binary', 'scripts/verify-mcp-binary.js'],

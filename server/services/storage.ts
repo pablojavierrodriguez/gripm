@@ -356,6 +356,7 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
         project: { ...project, storageType: 'json' },
         items: [],
         releases: [],
+        sprints: [],
         lastUpdated: new Date().toISOString()
       };
       try {
@@ -385,11 +386,12 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
       project: { ...project, storageType: 'json' },
       items,
       releases: Array.isArray(parsed.releases) ? parsed.releases : [],
+      sprints: Array.isArray(parsed.sprints) ? parsed.sprints : [],
       lastUpdated: parsed.lastUpdated || new Date().toISOString()
     };
   } catch (err: any) {
     console.error(`[gripm API] Error reading backlog for project ${project.id} from ${filePath}:`, err.message);
-    return { project: { ...project, storageType: 'json', error: err.message }, items: [], releases: [], lastUpdated: new Date().toISOString() };
+    return { project: { ...project, storageType: 'json', error: err.message }, items: [], releases: [], sprints: [], lastUpdated: new Date().toISOString() };
   }
 }
 
