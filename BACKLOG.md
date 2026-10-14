@@ -254,7 +254,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 
 ---
 
-### 📋 Backlog / Draft (12)
+### 📋 Backlog / Draft (14)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -570,6 +570,70 @@ Diseño e implementación de una Command Palette interactiva global (estilo Line
 3. Menú de acciones rápidas ejecutables: cambiar de vista (Tablero, Sprints, Releases, Papelera, Configuración), alternar tema (Claro/Oscuro), cambiar idioma, sincronizar backlog con /docs, cambiar proyecto activo y crear nueva tarea.
 4. Navegación completa por teclado con flechas `↑` y `↓`, selección con `Enter` y cierre con `Escape`.
 5. Filtro de comandos por categorías (Navegación, Tareas, Proyectos, Ajustes).
+
+---
+
+#### [DEV-262] Cobertura de tests para el adaptador sandbox y el detector de entorno
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+La sandbox web de DEV-222 se publicó y está en producción, pero su lógica **no tiene una
+sola aserción**. Son ~480 líneas de `src/data/sandbox.ts` más el detector de
+`src/data/detect.ts`, y la suite de 17 pasos no las toca.
+
+El contraste es lo que hace el hueco visible: el equivalente del lado daemon tiene tests
+propios para cada almacenamiento (optimistic-locking, legacy-import, json-sprint,
+resilience), mientras que el camino que ahora atiende a cualquier visitante de la demo
+pública no tiene ninguno.
+
+Lo verificado en runtime fue de extremo a extremo en un navegador real, lo cual **no es
+lo mismo**: una prueba manual sobre un recorrido feliz no encuentra la colisión de un
+correlativo ni el sprint que queda activo sin querer. Un bug acá no filtra datos ni rompe
+instalaciones — se manifiesta como una demo visiblemente rota — pero es producto público.
+
+**Criterios de Aceptación:**
+- [ ] #1 Caso de regresión que falle si `nextCode()` no genera el correlativo esperado al crear ítems sobre el seed real
+- [ ] #2 Ciclo borrado lógico → restaurar → purgar verificado campo por campo, incluyendo `previousStatus` y que `purgeItem()` sea el único que saca el ítem del array
+- [ ] #3 Invariante de un solo sprint `active` verificado tanto al crear como al actualizar, incluido el demotaje de los preexistentes
+- [ ] #4 `deleteSprint()` deja los ítems desasociados (`sprint`, `targetSprint` y `sprints` vacíos), no apuntando a un nombre inexistente
+- [ ] #5 `bulkUpdateItems()` devuelve el conteo correcto y no permite sobrescribir `id` ni `code`
+- [ ] #6 `deleteProject()` en cascada no deja ítems, releases ni sprints huérfanos
+- [ ] #7 `resetSandbox()` borra `gripm_sandbox_board` y `gripm_sandbox_config` y vuelve al seed
+- [ ] #8 `fetchBoardData()` devuelve un clon: mutar el resultado no altera el estado interno del adaptador
+- [ ] #9 `detect.ts`: probe que responde JSON → `httpAdapter`; que falla o agota el timeout → `sandboxAdapter`; y **una sola** invocación de `fetch` aunque haya llamadas concurrentes
+- [ ] #10 `detect.ts` rechaza una respuesta 200 con `content-type` no JSON, que es el caso de un SPA servida en `/api/data`
+- [ ] #11 Test de paridad del contrato que falle al agregar un método a `GripmApi` sin implementarlo en ambos adaptadores
+- [ ] #12 Test que valida `data/demo-backlog.json` contra los tipos del cliente y del server, cubriendo las 5 columnas, sprints y ACs
+- [ ] #13 `npm run audit:ux` en verde **sin regenerar el baseline**, `npx tsc --noEmit` con 0 errores y `npm test` y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-263] Pipeline de despliegue continuo de la demo web y dominio canónico en Vercel
+- **Prioridad**: `medium` | **Tipo**: `improvement`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+La demo web está publicada y verificada, pero el despliegue **depende de que alguien se
+acuerde de correrlo**. Hoy el repo de GitHub no está conectado a Vercel: el build en
+producción salió de un `vercel deploy` manual, y nada avisa cuando `main` avanza.
+
+Eso tiene dos consecuencias concretas:
+
+1. **La URL puede quedar sirviendo un build viejo sin que nadie lo note.** Hoy
+   `https://gripm.vercel.app` quedó como *deployment alias* y no como dominio del
+   proyecto. Un `vercel deploy --prod` nuevo mueve producción y la URL puede seguir
+   apuntando al deployment anterior: una demo congelada que se ve normal.
+2. **Cada cambio en `main` exige una acción manual** para verse reflejado, y esa acción
+   no está en ningún checklist ni en ningún ítem.
+
+**Criterios de Aceptación:**
+- [ ] #1 El repositorio de GitHub está conectado a Vercel con `main` como rama de producción
+- [ ] #2 Un push a `main` produce un deployment sin intervención manual, y eso queda documentado en `CONTRIBUTING.md`
+- [ ] #3 `gripm.vercel.app` figura como **dominio del proyecto** y no como alias de un deployment
+- [ ] #4 La versión de Node del proyecto queda fijada en `22.6.0`, coincidiendo con `.nvmrc` y con el runtime que valida `npm run test:linux`
+- [ ] #5 Verificado que un deployment nuevo desde `main` deja `gripm.vercel.app` sirviendo el build nuevo, no el anterior
+- [ ] #6 El bypass de automatización para pruebas está provisionado como secreto, si se decide correr e2e contra la URL desplegada
+- [ ] #7 `npm run test:linux` en verde con el runtime pineado, y `npm test`, `npm run backlog:check` con código 0
+- [ ] #8 Documentado qué hace falta para promover a producción en cada ambiente, y qué ocurre si falta algún paso
 
 ---
 
