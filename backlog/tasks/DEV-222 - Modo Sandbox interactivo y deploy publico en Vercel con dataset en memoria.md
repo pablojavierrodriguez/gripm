@@ -1,7 +1,7 @@
 ---
 id: DEV-222
 title: "Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria"
-status: review
+status: ready
 created_date: '2026-10-09'
 updated_date: '2026-10-09'
 labels:
@@ -94,8 +94,10 @@ src/api.ts               → fachada: re-exporta las 30 funciones desde el adapt
 ```
 
 **`src/api.ts` pasa a ser una fachada de re-export y nada más.** Es lo que mantiene el
-costo en cero: `src/App.tsx:17-41` importa 22 funciones por nombre y **no se toca una
-línea de App.tsx**. La política de la casa (sin supresiones, sin `any`) pide que la
+costo en cero: `src/App.tsx:17-41` importa 22 funciones por nombre desde `./api`, y **el
+contrato de carga de datos no se toca**. El archivo sí cambió más tarde, para agregar el
+banner de demo y el prop `isSandbox`, pero ninguna línea de cómo se piden o cargan los
+datos. La política de la casa (sin supresiones, sin `any`) pide que la
 fachada exponga las 30 funciones tipadas contra `GripmApi`, no `any` por el hueco.
 
 `src/data/runtime.ts` existe para que cambiar de adaptador no obligue a editar los 30
@@ -668,17 +670,26 @@ el código para que nadie lo vuelva a hardcodear.
 
 ### Estado del deploy
 
+> [!NOTE]
+> **Sección superada, conservada como registro cronológico.** Cuando se escribió, el
+> proyecto de Vercel todavía no existía. Hoy la demo **está desplegada y verificada** en
+> `https://gripm.vercel.app`. Lo que sigue describe el estado de ese momento.
+
 **No desplegado.** La CLI de Vercel responde **"Logged out"**: no hay `VERCEL_TOKEN` ni
 `~/.vercel`, y el repo de GitHub no está conectado a Vercel. Desplegar requiere
 `vercel login` del humano, o importar el repo en el panel de Vercel para obtener auto-deploy
 desde `main`.
 
-Pendiente y **deliberadamente no ejecutado**: agregar el badge y el párrafo de demo a
-`README.md` / `README.es.md` (AC #5). No se agrega antes del primer deploy porque reabriría
-exactamente el enlace roto que DEV-251 cerró, y la descripción de ese ítem pide que la demo
-exista *"y su pipeline de hosting"*.
+Pendiente y **deliberadamente no ejecutado** en ese momento: agregar el badge y el párrafo
+de demo a `README.md` / `README.es.md` (AC #5). No se agregaba antes del primer deploy
+porque reabriría exactamente el enlace roto que DEV-251 cerró, y la descripción de ese ítem
+pide que la demo exista *"y su pipeline de hosting"*.
 
-### Estado de los criterios de aceptación (2026-10-14)
+**Estado actual:** desplegado. El proyecto de Vercel es `gripm` en el scope
+`pablos-product-team-projects`, el despliegue salió `readyState: READY` y
+`gripm.vercel.app` quedó como URL de producción del proyecto. El badge del README se agregó
+después, con la URL viva, y por eso el AC #5 está tildado. El modo de despliegue es manual
+y deliberado; ver **DEV-263**.
 
 ### Estado de los criterios de aceptación (2026-10-14)
 
