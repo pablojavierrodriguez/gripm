@@ -85,7 +85,28 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🔍 Review & QA (2)
+### 🔍 Review & QA (1)
+
+#### [DEV-266] Separar el requisito de runtime del consumidor del requisito de desarrollo
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+`engines.node` declaraba `>=22.6.0`, pero ese requisito **no le corresponde al consumidor**:
+es el requisito de **desarrollar** el repo, no el de **usar** el paquete.
+
+**Criterios de Aceptación:**
+- [x] #1 `engines.node` declara el requisito del **consumidor**, alineado con el badge del README
+- [x] #2 `devEngines.runtime` declara el requisito de **desarrollo** con `onFail: "error"`, para que un colaborador en un runtime incompatible reciba un error explícito y no un fallo raro más tarde
+- [x] #3 `npm install` sigue funcionando sin error en el runtime de desarrollo y en el de CI
+- [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
+- [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
+- [ ] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
+- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no sigaAFFIRMANDO una garantía que no existe
+- [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+
+---
+
+### 🚀 Ready for Deploy (5)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -104,76 +125,6 @@ Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, ori
 - [x] #6 npm test y npm run backlog:check pasan con codigo 0
 
 ---
-
-#### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
-Encontrado al ejecutar DEV-222 (dataset de la sandbox), al verificar dónde Persisten
-los sprints de un proyecto en modo JSON.
-
-**La rama JSON de `readProjectBacklog()` omite el campo `sprints` en el objeto que
-devuelve, pero `writeProjectBacklog()` sí lo escribe completo.** La escritura y la
-lectura no están en simetría: lo que se persiste nunca vuelve a leerse.
-
-### Los dos lados, medidos
-
-`server/services/storage.ts:384-389`, rama JSON del read:
-
-```ts
-return {
-  project: { ...project, storageType: 'json' },
-  items,
-  releases: Array.isArray(parsed.releases) ? parsed.releases : [],
-  lastUpdated: parsed.lastUpdated || new Date().toISOString()
-};
-```
-
-`server/services/storage.ts:799`, `writeProjectBacklog` modo JSON:
-
-```ts
-fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-```
-
-`data` se escribe entero, `sprints` incluido. La interfaz `ProjectBacklog`
-(`server/types.ts:16-22`) declara `sprints?: any[]`, así que el tipo dice que el campo
-existe: **el contrato promete un campo que el read nunca devuelve.**
-
-La rama markdown no tiene el problema: lee y devuelve `sprints` desde
-`backlog/sprints.json` (`storage.ts:262-267` y `:336`).
-
-### Consecuencias observables
-
-1. **`GET /api/sprints` responde `[]` siempre en un proyecto JSON.** La ruta
-   (`server/routes/api.ts:1005`) hace `backlog.sprints || []`, y `backlog` viene del
-   read que ya lo descartó.
-2. **Un sprint creado desde la UI se persiste y después desaparece.** `POST /api/sprints`
-   (`api.ts:1018`) hace `backlog.sprints = backlog.sprints || []`, escribe, y en el
-   siguiente `GET` la lista vuelve a estar vacía.
-3. **Colisión de IDs al crear dos sprints seguidos.** El cálculo de `maxNum`
-   (`api.ts:1038-1045`) parte siempre de un array vacío, así que genera
-   `sprint-${length}` con el mismo valor las dos veces.
-4. **Afecta al proyecto demo.** `isBacklogMdProject()` devuelve `false` para `isDemo`
-   (`registry.ts:34`), así que el demo vive en modo JSON y es uno de los casos rotos.
-
-### Por qué no se notó antes
-
-El modo markdown es el camino feliz y cubre el uso local principal. El modo JSON es
-además el de los proyectos sin `backlog.md`, y ahí no hay ningún test que lea de vuelta
-lo que se escribió. Ninguna suite ejercita hoy el ciclo completo de escritura y relectura
-en modo JSON.
-
-**Criterios de Aceptación:**
-- [x] #1 La rama JSON de `readProjectBacklog()` devuelve `sprints` con guard `Array.isArray`, en los tres puntos de retorno de esa rama (normal, inicial y error)
-- [x] #2 `GET /api/sprints` devuelve los sprints de un proyecto JSON tras un ciclo de escritura completo, y sobrevive a un reinicio del daemon
-- [x] #3 Crear dos sprints consecutivos en modo JSON produce IDs distintos: el cálculo de `maxNum` de `api.ts:1038` parte de la lista leída, no de una lista siempre vacía
-- [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
-- [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
-- [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
-
----
-
-### 🚀 Ready for Deploy (3)
 
 #### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura
 - **Prioridad**: `low` | **Tipo**: `chore`
@@ -247,6 +198,74 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 - [x] #6 `AGENTS.md` incorpora un gotcha de trazabilidad arquitectónica que obliga a registrar en `docs/adr/` toda decisión con trade-offs reales, y remite al campo `ADR Recorded` de la plantilla de sprint
 - [x] #7 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md` (código 0)
 - [x] #8 `node scripts/verify-changes.js --all` valida el árbol completo sin defectos estructurales ni de codificación
+
+---
+
+#### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Encontrado al ejecutar DEV-222 (dataset de la sandbox), al verificar dónde Persisten
+los sprints de un proyecto en modo JSON.
+
+**La rama JSON de `readProjectBacklog()` omite el campo `sprints` en el objeto que
+devuelve, pero `writeProjectBacklog()` sí lo escribe completo.** La escritura y la
+lectura no están en simetría: lo que se persiste nunca vuelve a leerse.
+
+### Los dos lados, medidos
+
+`server/services/storage.ts:384-389`, rama JSON del read:
+
+```ts
+return {
+  project: { ...project, storageType: 'json' },
+  items,
+  releases: Array.isArray(parsed.releases) ? parsed.releases : [],
+  lastUpdated: parsed.lastUpdated || new Date().toISOString()
+};
+```
+
+`server/services/storage.ts:799`, `writeProjectBacklog` modo JSON:
+
+```ts
+fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+```
+
+`data` se escribe entero, `sprints` incluido. La interfaz `ProjectBacklog`
+(`server/types.ts:16-22`) declara `sprints?: any[]`, así que el tipo dice que el campo
+existe: **el contrato promete un campo que el read nunca devuelve.**
+
+La rama markdown no tiene el problema: lee y devuelve `sprints` desde
+`backlog/sprints.json` (`storage.ts:262-267` y `:336`).
+
+### Consecuencias observables
+
+1. **`GET /api/sprints` responde `[]` siempre en un proyecto JSON.** La ruta
+   (`server/routes/api.ts:1005`) hace `backlog.sprints || []`, y `backlog` viene del
+   read que ya lo descartó.
+2. **Un sprint creado desde la UI se persiste y después desaparece.** `POST /api/sprints`
+   (`api.ts:1018`) hace `backlog.sprints = backlog.sprints || []`, escribe, y en el
+   siguiente `GET` la lista vuelve a estar vacía.
+3. **Colisión de IDs al crear dos sprints seguidos.** El cálculo de `maxNum`
+   (`api.ts:1038-1045`) parte siempre de un array vacío, así que genera
+   `sprint-${length}` con el mismo valor las dos veces.
+4. **Afecta al proyecto demo.** `isBacklogMdProject()` devuelve `false` para `isDemo`
+   (`registry.ts:34`), así que el demo vive en modo JSON y es uno de los casos rotos.
+
+### Por qué no se notó antes
+
+El modo markdown es el camino feliz y cubre el uso local principal. El modo JSON es
+además el de los proyectos sin `backlog.md`, y ahí no hay ningún test que lea de vuelta
+lo que se escribió. Ninguna suite ejercita hoy el ciclo completo de escritura y relectura
+en modo JSON.
+
+**Criterios de Aceptación:**
+- [x] #1 La rama JSON de `readProjectBacklog()` devuelve `sprints` con guard `Array.isArray`, en los tres puntos de retorno de esa rama (normal, inicial y error)
+- [x] #2 `GET /api/sprints` devuelve los sprints de un proyecto JSON tras un ciclo de escritura completo, y sobrevive a un reinicio del daemon
+- [x] #3 Crear dos sprints consecutivos en modo JSON produce IDs distintos: el cálculo de `maxNum` de `api.ts:1038` parte de la lista leída, no de una lista siempre vacía
+- [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
+- [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
+- [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
 
 ---
 
@@ -604,32 +623,27 @@ instalaciones — se manifiesta como una demo visiblemente rota — pero es prod
 
 ---
 
-#### [DEV-263] Pipeline de despliegue continuo de la demo web y dominio canónico en Vercel
-- **Prioridad**: `medium` | **Tipo**: `improvement`
+#### [DEV-263] Registro del pipeline de despliegue de la demo web: qué es manual y por qué
+- **Prioridad**: `low` | **Tipo**: `chore`
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-La demo web está publicada y verificada, pero el despliegue **depende de que alguien se
-acuerde de correrlo**. Hoy el repo de GitHub no está conectado a Vercel: el build en
-producción salió de un `vercel deploy` manual, y nada avisa cuando `main` avanza.
+La demo web de DEV-222 está publicada en `https://gripm.vercel.app` y el despliegue es
+**deliberadamente manual**: `vercel deploy --prod` desde una máquina con la sesión iniciada.
 
-Eso tiene dos consecuencias concretas:
+> [!IMPORTANT]
+> **El deploy manual es la decisión, no la deuda.** Se evaluó conectar el repositorio de
+> GitHub a Vercel para obtener auto-deploy, y se descartó: en este proyecto los releases
+> son decisiones deliberadas, y conectar el repo implica que cualquier push a `main` sale
+> vivo sin revisión. Eso es **menos** control, no más.
 
-1. **La URL puede quedar sirviendo un build viejo sin que nadie lo note.** Hoy
-   `https://gripm.vercel.app` quedó como *deployment alias* y no como dominio del
-   proyecto. Un `vercel deploy --prod` nuevo mueve producción y la URL puede seguir
-   apuntando al deployment anterior: una demo congelada que se ve normal.
-2. **Cada cambio en `main` exige una acción manual** para verse reflejado, y esa acción
-   no está en ningún checklist ni en ningún ítem.
+Este ítem queda como **registro del estado real** del pipeline y de las dos acciones
+menores que sí quedan abiertas. No es urgente.
 
 **Criterios de Aceptación:**
-- [ ] #1 El repositorio de GitHub está conectado a Vercel con `main` como rama de producción
-- [ ] #2 Un push a `main` produce un deployment sin intervención manual, y eso queda documentado en `CONTRIBUTING.md`
-- [ ] #3 `gripm.vercel.app` figura como **dominio del proyecto** y no como alias de un deployment
-- [ ] #4 La versión de Node del proyecto queda fijada en `22.6.0`, coincidiendo con `.nvmrc` y con el runtime que valida `npm run test:linux`
-- [ ] #5 Verificado que un deployment nuevo desde `main` deja `gripm.vercel.app` sirviendo el build nuevo, no el anterior
-- [ ] #6 El bypass de automatización para pruebas está provisionado como secreto, si se decide correr e2e contra la URL desplegada
-- [ ] #7 `npm run test:linux` en verde con el runtime pineado, y `npm test`, `npm run backlog:check` con código 0
-- [ ] #8 Documentado qué hace falta para promover a producción en cada ambiente, y qué ocurre si falta algún paso
+- [ ] #1 Documentado en `CONTRIBUTING.md` que el despliegue de la demo es manual, con el comando exacto y la precondition de tener sesión iniciada en Vercel
+- [ ] #2 Documentado en `CONTRIBUTING.md` que un cambio en `main` **no** llega a la demo por sí solo, y quién decide cuándo redesplegar
+- [ ] #3 Registrado que `gripm.vercel.app` es la URL de producción del proyecto, no un alias, con la evidencia del `productionUrl` devuelto por el deploy
+- [ ] #4 La divergencia de Node entre CI y producción está registrada como ítem propio en DEV-141, o resuelta ahí
 
 ---
 
