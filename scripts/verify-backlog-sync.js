@@ -132,6 +132,7 @@ if (isHookMode) {
 const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
 let errorsFound = 0;
 let fixedCount = 0;
+const malformedAcFiles = [];
 
 for (const file of files) {
   const filePath = path.join(tasksDir, file);
@@ -171,7 +172,22 @@ for (const file of files) {
 
   // Parse Acceptance Criteria
   const acBlockMatch = content.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
-  if (!acBlockMatch) continue;
+  if (!acBlockMatch) {
+    // Un `continue` silencioso acá convertía un marcador malformado en "todo bien": el
+    // archivo se saltaba TODAS las invariantes de ACs y `backlog:check` reportaba 100%
+    // sincronizado sobre datos que nunca leyó. Si el archivo abre un bloque de ACs y no
+    // lo cierra, eso es un defecto del archivo, no una ausencia de ACs.
+    if (content.includes('<!-- AC:BEGIN -->')) {
+      const f = path.basename(file);
+      console.error(`\n  ⚠️  [Marcador AC Malformado] ${f}:`);
+      console.error(`   Abre <!-- AC:BEGIN --> pero no cierra <!-- AC:END -->.`);
+      console.error(`   Sus criterios de aceptación NO se están validando y tampoco llegan a BACKLOG.md.`);
+      console.error(`   Suele ser un <!-- SECTION:DESCRIPTION:END --> donde debía ir <!-- AC:END -->.`);
+      malformedAcFiles.push(f);
+      errorsFound++;
+    }
+    continue;
+  }
 
   const acBlock = acBlockMatch[1];
   const allAcs = acBlock.match(/^-\s*\[([ xX])\]/gm) || [];

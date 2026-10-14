@@ -100,13 +100,13 @@ es el requisito de **desarrollar** el repo, no el de **usar** el paquete.
 - [x] #3 `npm install` sigue funcionando sin error en el runtime de desarrollo y en el de CI
 - [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
 - [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
-- [ ] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
-- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no sigaAFFIRMANDO una garantía que no existe
-- [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+- [x] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
+- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
+- [x] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
 
 ---
 
-### 🚀 Ready for Deploy (5)
+### 🚀 Ready for Deploy (6)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -142,6 +142,15 @@ Problemas concretos que corrige:
 
 Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
 
+**Criterios de Aceptación:**
+- [x] #1 El pie de `KeyboardShortcutsModal` no renderiza ningún botón de cierre
+- [x] #2 El diálogo sigue siendo descartable por la X del header, por `Esc` y por click en el backdrop, verificado sobre el primitivo `Modal` (`onClick={onClose}` en el backdrop) y `useFocusTrap` (`event.key === 'Escape'`), con el paso `focus-trap` de la suite en verde
+- [x] #3 El hint de reapertura se renderiza en la misma fila que la marca y los enlaces, alineado al extremo derecho por `justify-between`, y permanece oculto por debajo de `sm` (UX-002: el `<kbd>` conserva `hidden sm:inline-flex` en su propia línea porque el auditor es de matching por línea)
+- [x] #4 El pie pasa de `py-3` a `py-2` y el alto resultante queda determinado por el `min-h-[44px]` de los enlaces; `npm run audit:ux --rule UX-009` reporta 0 findings
+- [x] #5 `npx tsc --noEmit` reporta 0 errores
+- [x] #6 Pirámide de verificación en verde: `npm test` (16/16 pasos), `npm run audit:ux` (0 errores, 0 sugerencias; las 12 advertencias son los falsos positivos documentados de UX-010), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (414 archivos)
+- [x] #7 El cuerpo scrolleable no corta contenido en seco contra la línea del pie: aplica `mask-image` con degradado en los últimos 28 px más `pb-7` de aire, de modo que un header de sección que caiga sobre el borde de scroll se disuelva en el pie y se lea como "hay más abajo" en lugar de texto pisado
+
 ---
 
 #### [DEV-259] Alinear .gripm/config.json del repo con la configuración OSS canónica documentada en AGENTS.md
@@ -166,6 +175,13 @@ Alcance:
 3. Verificar que el tab de Sprints deshabilitado no deja la app en un estado inconsistente: `App.tsx` ya resuelve el caso con la auto-redirección `sprint → kanban`, de modo que `defaultView: "sprint"` degrada sin intervención.
 
 Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referencia a la que se alinea la config), `defaultView`, y cualquier clave de `theme`, `density` o `language`, que ya coinciden con el canónico.
+
+**Criterios de Aceptación:**
+- [x] #1 `.gripm/config.json` declara `methodology: "kanban"` y `enabledTabs: { "kanban": true, "sprint": false, "release": true }`, coincidindo con el canónico del gotcha 17 de `AGENTS.md`
+- [x] #2 El JSON sigue siendo válido (parseado con `ConvertFrom-Json`) y conserva la ausencia de newline terminal que tenía en HEAD (último byte `125` = `}`)
+- [x] #3 Con `enabledTabs.sprint: false` la app no queda en un tab huérfano: `activeTab` se inicializa desde `localStorage` o `kanban` y **no** desde `config.defaultView`, y un `activeTab: 'sprint'` persistido degrada por la auto-redirección de `App.tsx` hacia `kanban`. Verificado en runtime con `npm run test:ui` (Playwright) en verde
+- [x] #4 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md`
+- [x] #5 `npm test` sigue en verde (16/16 pasos) y `node scripts/verify-changes.js --all` valida el árbol (415 archivos)
 
 ---
 
@@ -266,6 +282,40 @@ en modo JSON.
 - [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
 - [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
 - [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-267] El guard de ACs no detectaba marcadores malformados y daba verde sobre datos descartados
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`scripts/verify-backlog-sync.js` parsea el bloque de Acceptance Criteria con
+`/<!-\- AC:BEGIN ->([\s\S]*?)<!-\- AC:END ->/` y, si no matchea, hace **`continue`**: pasa a la
+siguiente tarea sin verificar nada y sin decir nada.
+
+La consecuencia es que **un marcador malformado era indistinguible de una tarea sin ACs**. Un
+archivo que abre `<!-\- AC:BEGIN ->` y no lo cierra:
+
+- se saltaba **todas** las invariantes de ACs (conteo, ids, checks cruzados contra el código),
+- sus ACs **no llegaban a `BACKLOG.md`**,
+- y `npm run backlog:check` informaba **`✅ Backlog 100% sincronizado y coherente con el
+  código`**.
+
+**Verde sobre datos que nunca leyó.** Siete archivos estaban en ese estado, arrastrando el
+defecto desde v1.3.0: todos cerraban su bloque de ACs con `<!-\- SECTION:DESCRIPTION:END ->`
+—un marcador duplicado del que ya usan correctamente más arriba— en vez del de cierre de ACs.
+Dos de los siete son de la sesión del 2026-10-14 (DEV-258 y DEV-259, ambos en `ready`).
+
+Esto es peor que un falso positivo: un falso positivo detiene el flujo con un diagnóstico
+equivocido. Esto **dejaba pasar** el flujo con un diagnóstico correcto sobre un conjunto de
+datos incompleto.
+
+**Criterios de Aceptación:**
+- [x] #1 `verify-backlog-sync.js` trata un `AC:BEGIN` sin `AC:END` como **error**, no como ausencia de ACs: mensaje explícito que nombre el archivo, `errorsFound++` y exit 1
+- [x] #2 Los siete archivos malformados (DEV-253 a DEV-259) quedan reparados con el marcador correcto
+- [x] #3 Los ACs de DEV-253 a DEV-259 aparecen en `BACKLOG.md`, verificado por grep sobre el consolidado
+- [x] #4 El guard **demuestra** que dispara: roto un marcador a propósito, `verify-backlog-sync.js` devuelve exit 1 con el mensaje; restaurado, vuelve a 0
+- [x] #5 `npm run backlog:sync`, `npm run backlog:check` y `npm test` en verde tras la reparación
+- [x] #6 `npx tsc --noEmit` y `node scripts/verify-changes.js --all` con código 0
 
 ---
 
@@ -586,6 +636,13 @@ Diseño e implementación de una Command Palette interactiva global (estilo Line
 4. Navegación completa por teclado con flechas `↑` y `↓`, selección con `Enter` y cierre con `Escape`.
 5. Filtro de comandos por categorías (Navegación, Tareas, Proyectos, Ajustes).
 
+**Criterios de Aceptación:**
+- [ ] #1 Atajo ⌘K / Ctrl+K abre el modal flotante de Command Palette en lugar de enfocar únicamente el input de filtros
+- [ ] #2 Buscador filtra en tiempo real tareas existentes y comandos de acción rápida
+- [ ] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
+- [ ] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
+- [ ] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
+
 ---
 
 #### [DEV-262] Cobertura de tests para el adaptador sandbox y el detector de entorno
@@ -647,8 +704,8 @@ menores que sí quedan abiertas. No es urgente.
 
 ---
 
-#### [DEV-264] Hacinamiento horizontal en escritorio: crowding en el tablero a anchos comunes
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
+#### [DEV-264] Excelencia visual y de experiencia en escritorio: estándar verificable a 1366×768 (notebook estándar)
+- **Prioridad**: `high` | **Tipo**: `ux`
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
@@ -664,13 +721,22 @@ El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**,
 comunicó como experiencia desktop.
 
 **Criterios de Aceptación:**
-- [ ] #1 Medición documentada a 1366×768 (y 1440×900) de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
-- [ ] #2 Inventario de cuáles de los 45 hallazgos `UX-007` se manifiestan también a anchos de escritorio, con el criterio usado para separarlos
-- [ ] #3 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
-- [ ] #4 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
-- [ ] #5 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
-- [ ] #6 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
-- [ ] #7 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+- [ ] #1 Medición documentada a 1366×768 y 1440×900 de: scroll horizontal del tablero, columnas cortadas, filtros, contadores, modales anchos y estado de la jerarquía visual
+- [ ] #2 Presupuesto de densidad declarado y verificable: ancho mínimo por columna del tablero, cuántas son visibles sin scroll en la vista por defecto, ancho máximo de modales y el umbral declarado a partir del cual el scroll horizontal pasa a ser intencional
+- [ ] #3 Inventario de los 45 hallazgos `UX-007` clasificados en "aprieta a escritorio" / "solo móvil", con el criterio escrito y la lista de aceptados dentro de este ítem
+- [ ] #4 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
+- [ ] #5 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
+- [ ] #6 Escala tipográfica cerrada en las superficies de escritorio: cero `text-[Npx]` arbitrario en `ItemCard`, `ItemModal`, `Header`, barra de filtros y vistas; todo valor nuevo es un token o un valor de la escala
+- [ ] #7 Cifras tabulares en toda columna numérica y en todo valor que cambia en vivo, sin salto de dígitos al actualizar el tablero
+- [ ] #8 Contraste suficiente en **ambos temas** sobre las superficies principales: sin grises muertos ni texto que solo se lea en dark
+- [ ] #9 Tokens semánticos en lugar de hex hardcodeado en las superficies tocadas por este ítem
+- [ ] #10 Los siete estados (default, hover, active/focus, disabled, loading, empty, error) definidos y resueltos en `ItemCard`, `ItemModal`, `Header`, barra de filtros, `Toast` y vistas; el estado vacío es sereno y ofrece el siguiente paso, nunca una alerta
+- [ ] #11 Transiciones de 150–250ms para cambio de estado, entrada de superficies con curva intencional, y `prefers-reduced-motion` respetado
+- [ ] #12 Cero CLS a 1366×768 al cargar, cambiar de idioma, cambiar de filtro, cambiar de vista y mover una tarjeta entre columnas
+- [ ] #13 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
+- [ ] #14 La medición, el presupuesto de densidad y la clasificación de `UX-007` quedan escritos en un artefacto versionado bajo `docs/ux/`, y ese artefacto es el estándar contra el que se certifica DEV-265 y se diseña DEV-207
+- [ ] #15 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
+- [ ] #16 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
 
 ---
 
@@ -5999,6 +6065,14 @@ Corrección integral de defectos de experiencia de usuario, contraste y ergonom�
 4. Disposición horizontal en una sola línea para pantallas de 1366px con presets canónicos de Planning Poker (0 a 21) y pastilla inline compacta.
 5. Corrección de relaciones jerárquicas hacia la épica DEV-233 y guardias de módulos activos en tarjetas Kanban.
 
+**Criterios de Aceptación:**
+- [x] #1 Desplegables de filtros en AdvancedFiltersPopover cuentan con fondo opaco #131c2f, borde slate-700/80, chevron pointer-events-none y opciones estilizadas con alto contraste en dark mode
+- [x] #2 Switches de Modules & Add-ons en SettingsView preservan el tema activo (light/dark/system) sin forzar el modo oscuro al persistir cambios
+- [x] #3 Campo manual de estimación en ItemModal desacopla su estado local customEstimateInput, permitiendo tipear dígitos arbitrarios (55, 89) sin vaciar el input ni activar botones superiores
+- [x] #4 Selector de estimación encaja al 100% en una sola línea horizontal en resolución 1366px gracias a DEFAULT_FIBONACCI hasta 21 y pastilla compacta
+- [x] #5 Tareas hijas de DEV-233 vinculadas formalmente y chips de módulos en ItemCard protegidos por flags de activación
+- [x] #6 Pirámide de verificación en verde (tsc, audit-ux-code, npm test de 16 pasos y npm run build)
+
 ---
 
 #### [DEV-254] Modal de consulta y ayuda de atajos de teclado (Cheat Sheet y disparador ?)
@@ -6010,6 +6084,13 @@ Implementación del diálogo modal accesible de ayuda y consulta de atajos de te
 3. Botón de acceso directo en el `Header` (versión escritorio junto a los controles de tema/idioma y en el cajón de menú móvil) con ícono de teclado y etiquetas accesibles.
 4. Integración estricta con el primitivo accesible `Modal` (`createPortal`, `role="dialog"`, `aria-modal`) y `useFocusTrap` para retorno de foco y cierre con `Esc`.
 5. Inclusión en la suite de verificación de trampa de foco (`scripts/verify-focus-trap.js`).
+
+**Criterios de Aceptación:**
+- [x] #1 Componente KeyboardShortcutsModal implementado con primitivo Modal y useFocusTrap, estructurado en categorías (Navegación, Tareas y Acciones, Búsqueda y Modales) con badges kbd
+- [x] #2 Presionar la tecla ? (Shift + /) fuera de campos de texto abre el modal de atajos de teclado
+- [x] #3 Botón accesible con ícono de teclado en Header (escritorio y menú móvil) permite abrir el modal con un clic
+- [x] #4 Soporte completo de traducción en es.json y en.json para todos los textos del modal y botones
+- [x] #5 Integrado en scripts/verify-focus-trap.js y pirámide de verificación en verde (tsc, audit:ux, npm test)
 
 ---
 
@@ -6030,6 +6111,15 @@ Alcance:
 
 Fuera de alcance (se mantienen sin cambio): el agrupamiento `GroupBy = 'epic'` / `sprint.groupByEpic` y el string hardcodeado `'Sin Épica'`, que pertenecen al agrupamiento por jerarquía y no a la columna.
 
+**Criterios de Aceptación:**
+- [x] #1 `src/locales/es.json` y `src/locales/en.json` exponen `sprint.colParent` con valores "Padre" y "Parent"; la clave `sprint.colEpic` deja de existir en ambos catálogos
+- [x] #2 `ALL_OPTIONAL_COLS` en `src/utils/sprintVisibleCols.ts` declara `'parent'` en lugar de `'epic'` y no queda ninguna referencia al identificador `'epic'` en las columnas opcionales de `SprintView.tsx`
+- [x] #3 El estado persistido `BACKLOG_VISIBLE_COLS` que contenga `'epic'` se migra a `'parent'` vía `normalizeVisibleCols()`, conservando la visibilidad de la columna en usuarios existentes y reinyectando las columnas núcleo (migración defensiva al estilo DEV-085)
+- [x] #4 El encabezado `<th>`, la entrada del popover de columnas y la celda de datos usan `visibleCols.has('parent')` y `t('sprint.colParent')`
+- [x] #5 El texto renderizado en la celda no afirma "Épica": se deriva de `cleanParentTitle()` sobre el título del padre resuelto
+- [x] #6 `npx tsc --noEmit` reporta 0 errores
+- [x] #7 Pirámide de verificación en verde: `npm test` (16 pasos, código 0), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (411 archivos)
+
 ---
 
 #### [DEV-257] Pie de marca y enlaces de valor real en el modal de atajos de teclado (0 px de costo en el tablero)
@@ -6047,6 +6137,15 @@ Alcance:
 5. Sin costo visual en el tablero: el footer vive únicamente dentro del modal.
 
 Fuera de alcance: bloque "Acerca de" en `SettingsView` (Opción 2, descartada por ahora) y cualquier footer en la aplicación principal.
+
+**Criterios de Aceptación:**
+- [x] #1 `KeyboardShortcutsModal` renderiza en su pie un `<nav aria-label>` con la marca `gripm` y, si existe, el sufijo `v<currentVersion>`
+- [x] #2 Los tres enlaces (repositorio, documentación y reporte de bug) abren en pestaña nueva con `rel="noreferrer noopener"` y texto visible traducible
+- [x] #3 Cada enlace tiene área táctil de al menos 44 px de alto y el contenedor usa `flex-wrap` sin desbordamiento en anchos móviles
+- [x] #4 Cada enlace incluye un `sr-only` que anuncia `(se abre en una pestaña nueva)` en español e inglés
+- [x] #5 `src/locales/es.json` y `src/locales/en.json` exponen todas las claves nuevas del pie y `KeyboardShortcutsModal` compila sin claves faltantes
+- [x] #6 `npx tsc --noEmit` reporta 0 errores
+- [x] #7 Pirámide de verificación en verde: `npm test` (16 pasos, 20.2s), `npm run audit:ux` (0 findings nuevos en UX-011), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run test:ui`, `npm run build` y `node scripts/verify-changes.js --all` (413 archivos)
 
 ---
 

@@ -722,7 +722,7 @@ export const Header: FC<HeaderProps> = ({
                       onRestoreDemo();
                     }}
                     title={t('header.resetDemoDesc')}
-                    className="flex items-center gap-1 min-h-[44px] px-2 rounded-md text-[12px] font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                    className="flex items-center gap-1 min-h-[44px] px-2 rounded-md text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>{t('header.resetDemo')}</span>

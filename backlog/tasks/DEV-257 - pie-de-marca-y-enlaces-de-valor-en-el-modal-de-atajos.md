@@ -42,4 +42,4 @@ Fuera de alcance: bloque "Acerca de" en `SettingsView` (Opción 2, descartada po
 - [x] #5 `src/locales/es.json` y `src/locales/en.json` exponen todas las claves nuevas del pie y `KeyboardShortcutsModal` compila sin claves faltantes
 - [x] #6 `npx tsc --noEmit` reporta 0 errores
 - [x] #7 Pirámide de verificación en verde: `npm test` (16 pasos, 20.2s), `npm run audit:ux` (0 findings nuevos en UX-011), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run test:ui`, `npm run build` y `node scripts/verify-changes.js --all` (413 archivos)
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

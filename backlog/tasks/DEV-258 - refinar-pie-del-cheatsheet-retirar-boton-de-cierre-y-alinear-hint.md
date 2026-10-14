@@ -42,4 +42,4 @@ Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o
 - [x] #5 `npx tsc --noEmit` reporta 0 errores
 - [x] #6 Pirámide de verificación en verde: `npm test` (16/16 pasos), `npm run audit:ux` (0 errores, 0 sugerencias; las 12 advertencias son los falsos positivos documentados de UX-010), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (414 archivos)
 - [x] #7 El cuerpo scrolleable no corta contenido en seco contra la línea del pie: aplica `mask-image` con degradado en los últimos 28 px más `pb-7` de aire, de modo que un header de sección que caiga sobre el borde de scroll se disuelva en el pie y se lea como "hay más abajo" en lugar de texto pisado
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

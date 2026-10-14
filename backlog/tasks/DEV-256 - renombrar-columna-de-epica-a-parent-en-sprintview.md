@@ -41,4 +41,4 @@ Fuera de alcance (se mantienen sin cambio): el agrupamiento `GroupBy = 'epic'` /
 - [x] #5 El texto renderizado en la celda no afirma "Épica": se deriva de `cleanParentTitle()` sobre el título del padre resuelto
 - [x] #6 `npx tsc --noEmit` reporta 0 errores
 - [x] #7 Pirámide de verificación en verde: `npm test` (16 pasos, código 0), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (411 archivos)
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

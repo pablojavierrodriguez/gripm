@@ -33,4 +33,4 @@ Implementación del diálogo modal accesible de ayuda y consulta de atajos de te
 - [x] #3 Botón accesible con ícono de teclado en Header (escritorio y menú móvil) permite abrir el modal con un clic
 - [x] #4 Soporte completo de traducción en es.json y en.json para todos los textos del modal y botones
 - [x] #5 Integrado en scripts/verify-focus-trap.js y pirámide de verificación en verde (tsc, audit:ux, npm test)
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

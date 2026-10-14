@@ -33,4 +33,4 @@ Diseño e implementación de una Command Palette interactiva global (estilo Line
 - [ ] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
 - [ ] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
 - [ ] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

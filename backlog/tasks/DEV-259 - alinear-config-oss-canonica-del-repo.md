@@ -45,4 +45,4 @@ Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referenc
 - [x] #3 Con `enabledTabs.sprint: false` la app no queda en un tab huérfano: `activeTab` se inicializa desde `localStorage` o `kanban` y **no** desde `config.defaultView`, y un `activeTab: 'sprint'` persistido degrada por la auto-redirección de `App.tsx` hacia `kanban`. Verificado en runtime con `npm run test:ui` (Playwright) en verde
 - [x] #4 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md`
 - [x] #5 `npm test` sigue en verde (16/16 pasos) y `node scripts/verify-changes.js --all` valida el árbol (415 archivos)
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->

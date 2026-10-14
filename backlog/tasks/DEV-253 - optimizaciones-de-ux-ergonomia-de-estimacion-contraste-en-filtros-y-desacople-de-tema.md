@@ -35,4 +35,4 @@ Corrección integral de defectos de experiencia de usuario, contraste y ergonom�
 - [x] #4 Selector de estimación encaja al 100% en una sola línea horizontal en resolución 1366px gracias a DEFAULT_FIBONACCI hasta 21 y pastilla compacta
 - [x] #5 Tareas hijas de DEV-233 vinculadas formalmente y chips de módulos en ItemCard protegidos por flags de activación
 - [x] #6 Pirámide de verificación en verde (tsc, audit-ux-code, npm test de 16 pasos y npm run build)
-<!-- SECTION:DESCRIPTION:END -->
+<!-- AC:END -->
