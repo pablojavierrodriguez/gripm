@@ -3,7 +3,7 @@ id: DEV-188
 title: "Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales"
 status: draft
 created_date: '2026-10-06'
-updated_date: '2026-10-06'
+updated_date: '2026-10-13'
 labels:
   - "ux-audit"
   - "upstream"
@@ -25,6 +25,14 @@ DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
 upstream.
 
 ### Estado actual del fork
+
+> [!WARNING]
+> **Sección desactualizada al 2026-10-13.** La migración de la que trata esta tarea ya
+> ocurrió: desde v1.0.3 (DEV-166) `scripts/audit-ux-code.cjs` es byte a byte idéntico al
+> tarball de `@gripm/playbook`, la divergencia quedó en cero y el archivo **está** en el plan
+> core de `scripts/sync-playbook.mjs` (línea 76). Lo que queda vivo de este ítem es el bloque
+> **`hasVisibleText` no reconoce hijos de expresión JSX** y el **renegociado del baseline**.
+> Releer y reescribir el alcance antes de abordarla.
 
 `gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
 (`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
@@ -112,6 +120,45 @@ por construcción. Un control con texto literal en el mismo lugar pasa limpio.
 Es el mismo patrón que el del snapshot portable: un default razonable que no cubre el
 caso de una app internacionalizada.
 
+#### Causa raíz exacta en el motor
+
+`unit.textContent` se construye con `stripExpressions(...)`, que borra **toda** expresión
+`{...}` antes de que `hasVisibleText(unit)` decida si el control expone un nombre. El borrado
+existe por una razón válida que hay que preservar: evitar que una arrow function dentro de
+un **atributo** (`onClick={() => ...}`) se confunda con una etiqueta. Por eso el arreglo no
+puede ser "dejar de borrar expresiones": tiene que **distinguir la ubicación** de la
+expresión. Una expresión en la **lista de hijos** que sea una llamada o un literal
+(`{t('common.delete')}`) **sí** es texto visible; una expresión en el **tag de apertura** no.
+
+#### Los 12 sitios y la etiqueta que cada uno ya expone
+
+Verificado archivo por archivo en el árbol a 2026-10-13: los 12 son falsos positivos.
+
+| Archivo:línea | Etiqueta visible que ya existe |
+| :--- | :--- |
+| `src/App.tsx:1581` | `<span>{t('header.trash')}</span>` |
+| `src/components/CompleteSprintModal.tsx:326` | `<span>{t('completeSprint.addAction')}</span>` |
+| `src/components/CompleteSprintModal.tsx:343` | texto del botón de creación desde acción |
+| `src/components/Header.tsx:565` | `<span>{t('header.newItem')}</span>` |
+| `src/components/Header.tsx:577` | `<span>{t('header.newProject')}</span>` |
+| `src/components/Header.tsx:616` | `<span>{t('settings.title')}</span>` |
+| `src/components/ItemModal.tsx:774` | `<span>{t('itemModal.acAddCriterion')}</span>` |
+| `src/components/ItemModal.tsx:2001` | `<span>{t('common.delete')}</span>` |
+| `src/components/ReleaseAssembler.tsx:405` | `<span>{t('release.newReleaseBtn')}</span>` |
+| `src/components/ReleaseAssembler.tsx:992` | `<span>{t('release.linkTask')}</span>` |
+| `src/components/ReleaseAssembler.tsx:1176` | `<span>{t('release.modalCreateBtn')}</span>` |
+| `src/components/SettingsView.tsx:2406` | `t('settings.addTypeBtn')` / `t('settings.updateTypeBtn')` |
+
+**Prohibido agregar `aria-label` a estos 12 para silenciar el warning:** trataría el síntoma
+sobre código que ya es accesible y dejaría al detector mintiendo sobre el patrón de botón más
+usado del producto.
+
+#### Costo de no resolverlo
+
+`node scripts/audit-ux-code.cjs --strict` queda permanentemente en exit 1, y cada warning
+real de UX-010 que aparezca en el futuro queda enterrado entre 12 falsos conocidos. Es deuda
+de **sensibilidad del detector**, no de accesibilidad de la UI.
+
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
@@ -123,6 +170,8 @@ caso de una app internacionalizada.
 - [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
 - [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
 - [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+- [ ] #9 Arreglar `hasVisibleText` **upstream** en `gripm-playbook/scripts/audit-ux-code.cjs` distinguiendo la ubicación de la expresión: una llamada o literal en la **lista de hijos** cuenta como texto visible, una expresión en el **tag de apertura** se sigue descartando. Traer el cambio con `npm run playbook:sync` sin reintroducir fork local (`.playbook-lock.json` actualizado y el archivo idéntico al playbook)
+- [ ] #10 Regresión en el motor con caso positivo **y** negativo: un botón con `<span>{t('x')}</span>` no se reporta, un botón sólo-icono sin nombre accesible sí se reporta, y un hijo condicional (`{cond && <span>texto</span>}`) **no** cuenta como etiqueta para no perder sensibilidad. Con el fix, `node scripts/audit-ux-code.cjs --strict` devuelve exit 0 con 0 warnings
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -139,6 +188,22 @@ caso de una app internacionalizada.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+### Redeteccion en QA y estado de duplicidad (2026-10-13)
+
+- Los 12 warnings `UX-010` reaparecieron en el gate durante la certificación de **DEV-260**
+  (`docs/adr/`, sin cambios en `src/`), lo que confirma que son deuda viva y no un residuo.
+- **DEV-173 se cerró igual, y por eso este ítem es el único owning del defecto.** En su
+  propio texto figuraba como bloqueada: *"Requiere el conteo real de botones sin nombre
+  accesible, que depende de adoptar el motor upstream con los dos fixes de UX-010 (DEV-188).
+  No se cierra declarando '0' porque el 0 de UX-010 es un techo, no una prueba"*. El ítem
+  está en `done`, pero la medición que su AC #4 exigía nunca se pudo cerrar: el conteo real
+  sigue siendo desconocido. **Este es el único ítem del backlog que puede producir ese dato.**
+- El hallazgo ya estaba documentado además en DEV-217 (*"los 12 casos residuales de UX-010"*,
+  preservados en el baseline con rutas POSIX) y DEV-258 (*"las 12 advertencias son los falsos
+  positivos documentados de UX-010"*). **Nadie debe abrir una tarea nueva para esto**: este
+  ítem es el owning del defecto.
+- Se descartó crear una tarea propia para el fix: habría duplicado el ítem. El alcance,
+  la evidencia y la tabla de los 12 sitios viven acá.
 ### Medición contra el tarball publicado (2026-10-06)
 
 `@gripm/playbook@2.1.0` verificado por shasum: `dcf2e433b8ad616bf0bc724db2496644ac7eade9`,

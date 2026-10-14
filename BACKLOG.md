@@ -254,7 +254,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 
 ---
 
-### 📋 Backlog / Draft (11)
+### 📋 Backlog / Draft (12)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -349,6 +349,77 @@ Durante el monitoreo automatizado de dependencias (DEV-175), Dependabot intentó
 - [ ] #3 Actualizar vite.config.ts y @vitejs/plugin-react garantizando compilación estricta (npx tsc --noEmit con 0 errores)
 - [ ] #4 Verificar suite de pruebas completa (npm test), build de producción y empaquetado standalone (binarios bin/)
 - [ ] #5 Remover los ignores de semver-major en .github/dependabot.yml para React y sus tipos
+
+---
+
+#### [DEV-188] Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Dar de baja el fork local de `scripts/audit-ux-code.cjs` y adoptar el motor de
+`@gripm/playbook` como consumidora común. Es la última pieza de la deuda que dejó
+DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
+upstream.
+
+### Estado actual del fork
+
+> [!WARNING]
+> **Sección desactualizada al 2026-10-13.** La migración de la que trata esta tarea ya
+> ocurrió: desde v1.0.3 (DEV-166) `scripts/audit-ux-code.cjs` es byte a byte idéntico al
+> tarball de `@gripm/playbook`, la divergencia quedó en cero y el archivo **está** en el plan
+> core de `scripts/sync-playbook.mjs` (línea 76). Lo que queda vivo de este ítem es el bloque
+> **`hasVisibleText` no reconoce hijos de expresión JSX** y el **renegociado del baseline**.
+> Releer y reescribir el alcance antes de abordarla.
+
+`gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
+(`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
+
+- **270 líneas** que solo existen en `gripm`
+- **358 líneas** que solo existen en upstream
+
+La divergencia no es cosmética: el fork tiene el sistema de baselining completo
+(`fingerprint`, multiplicidad, ERROR-nunca-absorbido) y los invariantes `ENV-001` y
+`ENV-002`, ninguno de los cuales existe upstream todavía.
+
+El riesgo del fork no es técnico sino de contrato: **`.agents/skills/` sí se sincroniza,
+así que el skill documenta un comportamiento que el motor que corre no tiene.** Un
+fork se salta por construcción el control que `validate-repo.mjs` upstream existe para
+aplicar.
+
+### Qué resuelve upstream
+
+`@gripm/playbook` ya aterrizo las tres piezas:
+
+1. **Rediseño de `buildUnits`** con anidamiento real y tres granularidades por unidad (`text`, `ownContent`, `scopeText`). Resuelve la causa raíz de UX-010: el segmentador viejo contaba `<` contra `>` como caracteres y no distinguía un self-closing de un elemento con hijos.
+2. **Eliminación del `break` por archivo.** Resultó ser la causa del bug de `needsContent`: cortaba el recorrido antes del segundo caso, lo que hacía el fixture de 2 casos incomprobable.
+3. **Baselining como capacidad del auditor**, con `fingerprint` idéntico al local.
+
+### Decisión tomada con upstream
+
+- `ENV-001` (gutter de scrollbar) **no se promueve**: ya está cubierto por el test 6.3 de `scripts/test-parser.js`, que lee `src/index.css` directamente y es independiente del fork. Solo hay que desacoplar los 4 asserts de 6.2 que sí dependen del archivo bifurcado.
+- `ENV-002` (`truncate` en diálogo) queda en discusión upstream; se promueve a firma propia cuando lo decidan.
+- **La Tarea 1 (dejar de preservar el archivo) NO está bloqueada por `ENV-002`.** Está bloqueada porque el auditor upstream no expone API, así que no hay forma de componer sin bifurcar. Upstream libera la extensión en **2.2.0**.
+- **Mientras tanto: seguir bifurcado, con fecha de fin.**
+
+### Riesgo de la migración
+
+El baseline actual quedó construido sobre una señal no confiable: UX-010 tenía
+~101 falsos positivos sobre 191 candidatos. Esas entradas están lockeadas y
+`audit:ux` reporta 0, así que nadie las va a limpiar jamás.
+
+**No se debe correr `--update-baseline` a ciegas sobre las 487 observaciones.** Eso
+dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
+
+**Criterios de Aceptación:**
+- [ ] #1 Registrar la fecha de fin del fork: dejar de preservar `scripts/audit-ux-code.cjs` en `sync-playbook.mjs` cuando `@gripm/playbook@2.2.0` esté publicado, y quitar la nota que lo justifica
+- [ ] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
+- [ ] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
+- [ ] #4 Desacoplar los 4 asserts de la sección 6.2 de `scripts/test-parser.js` que dependen de la existencia de `ENV_GUTTER` y `auditEnvInvariants`, conservando 6.1 (UX-009 acotado a diálogos) y 6.3 (gutter leído del CSS)
+- [ ] #5 Regenerar el baseline **con revisión manual de los hallazgos**, no con `--update-baseline` ciego: separar lo genuino de los falsos positivos de UX-010 antes de snapshotear
+- [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
+- [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
+- [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+- [ ] #9 Arreglar `hasVisibleText` **upstream** en `gripm-playbook/scripts/audit-ux-code.cjs` distinguiendo la ubicación de la expresión: una llamada o literal en la **lista de hijos** cuenta como texto visible, una expresión en el **tag de apertura** se sigue descartando. Traer el cambio con `npm run playbook:sync` sin reintroducir fork local (`.playbook-lock.json` actualizado y el archivo idéntico al playbook)
+- [ ] #10 Regresión en el motor con caso positivo **y** negativo: un botón con `<span>{t('x')}</span>` no se reporta, un botón sólo-icono sin nombre accesible sí se reporta, y un hijo condicional (`{cond && <span>texto</span>}`) **no** cuenta como etiqueta para no perder sensibilidad. Con el fix, `node scripts/audit-ux-code.cjs --strict` devuelve exit 0 con 0 warnings
 
 ---
 
