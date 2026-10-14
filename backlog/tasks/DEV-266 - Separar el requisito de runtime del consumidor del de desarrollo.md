@@ -27,17 +27,27 @@ es el requisito de **desarrollar** el repo, no el de **usar** el paquete.
 **El requisito de 22.6 es de desarrollo, no de consumo:**
 
 - `--experimental-strip-types` aparece únicamente en scripts que ejecutan TypeScript
-  directo: `npm test`, `npm run tasks`, los `verify-*.js`, `scripts/*.ts`.
-- **`bin/gripm.js` importa solo built-ins de Node** — `fs`, `path`, `os`, `url`,
-  `child_process` — sin strip-types, y está empaquetado por esbuild con
-  `target: 'node18'` (`scripts/build-binaries.js:22`).
-- Es decir: el binario que instala el consumidor lleva su propio runtime y no necesita
-  Node 22.6 para nada.
+  directo: `npm test`, `npm run tasks`, los `verify-*.js`, `scripts/*.ts`. **No aparece en
+  los binarios publicados.**
+- `bin/gripm.js` no usa type-stripping: es JavaScript plano que importa cinco módulos
+  relativos del proyecto (`registryConfig`, `updateChecker`, `initScaffold`, `uninstall`,
+  `portUtils`), que a su vez solo importan built-ins.
+- El arranque del cockpit, que un consumidor sí ejercita, carga **Vite 5.4.21**, cuyas
+  `engines` son `^18.0.0 || >=20.0.0`. Ese es el eslabón que fija el piso.
+
+> [!NOTE]
+> **Corrección de evidencia (2026-10-14, tras la auditoría de QA).** La primera redacción de
+> esta sección afirmaba que `bin/gripm.js` *"importa solo built-ins de Node"* y que *"está
+> empaquetado por esbuild con `target: 'node18'`"*. **Las dos son falsas:**
+> `scripts/build-binaries.js:31-33` solo le hace `chmod` a `bin/gripm.js`, y el
+> `target: 'node18'` de la línea 22 corresponde al build de `gripm-mcp.js`. La conclusión
+> era correcta, pero se apoyaba en una evidencia que nunca se ejecutó. Queda corregido
+> porque el siguiente que lo lea tiene que poder reproducir el razonamiento.
 
 **El efecto del desajuste:** npm advertía a cualquiera que instalara `gripm` globalmente
-que requería Node 22.6, cuando el binario habría corrido en un runtime bastante anterior. Y
-el badge del README, que dice `>=20.0.0`, quedaba **mintiendo sobre la restricción real**:
-prometía algo que `engines` rechazaba.
+que requería Node 22.6, cuando el binario corre en un runtime bastante anterior. Y el badge
+del README, que dice `>=20.0.0`, quedaba **mintiendo sobre la restricción real**: prometía
+algo que `engines` rechazaba.
 
 ## Contradicción con ítems anteriores
 
@@ -93,9 +103,9 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
 - [x] #3 `npm install` sigue funcionando sin error en el runtime de desarrollo y en el de CI
 - [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
 - [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
-- [ ] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
-- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no sigaAFFIRMANDO una garantía que no existe
-- [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+- [x] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
+- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
+- [x] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -105,9 +115,28 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   de CI, el `target` de esbuild y el badge del README. Los cinco decían cosas distintas.
 - **`devEngines` está soportado:** npm 11.19.0 en este repo. Con Node 24 el
   `npm install --dry-run` sigue en verde, porque 24 >= 22.6.
-- **AC #6 y #7 quedan abiertos a propósito.** El #6 es la parte honesta: nadie corrió el
-  CLI en un runtime anterior a 22. El #7 es higiene de backlog: DEV-223 afirma en su
-  descripción una garantía que nunca se comprobó.
-- **Este ítem no cierra DEV-223.** Lo referencia como dependencia y le deja el AC #7 para
-  que la corrección quede explícitamente a nombre de alguien.
+- **AC #7 queda abierto a propósito.** Es higiene de backlog: DEV-223 afirma en su descripción
+  una garantía que nunca se comprobó. Este ítem no lo cierra; lo referencia como dependencia y
+  le deja el AC para que la corrección quede explícitamente a nombre de alguien.
+- **AC #6 cerrado por medición, no por deducción.** La auditoría de QA instaló el **tarball
+  real** (`npm pack`, no el repo) en `node:20.0-bullseye` (v20.0.0, npm 9.6.4) y en
+  `node:20-bookworm` (v20.20.2, npm 10.8.2). En los dos: `gripm --version`, `--help`,
+  `initialize` + `gripm_list_tasks` del servidor MCP (263 tareas, `storageType: markdown`) y
+  el arranque del cockpit sirviendo en un puerto, todos con salida 0.
+  **El floor de 18 sigue sin medirse y no se afirma en ningún lado del repo.**
+- **El enforcement de `devEngines` depende de npm ≥ 11 — medido en las dos direcciones.**
+  En la raíz del repo con Node 20.20.2 y npm 11.21.0, `npm install` falla con
+  `EBADDEVENGINES`. Instalando el tarball, el mismo Node con el mismo npm sale 0. Con el
+  npm 10.8.2 que trae Node 20, el campo se **ignora en silencio**. Irrelevante para el
+  consumidor, que nunca corre `install` en la raíz del repo, pero significa que la garantía
+  del AC #2 es condicional al npm. Queda documentado en `CONTRIBUTING.md`.
+- **El ítem volvió de `review` por un AC tildado que era falso.** AC #5 daba por hecho que
+  `CONTRIBUTING.md` documentaba la separación; el commit `207824e` nunca lo tocó, y el
+  archivo seguía afirmando que el aviso al colaborador venía de `engines.node`. La auditoría
+  lo detectó; el texto de `CONTRIBUTING.md` y la evidencia de la descripción se corrigieron
+  antes de volver a `ready`.
+- **El cambio de runtime se sostiene por ejecución, no por argumento.** `engines.node = ">=20.0.0"`
+  + `devEngines.runtime = ">=22.6.0"` es correcto porque el tarball arranca en Node 20.0.0.
+  Lo que no se sostenía era el estado del ítem, que declaraba hecho un trabajo de
+  documentación que no estaba hecho.
 <!-- SECTION:NOTES:END -->

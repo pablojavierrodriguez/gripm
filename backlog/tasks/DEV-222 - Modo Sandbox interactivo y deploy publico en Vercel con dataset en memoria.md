@@ -3,7 +3,7 @@ id: DEV-222
 title: "Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria"
 status: ready
 created_date: '2026-10-09'
-updated_date: '2026-10-09'
+updated_date: '2026-10-14'
 labels:
   - "web"
   - "demo"
@@ -472,34 +472,43 @@ que es exactamente el caso (LocalStorage en la sandbox, y `storage.ts` de DEV-26
 Resultado: **`SUITE_EXIT=0`, 17/17 pasos en `node:22.6.0-bookworm`**, con
 `verify-linux-exit-code.js` en verde.
 
-#### Dos capas de fallo en el harness, ninguna del código bajo prueba
-
-1. **Docker apagado** → exit 1 con salida **totalmente silenciosa**.
-2. **MSYS path mangling** → con Docker ya arriba, Git Bash convirtió `-w /work` en
-   `C:/Program Files/Git/work`. El script usa `-v "$REPO":/src:ro`, forma que no sobrevive
-   Git Bash. WSL tampoco sirve: se corta y no expone `docker` de forma confiable.
-
-**No se modificó `scripts/repro-ci-linux.sh`.** Se replicaron sus cinco pasos exactos (tar
-del repo excluyendo `node_modules` y `.git`, `git init`, `npm ci` cacheado en volumen,
-`verify-linux-exit-code.js`, y `npm test --timeout 90`) usando la forma `--mount`, que sí
-funciona, con el script en un archivo montado para eliminar el quoting de PowerShell. Misma
-imagen, mismas condiciones de CI.
+#### El diagnóstico original era incorrecto
 
 > [!CAUTION]
-> **Hallazgo de calidad del tooling, no corregido acá.** `scripts/repro-ci-linux.sh` **no se
-> puede ejecutar desde Windows**, y su `set -euo pipefail` combinado con
-> `docker volume create >/dev/null` hace que "Docker apagado" y "el test falló" produzcan la
-> misma salida: exit 1 y cero diagnóstico. Un contributor en Windows no tiene forma de
-> correr el check que la casa exige. Es el mismo patrón que persiguen DEV-217 y DEV-249.
-> **Candidato a arreglo en DEV-190:** migrar `-v "$REPO":/src:ro` a
-> `--mount type=bind,source="$REPO",target=/src,readonly` y agregar un preflight que
-> distinga daemon ausente de test fallido.
+> **Corrección (2026-10-14, tras dos auditorías independientes).** La primera redacción de
+> esta sección afirma que `scripts/repro-ci-linux.sh` *"no se puede ejecutar desde Windows"*,
+> que PowerShell *"devuelve exit 1 aunque la suite pase"* y que hay *"MSYS path mangling"* de
+> `-w /work`. **Las tres son falsas.** El comando se volvió a correr **sin modificar una sola
+> línea del script** y dio:
+>
+> ```
+> npm run test:linux
+> === imagen: node:22.6.0-bookworm ===
+> ✅ Linux suite runner preserves both successful and failed exit codes
+> 17 pasos · 17.4s · todas verdes
+> SUITE_EXIT=0
+> ```
+>
+> Dos auditorías lo confirmaron de forma independiente. **La causa real del fallo inicial era
+> Docker apagado** —el primer punto de esta misma lista, que el diagnóstico de abajo
+> contradecía— y se atribuyó a un defecto del script que no existe.
+
+Lo que **sí** es un defecto real, y sobrevive a la corrección:
+
+1. **Docker apagado → exit 1 con salida totalmente silenciosa.** El `set -euo pipefail` del
+   script combinado con `docker volume create >/dev/null` hace que "el daemon no está" y "la
+   suite falló" produzcan exactamente la misma salida: exit 1 y cero diagnóstico.
+2. **`verify-linux-exit-code.js` sí cubre la segunda mitad** (preserva exit codes), pero
+   ninguna de las dos capas distingue daemon ausente de test fallido.
+
+**Lo que se retiró:** la recomendación de migrar `-v "$REPO":/src:ro` a `--mount`, escrita
+en dirección a DEV-190. El `-v` del script funciona; el diagnóstico estaba equivocado y la
+recomendación habría enviado a alguien a arreglar algo que ya está bien.
 
 > [!NOTE]
-> Ejecutado desde PowerShell, el comando externo devuelve **exit 1 aunque la suite pase**:
-> el `ExperimentalWarning` de Node escribe en stderr y PowerShell lo contabiliza como error.
-> **La salida autoritativa es el `SUITE_EXIT` explícito** que emite
-> `run-and-propagate-exit-code.sh`, que existe justo para eso.
+> La forma `--mount` sí es preferible si vas a montar el repo desde Git Bash por comfort —
+> evita el quoting de rutas con espacios en `C:\Users\...` — pero **no es un workaround
+> necesario**. La afirmación de que `-v` se rompe era incorrecta.
 
 #### Estado de la Pirámide de Verificación
 
@@ -709,9 +718,12 @@ y deliberado; ver **DEV-263**.
 | #6 | `npm test` 17/17 y `npm run backlog:check` exit 0 |
 
 > [!NOTE]
-> **El ítem queda en `review`, que es la meta del desarrollo según el flujo de la casa.**
-> `ready` lo mueve la certificación de QA, no el desarrollo. Que el código esté commiteado
-> en `main`, desplegado y verificado no sustituye esa certificación: son capas distintas.
+> **El ítem pasó de `review` a `ready` tras la certificación de QA** (`88a7276`), que es lo
+> que corresponde: `ready` lo mueve la certificación, no el desarrollo. Que el código esté
+> commiteado en `main`, desplegado y verificado no sustituye esa certificación: son capas
+> distintas. La certificación cubrió los AC #1, #2, #5 y #6; **el AC #3 (mobile) sigue
+> withdrawn y sin verificar** — la tabla de arriba no lo lista porque no hay aserción que lo
+> sostenga.
 
 ### Lo que NO se resolvió acá, y quedó en el backlog
 

@@ -12,14 +12,39 @@ qué tarea estás cerrando.
 
 ## Requisitos de entorno
 
+**Hay dos requisitos de Node distintos, y no son el mismo.** El de **consumir** gripm y el
+de **desarrollar** este repo.
+
+### Si vas a usar gripm en tu proyecto
+
 | Requisito | Versión | Por qué |
 |---|---|---|
-| Node.js | **≥ 22.6.0** | El proyecto usa type-stripping nativo (`--experimental-strip-types`). Por debajo de esa versión los scripts de test y CLI no corren. |
-| npm | ≥ 10 | Requerido por los hooks de ciclo de vida y el empaquetado. |
+| Node.js | **≥ 20.0.0** | Verificado ejecutando el tarball real en `node:20.0.0` y `node:20.20.2`: `gripm --version`, `--help`, el servidor MCP y el arranque del cockpit funcionan. |
+
+No tenés que clonar este repo ni instalar el toolchain. `npx @gripm/board` alcanza.
+
+### Si vas a desarrollar gripm
+
+| Requisito | Versión | Por qué |
+|---|---|---|
+| Node.js | **≥ 22.6.0** | Los scripts de test y CLI se ejecutan con type-stripping nativo (`--experimental-strip-types`), disponible desde 22.6. Por debajo, `npm test` y `scripts/*.ts` no corren. |
+| npm | **≥ 11** | Necesario para que `devEngines` haga enforcement. Con npm 10 el campo se ignora **en silencio**, sin avisar. |
 | Git | cualquiera reciente | El backlog se versiona como Markdown. |
 
-El `package.json` declara `engines.node` para que npm advierta en la instalación si
-el entorno no cumple.
+Esto vive en dos campos distintos del `package.json`, y la separación es deliberada:
+
+| Campo | A quién aplica | Valor | Efecto |
+|---|---|---|---|
+| `engines.node` | **consumidor** | `>=20.0.0` | npm avisa al instalar el paquete si no cumple |
+| `devEngines.runtime` | **desarrollador** | `>=22.6.0`, `onFail: "error"` | `npm install` **falla** en la raíz del repo |
+
+> [!NOTE]
+> Antes de DEV-266 ambos declaraban `>=22.6.0`, y eso le comunicaba al consumidor un
+> requisito que es de desarrollo: el paquete advertía Node 22.6 aunque los binarios
+> publicados funcionan en Node 20. La evidencia de por qué el consumidor llega hasta 20
+> está medida, no deducida.
+
+`.nvmrc` y `.node-version` fijan `22.6.0`, que es el piso de **desarrollo**.
 
 ## Setup
 
