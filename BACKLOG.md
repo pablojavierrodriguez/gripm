@@ -704,8 +704,8 @@ menores que sí quedan abiertas. No es urgente.
 
 ---
 
-#### [DEV-264] Excelencia visual y de experiencia en escritorio: estándar verificable a 1366×768 (notebook estándar)
-- **Prioridad**: `high` | **Tipo**: `ux`
+#### [DEV-264] Hacinamiento horizontal en escritorio: crowding en el tablero a anchos comunes
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
@@ -721,22 +721,13 @@ El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**,
 comunicó como experiencia desktop.
 
 **Criterios de Aceptación:**
-- [ ] #1 Medición documentada a 1366×768 y 1440×900 de: scroll horizontal del tablero, columnas cortadas, filtros, contadores, modales anchos y estado de la jerarquía visual
-- [ ] #2 Presupuesto de densidad declarado y verificable: ancho mínimo por columna del tablero, cuántas son visibles sin scroll en la vista por defecto, ancho máximo de modales y el umbral declarado a partir del cual el scroll horizontal pasa a ser intencional
-- [ ] #3 Inventario de los 45 hallazgos `UX-007` clasificados en "aprieta a escritorio" / "solo móvil", con el criterio escrito y la lista de aceptados dentro de este ítem
-- [ ] #4 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
-- [ ] #5 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
-- [ ] #6 Escala tipográfica cerrada en las superficies de escritorio: cero `text-[Npx]` arbitrario en `ItemCard`, `ItemModal`, `Header`, barra de filtros y vistas; todo valor nuevo es un token o un valor de la escala
-- [ ] #7 Cifras tabulares en toda columna numérica y en todo valor que cambia en vivo, sin salto de dígitos al actualizar el tablero
-- [ ] #8 Contraste suficiente en **ambos temas** sobre las superficies principales: sin grises muertos ni texto que solo se lea en dark
-- [ ] #9 Tokens semánticos en lugar de hex hardcodeado en las superficies tocadas por este ítem
-- [ ] #10 Los siete estados (default, hover, active/focus, disabled, loading, empty, error) definidos y resueltos en `ItemCard`, `ItemModal`, `Header`, barra de filtros, `Toast` y vistas; el estado vacío es sereno y ofrece el siguiente paso, nunca una alerta
-- [ ] #11 Transiciones de 150–250ms para cambio de estado, entrada de superficies con curva intencional, y `prefers-reduced-motion` respetado
-- [ ] #12 Cero CLS a 1366×768 al cargar, cambiar de idioma, cambiar de filtro, cambiar de vista y mover una tarjeta entre columnas
-- [ ] #13 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
-- [ ] #14 La medición, el presupuesto de densidad y la clasificación de `UX-007` quedan escritos en un artefacto versionado bajo `docs/ux/`, y ese artefacto es el estándar contra el que se certifica DEV-265 y se diseña DEV-207
-- [ ] #15 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
-- [ ] #16 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
+- [ ] #1 Medición documentada a 1366×768 (y 1440×900) de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
+- [ ] #2 Inventario de cuáles de los 45 hallazgos `UX-007` se manifiestan también a anchos de escritorio, con el criterio usado para separarlos
+- [ ] #3 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
+- [ ] #4 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
+- [ ] #5 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
+- [ ] #6 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
+- [ ] #7 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
 
 ---
 
