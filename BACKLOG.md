@@ -254,7 +254,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 
 ---
 
-### 📋 Backlog / Draft (14)
+### 📋 Backlog / Draft (15)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -634,6 +634,33 @@ Eso tiene dos consecuencias concretas:
 - [ ] #6 El bypass de automatización para pruebas está provisionado como secreto, si se decide correr e2e contra la URL desplegada
 - [ ] #7 `npm run test:linux` en verde con el runtime pineado, y `npm test`, `npm run backlog:check` con código 0
 - [ ] #8 Documentado qué hace falta para promover a producción en cada ambiente, y qué ocurre si falta algún paso
+
+---
+
+#### [DEV-264] Hacinamiento horizontal en escritorio: crowding en el tablero a anchos comunes
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
+README dicen que la demo está *"Optimized for desktop"* / *"Optimizada para escritorio"*.
+
+Esa afirmación tiene una parte verdadera y una que no. Es verdad que el tablero **prioriza**
+el escritorio y que mobile no está hecho (DEV-207). Lo que no está respaldado es la
+calidad: **escritorio tampoco está impecable a anchos comunes**, y el README es la única
+fuente de esa promesa. Si alguien la toma literalmente y encuentra el tablero apretado a
+1366, el README queda desmentido por el producto.
+
+El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**, que se
+comunicó como experiencia desktop.
+
+**Criterios de Aceptación:**
+- [ ] #1 Medición documentada a 1366×768 (y 1440×900) de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
+- [ ] #2 Inventario de cuáles de los 45 hallazgos `UX-007` se manifiestan también a anchos de escritorio, con el criterio usado para separarlos
+- [ ] #3 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
+- [ ] #4 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
+- [ ] #5 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
+- [ ] #6 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
+- [ ] #7 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
 
 ---
 
