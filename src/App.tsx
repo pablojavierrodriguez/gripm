@@ -1519,6 +1519,7 @@ export function App() {
               setEditingItem(item);
               setItemModalOpen(true);
             }}
+            onUpdateItem={handleSaveItem}
             config={config}
           />
         )}
