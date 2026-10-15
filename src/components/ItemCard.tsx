@@ -15,6 +15,8 @@ import {
   ChevronRight,
   ArrowUp,
   ArrowDown,
+  ArrowUpToLine,
+  ArrowDownToLine,
   Edit3,
   Bot,
   Layers,
@@ -66,7 +68,11 @@ interface ItemCardProps {
    */
   canMoveUp?: boolean;
   canMoveDown?: boolean;
-  onMoveWithinColumn?: (direction: 'up' | 'down') => void;
+  canMoveToTop?: boolean;
+  canMoveToBottom?: boolean;
+  onMoveWithinColumn?: (direction: 'up' | 'down' | 'top' | 'bottom') => void;
+  availableSprints?: string[];
+  onAssignSprint?: (sprint: string) => void;
 }
 
 export const LUCIDE_ICONS_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -229,7 +235,11 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   config,
   canMoveUp = false,
   canMoveDown = false,
-  onMoveWithinColumn
+  canMoveToTop,
+  canMoveToBottom,
+  onMoveWithinColumn,
+  availableSprints,
+  onAssignSprint
 }) => {
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
@@ -237,8 +247,10 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   const isSprintActive = isSprintModuleActive(config);
   const isReleaseActive = isReleaseModuleActive(config);
   const isEstimationActive = Boolean(config?.estimation?.enabled ?? estimationConfig?.enabled);
+  const currentSprint = item.sprint || item.targetSprint || '';
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [sprintMenuOpen, setSprintMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // DEV-129: el menú se renderiza en un portal sobre document.body, así que
   // necesita su propio ref: el de `menuRef` cubre sólo el disparador.
@@ -258,6 +270,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       if (!insideTrigger && !insidePanel) {
         setMenuOpen(false);
         setStatusMenuOpen(false);
+        setSprintMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -318,7 +331,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       window.removeEventListener('scroll', handleViewportChange, true);
       window.removeEventListener('resize', handleViewportChange);
     };
-  }, [menuOpen, statusMenuOpen, computeMenuPosition]);
+  }, [menuOpen, statusMenuOpen, sprintMenuOpen, computeMenuPosition]);
 
   // Segunda pasada: recién ahora el panel está montado y se puede medir su alto
   // real, que es lo que decide si el menú se abre hacia abajo o hacia arriba.
@@ -455,6 +468,13 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
               <div
                 ref={menuPanelRef}
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setMenuOpen(false);
+                    setStatusMenuOpen(false);
+                    setSprintMenuOpen(false);
+                  }
+                }}
                 style={{ top: menuPos.top, left: menuPos.left }}
                 className="fixed w-48 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-[100] text-xs animate-in fade-in zoom-in-95"
               >
@@ -480,7 +500,10 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
                 <div className="relative">
                   <button
-                    onClick={() => setStatusMenuOpen(!statusMenuOpen)}
+                    onClick={() => {
+                      setStatusMenuOpen(!statusMenuOpen);
+                      setSprintMenuOpen(false);
+                    }}
                     className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white text-left"
                   >
                     <span className="flex items-center gap-2">
@@ -491,7 +514,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                   </button>
 
                   {statusMenuOpen && (
-                    <div className="absolute right-full top-0 mr-1 w-44 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-50 text-xs">
+                    <div className={`absolute ${menuPos && menuPos.left < 180 ? 'left-full ml-1' : 'right-full mr-1'} top-0 w-44 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-50 text-xs`}>
                       {(['ideas', 'draft', 'doing', 'review', 'ready', 'done'] as ItemStatus[]).map((s) => (
                         <button
                           key={s}
@@ -514,13 +537,87 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                   )}
                 </div>
 
+                {/* Submenú Asignar a Sprint (DEV-276) */}
+                {isSprintActive && onAssignSprint && (
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setSprintMenuOpen(!sprintMenuOpen);
+                        setStatusMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between min-w-0 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white text-left"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Target className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                        <span className="truncate">{t('card.assignSprint')}</span>
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                    </button>
+
+                    {sprintMenuOpen && (
+                      <div className={`absolute ${menuPos && menuPos.left < 180 ? 'left-full ml-1' : 'right-full mr-1'} top-0 w-48 max-h-56 overflow-y-auto rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-50 text-xs`}>
+                        <button
+                          onClick={() => {
+                            onAssignSprint('');
+                            setMenuOpen(false);
+                            setSprintMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between min-w-0 px-2 py-1.5 rounded-lg text-left text-xs ${
+                            !currentSprint
+                              ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span className="truncate">{t('card.returnToBacklog')}</span>
+                          {!currentSprint && <Check className="w-3 h-3 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+                        </button>
+
+                        {availableSprints && availableSprints.length > 0 && (
+                          <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+                        )}
+
+                        {availableSprints?.map((sp) => (
+                          <button
+                            key={sp}
+                            onClick={() => {
+                              onAssignSprint(sp);
+                              setMenuOpen(false);
+                              setSprintMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between min-w-0 px-2 py-1.5 rounded-lg text-left text-xs ${
+                              currentSprint === sp
+                                ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                            }`}
+                          >
+                            <span className="truncate">{sp}</span>
+                            {currentSprint === sp && <Check className="w-3 h-3 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
 
-                {/* DEV-173 AC #3: reordering without a pointer. Disabled at the
+                {/* DEV-173 & DEV-276: reordering without a pointer. Disabled at the
                     column edges rather than hidden, so the position in the menu
                     stays stable while arrowing through it. */}
-                {onMoveWithinColumn && (canMoveUp || canMoveDown) && (
+                {onMoveWithinColumn && (canMoveUp || canMoveDown || canMoveToTop || canMoveToBottom) && (
                   <>
+                    <button
+                      onClick={() => {
+                        onMoveWithinColumn('top');
+                        setMenuOpen(false);
+                      }}
+                      disabled={canMoveToTop !== undefined ? !canMoveToTop : !canMoveUp}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left"
+                    >
+                      <ArrowUpToLine className="w-3.5 h-3.5" />
+                      <span>{t('card.moveToTop')}</span>
+                    </button>
+
                     <button
                       onClick={() => {
                         onMoveWithinColumn('up');
@@ -543,6 +640,18 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                       <span>{t('card.moveDown')}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        onMoveWithinColumn('bottom');
+                        setMenuOpen(false);
+                      }}
+                      disabled={canMoveToBottom !== undefined ? !canMoveToBottom : !canMoveDown}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left"
+                    >
+                      <ArrowDownToLine className="w-3.5 h-3.5" />
+                      <span>{t('card.moveToBottom')}</span>
                     </button>
 
                     <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />

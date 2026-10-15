@@ -118,7 +118,7 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
-### 🚀 Ready for Deploy (13)
+### 🚀 Ready for Deploy (16)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -490,6 +490,51 @@ En resoluciones de escritorio habituales como 1366×768 (y monitores estándar d
 
 ---
 
+#### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Actualmente, reordenar una tarea dentro de una columna o en la tabla de Backlog depende casi exclusivamente del arrastre con mouse (drag & drop). En `ItemCard.tsx`, el menú contextual solo ofrece subir o bajar una única posición (`canMoveUp` / `canMoveDown`), lo que resulta sumamente tedioso e inviable cuando una columna o backlog contiene decenas de ítems.
+
+Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalmente por todo el viewport o abrir el modal de edición completo.
+
+### Objetivos:
+1. **Mover al Tope / Fondo:** Incorporar en el menú contextual (`...`) de cada tarjeta en el Tablero y en el menú de acciones de cada fila en `SprintView`:
+   - *"Mover al principio de la columna / backlog"* (Top rank)
+   - *"Mover al final de la columna / backlog"* (Bottom rank)
+2. **Asignación Rápida de Sprint:** Agregar un submenú o acción directa *"Asignar a Sprint →"* con listado de sprints vigentes y la opción *"Devolver al Backlog"*, permitiendo transferir la tarea en un solo clic sin abrir el formulario de edición.
+3. Actualizar el orden numérico (`order`) de forma consistente para garantizar persistencia determinística en disco.
+
+**Criterios de Aceptación:**
+- [x] #1 El menú contextual de la tarjeta en KanbanBoard incluye acciones para mover al tope y al fondo de su columna
+- [x] #2 Cada fila en SprintView incluye menú o botones de acción para mover el ítem al tope o fondo de su contenedor (sprint o backlog)
+- [x] #3 Se provee acción contextual para mover rápidamente el ítem a cualquier sprint activo/vigente o al backlog general
+- [x] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
+- [x] #5 Accesibilidad por teclado en las nuevas opciones de menú
+- [x] #6 `npm test` y verificación de consistencia en verde
+
+---
+
+#### [DEV-278] Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+En `FilterBar.tsx`, el indicador de resumen de métricas (`2 pendientes • 2 en curso • 3 completados • 7 total`) se renderiza siempre de forma obligatoria en el extremo derecho de la barra.
+
+En pantallas medianas o portátiles, esta cadena de texto compite directamente por el ancho horizontal con los filtros de búsqueda y píldoras rápidas, provocando potenciales solapamientos o wrapping no deseado. Además, usuarios que prefieren interfaces limpias o minimalistas no disponen de un mecanismo para ocultar este resumen.
+
+### Objetivos:
+1. Agregar una propiedad en la configuración (`config.ui.showFilterBarStats` o `config.showFilterBarStats`, por defecto `true`).
+2. Incorporar un switch en `SettingsView.tsx` (sección Apariencia / Filtros) para encender o apagar este bloque.
+3. Respetar la preferencia en `FilterBar.tsx`, ocultando el componente cuando el usuario lo desactive y liberando espacio horizontal completo para los filtros.
+
+**Criterios de Aceptación:**
+- [x] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
+- [x] #2 La preferencia se persiste correctamente en la configuración del proyecto
+- [x] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
+- [x] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
+- [x] #5 `npm test` y consistencia de esquemas de configuración en verde
+
+---
+
 #### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
 - **Prioridad**: `medium` | **Tipo**: `bug`
 
@@ -523,7 +568,35 @@ Cuando la aplicación está configurada en inglés (`config.language = 'en'`), p
 
 ---
 
-### 📋 Backlog / Draft (23)
+#### [DEV-280] Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem contenedor o padre (`parentId`) presenta dos problemas graves de usabilidad:
+
+1. **Contaminación del listado:** La definición de candidatos a padre (`line 196`) incluye ítems de tipo `feature`:
+   ```ts
+   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
+   ```
+   En cualquier proyecto mediano o grande, esto inunda el selector con cientos de tareas individuales que no son contenedores legítimos de jerarquía.
+2. **Falta de buscador:** El control es un elemento `<select>` plano de HTML nativo (`lines 1860-1880`). Si un usuario tiene 30 épicas o no recuerda el ID exacto (`DEV-140`), se ve obligado a hacer scroll visual extenso sin capacidad de filtrar por nombre o palabra clave.
+
+### Objetivos:
+1. **Restricción canónica:** Filtrar `candidateParents` estrictamente por `it.type === 'epic' || it.type === 'initiative'` (contenedores jerárquicos reales).
+2. **Combobox / Popover con Buscador en vivo:** Reemplazar el `<select>` plano por un componente de selección accesible con input de búsqueda integrado, permitiendo escribir parte del título o del código para filtrar instantáneamente la lista de épicas.
+3. Mostrar claramente el tipo (`[EPIC]` o `[INITIATIVE]`), el código y el título completo en el desplegable.
+4. Mantener la opción de desvincular el padre de forma clara e inmediata.
+
+**Criterios de Aceptación:**
+- [x] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
+- [x] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
+- [x] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
+- [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
+- [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
+- [x] #6 `npm test` y consistencia en la jerarquía de ítems
+
+---
+
+### 📋 Backlog / Draft (20)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1026,30 +1099,6 @@ Actualmente, el campo de módulo en las tareas (`module?: string`) es un string 
 
 ---
 
-#### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Actualmente, reordenar una tarea dentro de una columna o en la tabla de Backlog depende casi exclusivamente del arrastre con mouse (drag & drop). En `ItemCard.tsx`, el menú contextual solo ofrece subir o bajar una única posición (`canMoveUp` / `canMoveDown`), lo que resulta sumamente tedioso e inviable cuando una columna o backlog contiene decenas de ítems.
-
-Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalmente por todo el viewport o abrir el modal de edición completo.
-
-### Objetivos:
-1. **Mover al Tope / Fondo:** Incorporar en el menú contextual (`...`) de cada tarjeta en el Tablero y en el menú de acciones de cada fila en `SprintView`:
-   - *"Mover al principio de la columna / backlog"* (Top rank)
-   - *"Mover al final de la columna / backlog"* (Bottom rank)
-2. **Asignación Rápida de Sprint:** Agregar un submenú o acción directa *"Asignar a Sprint →"* con listado de sprints vigentes y la opción *"Devolver al Backlog"*, permitiendo transferir la tarea en un solo clic sin abrir el formulario de edición.
-3. Actualizar el orden numérico (`order`) de forma consistente para garantizar persistencia determinística en disco.
-
-**Criterios de Aceptación:**
-- [ ] #1 El menú contextual de la tarjeta en KanbanBoard incluye acciones para mover al tope y al fondo de su columna
-- [ ] #2 Cada fila en SprintView incluye menú o botones de acción para mover el ítem al tope o fondo de su contenedor (sprint o backlog)
-- [ ] #3 Se provee acción contextual para mover rápidamente el ítem a cualquier sprint activo/vigente o al backlog general
-- [ ] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
-- [ ] #5 Accesibilidad por teclado en las nuevas opciones de menú
-- [ ] #6 `npm test` y verificación de consistencia en verde
-
----
-
 #### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
 - **Prioridad**: `high` | **Tipo**: `feature`
 
@@ -1079,55 +1128,6 @@ Esta tarea implementa **selección múltiple de ítems** y una **barra flotante 
 - [ ] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
 - [ ] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
 - [ ] #7 `npm test` y consistencia de datos en disco sin race conditions
-
----
-
-#### [DEV-278] Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar
-- **Prioridad**: `low` | **Tipo**: `improvement`
-
-En `FilterBar.tsx`, el indicador de resumen de métricas (`2 pendientes • 2 en curso • 3 completados • 7 total`) se renderiza siempre de forma obligatoria en el extremo derecho de la barra.
-
-En pantallas medianas o portátiles, esta cadena de texto compite directamente por el ancho horizontal con los filtros de búsqueda y píldoras rápidas, provocando potenciales solapamientos o wrapping no deseado. Además, usuarios que prefieren interfaces limpias o minimalistas no disponen de un mecanismo para ocultar este resumen.
-
-### Objetivos:
-1. Agregar una propiedad en la configuración (`config.ui.showFilterBarStats` o `config.showFilterBarStats`, por defecto `true`).
-2. Incorporar un switch en `SettingsView.tsx` (sección Apariencia / Filtros) para encender o apagar este bloque.
-3. Respetar la preferencia en `FilterBar.tsx`, ocultando el componente cuando el usuario lo desactive y liberando espacio horizontal completo para los filtros.
-
-**Criterios de Aceptación:**
-- [ ] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
-- [ ] #2 La preferencia se persiste correctamente en la configuración del proyecto
-- [ ] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
-- [ ] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
-- [ ] #5 `npm test` y consistencia de esquemas de configuración en verde
-
----
-
-#### [DEV-280] Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem contenedor o padre (`parentId`) presenta dos problemas graves de usabilidad:
-
-1. **Contaminación del listado:** La definición de candidatos a padre (`line 196`) incluye ítems de tipo `feature`:
-   ```ts
-   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
-   ```
-   En cualquier proyecto mediano o grande, esto inunda el selector con cientos de tareas individuales que no son contenedores legítimos de jerarquía.
-2. **Falta de buscador:** El control es un elemento `<select>` plano de HTML nativo (`lines 1860-1880`). Si un usuario tiene 30 épicas o no recuerda el ID exacto (`DEV-140`), se ve obligado a hacer scroll visual extenso sin capacidad de filtrar por nombre o palabra clave.
-
-### Objetivos:
-1. **Restricción canónica:** Filtrar `candidateParents` estrictamente por `it.type === 'epic' || it.type === 'initiative'` (contenedores jerárquicos reales).
-2. **Combobox / Popover con Buscador en vivo:** Reemplazar el `<select>` plano por un componente de selección accesible con input de búsqueda integrado, permitiendo escribir parte del título o del código para filtrar instantáneamente la lista de épicas.
-3. Mostrar claramente el tipo (`[EPIC]` o `[INITIATIVE]`), el código y el título completo en el desplegable.
-4. Mantener la opción de desvincular el padre de forma clara e inmediata.
-
-**Criterios de Aceptación:**
-- [ ] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
-- [ ] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
-- [ ] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
-- [ ] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
-- [ ] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
-- [ ] #6 `npm test` y consistencia en la jerarquía de ítems
 
 ---
 

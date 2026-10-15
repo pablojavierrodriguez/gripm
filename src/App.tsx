@@ -1363,6 +1363,7 @@ export function App() {
           customItemTypes={config?.customItemTypes}
           showSprint={isSprintTabEnabled}
           estimationConfig={config?.estimation}
+          showStats={config?.showFilterBarStats !== false}
         />
       )}
 

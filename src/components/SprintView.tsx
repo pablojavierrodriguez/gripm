@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowUpDown,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  Check,
   Layers,
   Edit3,
   Trash2,
@@ -33,7 +37,7 @@ import { CompleteSprintModal } from './CompleteSprintModal';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
-import { fetchRetros } from '../api';
+import { fetchRetros, updateItem } from '../api';
 import {
   ALL_OPTIONAL_COLS,
   DEFAULT_COLS,
@@ -152,6 +156,71 @@ export const SprintView: FC<SprintViewProps> = ({
     });
     return Array.from(set).filter(Boolean).sort();
   }, [availableSprints, sprints]);
+
+  const activeSprints = useMemo(() => {
+    const nonCompleted = sprints.filter((s) => s.status !== 'completed' && Boolean(s.name)).map((s) => s.name);
+    if (nonCompleted.length > 0) {
+      return Array.from(new Set(nonCompleted)).sort();
+    }
+    return allAvailableSprints;
+  }, [sprints, allAvailableSprints]);
+
+  const [sprintMenuState, setSprintMenuState] = useState<{ itemId: string; top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!sprintMenuState) return;
+    const handleClose = () => setSprintMenuState(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSprintMenuState(null);
+    };
+    document.addEventListener('mousedown', handleClose);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    return () => {
+      document.removeEventListener('mousedown', handleClose);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [sprintMenuState]);
+
+  const handleTransferSprint = (itemId: string, newSprint: string) => {
+    const existing = items.find((it) => it.id === itemId);
+    const curSprint = existing ? (existing.sprint || existing.targetSprint || '') : '';
+    if (curSprint === newSprint) return;
+    if (onUpdateSprint) {
+      onUpdateSprint(itemId, newSprint);
+    } else {
+      updateItem(itemId, {
+        sprint: newSprint,
+        targetSprint: newSprint,
+        sprints: newSprint ? [newSprint] : []
+      });
+    }
+  };
+
+  const handleMoveItemToTop = (item: BacklogItem, group: { key: string; items: BacklogItem[] }) => {
+    const targetSprintVal = group.key === 'Backlog' || group.key.includes('Sin Sprint') || group.key === 'Sin Asignar' ? '' : group.key;
+    if (onReorderItem) {
+      onReorderItem(item.id, targetSprintVal, 0);
+      setSortBy('order');
+    } else {
+      const firstOrder = group.items[0]?.order ?? 10;
+      updateItem(item.id, { order: firstOrder - 10 });
+    }
+  };
+
+  const handleMoveItemToBottom = (item: BacklogItem, group: { key: string; items: BacklogItem[] }) => {
+    const targetSprintVal = group.key === 'Backlog' || group.key.includes('Sin Sprint') || group.key === 'Sin Asignar' ? '' : group.key;
+    if (onReorderItem) {
+      onReorderItem(item.id, targetSprintVal, group.items.length);
+      setSortBy('order');
+    } else {
+      const lastOrder = group.items[group.items.length - 1]?.order ?? (group.items.length * 10);
+      updateItem(item.id, { order: lastOrder + 10 });
+    }
+  };
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropTargetRow, setDropTargetRow] = useState<{ itemId: string; position: 'before' | 'after' } | null>(null);
   const [activeDropGroup, setActiveDropGroup] = useState<string | null>(null);
@@ -1273,8 +1342,52 @@ export const SprintView: FC<SprintViewProps> = ({
 
                               {/* Actions */}
                               <td className="py-2.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1">
+                                  {rankingEnabled && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveItemToTop(item, group)}
+                                        disabled={rowIdx === 0}
+                                        title={t('card.moveToTop')}
+                                        className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowUpToLine className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveItemToBottom(item, group)}
+                                        disabled={rowIdx === group.items.length - 1}
+                                        title={t('card.moveToBottom')}
+                                        className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowDownToLine className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
                                   <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (sprintMenuState?.itemId === item.id) {
+                                        setSprintMenuState(null);
+                                      } else {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const menuWidth = 192;
+                                        const left = Math.max(16, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 16));
+                                        const top = rect.bottom + 4 + 220 > window.innerHeight
+                                          ? Math.max(16, rect.top - 220)
+                                          : rect.bottom + 4;
+                                        setSprintMenuState({ itemId: item.id, top, left });
+                                      }
+                                    }}
+                                    title={t('card.assignSprint')}
+                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]"
+                                  >
+                                    <Target className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => onClickItem(item)}
                                     title={t('common.edit')}
                                     className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08]"
@@ -1282,6 +1395,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => setItemToDelete(item)}
                                     title="Eliminar"
                                     className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
@@ -1314,6 +1428,64 @@ export const SprintView: FC<SprintViewProps> = ({
         }}
         onClose={() => setItemToDelete(null)}
       />
+
+      {/* Quick Sprint Assignment Portal (DEV-276) */}
+      {sprintMenuState && (() => {
+        const targetItem = items.find((it) => it.id === sprintMenuState.itemId);
+        if (!targetItem) return null;
+        const curSprint = targetItem.sprint || targetItem.targetSprint || '';
+
+        return createPortal(
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ top: sprintMenuState.top, left: sprintMenuState.left }}
+            className="fixed w-48 max-h-64 overflow-y-auto rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-[100] text-xs animate-in fade-in zoom-in-95"
+          >
+            <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              {t('card.assignSprint')}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                handleTransferSprint(targetItem.id, '');
+                setSprintMenuState(null);
+              }}
+              className={`w-full flex items-center justify-between min-w-0 px-2.5 py-1.5 rounded-lg text-left text-xs ${
+                !curSprint
+                  ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+              }`}
+            >
+              <span className="truncate">{t('card.returnToBacklog')}</span>
+              {!curSprint && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+            </button>
+
+            {activeSprints.length > 0 && (
+              <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+            )}
+
+            {activeSprints.map((sp) => (
+              <button
+                key={sp}
+                type="button"
+                onClick={() => {
+                  handleTransferSprint(targetItem.id, sp);
+                  setSprintMenuState(null);
+                }}
+                className={`w-full flex items-center justify-between min-w-0 px-2.5 py-1.5 rounded-lg text-left text-xs ${
+                  curSprint === sp
+                    ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                }`}
+              >
+                <span className="truncate">{sp}</span>
+                {curSprint === sp && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+              </button>
+            ))}
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* Sprint Modal (Create & Edit) (DEV-055) */}
       <SprintModal

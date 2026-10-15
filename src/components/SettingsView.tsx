@@ -394,6 +394,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       },
       autoSave,
       rankingEnabled,
+      showFilterBarStats: config?.showFilterBarStats !== false,
       customItemTypes,
       estimation: {
         enabled: estimationEnabled,
@@ -436,6 +437,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       },
       autoSave: c.autoSave ?? true,
       rankingEnabled: c.rankingEnabled !== false,
+      showFilterBarStats: c.showFilterBarStats !== false,
       customItemTypes: (c.customItemTypes && c.customItemTypes.length > 0) ? c.customItemTypes : undefined,
       estimation: {
         enabled: c.estimation?.enabled ?? false,
@@ -628,6 +630,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       checked ? t('settings.toastModuleHubEnabled') : t('settings.toastModuleHubDisabled'),
       'success'
     );
+  };
+
+  // DEV-278: Quick update and persist for configuration preferences
+  const updateConfig = async (patch: Partial<GripmConfig>) => {
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      ...patch,
+      theme: activeTheme,
+    };
+    await onSaveConfig(nextConfig);
   };
 
   // DEV-059: Taxonomy & Custom Card Types CRUD handlers
@@ -2553,8 +2566,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* Density, AutoSave, and Manual Ranking */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
+              {/* Density, AutoSave, Manual Ranking, and Filter Bar Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
                 {/* 1. Board Density */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
                   <div>
@@ -2625,6 +2638,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       checked={rankingEnabled}
                       onChange={setRankingEnabled}
                       ariaLabel={t('settings.rankingLabel')}
+                    />
+                  </label>
+                </div>
+
+                {/* 4. Filter Bar Stats Summary (DEV-278) */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
+                    <div className="pr-2">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                        {t('settings.showFilterBarStatsLabel')}
+                      </span>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {t('settings.showFilterBarStatsDesc')}
+                      </p>
+                    </div>
+                    <SettingsSwitch
+                      checked={config?.showFilterBarStats !== false}
+                      onChange={(checked) => updateConfig({ showFilterBarStats: checked })}
+                      ariaLabel={t('settings.showFilterBarStatsLabel')}
                     />
                   </label>
                 </div>

@@ -7,6 +7,7 @@ import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getKanbanColumnItems } from '../utils/kanbanColumnItems';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
+import { updateItem } from '../api';
 
 interface KanbanBoardProps {
   items: BacklogItem[];
@@ -474,15 +475,42 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
    * between the item it displaces and the one beyond it, so no other card has to
    * be rewritten and a single update persists the move.
    */
+  /**
+   * Moves a card one slot up or down, or jumps directly to the top or bottom of its column
+   * without a pointer (DEV-173 & DEV-276).
+   *
+   * Uses fractional order for adjacent swaps and deterministic offset (-10 / +10)
+   * for top/bottom repositioning, maintaining ranking stability.
+   */
   const handleMoveWithinColumn = (
     item: BacklogItem,
     col: ColumnConfig,
     colItems: BacklogItem[],
-    direction: 'up' | 'down'
+    direction: 'up' | 'down' | 'top' | 'bottom'
   ) => {
     const idx = colItems.findIndex((i) => i.id === item.id);
+    if (idx < 0) return;
+
+    if (direction === 'top') {
+      if (idx === 0) return;
+      const firstItem = colItems[0];
+      const firstOrder = firstItem.order ?? 10;
+      const nextOrder = firstOrder - 10;
+      onUpdateStatus(item.id, item.status, col.id, undefined, nextOrder);
+      return;
+    }
+
+    if (direction === 'bottom') {
+      if (idx === colItems.length - 1) return;
+      const lastItem = colItems[colItems.length - 1];
+      const lastOrder = lastItem.order ?? (colItems.length * 10);
+      const nextOrder = lastOrder + 10;
+      onUpdateStatus(item.id, item.status, col.id, undefined, nextOrder);
+      return;
+    }
+
     const neighbourIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (idx < 0 || neighbourIdx < 0 || neighbourIdx >= colItems.length) return;
+    if (neighbourIdx < 0 || neighbourIdx >= colItems.length) return;
 
     const neighbour = colItems[neighbourIdx];
     const beyondIdx = direction === 'up' ? idx - 2 : idx + 2;
@@ -506,6 +534,40 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
 
     onUpdateStatus(item.id, item.status, col.id, undefined, nextOrder);
+  };
+
+  const activeOrAvailableSprintNames = useMemo(() => {
+    const nonCompleted = sprints.filter((s) => s.status !== 'completed' && Boolean(s.name)).map((s) => s.name);
+    if (nonCompleted.length > 0) {
+      return Array.from(new Set(nonCompleted)).sort();
+    }
+    const set = new Set<string>();
+    if (availableSprints && availableSprints.length > 0) {
+      availableSprints.forEach((s) => set.add(s));
+    }
+    sprints.forEach((s) => {
+      if (s.name) set.add(s.name);
+    });
+    return Array.from(set).filter(Boolean).sort();
+  }, [availableSprints, sprints]);
+
+  const handleAssignSprint = async (item: BacklogItem, targetSprint: string) => {
+    const curSprint = item.sprint || item.targetSprint || '';
+    if (curSprint === targetSprint) return;
+    try {
+      await updateItem(item.id, {
+        sprint: targetSprint,
+        targetSprint: targetSprint,
+        sprints: targetSprint ? [targetSprint] : []
+      });
+      if (onShowToast) {
+        onShowToast(targetSprint ? `Asignado a ${targetSprint}` : 'Devuelto al Backlog', 'success');
+      }
+    } catch (err: any) {
+      if (onShowToast) {
+        onShowToast(`Error al asignar sprint: ${err?.message || err}`, 'error');
+      }
+    }
   };
 
   const handleDrop = (
@@ -843,9 +905,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     config={config}
                     canMoveUp={idx > 0}
                     canMoveDown={idx < colItems.length - 1}
+                    canMoveToTop={idx > 0}
+                    canMoveToBottom={idx < colItems.length - 1}
                     onMoveWithinColumn={(direction) =>
                       handleMoveWithinColumn(item, col, colItems, direction)
                     }
+                    availableSprints={activeOrAvailableSprintNames}
+                    onAssignSprint={(newSprint) => handleAssignSprint(item, newSprint)}
                   />
                 </div>
 

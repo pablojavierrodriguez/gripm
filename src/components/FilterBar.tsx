@@ -320,6 +320,7 @@ interface FilterBarProps {
   customItemTypes?: CustomItemTypeConfig[];
   showSprint?: boolean;
   estimationConfig?: EstimationConfig;
+  showStats?: boolean;
 }
 
 export const FilterBar: FC<FilterBarProps> = ({
@@ -332,6 +333,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   customItemTypes = [],
   showSprint = true,
   estimationConfig,
+  showStats = true,
 }) => {
   const { t } = useTranslation();
   const [localSearch, setLocalSearch] = useState(filters.search);
@@ -695,15 +697,17 @@ export const FilterBar: FC<FilterBarProps> = ({
           </div>
 
           {/* Right: Stats Summary */}
-          <div className="flex items-center gap-2.5 sm:gap-3 text-xs text-slate-500 dark:text-slate-400 font-mono shrink-0 pl-3 border-l border-slate-200 dark:border-white/10 tabular-nums">
-            <span>{t('filter.pending', { count: stats.pending })}</span>
-            <span className="text-slate-300 dark:text-white/20">•</span>
-            <span>{t('filter.inProgress', { count: stats.inProgress })}</span>
-            <span className="text-slate-300 dark:text-white/20">•</span>
-            <span className="text-emerald-600 dark:text-emerald-400">{t('filter.completed', { count: stats.completed })}</span>
-            <span className="text-slate-300 dark:text-white/20">•</span>
-            <span className="text-slate-800 dark:text-slate-300 font-semibold">{t('filter.total', { count: stats.total })}</span>
-          </div>
+          {showStats && (
+            <div className="flex items-center gap-2.5 sm:gap-3 text-xs text-slate-500 dark:text-slate-400 font-mono shrink-0 pl-3 border-l border-slate-200 dark:border-white/10 tabular-nums">
+              <span>{t('filter.pending', { count: stats.pending })}</span>
+              <span className="text-slate-300 dark:text-white/20">•</span>
+              <span>{t('filter.inProgress', { count: stats.inProgress })}</span>
+              <span className="text-slate-300 dark:text-white/20">•</span>
+              <span className="text-emerald-600 dark:text-emerald-400">{t('filter.completed', { count: stats.completed })}</span>
+              <span className="text-slate-300 dark:text-white/20">•</span>
+              <span className="text-slate-800 dark:text-slate-300 font-semibold">{t('filter.total', { count: stats.total })}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

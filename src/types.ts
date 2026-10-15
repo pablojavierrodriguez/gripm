@@ -216,6 +216,7 @@ export interface GripmConfig {
   customItemTypes?: CustomItemTypeConfig[];
   locale?: 'es' | 'en';
   version?: string;
+  showFilterBarStats?: boolean;
 }
 
 export type DevBoardConfig = GripmConfig;

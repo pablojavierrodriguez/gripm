@@ -1,7 +1,7 @@
 ---
 id: DEV-278
 title: "Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -29,9 +29,23 @@ En pantallas medianas o portátiles, esta cadena de texto compite directamente p
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
-- [ ] #2 La preferencia se persiste correctamente en la configuración del proyecto
-- [ ] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
-- [ ] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
-- [ ] #5 `npm test` y consistencia de esquemas de configuración en verde
+- [x] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
+- [x] #2 La preferencia se persiste correctamente en la configuración del proyecto
+- [x] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
+- [x] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
+- [x] #5 `npm test` y consistencia de esquemas de configuración en verde
 <!-- AC:END -->
+
+## Implementation Notes
+
+- Se agregó el campo opcional `showFilterBarStats?: boolean;` a la interfaz `GripmConfig` en `src/types.ts`.
+- En `src/components/SettingsView.tsx`:
+  - Se agregó el helper `updateConfig` para mutar y persistir cambios parciales en `GripmConfig` usando `onSaveConfig`.
+  - Se incluyó `showFilterBarStats` en `builtConfig` y `normalizeForComparison`.
+  - En la sección de interfaz/apariencia, se adaptó el grid a 4 columnas responsivas (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`) incorporando el switch con `t('settings.showFilterBarStatsLabel')`, `t('settings.showFilterBarStatsDesc')`, `checked={config?.showFilterBarStats !== false}` y persistencia vía `updateConfig({ showFilterBarStats: checked })`.
+- En `src/components/FilterBar.tsx`:
+  - Se añadió la prop opcional `showStats?: boolean;` (por defecto `true`) a `FilterBarProps` y al componente `FilterBar`.
+  - El contenedor del extremo derecho con las métricas (`stats`) se condicionó con `{showStats && ( ... )}` liberando el ancho completo horizontal cuando se desactiva.
+- En `src/App.tsx`:
+  - Se propagó `showStats={config?.showFilterBarStats !== false}` en la invocación de `<FilterBar ... />`.
+

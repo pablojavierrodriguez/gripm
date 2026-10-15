@@ -1,7 +1,7 @@
 ---
 id: DEV-280
 title: "Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -36,10 +36,25 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
-- [ ] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
-- [ ] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
-- [ ] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
-- [ ] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
-- [ ] #6 `npm test` y consistencia en la jerarquía de ítems
+- [x] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
+- [x] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
+- [x] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
+- [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
+- [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
+- [x] #6 `npm test` y consistencia en la jerarquía de ítems
 <!-- AC:END -->
+
+## Implementation Notes
+
+- **Restricción estricta de jerarquía en ItemModal:** Se modificó la computación de `candidateParents` en `src/components/ItemModal.tsx` para filtrar únicamente ítems con `type === 'epic' || type === 'initiative'`, excluyendo formalmente tareas operativas (`feature`, `bug`, `ux`, `chore`, etc.).
+- **Combobox accesible con búsqueda en tiempo real:**
+  - Se reemplazó el `<select>` plano nativo por un selector interactivo tipo combobox popover con soporte de accesibilidad completo (`role="listbox"`, `role="option"`, `aria-selected`, `aria-label`).
+  - El trigger muestra la referencia seleccionada con badge (`[EPIC]` o `[INITIATIVE]`), código y título, o el estado neutral `(Sin padre - Tarea raíz independiente)`.
+  - El popover integra un input de búsqueda con icono `Search`, placeholder localizado (`itemModal.searchParentPlaceholder`), botón de limpieza inmediata `(X)` y foco automático al desplegarse.
+  - Filtro case-insensitive en vivo por código, título y tipo.
+  - Soporte de navegación por teclado: flechas Arriba/Abajo para recorrer opciones, Enter para seleccionar, y captura dedicada de Escape para cerrar el desplegable sin cerrar el modal principal.
+  - Cierre al hacer clic fuera del componente con `handleClickOutside`.
+  - Opción destacada para desvincular o seleccionar sin padre (`itemModal.relationsNoParent`), además de preservar el banner de parent actual con su botón de desvinculación rápida `(X)`.
+  - Mensaje de estado vacío cuando ninguna épica coincide con la búsqueda (`itemModal.noParentsFound`).
+  - Fallback defensivo para referencias previas no listadas `[LEGACY]`.
+
