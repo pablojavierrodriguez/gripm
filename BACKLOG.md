@@ -118,7 +118,7 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
-### 📋 Backlog / Draft (26)
+### 📋 Backlog / Draft (27)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -800,6 +800,28 @@ Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en c
 - [ ] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
 - [ ] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
 - [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
+
+---
+
+#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
+- **Prioridad**: `low` | **Tipo**: `bug`
+
+En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
+`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
+
+En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
+
+### Solución propuesta:
+1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
+2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
+   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
+3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
+
+**Criterios de Aceptación:**
+- [ ] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
+- [ ] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
+- [ ] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
+- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
 
 ---
 
