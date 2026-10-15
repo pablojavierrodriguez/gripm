@@ -129,10 +129,10 @@ export const Header: FC<HeaderProps> = ({
   return (
     <>
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#090d15]/85 backdrop-blur-md transition-colors pt-[env(safe-area-inset-top,0px)]">
-        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
           
           {/* Left: Brand + Project Selector */}
-          <div className="flex items-center gap-4 justify-self-start min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-4 justify-self-start min-w-0 max-w-full">
             <button
               type="button"
               onClick={() => onSelectTab(defaultHomeTab)}
@@ -151,9 +151,9 @@ export const Header: FC<HeaderProps> = ({
 
             {/* Project Indicator (Single-Project Mode) or Dropdown (Multi-Project) */}
             {singleProject ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-200">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-200 min-w-0 max-w-full">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="font-semibold text-slate-800 dark:text-slate-100 max-w-[170px] truncate">
+                <span className="font-semibold text-slate-800 dark:text-slate-100 max-w-[100px] xl:max-w-[170px] truncate">
                   {currentProject?.name || currentProjectName}
                 </span>
                 {currentProject && (
@@ -184,10 +184,10 @@ export const Header: FC<HeaderProps> = ({
                     onClick={onRestoreDemo}
                     title={t('header.resetDemoDesc')}
                     aria-label={t('header.resetDemo')}
-                    className="flex items-center gap-1 px-2 min-h-[44px] sm:min-h-[28px] rounded-md text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                    className="flex items-center gap-1 px-1.5 min-h-[44px] sm:min-h-[28px] rounded-md text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors shrink-0"
                   >
                     <RotateCcw className="w-3 h-3" />
-                    <span className="hidden sm:inline">{t('header.resetDemo')}</span>
+                    <span className="hidden xl:inline">{t('header.resetDemo')}</span>
                   </button>
                 )}
               </div>
@@ -198,7 +198,7 @@ export const Header: FC<HeaderProps> = ({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="max-w-[170px] truncate">{currentProjectName}</span>
+                <span className="max-w-[110px] xl:max-w-[170px] truncate">{currentProjectName}</span>
                 {currentProject && !currentProject.isDemo && (
                   <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-semibold ${
                     currentProject.storageType === 'markdown'
@@ -363,11 +363,11 @@ export const Header: FC<HeaderProps> = ({
           </div>
 
           {/* Center: Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] p-1 rounded-xl justify-self-center">
+          <nav className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] p-1 rounded-xl justify-self-center shrink-0">
             {isKanbanEnabled && (
               <button
                 onClick={() => onSelectTab('kanban')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'kanban'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -381,7 +381,7 @@ export const Header: FC<HeaderProps> = ({
             {isSprintEnabled && (
               <button
                 onClick={() => onSelectTab('sprint')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[145px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'sprint'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -395,7 +395,7 @@ export const Header: FC<HeaderProps> = ({
             {isReleaseEnabled && (
               <button
                 onClick={() => onSelectTab('release')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[98px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'release'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'

@@ -174,9 +174,9 @@ export const FilterBar: FC<FilterBarProps> = ({
       <div className="max-w-[1680px] mx-auto px-4 sm:px-6 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 min-w-0">
           {/* Left: Search + Popover Button + Quick Filters */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto sm:overflow-visible scrollbar-none">
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none">
             {/* Search Input */}
-            <div className="relative w-full sm:w-60 shrink-0">
+            <div className="relative w-full sm:w-44 lg:w-52 xl:w-60 shrink-0">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 ref={searchInputRef}
@@ -338,7 +338,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           </div>
 
           {/* Right: Stats Summary */}
-          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-mono shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 text-xs text-slate-500 dark:text-slate-400 font-mono shrink-0 pl-3 border-l border-slate-200 dark:border-white/10 tabular-nums">
             <span>{t('filter.pending', { count: stats.pending })}</span>
             <span className="text-slate-300 dark:text-white/20">•</span>
             <span>{t('filter.inProgress', { count: stats.inProgress })}</span>

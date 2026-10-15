@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (4)
+### 💡 Ideas / Discovery (5)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -85,7 +85,40 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (9)
+#### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Iniciativa de producto para dotar a Gripm de una vista visual de **Timeline / Roadmap (Gantt-style)**, orientada al planeamiento estratégico, seguimiento de compromisos temporales y comunicación con stakeholders.
+
+Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas individuales (`BacklogItem`), y la visualización temporal se limita a las fechas fijadas en Sprints y Releases.
+
+### Alcance propuesto por fases:
+
+#### Fase 1: Extensión del Modelo de Datos y Fechas
+1. Incorporar campos opcionales `startDate?: string` y `dueDate?: string` en `BacklogItem` (`src/types.ts`) y serialización transparente en frontmatter Markdown.
+2. Permitir que una tarea herede fechas estimadas automáticamente del Sprint asignado (`startDate` / `endDate`) o de la Release (`targetDate`) si no tiene fechas explícitas.
+
+#### Fase 2: Vista de Roadmap y Agrupación por Parent (Solo Lectura / Render)
+1. Nueva pestaña o submódulo de navegación: **Roadmap / Timeline**.
+2. Agrupación por jerarquía: Las Épicas e Iniciativas actúan como filas principales colapsables/desplegables que contienen sus tareas hijas (`parentId`).
+3. Escalas de tiempo dinámicas (zoom por Trimestre / Q1-Q4, Meses y Sprints).
+4. Barras visuales con código de color según estado (`draft`, `doing`, `ready`, `done`) y porcentaje de progreso.
+
+#### Fase 3: Interactividad y Planificación Directa
+1. Capacidad de arrastrar barras para desplazar fechas o extender/reducir plazos temporales.
+2. Renderizado de líneas de dependencia horizontal (`blocks` / `blockedBy`).
+
+**Criterios de Aceptación:**
+- [ ] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
+- [ ] #2 Vista Timeline accesible desde la navegación principal de vistas
+- [ ] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints)
+- [ ] #4 Agrupación jerárquica por Parent (Épica/Iniciativa) con acordeón colapsable para sus tareas dependientes
+- [ ] #5 Renderizado claro de barras temporales diferenciando tareas planificadas, en curso y completadas
+- [ ] #6 Preservación del rendimiento y Zero-CLS en el canvas de timeline sin dependencias pesadas
+
+---
+
+### 🚀 Ready for Deploy (10)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -386,7 +419,33 @@ máquina**, sin forma local de reproducirlo salvo que se haga stash primero.
 
 ---
 
-### 📋 Backlog / Draft (16)
+#### [DEV-270] Armonización y simetría visual en selector de navegación del Header (Tabs)
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+En `src/components/Header.tsx`, los botones del segmented control de vistas (`Tablero`, `Sprints`, `Releases`) poseen dimensiones mínimas dispares y hardcodeadas (`min-w-[88px]`, `min-w-[145px]`, `min-w-[98px]`).
+
+Esta disparidad se introdujo originalmente para prevenir saltos de línea ante textos extensos en español, pero provoca que el control segmentado central del encabezado se perciba visualmente asimétrico, irregular y desbalanceado con respecto a los estándares de diseño de componentes de navegación.
+
+Adicionalmente, en resoluciones compactas de escritorio (1024×768 a 1366×768), la distribución `grid grid-cols-[1fr_auto_1fr]` con `justify-self-center` genera una **colisión crítica**: el bloque izquierdo (selector de proyecto + badge Demo + botón `Reset demo` con texto expandido) excede el tercio asignado y desborda físicamente sobre las pestañas centrales, montando el botón `Reset demo` directamente encima de la pestaña `Board` (Tablero).
+
+### Objetivos:
+1. Homogeneizar el ancho y espaciado de los botones del selector de vistas para lograr una barra simétrica y balanceada sin anchos artificiales sobredimensionados (`min-w-[145px]`).
+2. Blindar el layout del Header mediante límites de ancho y flexbox/grid responsivo para garantizar cero colisión física entre el bloque de proyecto y la barra central de navegación a cualquier resolución (>= 1024px).
+3. Optimizar el botón `Reset demo` del Header: colapsar a icono accesible con tooltip en pantallas compactas (< 1280px / `xl`), e incorporar la acción de reinicio en el banner de demo interactivo de `App.tsx` para máxima usabilidad.
+4. Asegurar paridad bilingüe (`en` / `es`) y preservar la estabilidad visual Zero-CLS sin oscilaciones al alternar idiomas.
+
+**Criterios de Aceptación:**
+- [x] #1 Los botones del segmented control en `Header.tsx` comparten un dimensionamiento armónico y simétrico sin saltos bruscos de ancho entre pestañas (`min-w-[145px]` reemplazado por dimensionamiento equilibrado)
+- [x] #2 Las etiquetas visuales en inglés y español no desbordan ni fuerzan anchos desproporcionados
+- [x] #3 Se preserva la estabilidad Zero-CLS al alternar entre inglés y español
+- [x] #4 Los estados activo, hover y focus ring mantienen coherencia con los tokens de diseño
+- [x] #5 Cero solapamiento ni desborde entre la columna izquierda (`singleProject`, `Reset demo`) y las pestañas centrales de navegación en resoluciones de escritorio (1024×768 a 1366×768)
+- [x] #6 El botón `Reset demo` en el Header se muestra en modo icon-only con tooltip accesible (`title` y `aria-label`) en resoluciones compactas (< 1280px), expandiendo su texto solo en pantallas amplias (`xl`), y la acción se expone también en el banner de demo de `App.tsx`
+- [x] #7 `npm test`, `npm run audit:ux` y `npm run backlog:check` pasan con código 0
+
+---
+
+### 📋 Backlog / Draft (26)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -818,6 +877,257 @@ La división es por **naturaleza del trabajo**, no por tamaño:
 - [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
 - [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`
 - [ ] #14 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-271] Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En columnas Kanban que agrupan más de un estado (por ejemplo, la columna de trabajo en curso que agrupa `doing`, `review`, `testing_qa`), `KanbanBoard.tsx` renderiza las subzonas de soltado específicas dentro de un `grid grid-cols-2` con cajas pequeñas (`p-2 text-[11px] truncate`).
+
+Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente precisa para soltar sobre una de estas mitades estrechas. El texto suele cortarse y el área táctil / de puntero no ofrece la suficiente tolerancia ni claridad de a qué estado exacto se está transicionando la tarea.
+
+### Objetivos:
+1. Reemplazar la grilla compacta de dos columnas por una disposición vertical apilada que ocupe **todo el ancho de la columna** (`flex flex-col gap-2 w-full`).
+2. Incrementar la altura y el padding de cada slot de soltado (`py-3 px-4`) para transformarlo en un drop-target generoso y ergonómico.
+3. Incorporar borde discontinuo visible, dot de color del estado y texto completo sin elipsis (`truncate`) que confirme el destino antes de soltar.
+4. Mantener la animación suave de apertura y cierre de zonas durante el arrastre sin generar saltos de scroll.
+
+**Criterios de Aceptación:**
+- [ ] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
+- [ ] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
+- [ ] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
+- [ ] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
+- [ ] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
+- [ ] #6 `npm test` y validación de interacciones en verde
+
+---
+
+#### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, la barra superior `FilterBar.tsx` cuenta con píldoras de acceso rápido rígidas (Tipos y Prioridades fijos). Si un usuario desea filtrar frecuentemente por estados concretos (ej: solo `doing` y `review`) o por un módulo específico (ej: `UI / Layout`), debe abrir repetidamente el popover de filtros avanzados.
+
+En lugar de construir un panel de configuración complejo y pesado para personalizar qué botones se colocan en la barra (lo que generaría sobre-ingeniería), se adopta el estándar de la industria (Linear / GitHub): **materialización dinámica de filtros activos como chips descartables**.
+
+### Objetivos:
+1. Toda dimensión aplicada desde el Popover de Filtros Avanzados que no pertenezca a los accesos directos estándar (ej. Estados específicos, Módulo, Asignado, Sprint) se refleja de inmediato en la barra como una píldora activa interactiva (ej: `[Estado: doing ✕]`, `[Módulo: Auth ✕]`).
+2. El usuario puede remover cualquier filtro individual con un clic sobre la X del chip sin tener que abrir el popover.
+3. El botón general de "Limpiar filtros" sigue reseteando todas las condiciones activas.
+4. Diseño responsivo con scroll horizontal suave o colapso elegante en pantallas pequeñas para evitar solapamientos con las estadísticas.
+
+**Criterios de Aceptación:**
+- [ ] #1 Al aplicar filtros desde AdvancedFiltersPopover (estados, módulos, sprints, releases), estos se renderizan como chips activos en la barra principal
+- [ ] #2 Cada chip muestra la dimensión, el valor y un botón de descarte individual (✕)
+- [ ] #3 Hacer clic en la ✕ de un chip elimina ese filtro específico de inmediato y actualiza la vista
+- [ ] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
+- [ ] #5 Coherencia de accesibilidad y foco para los chips descartables
+- [ ] #6 Tests unitarios para el estado de filtros y chips
+
+---
+
+#### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (sección *Kanban Board > Column Structure & Status Mapping*), las columnas del tablero se configuran dentro de una lista vertical apilada (`space-y-4`).
+
+Esta disposición contradice el modelo mental del usuario: un tablero Kanban se visualiza de izquierda a derecha en columnas horizontales. Actualmente, los botones de reordenamiento tienen flechas hacia arriba y hacia abajo (`ArrowUp` y `ArrowDown`), mientras que sus textos de ayuda indican textualmente `moveColLeft` ("Mover a la izquierda") y `moveColRight` ("Mover a la derecha"). Además, la lista vertical consume una cantidad excesiva de scroll.
+
+### Objetivos:
+1. Reestructurar la sección de mapeo de columnas para que se presente como un **mini-tablero horizontal** (`flex flex-row overflow-x-auto gap-4 pb-4`).
+2. Cada columna en el editor se representa como una tarjeta esbelta con su título editable, límite WIP, dot de color y los chips de los estados asignados.
+3. Los controles de reordenamiento utilizan flechas izquierda y derecha coherentes con la dirección espacial del tablero (`ArrowLeft` / `ArrowRight`).
+4. Se preserva y optimiza la interacción de drag & drop para mover chips de estado entre columnas (DEV-053).
+
+**Criterios de Aceptación:**
+- [ ] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
+- [ ] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
+- [ ] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
+- [ ] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
+- [ ] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
+- [ ] #6 `npm test` y validación de guardado de configuración en verde
+
+---
+
+#### [DEV-274] Optimización de densidad para Metodología y Vistas en Settings (1366×768)
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (pestaña *Workflow & Views*), la sección *Project Work Methodology* despliega tres tarjetas voluminosas con descripciones extensas y badges, seguidas inmediatamente por otras tres tarjetas similares para *Default View Selector*.
+
+En resoluciones de escritorio habituales como 1366×768 (y monitores estándar de laptop), esta distribución consume prácticamente todo el primer pliegue de pantalla (*above the fold*), desplazando hacia abajo las opciones críticas de activación de pestañas y configuración de vistas.
+
+### Objetivos:
+1. Reemplazar los bloques masivos de tarjetas por selectores compactos (ej. radio cards de 1 fila o segmented control interactivo con icono, título y badge conciso).
+2. Trasladar los textos explicativos extensos a tooltips contextuales o descripciones de una sola línea con jerarquía atenuada.
+3. Asegurar que las opciones de *Habilitación de Pestañas* y *Vistas de Trabajo* queden visibles sin requerir scroll excesivo.
+4. Mantener la alineación con los principios de densidad de escritorio establecidos en DEV-264.
+
+**Criterios de Aceptación:**
+- [ ] #1 El selector de Metodología de Trabajo ocupa una altura significativamente menor mediante un diseño horizontal compacto
+- [ ] #2 El selector de Vista por Defecto utiliza un control segmentado estilizado y no una grilla de tarjetas altas
+- [ ] #3 A resolución 1366×768, la sección completa de Metodología y Vistas permite visualizar los controles principales en el primer scroll
+- [ ] #4 Las descripciones de cada metodología siguen accesibles para el usuario (mediante hint o tooltip)
+- [ ] #5 `npm run audit:ux` y `npm test` pasan sin regresiones
+
+---
+
+#### [DEV-275] Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, el campo de módulo en las tareas (`module?: string`) es un string libre con un datalist no gobernado que se alimenta de valores preexistentes en las tarjetas. Esto provoca inconsistencias ortográficas y fragmentación (ej. `"UI"`, `"ui"`, `"Frontend"`, `"Front-end"`). Además, una tarea solo puede apuntar a un único módulo, impidiendo clasificar ítems que atraviesan componentes transversales (ej. un feature que afecta `Frontend` y `API`).
+
+### Objetivos:
+1. **Catálogo de Componentes/Módulos en Settings:** Permitir definir, agregar, renombrar y eliminar una lista oficial de módulos o componentes del proyecto en `.gripm/config.json` (`components: string[]` o `modulesList: string[]`).
+2. **Asignación Múltiple en Tareas:** Extender el modelo de `BacklogItem` para soportar múltiples módulos (`modules?: string[]`), preservando compatibilidad retroactiva con `module: string`.
+3. **Selector ergonómico en ItemModal:** Reemplazar el input simple por un selector multi-chip donde el usuario puede elegir uno o más componentes predefinidos y opcionalmente crear uno nuevo sobre la marcha si cuenta con permisos.
+4. **Filtro unificado:** Actualizar los filtros de la barra superior y del popover para filtrar por cualquiera de los módulos asociados.
+
+**Criterios de Aceptación:**
+- [ ] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
+- [ ] #2 Los componentes administrados se persisten en la configuración del proyecto
+- [ ] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
+- [ ] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
+- [ ] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
+- [ ] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
+- [ ] #7 `npm test` y sincronización de backlog con código 0
+
+---
+
+#### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Actualmente, reordenar una tarea dentro de una columna o en la tabla de Backlog depende casi exclusivamente del arrastre con mouse (drag & drop). En `ItemCard.tsx`, el menú contextual solo ofrece subir o bajar una única posición (`canMoveUp` / `canMoveDown`), lo que resulta sumamente tedioso e inviable cuando una columna o backlog contiene decenas de ítems.
+
+Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalmente por todo el viewport o abrir el modal de edición completo.
+
+### Objetivos:
+1. **Mover al Tope / Fondo:** Incorporar en el menú contextual (`...`) de cada tarjeta en el Tablero y en el menú de acciones de cada fila en `SprintView`:
+   - *"Mover al principio de la columna / backlog"* (Top rank)
+   - *"Mover al final de la columna / backlog"* (Bottom rank)
+2. **Asignación Rápida de Sprint:** Agregar un submenú o acción directa *"Asignar a Sprint →"* con listado de sprints vigentes y la opción *"Devolver al Backlog"*, permitiendo transferir la tarea en un solo clic sin abrir el formulario de edición.
+3. Actualizar el orden numérico (`order`) de forma consistente para garantizar persistencia determinística en disco.
+
+**Criterios de Aceptación:**
+- [ ] #1 El menú contextual de la tarjeta en KanbanBoard incluye acciones para mover al tope y al fondo de su columna
+- [ ] #2 Cada fila en SprintView incluye menú o botones de acción para mover el ítem al tope o fondo de su contenedor (sprint o backlog)
+- [ ] #3 Se provee acción contextual para mover rápidamente el ítem a cualquier sprint activo/vigente o al backlog general
+- [ ] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
+- [ ] #5 Accesibilidad por teclado en las nuevas opciones de menú
+- [ ] #6 `npm test` y verificación de consistencia en verde
+
+---
+
+#### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+En la vista de Backlog y Sprints (`SprintView.tsx`), gestionar múltiples tareas simultáneamente no es posible desde la interfaz web. Los usuarios deben modificar o arrastrar tareas una por una, lo que ralentiza enormemente las ceremonias de Sprint Planning, priorización y ordenamiento de backlog.
+
+Esta tarea implementa **selección múltiple de ítems** y una **barra flotante de acciones masivas (*Bulk Action Bar*)**, incorporando además la capacidad de **mover múltiples ítems seleccionados al tope o al fondo del backlog/sprint en un solo movimiento en lote**.
+
+### Objetivos:
+1. **Mecanismo de Selección Múltiple:**
+   - Checkboxes de selección por fila en la tabla de `SprintView`.
+   - Checkbox "Seleccionar todos" en el encabezado de cada sección (Sprint o Backlog).
+   - Soporte para selección de rango contiguo mediante `Shift + Click`.
+2. **Barra Flotante de Acciones Masivas (Bulk Action Bar):**
+   - Aparece en la parte inferior de la pantalla al seleccionar $\ge 1$ ítem, indicando el contador de tareas seleccionadas y botón de deseleccionar.
+   - **Reposicionamiento en lote:** Botones para *"Mover selección al tope"* (Bulk Top) y *"Mover selección al fondo"* (Bulk Bottom) conservando el orden relativo entre los ítems seleccionados.
+   - **Asignación de Sprint en lote:** Mover todos los ítems seleccionados a un sprint vigente o devolverlos al backlog.
+   - **Asignación de Release en lote:** Vincular la selección a una versión planificada.
+   - **Cambio de Estado y Prioridad en lote:** Modificar estado (ej. pasar todos a `ready` o `draft`) o prioridad (ej. `p1`).
+   - **Mover a Papelera en lote:** Descarte masivo protegido con diálogo de confirmación `ConfirmModal`.
+3. Conectar la ejecución con el motor de mutaciones masivas existente o las rutas de API correspondientes.
+
+**Criterios de Aceptación:**
+- [ ] #1 SprintView incluye checkboxes de selección por fila y en la cabecera de cada bloque de sprint/backlog
+- [ ] #2 Permite selección rápida de rangos de tareas contiguas manteniendo pulsada la tecla Shift
+- [ ] #3 Al seleccionar uno o más ítems se despliega una barra flotante inferior con el contador y las acciones masivas disponibles
+- [ ] #4 Acción masiva para mover todos los ítems seleccionados al tope o al fondo del contenedor preservando su orden relativo
+- [ ] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
+- [ ] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
+- [ ] #7 `npm test` y consistencia de datos en disco sin race conditions
+
+---
+
+#### [DEV-278] Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+En `FilterBar.tsx`, el indicador de resumen de métricas (`2 pendientes • 2 en curso • 3 completados • 7 total`) se renderiza siempre de forma obligatoria en el extremo derecho de la barra.
+
+En pantallas medianas o portátiles, esta cadena de texto compite directamente por el ancho horizontal con los filtros de búsqueda y píldoras rápidas, provocando potenciales solapamientos o wrapping no deseado. Además, usuarios que prefieren interfaces limpias o minimalistas no disponen de un mecanismo para ocultar este resumen.
+
+### Objetivos:
+1. Agregar una propiedad en la configuración (`config.ui.showFilterBarStats` o `config.showFilterBarStats`, por defecto `true`).
+2. Incorporar un switch en `SettingsView.tsx` (sección Apariencia / Filtros) para encender o apagar este bloque.
+3. Respetar la preferencia en `FilterBar.tsx`, ocultando el componente cuando el usuario lo desactive y liberando espacio horizontal completo para los filtros.
+
+**Criterios de Aceptación:**
+- [ ] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
+- [ ] #2 La preferencia se persiste correctamente en la configuración del proyecto
+- [ ] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
+- [ ] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
+- [ ] #5 `npm test` y consistencia de esquemas de configuración en verde
+
+---
+
+#### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+En `src/components/ItemModal.tsx`, las plantillas predefinidas que se insertan al presionar los botones de ayuda de BDD se encuentran hardcodeadas en español:
+
+1. **Plantilla de Historia de Usuario (línea 728):**
+   ```ts
+   const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
+   ```
+2. **Criterio de Aceptación BDD (línea 797):**
+   ```ts
+   text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]'
+   ```
+
+Cuando la aplicación está configurada en inglés (`config.language = 'en'`), presionar estos botones sigue insertando texto literal en español en lugar de los equivalentes canónicos en inglés (`AS A... I WANT... SO THAT...` y `GIVEN... WHEN... THEN...`).
+
+### Objetivos:
+1. Extraer los textos y plantillas de BDD al catálogo de traducciones `src/utils/i18n.ts`.
+2. Proporcionar las versiones canónicas en inglés:
+   - Story: `**AS A** [user role]\n**I WANT** [action or capability]\n**SO THAT** [business value or benefit]\n`
+   - AC Scenario: `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`
+3. Mantener las versiones canónicas en español en `t(...)`.
+4. Asegurar que la inserción respete el idioma activo del usuario en la sesión.
+
+**Criterios de Aceptación:**
+- [ ] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
+- [ ] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
+- [ ] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
+- [ ] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
+- [ ] #5 `npm test` y validación de tipos sin errores
+
+---
+
+#### [DEV-280] Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem contenedor o padre (`parentId`) presenta dos problemas graves de usabilidad:
+
+1. **Contaminación del listado:** La definición de candidatos a padre (`line 196`) incluye ítems de tipo `feature`:
+   ```ts
+   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
+   ```
+   En cualquier proyecto mediano o grande, esto inunda el selector con cientos de tareas individuales que no son contenedores legítimos de jerarquía.
+2. **Falta de buscador:** El control es un elemento `<select>` plano de HTML nativo (`lines 1860-1880`). Si un usuario tiene 30 épicas o no recuerda el ID exacto (`DEV-140`), se ve obligado a hacer scroll visual extenso sin capacidad de filtrar por nombre o palabra clave.
+
+### Objetivos:
+1. **Restricción canónica:** Filtrar `candidateParents` estrictamente por `it.type === 'epic' || it.type === 'initiative'` (contenedores jerárquicos reales).
+2. **Combobox / Popover con Buscador en vivo:** Reemplazar el `<select>` plano por un componente de selección accesible con input de búsqueda integrado, permitiendo escribir parte del título o del código para filtrar instantáneamente la lista de épicas.
+3. Mostrar claramente el tipo (`[EPIC]` o `[INITIATIVE]`), el código y el título completo en el desplegable.
+4. Mantener la opción de desvincular el padre de forma clara e inmediata.
+
+**Criterios de Aceptación:**
+- [ ] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
+- [ ] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
+- [ ] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
+- [ ] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
+- [ ] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
+- [ ] #6 `npm test` y consistencia en la jerarquía de ítems
 
 ---
 
