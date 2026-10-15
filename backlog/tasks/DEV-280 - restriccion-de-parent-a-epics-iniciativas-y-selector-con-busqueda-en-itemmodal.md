@@ -1,7 +1,7 @@
 ---
 id: DEV-280
 title: "Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -57,4 +57,5 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
   - Opción destacada para desvincular o seleccionar sin padre (`itemModal.relationsNoParent`), además de preservar el banner de parent actual con su botón de desvinculación rápida `(X)`.
   - Mensaje de estado vacío cuando ninguna épica coincide con la búsqueda (`itemModal.noParentsFound`).
   - Fallback defensivo para referencias previas no listadas `[LEGACY]`.
+  - **Refinamiento de UX y Artefacto Visual:** Se reemplazó el badge de texto rígido `[EPIC]` / `[INICIATIVA]` por la coloración semántica íntegra del control (borde, fondo, ID y título en índigo para épicas y púrpura para iniciativas), preservando la altura fija estándar (`h-9`, 36px) e incorporando un micro-ícono compacto de 14px (`Layers` / `Zap`), maximizando el espacio de visualización para el ID y el título en el sidebar.
 

@@ -1,9 +1,9 @@
 ---
 id: DEV-261
 title: "Sprints se escriben pero se descartan al leer en proyectos en modo JSON"
-status: ready
+status: done
 created_date: '2026-10-13'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 labels:
   - "bug"
   - "storage"

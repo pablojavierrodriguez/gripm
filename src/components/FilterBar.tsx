@@ -590,7 +590,7 @@ export const FilterBar: FC<FilterBarProps> = ({
                 {activeChips.map((chip) => (
                   <span
                     key={chip.id}
-                    className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs font-medium bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 animate-in fade-in zoom-in-95 duration-100 shrink-0 select-none group"
+                    className="inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-lg text-xs font-medium bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 animate-in fade-in zoom-in-95 duration-100 shrink-0 select-none group"
                   >
                     <span className="text-indigo-500/75 dark:text-indigo-400/75 font-normal">
                       {chip.dimension}:
@@ -601,9 +601,9 @@ export const FilterBar: FC<FilterBarProps> = ({
                       onClick={() => onChangeFilters(removeFilterFromState(filters, chip))}
                       aria-label={`${t('common.clear')} ${chip.dimension}: ${chip.value}`}
                       title={`${t('common.clear')} ${chip.dimension}: ${chip.value}`}
-                      className="min-h-[20px] min-w-[20px] flex items-center justify-center p-0.5 ml-0.5 rounded text-indigo-400 hover:text-indigo-700 dark:hover:text-white hover:bg-indigo-500/20 active:bg-indigo-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer touch-manipulation"
+                      className="min-h-[22px] min-w-[22px] flex items-center justify-center p-0.5 ml-0.5 rounded-md text-indigo-400 hover:text-indigo-700 dark:hover:text-white hover:bg-indigo-500/20 active:bg-indigo-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer touch-manipulation"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </span>
                 ))}

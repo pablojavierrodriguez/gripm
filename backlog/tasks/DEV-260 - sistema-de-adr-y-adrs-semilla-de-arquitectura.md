@@ -1,9 +1,9 @@
 ---
 id: DEV-260
 title: "Sistema de ADR (Architecture Decision Records) en docs/adr y registro de las decisiones fundacionales de gripm"
-status: ready
+status: done
 created_date: '2026-10-13'
-updated_date: '2026-10-13'
+updated_date: '2026-10-15'
 labels:
   - "docs"
   - "architecture"
