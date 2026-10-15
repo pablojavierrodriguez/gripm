@@ -1,4 +1,4 @@
-import { httpAdapter } from './httpAdapter';
+import { httpAdapter } from './httpAdapter.ts';
 import type { GripmApi } from './types';
 
 /**

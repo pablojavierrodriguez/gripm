@@ -1,7 +1,7 @@
-import seed from '../../data/demo-backlog.json';
+import seed from '../../data/demo-backlog.json' with { type: 'json' };
 import type { BacklogItem, BoardData, GripmConfig, Project, Release, Sprint } from '../types';
 import type { GripmApi } from './types';
-import { getStoredJSON, removeStoredItem, setStoredJSON, STORAGE_KEYS } from '../utils/storage';
+import { getStoredJSON, removeStoredItem, setStoredJSON, STORAGE_KEYS } from '../utils/storage.ts';
 
 /**
  * DEV-222 — Adaptador en memoria de la sandbox web.
@@ -133,7 +133,7 @@ export const sandboxAdapter: GripmApi = {
 
   // --- Ítems ---------------------------------------------------------------
   async createItem(item) {
-    const project = activeProject();
+    const project = (item.projectId ? state.projects.find((p) => p.id === item.projectId) : undefined) ?? activeProject();
     const prefix = project?.codePrefix ?? 'TASK';
     // `Partial<BacklogItem>` deja `title` opcional, pero es obligatorio en el
     // dominio: se valida acá en vez de dejar que un ítem sin título llegue al tablero.

@@ -1,6 +1,6 @@
-import { httpAdapter } from './httpAdapter';
-import { sandboxAdapter } from './sandbox';
-import { setActiveApi } from './runtime';
+import { httpAdapter } from './httpAdapter.ts';
+import { sandboxAdapter } from './sandbox.ts';
+import { setActiveApi } from './runtime.ts';
 import type { GripmApi } from './types';
 
 /**

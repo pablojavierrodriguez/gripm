@@ -43,6 +43,7 @@ const STEPS = [
   ['focus-trap', 'scripts/verify-focus-trap.js'],
   ['kanban-reorder', 'scripts/verify-kanban-reorder.js'],
   ['port-probe', 'scripts/verify-port-probe.js'],
+  ['sandbox', 'scripts/verify-sandbox.js'],
   ['dist', 'scripts/verify-dist.js'],
 ];
 

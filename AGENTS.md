@@ -56,7 +56,7 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 Antes de marcar cualquier tarea en `ready` o sellar un release, verificar en orden:
 
 1. ✅ `npx tsc --noEmit` — 0 errores de tipado TypeScript estricto.
-2. ✅ `npm test` — Suite unificada de pruebas (16 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
+2. ✅ `npm test` — Suite unificada de pruebas (18 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
 3. ✅ `npm run test:linux` — **Obligatorio si el cambio toca runtime, CI, I/O o el sistema de archivos.** Corre la suite completa en un contenedor Linux para validar consistencia de plataforma (DEV-190).
 4. ✅ `npm run backlog:sync` && `npm run backlog:check` — Coherencia de tareas, versiones y releases (código 0).
 5. ✅ `npm run publish:check` — Cero fugas de datos y superficie de distribución limpia.
