@@ -1,7 +1,7 @@
 ---
 id: DEV-274
 title: "Optimización de densidad para Metodología y Vistas en Settings (1366×768)"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:

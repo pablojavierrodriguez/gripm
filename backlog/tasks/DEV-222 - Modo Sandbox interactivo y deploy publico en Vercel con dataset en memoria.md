@@ -1,9 +1,9 @@
 ---
 id: DEV-222
 title: "Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria"
-status: ready
+status: done
 created_date: '2026-10-09'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 labels:
   - "web"
   - "demo"

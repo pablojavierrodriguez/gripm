@@ -1,9 +1,9 @@
 ---
 id: DEV-270
 title: "Armonización y simetría visual en selector de navegación del Header (Tabs)"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15 01:29'
+updated_date: '2026-10-15'
 labels:
   - "ux"
   - "ui"

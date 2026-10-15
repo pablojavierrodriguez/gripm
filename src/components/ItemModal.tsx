@@ -34,6 +34,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Modal } from './Modal';
+import { getItemTypeInfo } from './ItemCard';
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -193,34 +194,10 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [customReleaseInput, setCustomReleaseInput] = useState('');
   const isSprintModule = isSprintModuleActive(config);
 
-  // DEV-280: Combobox states and refs for Parent selector
-  const [parentSearchQuery, setParentSearchQuery] = useState('');
-  const [isParentDropdownOpen, setIsParentDropdownOpen] = useState(false);
-  const [highlightedParentIndex, setHighlightedParentIndex] = useState(-1);
-  const parentDropdownContainerRef = useRef<HTMLDivElement>(null);
-  const parentTriggerRef = useRef<HTMLButtonElement>(null);
-  const parentSearchInputRef = useRef<HTMLInputElement>(null);
-
   const currentId = item?.id || '';
   const currentCode = item?.code || '';
   const otherItems = (allItems || []).filter(it => it.id !== currentId && it.code !== currentCode);
   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative');
-  const filteredCandidateParents = candidateParents.filter((cand) => {
-    if (!parentSearchQuery.trim()) return true;
-    const q = parentSearchQuery.trim().toLowerCase();
-    const code = (cand.code || cand.id || '').toLowerCase();
-    const title = (cand.title || '').toLowerCase();
-    const typeStr = (cand.type || '').toLowerCase();
-    return code.includes(q) || title.includes(q) || typeStr.includes(q);
-  });
-  const isLegacyParent = Boolean(
-    parentId && !candidateParents.some((cand) => (cand.code || cand.id) === parentId || cand.id === parentId)
-  );
-  const currentParentItem = candidateParents.find(
-    (c) => (c.code || c.id) === parentId || c.id === parentId
-  ) || otherItems.find(
-    (c) => (c.code || c.id) === parentId || c.id === parentId
-  );
   const childTasks = otherItems.filter(
     it => (currentId && (it.parentId === currentId || it.epic === currentId)) ||
           (currentCode && (it.parentId === currentCode || it.epic === currentCode))
@@ -233,6 +210,51 @@ export const ItemModal: FC<ItemModalProps> = ({
   const availableLabels = Array.from(new Set(allItems.flatMap(it => it.labels || []))).filter(Boolean);
   const availableAssignees = Array.from(new Set(allItems.flatMap(it => it.assignees || []))).filter(Boolean);
 
+  // Searchable Parent Combobox State
+  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const [isParentDropdownOpen, setIsParentDropdownOpen] = useState(false);
+  const parentDropdownContainerRef = useRef<HTMLDivElement>(null);
+  const parentSearchInputRef = useRef<HTMLInputElement>(null);
+
+  const isLegacyParent = Boolean(
+    parentId && !candidateParents.some((cand) => (cand.code || cand.id) === parentId || cand.id === parentId)
+  );
+  const selectedParentItem = candidateParents.find(
+    (c) => (c.code || c.id) === parentId || c.id === parentId
+  );
+  const filteredCandidateParents = candidateParents.filter((cand) => {
+    if (!parentSearchQuery.trim()) return true;
+    const q = parentSearchQuery.trim().toLowerCase();
+    const codeMatch = (cand.code || cand.id || '').toLowerCase().includes(q);
+    const titleMatch = (cand.title || '').toLowerCase().includes(q);
+    return codeMatch || titleMatch;
+  });
+
+  useEffect(() => {
+    if (!isParentDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        parentDropdownContainerRef.current &&
+        !parentDropdownContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsParentDropdownOpen(false);
+        setParentSearchQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isParentDropdownOpen]);
+
+  useEffect(() => {
+    if (isParentDropdownOpen) {
+      setTimeout(() => {
+        parentSearchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isParentDropdownOpen]);
+
   useEffect(() => {
     if (!calendarMenuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -244,78 +266,7 @@ export const ItemModal: FC<ItemModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [calendarMenuOpen]);
 
-  // DEV-280: Click outside to close Parent combobox dropdown
-  useEffect(() => {
-    if (!isParentDropdownOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        parentDropdownContainerRef.current &&
-        !parentDropdownContainerRef.current.contains(e.target as Node)
-      ) {
-        setIsParentDropdownOpen(false);
-        setParentSearchQuery('');
-        setHighlightedParentIndex(-1);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isParentDropdownOpen]);
 
-
-
-  // DEV-280: Auto-focus the search input when combobox opens
-  useEffect(() => {
-    if (isParentDropdownOpen) {
-      const frame = requestAnimationFrame(() => {
-        parentSearchInputRef.current?.focus();
-      });
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [isParentDropdownOpen]);
-
-  // DEV-280: Keyboard navigation inside parent search input
-  const handleParentSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const totalSelectable = 1 + (isLegacyParent ? 1 : 0) + filteredCandidateParents.length;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightedParentIndex((prev) => (prev < totalSelectable - 1 ? prev + 1 : 0));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedParentIndex((prev) => (prev > 0 ? prev - 1 : totalSelectable - 1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlightedParentIndex === 0) {
-        setParentId('');
-        setIsParentDropdownOpen(false);
-        setParentSearchQuery('');
-        setHighlightedParentIndex(-1);
-        parentTriggerRef.current?.focus();
-      } else if (isLegacyParent && highlightedParentIndex === 1) {
-        setIsParentDropdownOpen(false);
-        setParentSearchQuery('');
-        setHighlightedParentIndex(-1);
-        parentTriggerRef.current?.focus();
-      } else {
-        const candIndex = highlightedParentIndex - 1 - (isLegacyParent ? 1 : 0);
-        if (candIndex >= 0 && candIndex < filteredCandidateParents.length) {
-          const selected = filteredCandidateParents[candIndex];
-          setParentId(selected.code || selected.id);
-          setIsParentDropdownOpen(false);
-          setParentSearchQuery('');
-          setHighlightedParentIndex(-1);
-          parentTriggerRef.current?.focus();
-        } else if (filteredCandidateParents.length === 1) {
-          const selected = filteredCandidateParents[0];
-          setParentId(selected.code || selected.id);
-          setIsParentDropdownOpen(false);
-          setParentSearchQuery('');
-          setHighlightedParentIndex(-1);
-          parentTriggerRef.current?.focus();
-        }
-      }
-    }
-  };
 
   const populateFromItem = (source: BacklogItem) => {
     setTitle(source.title || '');
@@ -336,9 +287,6 @@ export const ItemModal: FC<ItemModalProps> = ({
     setCustomReleaseMode(false);
     setCustomReleaseInput('');
     setParentId(source.parentId || '');
-    setParentSearchQuery('');
-    setIsParentDropdownOpen(false);
-    setHighlightedParentIndex(-1);
     setBlocks(source.blocks || []);
     setBlockedBy(source.blockedBy || []);
     setRelatedTo(source.relatedTo || []);
@@ -366,7 +314,7 @@ export const ItemModal: FC<ItemModalProps> = ({
     setAcExpanded(true);
     setPlanExpanded(Boolean(source.implementationPlan?.trim()));
     setRiskFixExpanded(Boolean(source.risk?.trim() || source.fix?.trim()));
-    setRelationsExpanded(Boolean((source.blocks && source.blocks.length > 0) || (source.blockedBy && source.blockedBy.length > 0) || (source.relatedTo && source.relatedTo.length > 0)));
+    setRelationsExpanded(Boolean(Boolean(source.parentId) || (source.blocks && source.blocks.length > 0) || (source.blockedBy && source.blockedBy.length > 0) || (source.relatedTo && source.relatedTo.length > 0)));
   };
 
   const prevIsOpenRef = useRef(false);
@@ -413,9 +361,6 @@ export const ItemModal: FC<ItemModalProps> = ({
         setCustomReleaseMode(false);
         setCustomReleaseInput('');
         setParentId('');
-        setParentSearchQuery('');
-        setIsParentDropdownOpen(false);
-        setHighlightedParentIndex(-1);
         setBlocks([]);
         setBlockedBy([]);
         setRelatedTo([]);
@@ -1031,8 +976,24 @@ export const ItemModal: FC<ItemModalProps> = ({
                       <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                     )}
                   </button>
-                  {(blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
+                  {(parentId || blocks.length > 0 || blockedBy.length > 0 || relatedTo.length > 0) && (
                     <div className="flex flex-wrap gap-2 pt-2 pl-5">
+                      {parentId && (
+                        <div className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-white/[0.04] pl-2 text-xs text-slate-700 dark:text-slate-300">
+                          <span className="break-words py-1">
+                            {t('itemModal.relationsParent')}: {formatRelation(parentId)}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
+                            title={t('itemModal.relationsRemoveBlocks')}
+                            onClick={() => setParentId('')}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-r-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-white/10 active:bg-slate-200 dark:active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                       {blockedBy.map(id => (
                         <div key={`blocked-by-${id}`} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-white/[0.04] pl-2 text-xs text-slate-700 dark:text-slate-300">
                           <span className="break-words py-1">
@@ -1989,92 +1950,124 @@ export const ItemModal: FC<ItemModalProps> = ({
                       <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                       <span>{t('itemModal.parentEpicLabel')}</span>
                     </label>
-                    {parentId && (
-                      <button
-                        type="button"
-                        onClick={() => setParentId('')}
-                        className="text-xs text-slate-400 hover:text-rose-500 transition-colors"
-                      >
-                        {t('common.clear')}
-                      </button>
-                    )}
                   </div>
 
-                  {parentId && (
-                    <div className="mb-1.5 flex items-center justify-between gap-1 min-w-0 px-2.5 py-1 rounded-md bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/50 text-xs text-indigo-700 dark:text-indigo-300">
-                      <span className="break-words font-mono">{formatRelation(parentId)}</span>
+                  <div ref={parentDropdownContainerRef} className="relative">
+                    {/* Trigger Box: Single unified control with semantic item styling */}
+                    <div
+                      className={`w-full flex min-w-0 items-center justify-between h-9 px-2.5 rounded-lg border text-xs transition-colors ${
+                        selectedParentItem
+                          ? (selectedParentItem.type === 'epic'
+                              ? 'bg-indigo-50/70 dark:bg-indigo-500/10 border-indigo-200/90 dark:border-indigo-500/30 text-indigo-900 dark:text-indigo-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-500/15 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500'
+                              : 'bg-purple-50/70 dark:bg-purple-500/10 border-purple-200/90 dark:border-purple-500/30 text-purple-900 dark:text-purple-200 hover:bg-purple-100/60 dark:hover:bg-purple-500/15 focus-within:ring-1 focus-within:ring-purple-500 focus-within:border-purple-500')
+                          : 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-white/[0.06] focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500/50'
+                      }`}
+                    >
                       <button
                         type="button"
-                        aria-label={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
-                        title={`${t('itemModal.relationsRemoveBlocks')}: ${formatRelation(parentId)}`}
-                        onClick={() => setParentId('')}
-                        className="inline-flex items-center justify-center p-0.5 rounded text-indigo-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shrink-0"
+                        role="combobox"
+                        aria-haspopup="listbox"
+                        aria-expanded={isParentDropdownOpen}
+                        aria-label={selectedParentItem ? `${selectedParentItem.type.toUpperCase()}: ${selectedParentItem.code || selectedParentItem.id} · ${selectedParentItem.title}` : t('itemModal.parentEpicLabel')}
+                        onClick={() => setIsParentDropdownOpen(!isParentDropdownOpen)}
+                        className="flex-1 flex min-w-0 items-center gap-1.5 text-left cursor-pointer focus:outline-none overflow-hidden py-1 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:scale-[0.99]"
+                        title={selectedParentItem ? `${selectedParentItem.code || selectedParentItem.id}: ${selectedParentItem.title} (${selectedParentItem.type.toUpperCase()})` : (parentId || t('itemModal.noParentAssigned'))}
                       >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Combobox Searchable Selector (DEV-280) */}
-                  <div ref={parentDropdownContainerRef} className="relative">
-                    <button
-                      type="button"
-                      ref={parentTriggerRef}
-                      onClick={() => {
-                        setIsParentDropdownOpen((prev) => {
-                          const next = !prev;
-                          if (next) {
-                            setParentSearchQuery('');
-                            setHighlightedParentIndex(-1);
-                          }
-                          return next;
-                        });
-                      }}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500/50 hover:bg-slate-100/70 dark:hover:bg-white/[0.06] transition-colors text-left"
-                      aria-haspopup="listbox"
-                      aria-expanded={isParentDropdownOpen}
-                      aria-label={t('itemModal.parentEpicLabel')}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {currentParentItem ? (
-                          <>
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider shrink-0 ${
-                                currentParentItem.type === 'epic'
-                                  ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20'
-                                  : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20'
+                        {parentId ? (
+                          selectedParentItem ? (
+                            <>
+                              {selectedParentItem.type === 'epic' ? (
+                                <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                              ) : (
+                                <Zap className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                              )}
+                              <span
+                                className={`font-mono font-semibold shrink-0 ${
+                                  selectedParentItem.type === 'epic'
+                                    ? 'text-indigo-700 dark:text-indigo-300'
+                                    : 'text-purple-700 dark:text-purple-300'
+                                }`}
+                              >
+                                {selectedParentItem.code || selectedParentItem.id}
+                              </span>
+                              <span
+                                className={`shrink-0 ${
+                                  selectedParentItem.type === 'epic'
+                                    ? 'text-indigo-300 dark:text-indigo-600'
+                                    : 'text-purple-300 dark:text-purple-600'
+                                }`}
+                              >
+                                ·
+                              </span>
+                              {/* audit-ux:allow-truncate: Combobox trigger maintains single-row height in sidebar */}
+                              <span className={`truncate font-medium min-w-0 flex-1 ${
+                                selectedParentItem.type === 'epic'
+                                  ? 'text-indigo-950 dark:text-indigo-100'
+                                  : 'text-purple-950 dark:text-purple-100'
                               }`}
-                            >
-                              [{currentParentItem.type.toUpperCase()}]
+                              >
+                                {selectedParentItem.title}
+                              </span>
+                            </>
+                          ) : (
+                            /* audit-ux:allow-truncate: Legacy parent link maintains single-row height */
+                            <span className="font-mono text-slate-700 dark:text-slate-300 truncate min-w-0">
+                              [LEGACY] {formatRelation(parentId)}
                             </span>
-                            <span className="font-mono font-medium text-slate-900 dark:text-white shrink-0">
-                              {currentParentItem.code || currentParentItem.id}:
-                            </span>
-                            <span className="text-slate-600 dark:text-slate-300 break-words">
-                              {currentParentItem.title}
-                            </span>
-                          </>
-                        ) : parentId ? (
-                          <span className="font-mono text-slate-700 dark:text-slate-300 break-words">
-                            {parentId}
-                          </span>
+                          )
                         ) : (
                           <span className="text-slate-400 dark:text-slate-500 italic">
-                            {t('itemModal.relationsNoParent')}
+                            {t('itemModal.noParentAssigned')}
                           </span>
                         )}
-                      </div>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-150 ${
-                          isParentDropdownOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
+                      </button>
 
+                      <div className="flex items-center gap-0.5 pr-1 shrink-0">
+                        {parentId && (
+                          <button
+                            type="button"
+                            aria-label={t('common.clear')}
+                            title={t('common.clear')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setParentId('');
+                              setIsParentDropdownOpen(false);
+                            }}
+                            className={`p-1 rounded transition-colors focus:outline-none ${
+                              selectedParentItem?.type === 'epic'
+                                ? 'text-indigo-400 hover:text-rose-500 dark:text-indigo-400 dark:hover:text-rose-400'
+                                : selectedParentItem?.type === 'initiative'
+                                ? 'text-purple-400 hover:text-rose-500 dark:text-purple-400 dark:hover:text-rose-400'
+                                : 'text-slate-400 hover:text-rose-500 dark:hover:text-rose-400'
+                            }`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label={isParentDropdownOpen ? 'Close list' : 'Open list'}
+                          onClick={() => setIsParentDropdownOpen(!isParentDropdownOpen)}
+                          className={`p-1 transition-colors focus:outline-none ${
+                            selectedParentItem?.type === 'epic'
+                              ? 'text-indigo-400 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-200'
+                              : selectedParentItem?.type === 'initiative'
+                              ? 'text-purple-400 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-200'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                              isParentDropdownOpen ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dropdown with live search */}
                     {isParentDropdownOpen && (
-                      <div
-                        className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.1] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-                      >
+                      <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/[0.1] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                         {/* Search Input Box */}
                         <div className="p-2 border-b border-slate-200 dark:border-white/[0.08] bg-slate-50/70 dark:bg-white/[0.02]">
                           <div className="relative">
@@ -2083,11 +2076,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                               ref={parentSearchInputRef}
                               type="text"
                               value={parentSearchQuery}
-                              onChange={(e) => {
-                                setParentSearchQuery(e.target.value);
-                                setHighlightedParentIndex(-1);
-                              }}
-                              onKeyDown={handleParentSearchKeyDown}
+                              onChange={(e) => setParentSearchQuery(e.target.value)}
                               placeholder={t('itemModal.searchParentPlaceholder')}
                               className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40"
                             />
@@ -2096,12 +2085,10 @@ export const ItemModal: FC<ItemModalProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setParentSearchQuery('');
-                                  setHighlightedParentIndex(-1);
                                   parentSearchInputRef.current?.focus();
                                 }}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                                 aria-label={t('common.clear')}
-                                title={t('common.clear')}
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -2109,16 +2096,12 @@ export const ItemModal: FC<ItemModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Options Listbox */}
-                        <div
-                          className="max-h-56 overflow-y-auto p-1 space-y-0.5 text-xs focus:outline-none scroll-smooth"
-                          role="listbox"
-                        >
+                        {/* Options List */}
+                        <div className="max-h-56 overflow-y-auto p-1 space-y-0.5 text-xs focus:outline-none" role="listbox">
                           {/* Unlink / No Parent Option */}
                           <button
                             type="button"
                             role="option"
-                            id="parent-option-none"
                             aria-selected={!parentId}
                             aria-label={t('itemModal.relationsNoParent')}
                             title={t('itemModal.relationsNoParent')}
@@ -2126,14 +2109,8 @@ export const ItemModal: FC<ItemModalProps> = ({
                               setParentId('');
                               setIsParentDropdownOpen(false);
                               setParentSearchQuery('');
-                              setHighlightedParentIndex(-1);
-                              parentTriggerRef.current?.focus();
                             }}
-                            className={`w-full flex items-center justify-between min-w-0 px-2.5 py-2 rounded-lg text-left transition-colors ${
-                              highlightedParentIndex === 0
-                                ? 'bg-indigo-500/15 ring-1 ring-indigo-500/30'
-                                : ''
-                            } ${
+                            className={`w-full flex min-w-0 items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors ${
                               !parentId
                                 ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium'
                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
@@ -2150,21 +2127,14 @@ export const ItemModal: FC<ItemModalProps> = ({
                             <button
                               type="button"
                               role="option"
-                              id="parent-option-legacy"
                               aria-selected={true}
                               aria-label={parentId}
                               title={parentId}
                               onClick={() => {
                                 setIsParentDropdownOpen(false);
                                 setParentSearchQuery('');
-                                setHighlightedParentIndex(-1);
-                                parentTriggerRef.current?.focus();
                               }}
-                              className={`w-full flex items-center gap-2 min-w-0 px-2.5 py-2 rounded-lg text-left transition-colors ${
-                                highlightedParentIndex === 1
-                                  ? 'bg-indigo-500/15 ring-1 ring-indigo-500/30'
-                                  : ''
-                              } bg-indigo-500/10 text-indigo-900 dark:text-indigo-100 font-medium`}
+                              className="w-full flex min-w-0 items-center gap-2 px-2.5 py-2 rounded-lg text-left bg-indigo-500/10 text-indigo-900 dark:text-indigo-100 font-medium"
                             >
                               <span className="px-1.5 py-0.5 rounded text-xs font-semibold shrink-0 uppercase tracking-wider bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/20">
                                 [LEGACY]
@@ -2181,20 +2151,19 @@ export const ItemModal: FC<ItemModalProps> = ({
                             </button>
                           )}
 
-                          {/* Candidates List */}
-                          {filteredCandidateParents.map((cand, idx) => {
-                            const itemIdx = 1 + (isLegacyParent ? 1 : 0) + idx;
+                          {/* Filtered Candidates */}
+                          {filteredCandidateParents.map((cand) => {
                             const isSelected = (cand.code || cand.id) === parentId || cand.id === parentId;
                             const isEpic = cand.type === 'epic';
-                            const isHighlighted = highlightedParentIndex === itemIdx;
-                            const fullItemLabel = `[${cand.type.toUpperCase()}] ${cand.code || cand.id}: ${cand.title}`;
+                            const candTypeInfo = getItemTypeInfo(cand.type, config?.customItemTypes);
+                            const CandIcon = isEpic ? Layers : (cand.type === 'initiative' ? Zap : candTypeInfo.icon);
+                            const fullItemLabel = `${candTypeInfo.label}: ${cand.code || cand.id} - ${cand.title}`;
 
                             return (
                               <button
                                 key={cand.id}
                                 type="button"
                                 role="option"
-                                id={`parent-option-${cand.id}`}
                                 aria-selected={isSelected}
                                 aria-label={fullItemLabel}
                                 title={fullItemLabel}
@@ -2202,44 +2171,54 @@ export const ItemModal: FC<ItemModalProps> = ({
                                   setParentId(cand.code || cand.id);
                                   setIsParentDropdownOpen(false);
                                   setParentSearchQuery('');
-                                  setHighlightedParentIndex(-1);
-                                  parentTriggerRef.current?.focus();
                                 }}
-                                className={`w-full flex items-start gap-2 min-w-0 px-2.5 py-2 rounded-lg text-left transition-colors ${
-                                  isHighlighted
-                                    ? 'bg-indigo-500/15 ring-1 ring-indigo-500/30'
-                                    : ''
-                                } ${
+                                className={`w-full flex min-w-0 items-start gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${
                                   isSelected
-                                    ? 'bg-indigo-500/10 text-indigo-900 dark:text-indigo-100 font-medium'
+                                    ? (isEpic
+                                        ? 'bg-indigo-500/15 text-indigo-950 dark:text-indigo-100 font-medium'
+                                        : 'bg-purple-500/15 text-purple-950 dark:text-purple-100 font-medium')
                                     : 'hover:bg-slate-100 dark:hover:bg-white/[0.05] text-slate-800 dark:text-slate-200'
                                 }`}
                               >
-                                <span
-                                  className={`mt-0.5 px-1.5 py-0.5 rounded text-xs font-semibold shrink-0 uppercase tracking-wider ${
+                                <CandIcon
+                                  className={`w-4 h-4 shrink-0 mt-0.5 ${
                                     isEpic
-                                      ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20'
-                                      : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20'
+                                      ? 'text-indigo-600 dark:text-indigo-400'
+                                      : 'text-purple-600 dark:text-purple-400'
                                   }`}
-                                >
-                                  [{cand.type.toUpperCase()}]
-                                </span>
+                                />
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-mono font-medium text-slate-900 dark:text-white">
-                                    {cand.code || cand.id}
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span
+                                      className={`font-mono font-semibold text-xs shrink-0 ${
+                                        isEpic
+                                          ? 'text-indigo-700 dark:text-indigo-300'
+                                          : 'text-purple-700 dark:text-purple-300'
+                                      }`}
+                                    >
+                                      {cand.code || cand.id}
+                                    </span>
+                                    <span className="text-slate-400 dark:text-slate-500 text-xs shrink-0 uppercase font-medium tracking-wider">
+                                      · {candTypeInfo.label}
+                                    </span>
                                   </div>
-                                  <div className="text-slate-600 dark:text-slate-300 break-words leading-relaxed">
+                                  <div className="text-slate-700 dark:text-slate-200 break-words leading-relaxed text-xs mt-0.5">
                                     {cand.title}
                                   </div>
                                 </div>
                                 {isSelected && (
-                                  <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-1 mt-0.5" />
+                                  <Check
+                                    className={`w-3.5 h-3.5 shrink-0 ml-1 mt-0.5 ${
+                                      isEpic
+                                        ? 'text-indigo-600 dark:text-indigo-400'
+                                        : 'text-purple-600 dark:text-purple-400'
+                                    }`}
+                                  />
                                 )}
                               </button>
                             );
                           })}
 
-                          {/* Empty State */}
                           {filteredCandidateParents.length === 0 && (
                             <div className="py-4 px-3 text-center text-xs text-slate-400 dark:text-slate-500">
                               {t('itemModal.noParentsFound')}

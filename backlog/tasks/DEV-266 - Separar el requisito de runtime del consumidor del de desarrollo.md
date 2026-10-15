@@ -1,7 +1,7 @@
 ---
 id: DEV-266
 title: "Separar el requisito de runtime del consumidor del requisito de desarrollo"
-status: ready
+status: done
 created_date: '2026-10-14'
 updated_date: '2026-10-15'
 labels:

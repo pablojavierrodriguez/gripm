@@ -1,7 +1,7 @@
 ---
 id: DEV-278
 title: "Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:

@@ -1192,13 +1192,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={methodology === 'kanban'}
                       onClick={() => handleSelectMethodology('kanban')}
                       title={t('settings.methodologyKanbanDesc')}
-                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'kanban'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
                           : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
                         <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
                           <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
                           <span className="truncate">{t('settings.methodologyKanban')}</span>
@@ -1207,7 +1207,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {t('settings.methodologyKanbanBadgeBoard')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyKanbanDesc')}>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {t('settings.methodologyKanbanDesc')}
                       </p>
                     </button>
@@ -1218,13 +1218,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={methodology === 'scrum'}
                       onClick={() => handleSelectMethodology('scrum')}
                       title={t('settings.methodologyScrumDesc')}
-                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'scrum'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
                           : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
                         <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
                           <Target className="w-4 h-4 text-amber-500 shrink-0" />
                           <span className="truncate">{t('settings.methodologyScrum')}</span>
@@ -1233,7 +1233,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {t('settings.methodologyScrumBadgeSprints')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyScrumDesc')}>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {t('settings.methodologyScrumDesc')}
                       </p>
                     </button>
@@ -1244,13 +1244,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={methodology === 'scrumban'}
                       onClick={() => handleSelectMethodology('scrumban')}
                       title={t('settings.methodologyScrumbanDesc')}
-                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'scrumban'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
                           : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
                         <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
                           <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />
                           <span className="truncate">{t('settings.methodologyScrumban')}</span>
@@ -1259,7 +1259,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {t('settings.methodologyScrumbanBadgeBoard')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyScrumbanDesc')}>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {t('settings.methodologyScrumbanDesc')}
                       </p>
                     </button>
@@ -1268,34 +1268,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Default View Selector (DEV-274) */}
-              <div className="space-y-2 pt-5 border-t border-slate-200 dark:border-white/[0.08]">
+              <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/[0.08]">
                 <div>
                   <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                     {t('settings.defaultViewLabel')}
                   </label>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t('settings.defaultViewDesc')}
                   </p>
                 </div>
 
-                <div className="inline-flex flex-wrap p-1 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] gap-1 max-w-full">
+                <div
+                  className={`grid gap-2.5 pt-1 ${
+                    modulesState.sprint && enabledTabs.sprint && modulesState.release && enabledTabs.release
+                      ? 'grid-cols-1 sm:grid-cols-3'
+                      : (modulesState.sprint && enabledTabs.sprint) || (modulesState.release && enabledTabs.release)
+                      ? 'grid-cols-1 sm:grid-cols-2'
+                      : 'grid-cols-1 max-w-2xl'
+                  }`}
+                >
                   <button
                     type="button"
                     role="radio"
                     aria-checked={defaultView === 'kanban'}
                     onClick={() => setDefaultView('kanban')}
                     title={t('settings.defaultViewKanbanDesc')}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                       defaultView === 'kanban'
-                        ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
-                        : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                     }`}
                   >
-                    <Layout className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'kanban' ? 'text-indigo-500' : 'text-slate-400'}`} />
-                    <span>{t('header.kanban')}</span>
-                    <span className="hidden md:inline text-xs text-slate-400 font-normal ml-0.5">
-                      · {t('settings.coreViewBadge')}
-                    </span>
+                    <div className="flex items-center justify-between gap-1.5 mb-2">
+                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                        <Layout className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="truncate">{t('header.kanban')}</span>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                        {t('settings.coreViewBadge')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {t('settings.defaultViewKanbanDesc')}
+                    </p>
                   </button>
 
                   {modulesState.sprint && enabledTabs.sprint && (
@@ -1305,15 +1320,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={defaultView === 'sprint'}
                       onClick={() => setDefaultView('sprint')}
                       title={t('settings.defaultViewSprintDesc')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         defaultView === 'sprint'
-                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
-                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <Target className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'sprint' ? 'text-amber-500' : 'text-slate-400'}`} />
-                    <span>{t('header.sprints')}</span>
-                  </button>
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Target className="w-4 h-4 text-amber-500 shrink-0" />
+                          <span className="truncate">{t('header.sprints')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
+                          Sprints
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                        {t('settings.defaultViewSprintDesc')}
+                      </p>
+                    </button>
                   )}
 
                   {modulesState.release && enabledTabs.release && (
@@ -1323,14 +1348,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={defaultView === 'release'}
                       onClick={() => setDefaultView('release')}
                       title={t('settings.defaultViewReleaseDesc')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         defaultView === 'release'
-                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
-                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <Rocket className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'release' ? 'text-emerald-500' : 'text-slate-400'}`} />
-                      <span>{t('header.releases')}</span>
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <span className="truncate">{t('header.releases')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
+                          Releases
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                        {t('settings.defaultViewReleaseDesc')}
+                      </p>
                     </button>
                   )}
 
@@ -1341,24 +1376,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       aria-checked={defaultView === 'timeline'}
                       onClick={() => setDefaultView('timeline')}
                       title={t('settings.defaultViewTimelineDesc')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         defaultView === 'timeline'
-                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
-                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <Calendar className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'timeline' ? 'text-blue-500' : 'text-slate-400'}`} />
-                    <span>{t('header.timeline')}</span>
-                  </button>
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+                          <span className="truncate">{t('header.timeline')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-blue-500/15 text-blue-600 dark:text-blue-300 font-semibold">
+                          Roadmap
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                        {t('settings.defaultViewTimelineDesc')}
+                      </p>
+                    </button>
                   )}
                 </div>
-
-                <p className="text-xs text-slate-500 dark:text-slate-400 italic">
-                  {defaultView === 'kanban' && t('settings.defaultViewKanbanDesc')}
-                  {defaultView === 'sprint' && t('settings.defaultViewSprintDesc')}
-                  {defaultView === 'release' && t('settings.defaultViewReleaseDesc')}
-                  {defaultView === 'timeline' && t('settings.defaultViewTimelineDesc')}
-                </p>
               </div>
 
               {/* Header Visible Tabs */}
@@ -2691,14 +2729,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Density, AutoSave, Manual Ranking, and Filter Bar Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
                 {/* 1. Board Density */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
                   <div>
                     <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1">
                       {t('settings.densityLabel')}
                     </label>
-                    <p className="text-[11px] text-slate-500 mb-3">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
                       {t('settings.densityDesc')}
                     </p>
                   </div>
@@ -2730,12 +2768,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* 2. Auto-save on Edit */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
-                    <div className="pr-2">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
+                    <div className="pr-2 min-w-0 flex-1">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.autoSaveLabel')}
                       </span>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         {t('settings.autoSaveDesc')}
                       </p>
                     </div>
@@ -2749,12 +2787,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* 3. Manual Ranking and Drag & Drop */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
-                    <div className="pr-2">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
+                    <div className="pr-2 min-w-0 flex-1">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.rankingLabel')}
                       </span>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         {t('settings.rankingDesc')}
                       </p>
                     </div>
@@ -2768,12 +2806,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* 4. Filter Bar Stats Summary (DEV-278) */}
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3">
-                    <div className="pr-2">
+                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
+                    <div className="pr-2 min-w-0 flex-1">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                         {t('settings.showFilterBarStatsLabel')}
                       </span>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         {t('settings.showFilterBarStatsDesc')}
                       </p>
                     </div>

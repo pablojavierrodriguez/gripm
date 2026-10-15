@@ -1,7 +1,7 @@
 ---
 id: DEV-279
 title: "Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:

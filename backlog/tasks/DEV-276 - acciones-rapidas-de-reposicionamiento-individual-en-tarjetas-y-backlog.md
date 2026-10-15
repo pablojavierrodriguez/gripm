@@ -1,7 +1,7 @@
 ---
 id: DEV-276
 title: "Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:

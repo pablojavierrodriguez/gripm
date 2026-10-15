@@ -1,9 +1,9 @@
 ---
 id: DEV-258
 title: "Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura"
-status: ready
+status: done
 created_date: '2026-10-13'
-updated_date: '2026-10-13'
+updated_date: '2026-10-15'
 labels:
   - "ux"
   - "accessibility"

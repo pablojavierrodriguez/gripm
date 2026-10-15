@@ -60,14 +60,12 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
     { id: 'p3', label: `P3 - ${t('priority.low')}`, dot: 'bg-slate-400' },
   ];
 
-  const statusGroups: { id: ItemStatus; label: string; dot: string; icon: string }[] = [
-    { id: 'ideas', label: t('status.ideas'), dot: 'bg-pink-500', icon: '💡' },
+  const flowStatusOptions: { id: ItemStatus; label: string; dot: string; icon: string }[] = [
     { id: 'draft', label: t('status.draft'), dot: 'bg-indigo-500', icon: '📋' },
     { id: 'doing', label: t('status.doing'), dot: 'bg-amber-500', icon: '⚡' },
     { id: 'review', label: t('status.review'), dot: 'bg-purple-500', icon: '🔍' },
     { id: 'ready', label: t('status.ready'), dot: 'bg-teal-500', icon: '🚀' },
     { id: 'done', label: t('status.done'), dot: 'bg-emerald-500', icon: '✅' },
-    { id: 'dismissed', label: `${t('status.dismissed')} / ${t('status.cancelled')}`, dot: 'bg-rose-500', icon: '🚫' },
   ];
 
   const typeOptions = [
@@ -136,26 +134,18 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
     });
   };
 
-  // Status toggle
-  const toggleStatus = (st: ItemStatus) => {
-    const currentStatuses: ItemStatus[] = filters.statuses && filters.statuses.length > 0
-      ? [...filters.statuses]
-      : ['draft', 'doing', 'review', 'ready', 'done'] as ItemStatus[];
+  // Flow status toggle
+  const toggleFlowStatus = (st: ItemStatus) => {
+    const currentStatuses = filters.statuses ? [...filters.statuses] : [];
     const index = currentStatuses.indexOf(st);
     if (index >= 0) {
       currentStatuses.splice(index, 1);
     } else {
       currentStatuses.push(st);
     }
-
-    const hasIdeas = currentStatuses.includes('ideas');
-    const hasDismissed = currentStatuses.includes('dismissed') || currentStatuses.includes('cancelled');
-
     onChangeFilters({
       ...filters,
       statuses: currentStatuses,
-      includeIdeas: hasIdeas,
-      includeDismissedCancelled: hasDismissed,
     });
   };
 
@@ -188,15 +178,9 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
       : filters.priority !== 'all' ? [filters.priority] : []
   );
 
-  const selectedStatuses = new Set<ItemStatus>(
-    filters.statuses && filters.statuses.length > 0
-      ? filters.statuses
-      : (['draft', 'doing', 'review', 'ready', 'done'] as ItemStatus[])
+  const selectedFlowStatuses = (filters.statuses || []).filter(
+    (st) => st !== 'ideas' && st !== 'dismissed' && (st as any) !== 'cancelled'
   );
-  if (filters.includeIdeas) selectedStatuses.add('ideas');
-  if (filters.includeDismissedCancelled) {
-    selectedStatuses.add('dismissed');
-  }
 
   return (
     <div
@@ -238,33 +222,99 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
         </div>
       </div>
 
-      {/* Section 1: Inclusión & Exclusión de Estados (Filtro General de Estados) */}
-      <div className="space-y-2">
+      {/* Section 1: Inclusiones Especiales (Ideas & Descartados) */}
+      <div className="space-y-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          {t('filter.inclusionsTitle')}
+        </span>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => onChangeFilters({ ...filters, includeIdeas: !filters.includeIdeas })}
+            className={`flex min-w-0 items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              filters.includeIdeas
+                ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-xs'
+                : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-xs">💡</span>
+              <span className="truncate">{t('status.ideas')}</span>
+            </div>
+            {filters.includeIdeas && <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onChangeFilters({
+                ...filters,
+                includeDismissedCancelled: !filters.includeDismissedCancelled,
+              })
+            }
+            className={`flex min-w-0 items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              filters.includeDismissedCancelled
+                ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-xs'
+                : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-xs">🚫</span>
+              <span className="truncate">{t('status.dismissed')} / {t('status.cancelled')}</span>
+            </div>
+            {filters.includeDismissedCancelled && (
+              <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Section 2: Filtrar por Estado del Flujo */}
+      <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             {t('filter.statusFilter')}
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">
-            {t('filter.selectedCount', { count: selectedStatuses.size })}
+          <span className="text-xs text-slate-400 font-mono">
+            {selectedFlowStatuses.length === 0
+              ? t('filter.allActiveFlow')
+              : t('filter.selectedCount', { count: selectedFlowStatuses.length })}
           </span>
         </div>
 
-        {/* Active statuses pills */}
         <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-          {statusGroups.map((st, idx) => {
-            const isSelected = selectedStatuses.has(st.id);
-            const isLastOdd = idx === statusGroups.length - 1 && statusGroups.length % 2 !== 0;
+          {/* Quick All button */}
+          <button
+            type="button"
+            onClick={() => onChangeFilters({ ...filters, statuses: [] })}
+            className={`flex min-w-0 items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all col-span-2 ${
+              selectedFlowStatuses.length === 0
+                ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-xs'
+                : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-xs">✨</span>
+              <span className="truncate">{t('filter.allActiveFlow')}</span>
+            </div>
+            {selectedFlowStatuses.length === 0 && (
+              <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            )}
+          </button>
+
+          {/* Individual flow statuses */}
+          {flowStatusOptions.map((st) => {
+            const isSelected = selectedFlowStatuses.includes(st.id);
             return (
               <button
                 key={st.id}
                 type="button"
-                onClick={() => toggleStatus(st.id)}
-                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${
-                  isLastOdd ? 'col-span-2' : ''
-                } ${isSelected
+                onClick={() => toggleFlowStatus(st.id)}
+                className={`flex min-w-0 items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                  isSelected
                     ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-xs'
                     : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-                  }`}
+                }`}
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="text-xs">{st.icon}</span>

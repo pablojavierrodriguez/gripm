@@ -1,11 +1,11 @@
 ---
 id: DEV-268
 title: "El hook de pre-commit valida que BACKLOG.md esté presente, no que corresponda al commit"
-status: ready
+status: done
 assignee:
   - ""
 created_date: '2026-10-14'
-updated_date: '2026-10-15 02:35'
+updated_date: '2026-10-15'
 labels:
   - "tooling"
   - "ci"

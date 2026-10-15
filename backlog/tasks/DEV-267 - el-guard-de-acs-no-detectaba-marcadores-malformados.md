@@ -1,14 +1,14 @@
 ---
 id: DEV-267
 title: 'El guard de ACs no detectaba marcadores malformados y daba verde sobre datos descartados'
-status: ready
+status: done
 type: bug
 priority: high
 sprint: ''
 release: ''
 assignee: ''
 created_date: '2026-10-14'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 ---
 
 ## Description

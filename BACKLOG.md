@@ -85,483 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (17)
-
-#### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, orientada a demostraciones públicas desde dispositivos móviles y comunidades técnicas sin requerir un CLI ni daemon local:
-1. **Detección automática de entorno y fallback en memoria:** Si la aplicación detecta que está corriendo en la web sin conexión al socket o CLI local, inicializa automáticamente un adaptador en memoria y LocalStorage con un dataset precargado (un sprint activo, tareas en distintas columnas, criterios de aceptación interactivos y un release publicado con changelog) sin mostrar pantallas vacías ni errores de red.
-2. **Selector de formato dual interactivo:** Incorporar en la tarjeta o modal de tarea un selector que permita previsualizar en vivo cómo se serializa esa tarea en Markdown (`backlog/tasks/*.md`) frente a JSON unificado (`.gripm/backlog.json`).
-3. **Optimización móvil estricta (Zero-CLS & Touch Targets):** Interfaz completamente adaptada a pantallas móviles (360px a 430px) con áreas táctiles de al menos 44px de altura/anchura y navegación táctil fluida.
-4. **Configuración de hosting SPA:** Configuración limpia de `vercel.json` para soportar rutas SPA sin errores 404 en navegación directa o recarga.
-5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
-
-**Criterios de Aceptación:**
-- [x] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
-- [x] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
-- [x] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
-- [x] #6 npm test y npm run backlog:check pasan con codigo 0
-
----
-
-#### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-Refinamiento post-release del pie introducido por DEV-257 (que ya se selló y publicó en `v1.3.0`, por lo que esta iteración se registra como ítem nuevo y no como edición de un ítem en `done`).
-
-El pie de `KeyboardShortcutsModal` quedó con un botón "Cerrar" que es una cuarta vía de descarte redundante: el primitivo `Modal` ya ofrece tres, a saber la X del header, la trampa de foco con `Esc` (`useFocusTrap`) y el click en el backdrop. El botón competía por atención con los enlaces de valor real y era el elemento de mayor peso del pie. 
-
-Problemas concretos que corrige:
-1. **Redundancia de descarte.** Cuatro elementos cierran el mismo diálogo. Tres son suficientes y las tres restantes son las convencionales (X de header, `Esc`, backdrop). Un cuarto disparador crea ambigüedad sobre cuál es el canónico.
-2. **Peso visual y jerarquía.** El botón era el elemento de mayor peso tipográfico del pie (`font-semibold` sobre `bg-slate-200`), es decir, el pie destacaba la acción de salir por encima de la información. Justo lo contrario de un pie informativo.
-3. **Ocupación vertical.** El `min-h-[44px]` del botón forzaba `py-3` (68 px de alto). Sin él, el alto lo fija el `min-h-[44px]` de los enlaces y el pie baja a `py-2` (60 px), liberando espacio para el cuerpo del modal en pantallas bajas.
-4. **Hint de reapertura inline.** El texto "Presiona ? en cualquier momento para abrir esta guía" pasa a compartir la fila con la marca y los enlaces, en el extremo opuesto (`justify-between`), en lugar de ocupar un bloque propio. Por debajo de `sm` se oculta, de modo que en móvil la fila queda en una sola línea con `marca + enlaces`.
-5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real —el pie nunca puede superponerse porque el cuerpo scrollea—, sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
-
-Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
-
-**Criterios de Aceptación:**
-- [x] #1 El pie de `KeyboardShortcutsModal` no renderiza ningún botón de cierre
-- [x] #2 El diálogo sigue siendo descartable por la X del header, por `Esc` y por click en el backdrop, verificado sobre el primitivo `Modal` (`onClick={onClose}` en el backdrop) y `useFocusTrap` (`event.key === 'Escape'`), con el paso `focus-trap` de la suite en verde
-- [x] #3 El hint de reapertura se renderiza en la misma fila que la marca y los enlaces, alineado al extremo derecho por `justify-between`, y permanece oculto por debajo de `sm` (UX-002: el `<kbd>` conserva `hidden sm:inline-flex` en su propia línea porque el auditor es de matching por línea)
-- [x] #4 El pie pasa de `py-3` a `py-2` y el alto resultante queda determinado por el `min-h-[44px]` de los enlaces; `npm run audit:ux --rule UX-009` reporta 0 findings
-- [x] #5 `npx tsc --noEmit` reporta 0 errores
-- [x] #6 Pirámide de verificación en verde: `npm test` (16/16 pasos), `npm run audit:ux` (0 errores, 0 sugerencias; las 12 advertencias son los falsos positivos documentados de UX-010), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (414 archivos)
-- [x] #7 El cuerpo scrolleable no corta contenido en seco contra la línea del pie: aplica `mask-image` con degradado en los últimos 28 px más `pb-7` de aire, de modo que un header de sección que caiga sobre el borde de scroll se disuelva en el pie y se lea como "hay más abajo" en lugar de texto pisado
-
----
-
-#### [DEV-259] Alinear .gripm/config.json del repo con la configuración OSS canónica documentada en AGENTS.md
-- **Prioridad**: `low` | **Tipo**: `chore`
-
-El gotcha 17 de `AGENTS.md` declara que `.gripm/config.json` define la configuración OSS canónica del repositorio, y la describe con `"methodology": "kanban"` y `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`. El archivo commiteado no coincidía con esa descripción en dos claves, y además arrastraba defaults de esquema que ya no existían en el modelo de configuración vigente.
-
-Divergencias detectadas al contrastar disco contra documentación:
-
-| Clave | En HEAD | Canónico (gotcha 17) | Motivo del cambio |
-| :--- | :--- | :--- | :--- |
-| `methodology` | `scrum` | `kanban` | El repo opera bajo flujo Kanban continuo (gotcha 16); `scrum` contradecía la propia metodología declarada |
-| `mode` | `single` | — | Estado real del entorno de trabajo, sin efecto en la distribución |
-| `enabledTabs.sprint` | `true` | `false` | Alineación con el canónico documentado |
-| `modules.calendar` | ausente | — | Default de esquema |
-| `estimation` | ausente | — | Default de esquema (DEV-137/DEV-139) |
-| `visibleCardMetadata` | ausente | — | Default de esquema (8 claves) |
-
-Alcance:
-1. `enabledTabs.sprint` pasa a `false` para respetar el canónico documentado.
-2. Se conservan los defaults de esquema incorporados (`calendar`, `estimation`, `visibleCardMetadata`), que son la forma normalizada que el modelo vigente espera y no constituyen preferencias personales.
-3. Verificar que el tab de Sprints deshabilitado no deja la app en un estado inconsistente: `App.tsx` ya resuelve el caso con la auto-redirección `sprint → kanban`, de modo que `defaultView: "sprint"` degrada sin intervención.
-
-Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referencia a la que se alinea la config), `defaultView`, y cualquier clave de `theme`, `density` o `language`, que ya coinciden con el canónico.
-
-**Criterios de Aceptación:**
-- [x] #1 `.gripm/config.json` declara `methodology: "kanban"` y `enabledTabs: { "kanban": true, "sprint": false, "release": true }`, coincidindo con el canónico del gotcha 17 de `AGENTS.md`
-- [x] #2 El JSON sigue siendo válido (parseado con `ConvertFrom-Json`) y conserva la ausencia de newline terminal que tenía en HEAD (último byte `125` = `}`)
-- [x] #3 Con `enabledTabs.sprint: false` la app no queda en un tab huérfano: `activeTab` se inicializa desde `localStorage` o `kanban` y **no** desde `config.defaultView`, y un `activeTab: 'sprint'` persistido degrada por la auto-redirección de `App.tsx` hacia `kanban`. Verificado en runtime con `npm run test:ui` (Playwright) en verde
-- [x] #4 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md`
-- [x] #5 `npm test` sigue en verde (16/16 pasos) y `node scripts/verify-changes.js --all` valida el árbol (415 archivos)
-
----
-
-#### [DEV-260] Sistema de ADR (Architecture Decision Records) en docs/adr y registro de las decisiones fundacionales de gripm
-- **Prioridad**: `medium` | **Tipo**: `chore`
-
-El Protocolo de Aprendizaje Continuo del playbook (`.agents/TEAM_PLAYBOOK.md`, sección "Continuous Learning Protocol") exige que todo patrón arquitectónico superior quede registrado como *Architectural Decision Record*, y la plantilla de sprint (`docs/sprints/SPRINT_SPEC_TEMPLATE.md`, sección "KNOWLEDGE FEED") reserva un campo `ADR Recorded: [path]` que hoy no tiene destino canónico. En el repositorio no existía ninguna carpeta `docs/adr/`, de modo que el protocolo era inaplicable y las decisiones arquitectónicas más load-bearing de gripm vivían únicamente dispersas en prosa de `AGENTS.md`, `README.md` y `docs/ARCHITECTURE.md`.
-
-Decisiones ya tomadas y consolidadas en el código, hoy sin registro formal:
-
-1. **Markdown como fuente de verdad** (`backlog-md`), con `BACKLOG.md` como consolidado generado y Git como control de versiones.
-2. **Backend embebido como plugin de middleware de Vite** (`server/` + `vite.config.ts`), sin servidor de aplicación propio ni proceso adicional.
-3. **Servidor MCP por stdio** (`scripts/mcp-server.ts` + `bin/gripm-mcp.js`), 12 herramientas JSON-RPC 2.0 sobre el mismo núcleo de persistencia que la UI.
-4. **Daemon local monousuario sin autenticación HTTP** (SEC-10), mitigado con validación de `Host`/`Origin` y cabeceras de seguridad (SEC-01, DEV-243).
-5. **Overlays montados con `createPortal` y layout raíz estable** (Zero-CLS), DEV-129, DEV-130 y gotcha 10 de `AGENTS.md`.
-
-Alcance de esta tarea:
-1. Crear `docs/adr/` con convención de nombres MADR (`NNNN-slug.md`, numeración secuencial e inmutable), estados canónicos y plantilla `0000-plantilla.md`.
-2. Sembrar los 5 ADR fundacionales como registros de decisión **ya aceptados** (documentan el estado del arte, no abren debate).
-3. Enlazar el registro desde `docs/ARCHITECTURE.md` y desde `AGENTS.md` (gotcha de trazabilidad arquitectónica).
-
-Fuera de alcance: validación mecánica de la convención en `scripts/verify-changes.js` (decidido explícitamente con el PO: la convención queda documentada, sin fricción nueva en el gate), y renumerar o reescribir decisiones preexistentes en documentos actuales.
-
-**Criterios de Aceptación:**
-- [x] #1 Existe `docs/adr/README.md` con: propósito del registro, criterio de "esto merece un ADR", anatomía del documento, estados canónicos (`Propuesta`, `Aceptado`, `Reemplazado`, `Obsoleto`), reglas de inmutabilidad y el índice completo de registros
-- [x] #2 Existe `docs/adr/0000-plantilla.md` como plantilla reutilizable con las secciones del formato MADR (Contexto, Decision Drivers, Opciones consideradas, Decisión, Consecuencias, Referencias) y frontmatter de estado y fecha
-- [x] #3 Los 5 ADR semilla existen con numeración `0001`-`0005` y slug kebab-case en español: `0001-markdown-como-fuente-de-verdad.md`, `0002-backend-embebido-como-plugin-de-vite.md`, `0003-servidor-mcp-por-stdio.md`, `0004-daemon-local-sin-autenticacion-http.md`, `0005-overlays-via-portales-y-layout-estable.md`
-- [x] #4 Cada ADR semilla documenta contexto, opciones descartadas **con motivo**, decisión, consecuencias (positivas y negativas) y referencias a tareas del backlog que lo originaron
-- [x] #5 `docs/ARCHITECTURE.md` incluye una sección que enlaza el registro de ADR y aclara que ARCHITECTURE.md describe el estado actual mientras que el ADR registra el porqué de las decisiones
-- [x] #6 `AGENTS.md` incorpora un gotcha de trazabilidad arquitectónica que obliga a registrar en `docs/adr/` toda decisión con trade-offs reales, y remite al campo `ADR Recorded` de la plantilla de sprint
-- [x] #7 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md` (código 0)
-- [x] #8 `node scripts/verify-changes.js --all` valida el árbol completo sin defectos estructurales ni de codificación
-
----
-
-#### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
-Encontrado al ejecutar DEV-222 (dataset de la sandbox), al verificar dónde Persisten
-los sprints de un proyecto en modo JSON.
-
-**La rama JSON de `readProjectBacklog()` omite el campo `sprints` en el objeto que
-devuelve, pero `writeProjectBacklog()` sí lo escribe completo.** La escritura y la
-lectura no están en simetría: lo que se persiste nunca vuelve a leerse.
-
-### Los dos lados, medidos
-
-`server/services/storage.ts:384-389`, rama JSON del read:
-
-```ts
-return {
-  project: { ...project, storageType: 'json' },
-  items,
-  releases: Array.isArray(parsed.releases) ? parsed.releases : [],
-  lastUpdated: parsed.lastUpdated || new Date().toISOString()
-};
-```
-
-`server/services/storage.ts:799`, `writeProjectBacklog` modo JSON:
-
-```ts
-fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-```
-
-`data` se escribe entero, `sprints` incluido. La interfaz `ProjectBacklog`
-(`server/types.ts:16-22`) declara `sprints?: any[]`, así que el tipo dice que el campo
-existe: **el contrato promete un campo que el read nunca devuelve.**
-
-La rama markdown no tiene el problema: lee y devuelve `sprints` desde
-`backlog/sprints.json` (`storage.ts:262-267` y `:336`).
-
-### Consecuencias observables
-
-1. **`GET /api/sprints` responde `[]` siempre en un proyecto JSON.** La ruta
-   (`server/routes/api.ts:1005`) hace `backlog.sprints || []`, y `backlog` viene del
-   read que ya lo descartó.
-2. **Un sprint creado desde la UI se persiste y después desaparece.** `POST /api/sprints`
-   (`api.ts:1018`) hace `backlog.sprints = backlog.sprints || []`, escribe, y en el
-   siguiente `GET` la lista vuelve a estar vacía.
-3. **Colisión de IDs al crear dos sprints seguidos.** El cálculo de `maxNum`
-   (`api.ts:1038-1045`) parte siempre de un array vacío, así que genera
-   `sprint-${length}` con el mismo valor las dos veces.
-4. **Afecta al proyecto demo.** `isBacklogMdProject()` devuelve `false` para `isDemo`
-   (`registry.ts:34`), así que el demo vive en modo JSON y es uno de los casos rotos.
-
-### Por qué no se notó antes
-
-El modo markdown es el camino feliz y cubre el uso local principal. El modo JSON es
-además el de los proyectos sin `backlog.md`, y ahí no hay ningún test que lea de vuelta
-lo que se escribió. Ninguna suite ejercita hoy el ciclo completo de escritura y relectura
-en modo JSON.
-
-**Criterios de Aceptación:**
-- [x] #1 La rama JSON de `readProjectBacklog()` devuelve `sprints` con guard `Array.isArray`, en los tres puntos de retorno de esa rama (normal, inicial y error)
-- [x] #2 `GET /api/sprints` devuelve los sprints de un proyecto JSON tras un ciclo de escritura completo, y sobrevive a un reinicio del daemon
-- [x] #3 Crear dos sprints consecutivos en modo JSON produce IDs distintos: el cálculo de `maxNum` de `api.ts:1038` parte de la lista leída, no de una lista siempre vacía
-- [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
-- [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
-- [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-262] Cobertura de tests para el adaptador sandbox y el detector de entorno
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-La sandbox web de DEV-222 se publicó y está en producción, pero su lógica **no tiene una
-sola aserción**. Son ~480 líneas de `src/data/sandbox.ts` más el detector de
-`src/data/detect.ts`, y la suite de 17 pasos no las toca.
-
-El contraste es lo que hace el hueco visible: el equivalente del lado daemon tiene tests
-propios para cada almacenamiento (optimistic-locking, legacy-import, json-sprint,
-resilience), mientras que el camino que ahora atiende a cualquier visitante de la demo
-pública no tiene ninguno.
-
-Lo verificado en runtime fue de extremo a extremo en un navegador real, lo cual **no es
-lo mismo**: una prueba manual sobre un recorrido feliz no encuentra la colisión de un
-correlativo ni el sprint que queda activo sin querer. Un bug acá no filtra datos ni rompe
-instalaciones — se manifiesta como una demo visiblemente rota — pero es producto público.
-
-**Criterios de Aceptación:**
-- [x] #1 Caso de regresión que falle si `nextCode()` no genera el correlativo esperado al crear ítems sobre el seed real
-- [x] #2 Ciclo borrado lógico → restaurar → purgar verificado campo por campo, incluyendo `previousStatus` y que `purgeItem()` sea el único que saca el ítem del array
-- [x] #3 Invariante de un solo sprint `active` verificado tanto al crear como al actualizar, incluido el demotaje de los preexistentes
-- [x] #4 `deleteSprint()` deja los ítems desasociados (`sprint`, `targetSprint` y `sprints` vacíos), no apuntando a un nombre inexistente
-- [x] #5 `bulkUpdateItems()` devuelve el conteo correcto y no permite sobrescribir `id` ni `code`
-- [x] #6 `deleteProject()` en cascada no deja ítems, releases ni sprints huérfanos
-- [x] #7 `resetSandbox()` borra `gripm_sandbox_board` y `gripm_sandbox_config` y vuelve al seed
-- [x] #8 `fetchBoardData()` devuelve un clon: mutar el resultado no altera el estado interno del adaptador
-- [x] #9 `detect.ts`: probe que responde JSON → `httpAdapter`; que falla o agota el timeout → `sandboxAdapter`; y **una sola** invocación de `fetch` aunque haya llamadas concurrentes
-- [x] #10 `detect.ts` rechaza una respuesta 200 con `content-type` no JSON, que es el caso de un SPA servida en `/api/data`
-- [x] #11 Test de paridad del contrato que falle al agregar un método a `GripmApi` sin implementarlo en ambos adaptadores
-- [x] #12 Test que valida `data/demo-backlog.json` contra los tipos del cliente y del server, cubriendo las 5 columnas, sprints y ACs
-- [x] #13 `npm run audit:ux` en verde **sin regenerar el baseline**, `npx tsc --noEmit` con 0 errores y `npm test` y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-266] Separar el requisito de runtime del consumidor del requisito de desarrollo
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
-`engines.node` declaraba `>=22.6.0`, pero ese requisito **no le corresponde al consumidor**:
-es el requisito de **desarrollar** el repo, no el de **usar** el paquete.
-
-**Criterios de Aceptación:**
-- [x] #1 `engines.node` declara el requisito del **consumidor**, alineado con el badge del README
-- [x] #2 `devEngines.runtime` declara el requisito de **desarrollo** con `onFail: "error"`, para que un colaborador en un runtime incompatible reciba un error explícito y no un fallo raro más tarde
-- [x] #3 `npm install` sigue funcionando sin error en el runtime de desarrollo y en el de CI
-- [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
-- [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
-- [x] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
-- [x] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
-- [x] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-267] El guard de ACs no detectaba marcadores malformados y daba verde sobre datos descartados
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-`scripts/verify-backlog-sync.js` parsea el bloque de Acceptance Criteria con
-`/<!-\- AC:BEGIN ->([\s\S]*?)<!-\- AC:END ->/` y, si no matchea, hace **`continue`**: pasa a la
-siguiente tarea sin verificar nada y sin decir nada.
-
-La consecuencia es que **un marcador malformado era indistinguible de una tarea sin ACs**. Un
-archivo que abre `<!-\- AC:BEGIN ->` y no lo cierra:
-
-- se saltaba **todas** las invariantes de ACs (conteo, ids, checks cruzados contra el código),
-- sus ACs **no llegaban a `BACKLOG.md`**,
-- y `npm run backlog:check` informaba **`✅ Backlog 100% sincronizado y coherente con el
-  código`**.
-
-**Verde sobre datos que nunca leyó.** Siete archivos estaban en ese estado, arrastrando el
-defecto desde v1.3.0: todos cerraban su bloque de ACs con `<!-\- SECTION:DESCRIPTION:END ->`
-—un marcador duplicado del que ya usan correctamente más arriba— en vez del de cierre de ACs.
-Dos de los siete son de la sesión del 2026-10-14 (DEV-258 y DEV-259, ambos en `ready`).
-
-Esto es peor que un falso positivo: un falso positivo detiene el flujo con un diagnóstico
-equivocido. Esto **dejaba pasar** el flujo con un diagnóstico correcto sobre un conjunto de
-datos incompleto.
-
-**Criterios de Aceptación:**
-- [x] #1 `verify-backlog-sync.js` trata un `AC:BEGIN` sin `AC:END` como **error**, no como ausencia de ACs: mensaje explícito que nombre el archivo, `errorsFound++` y exit 1
-- [x] #2 Los siete archivos malformados (DEV-253 a DEV-259) quedan reparados con el marcador correcto
-- [x] #3 Los ACs de DEV-253 a DEV-259 aparecen en `BACKLOG.md`, verificado por grep sobre el consolidado
-- [x] #4 El guard **demuestra** que dispara: roto un marcador a propósito, `verify-backlog-sync.js` devuelve exit 1 con el mensaje; restaurado, vuelve a 0
-- [x] #5 `npm run backlog:sync`, `npm run backlog:check` y `npm test` en verde tras la reparación
-- [x] #6 `npx tsc --noEmit` y `node scripts/verify-changes.js --all` con código 0
-
----
-
-#### [DEV-268] El hook de pre-commit valida que BACKLOG.md esté presente, no que corresponda al commit
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-El hook `.githooks/pre-commit` rechaza el commit cuando se modifican tareas y `BACKLOG.md`
-**no está en el índice**. No verifica que el `BACKLOG.md` que se está por commitear
-**corresponda a las tareas que se están por commitear**.
-
-Esa diferencia es la que rompió CI el 2026-10-14 en `7d50af0`:
-
-1. El working tree tenía un cambio **sin commitear** en DEV-264.
-2. `npm run backlog:sync` regeneró `BACKLOG.md` **leyendo el working tree**, así que el
-   consolidado describía la versión nueva de DEV-264.
-3. `git add BACKLOG.md` lo subió al índice. El commit `a070a5e` quedó con un consolidado
-   que describía un archivo que ese commit no contenía.
-4. El hook pasó: `BACKLOG.md` estaba en el índice, que es exactamente lo que exige.
-5. En CI el checkout trae DEV-264 en su versión de HEAD, el consolidado no coincide, y
-   `npm run backlog:check` falla con exit 1.
-
-**El hook y CI miden cosas distintas.** El hook mide presencia; CI mide correspondencia.
-El hook es la única barrera entre el error y el push, y es la que no lo detecta.
-
-El defecto es de clase: cualquier tarea sin commitear en el working tree durante un
-`backlog:sync` reproduce el fallo, y el síntoma aparece **un commit después, en otra
-máquina**, sin forma local de reproducirlo salvo que se haga stash primero.
-
-**Criterios de Aceptación:**
-- [x] #1 El hook (o `verify-backlog-sync.js` en un modo nuevo) regenera el consolidado **leyendo el índice de git**, no el working tree, y compara contra el `BACKLOG.md` staged
-- [x] #2 Con una tarea modificada en el working tree y **sin** stagear, el hook pasa; con esa misma tarea **stageada** y un `BACKLOG.md` stale en el índice, el hook falla con exit 1
-- [x] #3 El mensaje de error nombra el archivo `.md` cuya versión no coincide con el consolidado, en vez de un "BACKLOG.md no incluido en el índice" que era cierto pero irrelevante
-- [x] #4 Demostrado en ambos sentidos: staging del caso que falla y del caso que pasa, con el comando ejecutado y la salida
-- [x] #5 El check local (`npm run backlog:check`) y el de CI pasan con el árbol limpio, sin necesidad de `git stash`
-- [x] #6 `npx tsc --noEmit`, `npm test` y `node scripts/verify-changes.js --all` con código 0
-
----
-
-#### [DEV-270] Armonización y simetría visual en selector de navegación del Header (Tabs)
-- **Prioridad**: `high` | **Tipo**: `ux`
-
-En `src/components/Header.tsx`, los botones del segmented control de vistas (`Tablero`, `Sprints`, `Releases`) poseen dimensiones mínimas dispares y hardcodeadas (`min-w-[88px]`, `min-w-[145px]`, `min-w-[98px]`).
-
-Esta disparidad se introdujo originalmente para prevenir saltos de línea ante textos extensos en español, pero provoca que el control segmentado central del encabezado se perciba visualmente asimétrico, irregular y desbalanceado con respecto a los estándares de diseño de componentes de navegación.
-
-Adicionalmente, en resoluciones compactas de escritorio (1024×768 a 1366×768), la distribución `grid grid-cols-[1fr_auto_1fr]` con `justify-self-center` genera una **colisión crítica**: el bloque izquierdo (selector de proyecto + badge Demo + botón `Reset demo` con texto expandido) excede el tercio asignado y desborda físicamente sobre las pestañas centrales, montando el botón `Reset demo` directamente encima de la pestaña `Board` (Tablero).
-
-### Objetivos:
-1. Homogeneizar el ancho y espaciado de los botones del selector de vistas para lograr una barra simétrica y balanceada sin anchos artificiales sobredimensionados (`min-w-[145px]`).
-2. Blindar el layout del Header mediante límites de ancho y flexbox/grid responsivo para garantizar cero colisión física entre el bloque de proyecto y la barra central de navegación a cualquier resolución (>= 1024px).
-3. Optimizar el botón `Reset demo` del Header: colapsar a icono accesible con tooltip en pantallas compactas (< 1280px / `xl`), e incorporar la acción de reinicio en el banner de demo interactivo de `App.tsx` para máxima usabilidad.
-4. Asegurar paridad bilingüe (`en` / `es`) y preservar la estabilidad visual Zero-CLS sin oscilaciones al alternar idiomas.
-
-**Criterios de Aceptación:**
-- [x] #1 Los botones del segmented control en `Header.tsx` comparten un dimensionamiento armónico y simétrico sin saltos bruscos de ancho entre pestañas (`min-w-[145px]` reemplazado por dimensionamiento equilibrado)
-- [x] #2 Las etiquetas visuales en inglés y español no desbordan ni fuerzan anchos desproporcionados
-- [x] #3 Se preserva la estabilidad Zero-CLS al alternar entre inglés y español
-- [x] #4 Los estados activo, hover y focus ring mantienen coherencia con los tokens de diseño
-- [x] #5 Cero solapamiento ni desborde entre la columna izquierda (`singleProject`, `Reset demo`) y las pestañas centrales de navegación en resoluciones de escritorio (1024×768 a 1366×768)
-- [x] #6 El botón `Reset demo` en el Header se muestra en modo icon-only con tooltip accesible (`title` y `aria-label`) en resoluciones compactas (< 1280px), expandiendo su texto solo en pantallas amplias (`xl`), y la acción se expone también en el banner de demo de `App.tsx`
-- [x] #7 `npm test`, `npm run audit:ux` y `npm run backlog:check` pasan con código 0
-
----
-
-#### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Actualmente, la barra superior `FilterBar.tsx` cuenta con píldoras de acceso rápido rígidas (Tipos y Prioridades fijos). Si un usuario desea filtrar frecuentemente por estados concretos (ej: solo `doing` y `review`) o por un módulo específico (ej: `UI / Layout`), debe abrir repetidamente el popover de filtros avanzados.
-
-En lugar de construir un panel de configuración complejo y pesado para personalizar qué botones se colocan en la barra (lo que generaría sobre-ingeniería), se adopta el estándar de la industria (Linear / GitHub): **materialización dinámica de filtros activos como chips descartables**.
-
-### Objetivos:
-1. Toda dimensión aplicada desde el Popover de Filtros Avanzados que no pertenezca a los accesos directos estándar (ej. Estados específicos, Módulo, Asignado, Sprint) se refleja de inmediato en la barra como una píldora activa interactiva (ej: `[Estado: doing ✕]`, `[Módulo: Auth ✕]`).
-2. El usuario puede remover cualquier filtro individual con un clic sobre la X del chip sin tener que abrir el popover.
-3. El botón general de "Limpiar filtros" sigue reseteando todas las condiciones activas.
-4. Diseño responsivo con scroll horizontal suave o colapso elegante en pantallas pequeñas para evitar solapamientos con las estadísticas.
-
-**Criterios de Aceptación:**
-- [x] #1 Al aplicar filtros desde AdvancedFiltersPopover (estados, módulos, sprints, releases), estos se renderizan como chips activos en la barra principal
-- [x] #2 Cada chip muestra la dimensión, el valor y un botón de descarte individual (✕)
-- [x] #3 Hacer clic en la ✕ de un chip elimina ese filtro específico de inmediato y actualiza la vista
-- [x] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
-- [x] #5 Coherencia de accesibilidad y foco para los chips descartables
-- [x] #6 Tests unitarios para el estado de filtros y chips
-
----
-
-#### [DEV-274] Optimización de densidad para Metodología y Vistas en Settings (1366×768)
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En `SettingsView.tsx` (pestaña *Workflow & Views*), la sección *Project Work Methodology* despliega tres tarjetas voluminosas con descripciones extensas y badges, seguidas inmediatamente por otras tres tarjetas similares para *Default View Selector*.
-
-En resoluciones de escritorio habituales como 1366×768 (y monitores estándar de laptop), esta distribución consume prácticamente todo el primer pliegue de pantalla (*above the fold*), desplazando hacia abajo las opciones críticas de activación de pestañas y configuración de vistas.
-
-### Objetivos:
-1. Reemplazar los bloques masivos de tarjetas por selectores compactos (ej. radio cards de 1 fila o segmented control interactivo con icono, título y badge conciso).
-2. Trasladar los textos explicativos extensos a tooltips contextuales o descripciones de una sola línea con jerarquía atenuada.
-3. Asegurar que las opciones de *Habilitación de Pestañas* y *Vistas de Trabajo* queden visibles sin requerir scroll excesivo.
-4. Mantener la alineación con los principios de densidad de escritorio establecidos en DEV-264.
-
-**Criterios de Aceptación:**
-- [x] #1 El selector de Metodología de Trabajo ocupa una altura significativamente menor mediante un diseño horizontal compacto
-- [x] #2 El selector de Vista por Defecto utiliza un control segmentado estilizado y no una grilla de tarjetas altas
-- [x] #3 A resolución 1366×768, la sección completa de Metodología y Vistas permite visualizar los controles principales en el primer scroll
-- [x] #4 Las descripciones de cada metodología siguen accesibles para el usuario (mediante hint o tooltip)
-- [x] #5 `npm run audit:ux` y `npm test` pasan sin regresiones
-
----
-
-#### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Actualmente, reordenar una tarea dentro de una columna o en la tabla de Backlog depende casi exclusivamente del arrastre con mouse (drag & drop). En `ItemCard.tsx`, el menú contextual solo ofrece subir o bajar una única posición (`canMoveUp` / `canMoveDown`), lo que resulta sumamente tedioso e inviable cuando una columna o backlog contiene decenas de ítems.
-
-Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalmente por todo el viewport o abrir el modal de edición completo.
-
-### Objetivos:
-1. **Mover al Tope / Fondo:** Incorporar en el menú contextual (`...`) de cada tarjeta en el Tablero y en el menú de acciones de cada fila en `SprintView`:
-   - *"Mover al principio de la columna / backlog"* (Top rank)
-   - *"Mover al final de la columna / backlog"* (Bottom rank)
-2. **Asignación Rápida de Sprint:** Agregar un submenú o acción directa *"Asignar a Sprint →"* con listado de sprints vigentes y la opción *"Devolver al Backlog"*, permitiendo transferir la tarea en un solo clic sin abrir el formulario de edición.
-3. Actualizar el orden numérico (`order`) de forma consistente para garantizar persistencia determinística en disco.
-
-**Criterios de Aceptación:**
-- [x] #1 El menú contextual de la tarjeta en KanbanBoard incluye acciones para mover al tope y al fondo de su columna
-- [x] #2 Cada fila en SprintView incluye menú o botones de acción para mover el ítem al tope o fondo de su contenedor (sprint o backlog)
-- [x] #3 Se provee acción contextual para mover rápidamente el ítem a cualquier sprint activo/vigente o al backlog general
-- [x] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
-- [x] #5 Accesibilidad por teclado en las nuevas opciones de menú
-- [x] #6 `npm test` y verificación de consistencia en verde
-
----
-
-#### [DEV-278] Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar
-- **Prioridad**: `low` | **Tipo**: `improvement`
-
-En `FilterBar.tsx`, el indicador de resumen de métricas (`2 pendientes • 2 en curso • 3 completados • 7 total`) se renderiza siempre de forma obligatoria en el extremo derecho de la barra.
-
-En pantallas medianas o portátiles, esta cadena de texto compite directamente por el ancho horizontal con los filtros de búsqueda y píldoras rápidas, provocando potenciales solapamientos o wrapping no deseado. Además, usuarios que prefieren interfaces limpias o minimalistas no disponen de un mecanismo para ocultar este resumen.
-
-### Objetivos:
-1. Agregar una propiedad en la configuración (`config.ui.showFilterBarStats` o `config.showFilterBarStats`, por defecto `true`).
-2. Incorporar un switch en `SettingsView.tsx` (sección Apariencia / Filtros) para encender o apagar este bloque.
-3. Respetar la preferencia en `FilterBar.tsx`, ocultando el componente cuando el usuario lo desactive y liberando espacio horizontal completo para los filtros.
-
-**Criterios de Aceptación:**
-- [x] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
-- [x] #2 La preferencia se persiste correctamente en la configuración del proyecto
-- [x] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
-- [x] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
-- [x] #5 `npm test` y consistencia de esquemas de configuración en verde
-
----
-
-#### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
-- **Prioridad**: `medium` | **Tipo**: `bug`
-
-En `src/components/ItemModal.tsx`, las plantillas predefinidas que se insertan al presionar los botones de ayuda de BDD se encuentran hardcodeadas en español:
-
-1. **Plantilla de Historia de Usuario (línea 728):**
-   ```ts
-   const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
-   ```
-2. **Criterio de Aceptación BDD (línea 797):**
-   ```ts
-   text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]'
-   ```
-
-Cuando la aplicación está configurada en inglés (`config.language = 'en'`), presionar estos botones sigue insertando texto literal en español en lugar de los equivalentes canónicos en inglés (`AS A... I WANT... SO THAT...` y `GIVEN... WHEN... THEN...`).
-
-### Objetivos:
-1. Extraer los textos y plantillas de BDD al catálogo de traducciones `src/utils/i18n.ts`.
-2. Proporcionar las versiones canónicas en inglés:
-   - Story: `**AS A** [user role]\n**I WANT** [action or capability]\n**SO THAT** [business value or benefit]\n`
-   - AC Scenario: `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`
-3. Mantener las versiones canónicas en español en `t(...)`.
-4. Asegurar que la inserción respete el idioma activo del usuario en la sesión.
-
-**Criterios de Aceptación:**
-- [x] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
-- [x] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
-- [x] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
-- [x] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
-- [x] #5 `npm test` y validación de tipos sin errores
-
----
-
-#### [DEV-280] Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem contenedor o padre (`parentId`) presenta dos problemas graves de usabilidad:
-
-1. **Contaminación del listado:** La definición de candidatos a padre (`line 196`) incluye ítems de tipo `feature`:
-   ```ts
-   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
-   ```
-   En cualquier proyecto mediano o grande, esto inunda el selector con cientos de tareas individuales que no son contenedores legítimos de jerarquía.
-2. **Falta de buscador:** El control es un elemento `<select>` plano de HTML nativo (`lines 1860-1880`). Si un usuario tiene 30 épicas o no recuerda el ID exacto (`DEV-140`), se ve obligado a hacer scroll visual extenso sin capacidad de filtrar por nombre o palabra clave.
-
-### Objetivos:
-1. **Restricción canónica:** Filtrar `candidateParents` estrictamente por `it.type === 'epic' || it.type === 'initiative'` (contenedores jerárquicos reales).
-2. **Combobox / Popover con Buscador en vivo:** Reemplazar el `<select>` plano por un componente de selección accesible con input de búsqueda integrado, permitiendo escribir parte del título o del código para filtrar instantáneamente la lista de épicas.
-3. Mostrar claramente el tipo (`[EPIC]` o `[INITIATIVE]`), el código y el título completo en el desplegable.
-4. Mantener la opción de desvincular el padre de forma clara e inmediata.
-
-**Criterios de Aceptación:**
-- [x] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
-- [x] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
-- [x] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
-- [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
-- [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
-- [x] #6 `npm test` y consistencia en la jerarquía de ítems
-
----
+### 🚀 Ready for Deploy (1)
 
 #### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
 - **Prioridad**: `medium` | **Tipo**: `feature`
@@ -596,7 +120,7 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
-### 📋 Backlog / Draft (20)
+### 📋 Backlog / Draft (27)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1131,7 +655,179 @@ Esta tarea implementa **selección múltiple de ítems** y una **barra flotante 
 
 ---
 
-### ✅ Done / Deployed (235)
+#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
+
+### Problemas identificados:
+1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
+2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
+3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
+4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
+
+### Solución propuesta:
+- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
+- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
+- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
+- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
+
+**Criterios de Aceptación:**
+- [ ] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
+- [ ] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
+- [ ] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
+- [ ] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
+- [ ] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
+
+---
+
+#### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento de I/O en disco en el servicio de almacenamiento del backend ([server/services/storage.ts](file:///c:/Users/Pablo/Proyectos/gripm/server/services/storage.ts)) para evitar la lectura y parseo redundante de cientos de archivos Markdown en cada solicitud.
+
+### Problemas identificados:
+1. **Lectura síncrona bloqueante masiva:** Cada petición a `/api/data` (al cargar el tablero, tras guardar tareas o al dispararse eventos SSE) ejecuta `loadProjectBacklog`, el cual itera síncronamente sobre todos los archivos `.md` de `backlog/tasks/` (278 archivos en proyectos medianos).
+2. Para cada archivo realiza `fs.statSync`, `fs.readFileSync` y `parseBacklogMd` (análisis léxico de frontmatter y expresiones regulares), congelando el event loop de Node.js durante 50-150 ms en cada ciclo.
+3. El 99% de las veces, los archivos en disco no han cambiado entre una solicitud y la siguiente.
+
+### Solución propuesta:
+- Implementar una estructura de caché en memoria (`Map<string, { mtimeMs: number, item: any }>`) indexada por la ruta absoluta del archivo de tarea.
+- Al listar archivos en `loadProjectBacklog`, obtener únicamente el `stat` rápido del archivo: si `fileStat.mtimeMs` coincide con el valor en caché, reutilizar la tarea parseada en memoria sin llamar a `fs.readFileSync` ni `parseBacklogMd`.
+- Invalidar o actualizar la entrada puntual en el caché cuando se realicen escrituras a través de las funciones de mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, `restoreBacklogMdItem`, `purgeBacklogMdItem`).
+- Limpiar entradas obsoletas si se eliminan archivos de disco.
+
+**Criterios de Aceptación:**
+- [ ] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
+- [ ] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
+- [ ] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
+- [ ] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
+- [ ] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
+
+---
+
+#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
+
+### Problemas identificados:
+1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
+2. **Componentes gigantes en el chunk raíz:**
+   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
+   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
+   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
+3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
+
+### Solución propuesta:
+- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
+- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
+- Cargar de forma diferida los modales secundarios de configuración o importación.
+- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
+
+**Criterios de Aceptación:**
+- [ ] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
+- [ ] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
+- [ ] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
+- [ ] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
+- [ ] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
+
+---
+
+#### [DEV-285] Carga diferida y asíncrona bajo demanda de diccionarios i18n
+- **Prioridad**: `low` | **Tipo**: `tech_debt`
+
+Optimización del sistema de internacionalización ([src/utils/i18n.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/utils/i18n.tsx)) para cargar únicamente el diccionario del idioma activo (`es.json` o `en.json`) en lugar de incluir ambos de forma estática en el paquete principal de la aplicación.
+
+### Problemas identificados:
+1. Actualmente `i18n.tsx` importa directamente ambos archivos JSON al inicio del archivo:
+   ```ts
+   import esDict from '../locales/es.json';
+   import enDict from '../locales/en.json';
+   ```
+2. Esto suma más de **108 kB de datos JSON planos** al bundle inicial de JavaScript, a pesar de que el usuario solo puede usar un idioma a la vez.
+
+### Solución propuesta:
+- Modificar el proveedor `I18nProvider` para resolver dinámicamente mediante `import()` el archivo de idioma requerido según la preferencia del usuario o del sistema.
+- Cargar inicialmente solo el idioma determinado por `getInitialLanguage()`.
+- Si el usuario cambia de idioma en `SettingsView` o vía selector, cargar asíncronamente el nuevo diccionario y almacenarlo en caché en memoria.
+- Mantener las firmas de tipado estricto `TranslationKey` usando `typeof` sobre una definición de tipo sin forzar la importación del contenido completo en tiempo de ejecución.
+
+**Criterios de Aceptación:**
+- [ ] #1 El bundle inicial no incluye los diccionarios de idiomas que no coincidan con el idioma activo
+- [ ] #2 Al cambiar de idioma en configuración, el nuevo diccionario se carga bajo demanda de forma asíncrona sin errores
+- [ ] #3 La función `t(...)` mantiene total compatibilidad hacia atrás y conserva el tipado estricto de TypeScript
+- [ ] #4 `npx tsc --noEmit` y `npm test` pasan sin fallas
+
+---
+
+#### [DEV-286] Carga progresiva y optimización de layout containment en columnas masivas
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Mecanismo de carga progresiva y optimizaciones de renderizado de DOM para columnas del tablero Kanban que contengan un volumen muy elevado de tareas (ej. columnas `Draft` o `Done` con cientos de ítems acumulados).
+
+### Problemas identificados:
+1. Cuando una columna acumula más de 100 tarjetas (situación común en proyectos maduros o con historiales extensos), el navegador debe gestionar simultáneamente miles de nodos DOM, SVGs en línea y estilos computados en un contenedor desplazable.
+2. Esto provoca que el scroll vertical de la columna o el drag-and-drop de tarjetas presente micro-tirones (jank de layout/reflow).
+
+### Solución propuesta:
+- Implementar renderizado progresivo por lotes (ej. renderizar las primeras 40-50 tarjetas y cargar las siguientes al hacer scroll o mediante botón "Cargar más tareas").
+- Aplicar optimizaciones modernas de CSS en las tarjetas del Kanban: `contain-intrinsic-size` y `content-visibility: auto` (o `contain: content`) para que el motor del navegador omita los cálculos de pintura y layout de las tarjetas fuera del viewport visible.
+- Preservar completamente la experiencia de arrastre (`Drag and Drop`) e indicadores visuales de drop target.
+
+**Criterios de Aceptación:**
+- [ ] #1 Las columnas con más de 50 tareas adoptan carga progresiva o contención de layout para evitar sobrecarga del DOM
+- [ ] #2 El scroll en columnas densas se mantiene a 60 FPS estables sin bloqueos del hilo principal
+- [ ] #3 La funcionalidad de arrastrar y soltar (drag & drop) y reordenamiento de tareas sigue operando con total precisión
+- [ ] #4 Las pruebas unitarias y de integración (`npm test`) se ejecutan sin regresiones
+
+---
+
+#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
+- **Prioridad**: `low` | **Tipo**: `ux`
+
+En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
+
+Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
+
+Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
+1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
+2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
+   - Español: "Estados activos" (o "Todos los estados activos").
+   - Inglés: "Active statuses" (o "All active statuses").
+3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
+
+**Criterios de Aceptación:**
+- [ ] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
+- [ ] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
+- [ ] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
+- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
+
+---
+
+#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
+- **Prioridad**: `low` | **Tipo**: `bug`
+
+En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
+`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
+
+En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
+
+### Solución propuesta:
+1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
+2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
+   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
+3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
+
+**Criterios de Aceptación:**
+- [ ] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
+- [ ] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
+- [ ] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
+- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
+
+---
+
+### ✅ Done / Deployed (251)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -5739,6 +5435,24 @@ Reestructurar el flujo de entrega continua en `.github/workflows/publish.yml` pa
 
 ---
 
+#### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, orientada a demostraciones públicas desde dispositivos móviles y comunidades técnicas sin requerir un CLI ni daemon local:
+1. **Detección automática de entorno y fallback en memoria:** Si la aplicación detecta que está corriendo en la web sin conexión al socket o CLI local, inicializa automáticamente un adaptador en memoria y LocalStorage con un dataset precargado (un sprint activo, tareas en distintas columnas, criterios de aceptación interactivos y un release publicado con changelog) sin mostrar pantallas vacías ni errores de red.
+2. **Selector de formato dual interactivo:** Incorporar en la tarjeta o modal de tarea un selector que permita previsualizar en vivo cómo se serializa esa tarea en Markdown (`backlog/tasks/*.md`) frente a JSON unificado (`.gripm/backlog.json`).
+3. **Optimización móvil estricta (Zero-CLS & Touch Targets):** Interfaz completamente adaptada a pantallas móviles (360px a 430px) con áreas táctiles de al menos 44px de altura/anchura y navegación táctil fluida.
+4. **Configuración de hosting SPA:** Configuración limpia de `vercel.json` para soportar rutas SPA sin errores 404 en navegación directa o recarga.
+5. **Enlace a demo en README:** Incorporar badge y enlace directo a la demo en producción en la cabecera de `README.md` y `README.es.md`.
+
+**Criterios de Aceptación:**
+- [x] #1 Compilacion de produccion con Vite limpia hacia Vercel con configuracion de vercel.json para soportar rutas SPA
+- [x] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
+- [x] #5 Enlace directo a la demo en produccion incorporado en la cabecera del README.md
+- [x] #6 npm test y npm run backlog:check pasan con codigo 0
+
+---
+
 #### [DEV-223] Compatibilidad amplia de runtime Node 20 LTS y evaluación de distribución binaria
 - **Prioridad**: `high` | **Tipo**: `feature`
 
@@ -6516,6 +6230,464 @@ Fuera de alcance: bloque "Acerca de" en `SettingsView` (Opción 2, descartada po
 - [x] #5 `src/locales/es.json` y `src/locales/en.json` exponen todas las claves nuevas del pie y `KeyboardShortcutsModal` compila sin claves faltantes
 - [x] #6 `npx tsc --noEmit` reporta 0 errores
 - [x] #7 Pirámide de verificación en verde: `npm test` (16 pasos, 20.2s), `npm run audit:ux` (0 findings nuevos en UX-011), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run test:ui`, `npm run build` y `node scripts/verify-changes.js --all` (413 archivos)
+
+---
+
+#### [DEV-258] Refinamiento del pie del cheatsheet: retirar el botón de cierre redundante y alinear el hint de reapertura
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+Refinamiento post-release del pie introducido por DEV-257 (que ya se selló y publicó en `v1.3.0`, por lo que esta iteración se registra como ítem nuevo y no como edición de un ítem en `done`).
+
+El pie de `KeyboardShortcutsModal` quedó con un botón "Cerrar" que es una cuarta vía de descarte redundante: el primitivo `Modal` ya ofrece tres, a saber la X del header, la trampa de foco con `Esc` (`useFocusTrap`) y el click en el backdrop. El botón competía por atención con los enlaces de valor real y era el elemento de mayor peso del pie. 
+
+Problemas concretos que corrige:
+1. **Redundancia de descarte.** Cuatro elementos cierran el mismo diálogo. Tres son suficientes y las tres restantes son las convencionales (X de header, `Esc`, backdrop). Un cuarto disparador crea ambigüedad sobre cuál es el canónico.
+2. **Peso visual y jerarquía.** El botón era el elemento de mayor peso tipográfico del pie (`font-semibold` sobre `bg-slate-200`), es decir, el pie destacaba la acción de salir por encima de la información. Justo lo contrario de un pie informativo.
+3. **Ocupación vertical.** El `min-h-[44px]` del botón forzaba `py-3` (68 px de alto). Sin él, el alto lo fija el `min-h-[44px]` de los enlaces y el pie baja a `py-2` (60 px), liberando espacio para el cuerpo del modal en pantallas bajas.
+4. **Hint de reapertura inline.** El texto "Presiona ? en cualquier momento para abrir esta guía" pasa a compartir la fila con la marca y los enlaces, en el extremo opuesto (`justify-between`), en lugar de ocupar un bloque propio. Por debajo de `sm` se oculta, de modo que en móvil la fila queda en una sola línea con `marca + enlaces`.
+5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real —el pie nunca puede superponerse porque el cuerpo scrollea—, sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
+
+Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
+
+**Criterios de Aceptación:**
+- [x] #1 El pie de `KeyboardShortcutsModal` no renderiza ningún botón de cierre
+- [x] #2 El diálogo sigue siendo descartable por la X del header, por `Esc` y por click en el backdrop, verificado sobre el primitivo `Modal` (`onClick={onClose}` en el backdrop) y `useFocusTrap` (`event.key === 'Escape'`), con el paso `focus-trap` de la suite en verde
+- [x] #3 El hint de reapertura se renderiza en la misma fila que la marca y los enlaces, alineado al extremo derecho por `justify-between`, y permanece oculto por debajo de `sm` (UX-002: el `<kbd>` conserva `hidden sm:inline-flex` en su propia línea porque el auditor es de matching por línea)
+- [x] #4 El pie pasa de `py-3` a `py-2` y el alto resultante queda determinado por el `min-h-[44px]` de los enlaces; `npm run audit:ux --rule UX-009` reporta 0 findings
+- [x] #5 `npx tsc --noEmit` reporta 0 errores
+- [x] #6 Pirámide de verificación en verde: `npm test` (16/16 pasos), `npm run audit:ux` (0 errores, 0 sugerencias; las 12 advertencias son los falsos positivos documentados de UX-010), `npm run backlog:sync` && `npm run backlog:check`, `npm run publish:check`, `npm run build` y `node scripts/verify-changes.js --all` (414 archivos)
+- [x] #7 El cuerpo scrolleable no corta contenido en seco contra la línea del pie: aplica `mask-image` con degradado en los últimos 28 px más `pb-7` de aire, de modo que un header de sección que caiga sobre el borde de scroll se disuelva en el pie y se lea como "hay más abajo" en lugar de texto pisado
+
+---
+
+#### [DEV-259] Alinear .gripm/config.json del repo con la configuración OSS canónica documentada en AGENTS.md
+- **Prioridad**: `low` | **Tipo**: `chore`
+
+El gotcha 17 de `AGENTS.md` declara que `.gripm/config.json` define la configuración OSS canónica del repositorio, y la describe con `"methodology": "kanban"` y `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`. El archivo commiteado no coincidía con esa descripción en dos claves, y además arrastraba defaults de esquema que ya no existían en el modelo de configuración vigente.
+
+Divergencias detectadas al contrastar disco contra documentación:
+
+| Clave | En HEAD | Canónico (gotcha 17) | Motivo del cambio |
+| :--- | :--- | :--- | :--- |
+| `methodology` | `scrum` | `kanban` | El repo opera bajo flujo Kanban continuo (gotcha 16); `scrum` contradecía la propia metodología declarada |
+| `mode` | `single` | — | Estado real del entorno de trabajo, sin efecto en la distribución |
+| `enabledTabs.sprint` | `true` | `false` | Alineación con el canónico documentado |
+| `modules.calendar` | ausente | — | Default de esquema |
+| `estimation` | ausente | — | Default de esquema (DEV-137/DEV-139) |
+| `visibleCardMetadata` | ausente | — | Default de esquema (8 claves) |
+
+Alcance:
+1. `enabledTabs.sprint` pasa a `false` para respetar el canónico documentado.
+2. Se conservan los defaults de esquema incorporados (`calendar`, `estimation`, `visibleCardMetadata`), que son la forma normalizada que el modelo vigente espera y no constituyen preferencias personales.
+3. Verificar que el tab de Sprints deshabilitado no deja la app en un estado inconsistente: `App.tsx` ya resuelve el caso con la auto-redirección `sprint → kanban`, de modo que `defaultView: "sprint"` degrada sin intervención.
+
+Fuera de alcance: modificar `AGENTS.md` (el canónico documentado es la referencia a la que se alinea la config), `defaultView`, y cualquier clave de `theme`, `density` o `language`, que ya coinciden con el canónico.
+
+**Criterios de Aceptación:**
+- [x] #1 `.gripm/config.json` declara `methodology: "kanban"` y `enabledTabs: { "kanban": true, "sprint": false, "release": true }`, coincidindo con el canónico del gotcha 17 de `AGENTS.md`
+- [x] #2 El JSON sigue siendo válido (parseado con `ConvertFrom-Json`) y conserva la ausencia de newline terminal que tenía en HEAD (último byte `125` = `}`)
+- [x] #3 Con `enabledTabs.sprint: false` la app no queda en un tab huérfano: `activeTab` se inicializa desde `localStorage` o `kanban` y **no** desde `config.defaultView`, y un `activeTab: 'sprint'` persistido degrada por la auto-redirección de `App.tsx` hacia `kanban`. Verificado en runtime con `npm run test:ui` (Playwright) en verde
+- [x] #4 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md`
+- [x] #5 `npm test` sigue en verde (16/16 pasos) y `node scripts/verify-changes.js --all` valida el árbol (415 archivos)
+
+---
+
+#### [DEV-260] Sistema de ADR (Architecture Decision Records) en docs/adr y registro de las decisiones fundacionales de gripm
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+El Protocolo de Aprendizaje Continuo del playbook (`.agents/TEAM_PLAYBOOK.md`, sección "Continuous Learning Protocol") exige que todo patrón arquitectónico superior quede registrado como *Architectural Decision Record*, y la plantilla de sprint (`docs/sprints/SPRINT_SPEC_TEMPLATE.md`, sección "KNOWLEDGE FEED") reserva un campo `ADR Recorded: [path]` que hoy no tiene destino canónico. En el repositorio no existía ninguna carpeta `docs/adr/`, de modo que el protocolo era inaplicable y las decisiones arquitectónicas más load-bearing de gripm vivían únicamente dispersas en prosa de `AGENTS.md`, `README.md` y `docs/ARCHITECTURE.md`.
+
+Decisiones ya tomadas y consolidadas en el código, hoy sin registro formal:
+
+1. **Markdown como fuente de verdad** (`backlog-md`), con `BACKLOG.md` como consolidado generado y Git como control de versiones.
+2. **Backend embebido como plugin de middleware de Vite** (`server/` + `vite.config.ts`), sin servidor de aplicación propio ni proceso adicional.
+3. **Servidor MCP por stdio** (`scripts/mcp-server.ts` + `bin/gripm-mcp.js`), 12 herramientas JSON-RPC 2.0 sobre el mismo núcleo de persistencia que la UI.
+4. **Daemon local monousuario sin autenticación HTTP** (SEC-10), mitigado con validación de `Host`/`Origin` y cabeceras de seguridad (SEC-01, DEV-243).
+5. **Overlays montados con `createPortal` y layout raíz estable** (Zero-CLS), DEV-129, DEV-130 y gotcha 10 de `AGENTS.md`.
+
+Alcance de esta tarea:
+1. Crear `docs/adr/` con convención de nombres MADR (`NNNN-slug.md`, numeración secuencial e inmutable), estados canónicos y plantilla `0000-plantilla.md`.
+2. Sembrar los 5 ADR fundacionales como registros de decisión **ya aceptados** (documentan el estado del arte, no abren debate).
+3. Enlazar el registro desde `docs/ARCHITECTURE.md` y desde `AGENTS.md` (gotcha de trazabilidad arquitectónica).
+
+Fuera de alcance: validación mecánica de la convención en `scripts/verify-changes.js` (decidido explícitamente con el PO: la convención queda documentada, sin fricción nueva en el gate), y renumerar o reescribir decisiones preexistentes en documentos actuales.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe `docs/adr/README.md` con: propósito del registro, criterio de "esto merece un ADR", anatomía del documento, estados canónicos (`Propuesta`, `Aceptado`, `Reemplazado`, `Obsoleto`), reglas de inmutabilidad y el índice completo de registros
+- [x] #2 Existe `docs/adr/0000-plantilla.md` como plantilla reutilizable con las secciones del formato MADR (Contexto, Decision Drivers, Opciones consideradas, Decisión, Consecuencias, Referencias) y frontmatter de estado y fecha
+- [x] #3 Los 5 ADR semilla existen con numeración `0001`-`0005` y slug kebab-case en español: `0001-markdown-como-fuente-de-verdad.md`, `0002-backend-embebido-como-plugin-de-vite.md`, `0003-servidor-mcp-por-stdio.md`, `0004-daemon-local-sin-autenticacion-http.md`, `0005-overlays-via-portales-y-layout-estable.md`
+- [x] #4 Cada ADR semilla documenta contexto, opciones descartadas **con motivo**, decisión, consecuencias (positivas y negativas) y referencias a tareas del backlog que lo originaron
+- [x] #5 `docs/ARCHITECTURE.md` incluye una sección que enlaza el registro de ADR y aclara que ARCHITECTURE.md describe el estado actual mientras que el ADR registra el porqué de las decisiones
+- [x] #6 `AGENTS.md` incorpora un gotcha de trazabilidad arquitectónica que obliga a registrar en `docs/adr/` toda decisión con trade-offs reales, y remite al campo `ADR Recorded` de la plantilla de sprint
+- [x] #7 `npm run backlog:sync` y `npm run backlog:check` reportan coherencia con `BACKLOG.md` (código 0)
+- [x] #8 `node scripts/verify-changes.js --all` valida el árbol completo sin defectos estructurales ni de codificación
+
+---
+
+#### [DEV-261] Sprints se escriben pero se descartan al leer en proyectos en modo JSON
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Encontrado al ejecutar DEV-222 (dataset de la sandbox), al verificar dónde Persisten
+los sprints de un proyecto en modo JSON.
+
+**La rama JSON de `readProjectBacklog()` omite el campo `sprints` en el objeto que
+devuelve, pero `writeProjectBacklog()` sí lo escribe completo.** La escritura y la
+lectura no están en simetría: lo que se persiste nunca vuelve a leerse.
+
+### Los dos lados, medidos
+
+`server/services/storage.ts:384-389`, rama JSON del read:
+
+```ts
+return {
+  project: { ...project, storageType: 'json' },
+  items,
+  releases: Array.isArray(parsed.releases) ? parsed.releases : [],
+  lastUpdated: parsed.lastUpdated || new Date().toISOString()
+};
+```
+
+`server/services/storage.ts:799`, `writeProjectBacklog` modo JSON:
+
+```ts
+fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+```
+
+`data` se escribe entero, `sprints` incluido. La interfaz `ProjectBacklog`
+(`server/types.ts:16-22`) declara `sprints?: any[]`, así que el tipo dice que el campo
+existe: **el contrato promete un campo que el read nunca devuelve.**
+
+La rama markdown no tiene el problema: lee y devuelve `sprints` desde
+`backlog/sprints.json` (`storage.ts:262-267` y `:336`).
+
+### Consecuencias observables
+
+1. **`GET /api/sprints` responde `[]` siempre en un proyecto JSON.** La ruta
+   (`server/routes/api.ts:1005`) hace `backlog.sprints || []`, y `backlog` viene del
+   read que ya lo descartó.
+2. **Un sprint creado desde la UI se persiste y después desaparece.** `POST /api/sprints`
+   (`api.ts:1018`) hace `backlog.sprints = backlog.sprints || []`, escribe, y en el
+   siguiente `GET` la lista vuelve a estar vacía.
+3. **Colisión de IDs al crear dos sprints seguidos.** El cálculo de `maxNum`
+   (`api.ts:1038-1045`) parte siempre de un array vacío, así que genera
+   `sprint-${length}` con el mismo valor las dos veces.
+4. **Afecta al proyecto demo.** `isBacklogMdProject()` devuelve `false` para `isDemo`
+   (`registry.ts:34`), así que el demo vive en modo JSON y es uno de los casos rotos.
+
+### Por qué no se notó antes
+
+El modo markdown es el camino feliz y cubre el uso local principal. El modo JSON es
+además el de los proyectos sin `backlog.md`, y ahí no hay ningún test que lea de vuelta
+lo que se escribió. Ninguna suite ejercita hoy el ciclo completo de escritura y relectura
+en modo JSON.
+
+**Criterios de Aceptación:**
+- [x] #1 La rama JSON de `readProjectBacklog()` devuelve `sprints` con guard `Array.isArray`, en los tres puntos de retorno de esa rama (normal, inicial y error)
+- [x] #2 `GET /api/sprints` devuelve los sprints de un proyecto JSON tras un ciclo de escritura completo, y sobrevive a un reinicio del daemon
+- [x] #3 Crear dos sprints consecutivos en modo JSON produce IDs distintos: el cálculo de `maxNum` de `api.ts:1038` parte de la lista leída, no de una lista siempre vacía
+- [x] #4 El proyecto demo (`isDemo: true`, modo JSON) expone sus sprints en la vista Sprint
+- [x] #5 Test de regresión que cubra el ciclo **escribir y volver a leer** en modo JSON, que es el que faltaba y por eso el defecto no fue detectado
+- [x] #6 `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-262] Cobertura de tests para el adaptador sandbox y el detector de entorno
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+La sandbox web de DEV-222 se publicó y está en producción, pero su lógica **no tiene una
+sola aserción**. Son ~480 líneas de `src/data/sandbox.ts` más el detector de
+`src/data/detect.ts`, y la suite de 17 pasos no las toca.
+
+El contraste es lo que hace el hueco visible: el equivalente del lado daemon tiene tests
+propios para cada almacenamiento (optimistic-locking, legacy-import, json-sprint,
+resilience), mientras que el camino que ahora atiende a cualquier visitante de la demo
+pública no tiene ninguno.
+
+Lo verificado en runtime fue de extremo a extremo en un navegador real, lo cual **no es
+lo mismo**: una prueba manual sobre un recorrido feliz no encuentra la colisión de un
+correlativo ni el sprint que queda activo sin querer. Un bug acá no filtra datos ni rompe
+instalaciones — se manifiesta como una demo visiblemente rota — pero es producto público.
+
+**Criterios de Aceptación:**
+- [x] #1 Caso de regresión que falle si `nextCode()` no genera el correlativo esperado al crear ítems sobre el seed real
+- [x] #2 Ciclo borrado lógico → restaurar → purgar verificado campo por campo, incluyendo `previousStatus` y que `purgeItem()` sea el único que saca el ítem del array
+- [x] #3 Invariante de un solo sprint `active` verificado tanto al crear como al actualizar, incluido el demotaje de los preexistentes
+- [x] #4 `deleteSprint()` deja los ítems desasociados (`sprint`, `targetSprint` y `sprints` vacíos), no apuntando a un nombre inexistente
+- [x] #5 `bulkUpdateItems()` devuelve el conteo correcto y no permite sobrescribir `id` ni `code`
+- [x] #6 `deleteProject()` en cascada no deja ítems, releases ni sprints huérfanos
+- [x] #7 `resetSandbox()` borra `gripm_sandbox_board` y `gripm_sandbox_config` y vuelve al seed
+- [x] #8 `fetchBoardData()` devuelve un clon: mutar el resultado no altera el estado interno del adaptador
+- [x] #9 `detect.ts`: probe que responde JSON → `httpAdapter`; que falla o agota el timeout → `sandboxAdapter`; y **una sola** invocación de `fetch` aunque haya llamadas concurrentes
+- [x] #10 `detect.ts` rechaza una respuesta 200 con `content-type` no JSON, que es el caso de un SPA servida en `/api/data`
+- [x] #11 Test de paridad del contrato que falle al agregar un método a `GripmApi` sin implementarlo en ambos adaptadores
+- [x] #12 Test que valida `data/demo-backlog.json` contra los tipos del cliente y del server, cubriendo las 5 columnas, sprints y ACs
+- [x] #13 `npm run audit:ux` en verde **sin regenerar el baseline**, `npx tsc --noEmit` con 0 errores y `npm test` y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-266] Separar el requisito de runtime del consumidor del requisito de desarrollo
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+`engines.node` declaraba `>=22.6.0`, pero ese requisito **no le corresponde al consumidor**:
+es el requisito de **desarrollar** el repo, no el de **usar** el paquete.
+
+**Criterios de Aceptación:**
+- [x] #1 `engines.node` declara el requisito del **consumidor**, alineado con el badge del README
+- [x] #2 `devEngines.runtime` declara el requisito de **desarrollo** con `onFail: "error"`, para que un colaborador en un runtime incompatible reciba un error explícito y no un fallo raro más tarde
+- [x] #3 `npm install` sigue funcionando sin error en el runtime de desarrollo y en el de CI
+- [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
+- [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
+- [x] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
+- [x] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
+- [x] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-267] El guard de ACs no detectaba marcadores malformados y daba verde sobre datos descartados
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`scripts/verify-backlog-sync.js` parsea el bloque de Acceptance Criteria con
+`/<!-\- AC:BEGIN ->([\s\S]*?)<!-\- AC:END ->/` y, si no matchea, hace **`continue`**: pasa a la
+siguiente tarea sin verificar nada y sin decir nada.
+
+La consecuencia es que **un marcador malformado era indistinguible de una tarea sin ACs**. Un
+archivo que abre `<!-\- AC:BEGIN ->` y no lo cierra:
+
+- se saltaba **todas** las invariantes de ACs (conteo, ids, checks cruzados contra el código),
+- sus ACs **no llegaban a `BACKLOG.md`**,
+- y `npm run backlog:check` informaba **`✅ Backlog 100% sincronizado y coherente con el
+  código`**.
+
+**Verde sobre datos que nunca leyó.** Siete archivos estaban en ese estado, arrastrando el
+defecto desde v1.3.0: todos cerraban su bloque de ACs con `<!-\- SECTION:DESCRIPTION:END ->`
+—un marcador duplicado del que ya usan correctamente más arriba— en vez del de cierre de ACs.
+Dos de los siete son de la sesión del 2026-10-14 (DEV-258 y DEV-259, ambos en `ready`).
+
+Esto es peor que un falso positivo: un falso positivo detiene el flujo con un diagnóstico
+equivocido. Esto **dejaba pasar** el flujo con un diagnóstico correcto sobre un conjunto de
+datos incompleto.
+
+**Criterios de Aceptación:**
+- [x] #1 `verify-backlog-sync.js` trata un `AC:BEGIN` sin `AC:END` como **error**, no como ausencia de ACs: mensaje explícito que nombre el archivo, `errorsFound++` y exit 1
+- [x] #2 Los siete archivos malformados (DEV-253 a DEV-259) quedan reparados con el marcador correcto
+- [x] #3 Los ACs de DEV-253 a DEV-259 aparecen en `BACKLOG.md`, verificado por grep sobre el consolidado
+- [x] #4 El guard **demuestra** que dispara: roto un marcador a propósito, `verify-backlog-sync.js` devuelve exit 1 con el mensaje; restaurado, vuelve a 0
+- [x] #5 `npm run backlog:sync`, `npm run backlog:check` y `npm test` en verde tras la reparación
+- [x] #6 `npx tsc --noEmit` y `node scripts/verify-changes.js --all` con código 0
+
+---
+
+#### [DEV-268] El hook de pre-commit valida que BACKLOG.md esté presente, no que corresponda al commit
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+El hook `.githooks/pre-commit` rechaza el commit cuando se modifican tareas y `BACKLOG.md`
+**no está en el índice**. No verifica que el `BACKLOG.md` que se está por commitear
+**corresponda a las tareas que se están por commitear**.
+
+Esa diferencia es la que rompió CI el 2026-10-14 en `7d50af0`:
+
+1. El working tree tenía un cambio **sin commitear** en DEV-264.
+2. `npm run backlog:sync` regeneró `BACKLOG.md` **leyendo el working tree**, así que el
+   consolidado describía la versión nueva de DEV-264.
+3. `git add BACKLOG.md` lo subió al índice. El commit `a070a5e` quedó con un consolidado
+   que describía un archivo que ese commit no contenía.
+4. El hook pasó: `BACKLOG.md` estaba en el índice, que es exactamente lo que exige.
+5. En CI el checkout trae DEV-264 en su versión de HEAD, el consolidado no coincide, y
+   `npm run backlog:check` falla con exit 1.
+
+**El hook y CI miden cosas distintas.** El hook mide presencia; CI mide correspondencia.
+El hook es la única barrera entre el error y el push, y es la que no lo detecta.
+
+El defecto es de clase: cualquier tarea sin commitear en el working tree durante un
+`backlog:sync` reproduce el fallo, y el síntoma aparece **un commit después, en otra
+máquina**, sin forma local de reproducirlo salvo que se haga stash primero.
+
+**Criterios de Aceptación:**
+- [x] #1 El hook (o `verify-backlog-sync.js` en un modo nuevo) regenera el consolidado **leyendo el índice de git**, no el working tree, y compara contra el `BACKLOG.md` staged
+- [x] #2 Con una tarea modificada en el working tree y **sin** stagear, el hook pasa; con esa misma tarea **stageada** y un `BACKLOG.md` stale en el índice, el hook falla con exit 1
+- [x] #3 El mensaje de error nombra el archivo `.md` cuya versión no coincide con el consolidado, en vez de un "BACKLOG.md no incluido en el índice" que era cierto pero irrelevante
+- [x] #4 Demostrado en ambos sentidos: staging del caso que falla y del caso que pasa, con el comando ejecutado y la salida
+- [x] #5 El check local (`npm run backlog:check`) y el de CI pasan con el árbol limpio, sin necesidad de `git stash`
+- [x] #6 `npx tsc --noEmit`, `npm test` y `node scripts/verify-changes.js --all` con código 0
+
+---
+
+#### [DEV-270] Armonización y simetría visual en selector de navegación del Header (Tabs)
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+En `src/components/Header.tsx`, los botones del segmented control de vistas (`Tablero`, `Sprints`, `Releases`) poseen dimensiones mínimas dispares y hardcodeadas (`min-w-[88px]`, `min-w-[145px]`, `min-w-[98px]`).
+
+Esta disparidad se introdujo originalmente para prevenir saltos de línea ante textos extensos en español, pero provoca que el control segmentado central del encabezado se perciba visualmente asimétrico, irregular y desbalanceado con respecto a los estándares de diseño de componentes de navegación.
+
+Adicionalmente, en resoluciones compactas de escritorio (1024×768 a 1366×768), la distribución `grid grid-cols-[1fr_auto_1fr]` con `justify-self-center` genera una **colisión crítica**: el bloque izquierdo (selector de proyecto + badge Demo + botón `Reset demo` con texto expandido) excede el tercio asignado y desborda físicamente sobre las pestañas centrales, montando el botón `Reset demo` directamente encima de la pestaña `Board` (Tablero).
+
+### Objetivos:
+1. Homogeneizar el ancho y espaciado de los botones del selector de vistas para lograr una barra simétrica y balanceada sin anchos artificiales sobredimensionados (`min-w-[145px]`).
+2. Blindar el layout del Header mediante límites de ancho y flexbox/grid responsivo para garantizar cero colisión física entre el bloque de proyecto y la barra central de navegación a cualquier resolución (>= 1024px).
+3. Optimizar el botón `Reset demo` del Header: colapsar a icono accesible con tooltip en pantallas compactas (< 1280px / `xl`), e incorporar la acción de reinicio en el banner de demo interactivo de `App.tsx` para máxima usabilidad.
+4. Asegurar paridad bilingüe (`en` / `es`) y preservar la estabilidad visual Zero-CLS sin oscilaciones al alternar idiomas.
+
+**Criterios de Aceptación:**
+- [x] #1 Los botones del segmented control en `Header.tsx` comparten un dimensionamiento armónico y simétrico sin saltos bruscos de ancho entre pestañas (`min-w-[145px]` reemplazado por dimensionamiento equilibrado)
+- [x] #2 Las etiquetas visuales en inglés y español no desbordan ni fuerzan anchos desproporcionados
+- [x] #3 Se preserva la estabilidad Zero-CLS al alternar entre inglés y español
+- [x] #4 Los estados activo, hover y focus ring mantienen coherencia con los tokens de diseño
+- [x] #5 Cero solapamiento ni desborde entre la columna izquierda (`singleProject`, `Reset demo`) y las pestañas centrales de navegación en resoluciones de escritorio (1024×768 a 1366×768)
+- [x] #6 El botón `Reset demo` en el Header se muestra en modo icon-only con tooltip accesible (`title` y `aria-label`) en resoluciones compactas (< 1280px), expandiendo su texto solo en pantallas amplias (`xl`), y la acción se expone también en el banner de demo de `App.tsx`
+- [x] #7 `npm test`, `npm run audit:ux` y `npm run backlog:check` pasan con código 0
+
+---
+
+#### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, la barra superior `FilterBar.tsx` cuenta con píldoras de acceso rápido rígidas (Tipos y Prioridades fijos). Si un usuario desea filtrar frecuentemente por estados concretos (ej: solo `doing` y `review`) o por un módulo específico (ej: `UI / Layout`), debe abrir repetidamente el popover de filtros avanzados.
+
+En lugar de construir un panel de configuración complejo y pesado para personalizar qué botones se colocan en la barra (lo que generaría sobre-ingeniería), se adopta el estándar de la industria (Linear / GitHub): **materialización dinámica de filtros activos como chips descartables**.
+
+### Objetivos:
+1. Toda dimensión aplicada desde el Popover de Filtros Avanzados que no pertenezca a los accesos directos estándar (ej. Estados específicos, Módulo, Asignado, Sprint) se refleja de inmediato en la barra como una píldora activa interactiva (ej: `[Estado: doing ✕]`, `[Módulo: Auth ✕]`).
+2. El usuario puede remover cualquier filtro individual con un clic sobre la X del chip sin tener que abrir el popover.
+3. El botón general de "Limpiar filtros" sigue reseteando todas las condiciones activas.
+4. Diseño responsivo con scroll horizontal suave o colapso elegante en pantallas pequeñas para evitar solapamientos con las estadísticas.
+
+**Criterios de Aceptación:**
+- [x] #1 Al aplicar filtros desde AdvancedFiltersPopover (estados, módulos, sprints, releases), estos se renderizan como chips activos en la barra principal
+- [x] #2 Cada chip muestra la dimensión, el valor y un botón de descarte individual (✕)
+- [x] #3 Hacer clic en la ✕ de un chip elimina ese filtro específico de inmediato y actualiza la vista
+- [x] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
+- [x] #5 Coherencia de accesibilidad y foco para los chips descartables
+- [x] #6 Tests unitarios para el estado de filtros y chips
+
+---
+
+#### [DEV-274] Optimización de densidad para Metodología y Vistas en Settings (1366×768)
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (pestaña *Workflow & Views*), la sección *Project Work Methodology* despliega tres tarjetas voluminosas con descripciones extensas y badges, seguidas inmediatamente por otras tres tarjetas similares para *Default View Selector*.
+
+En resoluciones de escritorio habituales como 1366×768 (y monitores estándar de laptop), esta distribución consume prácticamente todo el primer pliegue de pantalla (*above the fold*), desplazando hacia abajo las opciones críticas de activación de pestañas y configuración de vistas.
+
+### Objetivos:
+1. Reemplazar los bloques masivos de tarjetas por selectores compactos (ej. radio cards de 1 fila o segmented control interactivo con icono, título y badge conciso).
+2. Trasladar los textos explicativos extensos a tooltips contextuales o descripciones de una sola línea con jerarquía atenuada.
+3. Asegurar que las opciones de *Habilitación de Pestañas* y *Vistas de Trabajo* queden visibles sin requerir scroll excesivo.
+4. Mantener la alineación con los principios de densidad de escritorio establecidos en DEV-264.
+
+**Criterios de Aceptación:**
+- [x] #1 El selector de Metodología de Trabajo ocupa una altura significativamente menor mediante un diseño horizontal compacto
+- [x] #2 El selector de Vista por Defecto utiliza un control segmentado estilizado y no una grilla de tarjetas altas
+- [x] #3 A resolución 1366×768, la sección completa de Metodología y Vistas permite visualizar los controles principales en el primer scroll
+- [x] #4 Las descripciones de cada metodología siguen accesibles para el usuario (mediante hint o tooltip)
+- [x] #5 `npm run audit:ux` y `npm test` pasan sin regresiones
+
+---
+
+#### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Actualmente, reordenar una tarea dentro de una columna o en la tabla de Backlog depende casi exclusivamente del arrastre con mouse (drag & drop). En `ItemCard.tsx`, el menú contextual solo ofrece subir o bajar una única posición (`canMoveUp` / `canMoveDown`), lo que resulta sumamente tedioso e inviable cuando una columna o backlog contiene decenas de ítems.
+
+Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalmente por todo el viewport o abrir el modal de edición completo.
+
+### Objetivos:
+1. **Mover al Tope / Fondo:** Incorporar en el menú contextual (`...`) de cada tarjeta en el Tablero y en el menú de acciones de cada fila en `SprintView`:
+   - *"Mover al principio de la columna / backlog"* (Top rank)
+   - *"Mover al final de la columna / backlog"* (Bottom rank)
+2. **Asignación Rápida de Sprint:** Agregar un submenú o acción directa *"Asignar a Sprint →"* con listado de sprints vigentes y la opción *"Devolver al Backlog"*, permitiendo transferir la tarea en un solo clic sin abrir el formulario de edición.
+3. Actualizar el orden numérico (`order`) de forma consistente para garantizar persistencia determinística en disco.
+
+**Criterios de Aceptación:**
+- [x] #1 El menú contextual de la tarjeta en KanbanBoard incluye acciones para mover al tope y al fondo de su columna
+- [x] #2 Cada fila en SprintView incluye menú o botones de acción para mover el ítem al tope o fondo de su contenedor (sprint o backlog)
+- [x] #3 Se provee acción contextual para mover rápidamente el ítem a cualquier sprint activo/vigente o al backlog general
+- [x] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
+- [x] #5 Accesibilidad por teclado en las nuevas opciones de menú
+- [x] #6 `npm test` y verificación de consistencia en verde
+
+---
+
+#### [DEV-278] Ajuste en Settings para alternar visibilidad del resumen de métricas en FilterBar
+- **Prioridad**: `low` | **Tipo**: `improvement`
+
+En `FilterBar.tsx`, el indicador de resumen de métricas (`2 pendientes • 2 en curso • 3 completados • 7 total`) se renderiza siempre de forma obligatoria en el extremo derecho de la barra.
+
+En pantallas medianas o portátiles, esta cadena de texto compite directamente por el ancho horizontal con los filtros de búsqueda y píldoras rápidas, provocando potenciales solapamientos o wrapping no deseado. Además, usuarios que prefieren interfaces limpias o minimalistas no disponen de un mecanismo para ocultar este resumen.
+
+### Objetivos:
+1. Agregar una propiedad en la configuración (`config.ui.showFilterBarStats` o `config.showFilterBarStats`, por defecto `true`).
+2. Incorporar un switch en `SettingsView.tsx` (sección Apariencia / Filtros) para encender o apagar este bloque.
+3. Respetar la preferencia en `FilterBar.tsx`, ocultando el componente cuando el usuario lo desactive y liberando espacio horizontal completo para los filtros.
+
+**Criterios de Aceptación:**
+- [x] #1 SettingsView incluye un switch para encender o apagar el resumen de estadísticas de la barra de filtros
+- [x] #2 La preferencia se persiste correctamente en la configuración del proyecto
+- [x] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
+- [x] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
+- [x] #5 `npm test` y consistencia de esquemas de configuración en verde
+
+---
+
+#### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+En `src/components/ItemModal.tsx`, las plantillas predefinidas que se insertan al presionar los botones de ayuda de BDD se encuentran hardcodeadas en español:
+
+1. **Plantilla de Historia de Usuario (línea 728):**
+   ```ts
+   const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
+   ```
+2. **Criterio de Aceptación BDD (línea 797):**
+   ```ts
+   text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]'
+   ```
+
+Cuando la aplicación está configurada en inglés (`config.language = 'en'`), presionar estos botones sigue insertando texto literal en español en lugar de los equivalentes canónicos en inglés (`AS A... I WANT... SO THAT...` y `GIVEN... WHEN... THEN...`).
+
+### Objetivos:
+1. Extraer los textos y plantillas de BDD al catálogo de traducciones `src/utils/i18n.ts`.
+2. Proporcionar las versiones canónicas en inglés:
+   - Story: `**AS A** [user role]\n**I WANT** [action or capability]\n**SO THAT** [business value or benefit]\n`
+   - AC Scenario: `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`
+3. Mantener las versiones canónicas en español en `t(...)`.
+4. Asegurar que la inserción respete el idioma activo del usuario en la sesión.
+
+**Criterios de Aceptación:**
+- [x] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
+- [x] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
+- [x] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
+- [x] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
+- [x] #5 `npm test` y validación de tipos sin errores
+
+---
+
+#### [DEV-280] Restricción de candidatos a Parent (Epics/Iniciativas) y selector con búsqueda en ItemModal
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem contenedor o padre (`parentId`) presenta dos problemas graves de usabilidad:
+
+1. **Contaminación del listado:** La definición de candidatos a padre (`line 196`) incluye ítems de tipo `feature`:
+   ```ts
+   const candidateParents = otherItems.filter(it => it.type === 'epic' || it.type === 'initiative' || it.type === 'feature');
+   ```
+   En cualquier proyecto mediano o grande, esto inunda el selector con cientos de tareas individuales que no son contenedores legítimos de jerarquía.
+2. **Falta de buscador:** El control es un elemento `<select>` plano de HTML nativo (`lines 1860-1880`). Si un usuario tiene 30 épicas o no recuerda el ID exacto (`DEV-140`), se ve obligado a hacer scroll visual extenso sin capacidad de filtrar por nombre o palabra clave.
+
+### Objetivos:
+1. **Restricción canónica:** Filtrar `candidateParents` estrictamente por `it.type === 'epic' || it.type === 'initiative'` (contenedores jerárquicos reales).
+2. **Combobox / Popover con Buscador en vivo:** Reemplazar el `<select>` plano por un componente de selección accesible con input de búsqueda integrado, permitiendo escribir parte del título o del código para filtrar instantáneamente la lista de épicas.
+3. Mostrar claramente el tipo (`[EPIC]` o `[INITIATIVE]`), el código y el título completo en el desplegable.
+4. Mantener la opción de desvincular el padre de forma clara e inmediata.
+
+**Criterios de Aceptación:**
+- [x] #1 El listado de candidatos a Parent en ItemModal solo muestra tareas de tipo `epic` e `initiative`
+- [x] #2 Las tareas regulares de tipo `feature`, `bug`, `ux`, etc., quedan excluidas de la lista de posibles padres
+- [x] #3 El selector cuenta con un buscador en tiempo real para filtrar candidatos por código o título
+- [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
+- [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
+- [x] #6 `npm test` y consistencia en la jerarquía de ítems
 
 ---
 

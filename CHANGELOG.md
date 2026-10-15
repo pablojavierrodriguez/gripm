@@ -13,6 +13,37 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.4.0] — 2026-10-15 🚀 Modo Sandbox en Vercel, Ergonomía de Densidad a 1366×768, Acciones Rápidas y Jerarquía Semántica
+
+### 🎯 Resumen
+*Versión 1.4.0 de Gripm: despliegue del modo Sandbox interactivo con persistencia en memoria y paridad total de endpoints para Vercel y demos públicas (DEV-222, DEV-262), optimización integral de densidad para 1366×768 en la vista de configuración con controles compactos (DEV-274), chips descartables interactivos de filtros activos en FilterBar con alineación dimensional estricta (DEV-272), acciones rápidas de reposicionamiento (Top, Bottom) y asignación ágil de sprints tanto en tarjetas Kanban como en la vista de Sprints/Backlog (DEV-276), refinamiento del selector de Parent restringido a Épicas e Iniciativas con combobox accesible y búsqueda en vivo (DEV-280), internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación (DEV-279), control de visibilidad del resumen de métricas en FilterBar (DEV-278), simetría visual y descompresión de pestañas en Header (DEV-270), gobernanza y trazabilidad de arquitectura con sistema ADR en docs/adr (DEV-260), corrección de persistencia de sprints en modo JSON (DEV-261), salvaguarda mecánica de correspondencia de git index en pre-commit (DEV-268), validación estricta de marcadores de ACs (DEV-267), higiene OSS canónica en .gripm/config.json (DEV-259), desacople de runtime vs desarrollo en binarios (DEV-266) y refinamiento del modal de atajos de teclado (DEV-258).*
+
+### 🌐 Modo Sandbox y Portabilidad Pública
+- **DEV-222 — Modo Sandbox interactivo y deploy público en Vercel:** soporte de ejecución en navegador sin Node.js local ni backend activo, con almacenamiento en memoria reactivo y banner informativo con botón de restauración.
+- **DEV-262 — Cobertura y paridad del adaptador Sandbox:** suite exhaustiva de tests para `sandboxAdapter` y el detector de entorno `detect.ts`, garantizando 100% de paridad con los 31 métodos del contrato `GripmApi`.
+
+### 🖥️ Ergonomía Visual, Densidad y Navegación
+- **DEV-274 — Optimización de densidad para Metodología y Vistas en Settings (1366×768):** rediseño de tarjetas de selección de metodología y vistas a controles compactos de una fila con radio cards semánticas, liberando el primer pliegue en pantallas de 1366×768.
+- **DEV-272 — Chips descartables de filtros activos en FilterBar:** píldoras interactivas con descarte individual (`✕`), altura alineada a `h-8` (32px) y radio consistente con los controles de la barra de filtros.
+- **DEV-270 — Armonización y simetría en selector de pestañas del Header:** descompresión de tabs principales, simetría en padding y visualización clara del estado activo sin desbordamientos.
+- **DEV-278 — Ajuste en Settings para alternar visibilidad de métricas en FilterBar:** switch de configuración para ocultar el bloque derecho de métricas numéricas, maximizando el ancho para filtros y búsqueda.
+
+### ⚡ Interacción Rápida, Jerarquía y Productividad
+- **DEV-276 — Acciones rápidas de reposicionamiento y asignación de Sprint:** menú contextual en tarjetas Kanban y vista de Sprints para mover tareas al tope (`moveToTop`), al fondo (`moveToBottom`) y asignarlas a sprints vigentes o devolverlas al backlog sin abrir el modal completo.
+- **DEV-280 — Restricción de Parent a Epics/Iniciativas y combobox con búsqueda en ItemModal:** filtrado estricto de candidatos a contenedores jerárquicos genuinos, selector estilizado con badges semánticos por color (índigo/púrpura), atajos de teclado y búsqueda en vivo.
+- **DEV-279 — Internacionalización (i18n) de plantillas BDD:** localización en inglés y español de los esqueletos BDD para Historias de Usuario (`AS A` / `COMO`) y Criterios de Aceptación (`GIVEN-WHEN-THEN` / `DADO-CUANDO-ENTONCES`).
+
+### 🛡️ Calidad Mecánica, Gobernanza y Corrección de Bugs
+- **DEV-260 — Sistema de Architecture Decision Records (ADR):** creación de `docs/adr/` con plantilla canónica, numeración secuencial inmutable y registro de las primeras 3 decisiones arquitectónicas fundacionales.
+- **DEV-261 — Persistencia de sprints en proyectos en modo JSON:** corrección de descarte de sprints en proyectos configurados bajo almacenamiento JSON.
+- **DEV-268 — Validación de git index en hook pre-commit:** el pre-commit valida correspondencia estricta de tareas stageadas contra el árbol exportado, previniendo discrepancias.
+- **DEV-267 — Blindaje contra marcadores de AC malformados:** detección y error temprano ante bloques `<!-- AC:BEGIN -->` no cerrados.
+- **DEV-259 — Higiene canónica de configuración OSS:** alineación estricta de `.gripm/config.json` con los valores OSS canónicos documentados en `AGENTS.md`.
+- **DEV-266 — Desacople de requisitos de runtime en binarios:** separación limpia entre dependencias de desarrollo y ejecución de usuarios finales.
+- **DEV-258 — Refinamiento del pie de cheatsheet de teclado:** retiro del botón de cierre redundante y alineación sutil del hint de reapertura.
+
+---
+
 ## [1.3.0] — 2026-10-12 📐 Sistema Integral de Estimación, Rediseño CLI y Ergonomía de Teclado
 
 ### 🎯 Resumen

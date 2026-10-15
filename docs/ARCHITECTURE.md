@@ -134,6 +134,7 @@ Cada tarea en gripm cuando se almacena en modo `backlog-md` reside en `backlog/t
 | `status` | `CanonicalStatus` (`ideas`, `draft`, `doing`, `review`, `ready`, `done`, `dismissed`, `cancelled`) | Estado en el flujo de valor normalizado. | ItemModal, Columnas Kanban, Filtros |
 | `type` | `ItemType` (`feature`, `bug`, `tech_debt`, `ux`, `epic`, `initiative` + personalizados) | Taxonomía del ítem. Soporta tipos dinámicos. | ItemModal, Badges, Filtros |
 | `priority` | `Priority` (`p0`/`urgent`, `p1`/`high`, `p2`/`medium`, `p3`/`low`) | Nivel de urgencia o severidad. | ItemModal, Badges, Filtros |
+| `estimate` | `number` o `string` (ej. `5` o `"XL"`) | Estimación de esfuerzo (Fibonacci o T-Shirt Sizes). | ItemModal, Cards, SprintView, Filtros |
 | `assignee` / `assignees` | `string[]` o `string` | Agentes o desarrolladores asignados. | Tabla SprintView / Backlog |
 | `labels` | `string[]` | Etiquetas transversales libres. | Tabla SprintView / Backlog |
 | `sprint` / `targetSprint` | `string` (ej. `"Sprint 6"`) | Sprint de trabajo actual. | ItemModal, Sprints Hub |

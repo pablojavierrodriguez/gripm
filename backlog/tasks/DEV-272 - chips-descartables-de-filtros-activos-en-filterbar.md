@@ -1,7 +1,7 @@
 ---
 id: DEV-272
 title: "Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
