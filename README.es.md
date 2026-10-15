@@ -2,7 +2,7 @@
   <img src="docs/brand/gripm-logo-lockup.png" alt="Logo de gripm en su marco oscuro" width="140" />
 </p>
 
-<h1 align="center">gripm ⚡</h1>
+<h1 align="center">gripm</h1>
 
 <p align="center">
   <strong>Un espacio local-first para gestionar el trabajo de producto e ingeniería, planificar iteraciones y colaborar con agentes de IA.</strong>

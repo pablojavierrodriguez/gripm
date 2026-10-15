@@ -688,7 +688,7 @@ function generateMonolithicBacklogMd(projectName, items) {
   const now = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const lines = [
     `# Backlog: ${projectName}`,
-    `> Consolidado generado el ${now} por gripm \u26A1`,
+    `> Consolidado generado el ${now} por gripm`,
     "",
     "## Resumen de Estados",
     ""

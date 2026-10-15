@@ -1,9 +1,9 @@
 ---
 id: DEV-271
 title: "Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "ux"
   - "kanban"
@@ -37,6 +37,11 @@ Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente p
 - [x] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
 - [x] #6 `npm test` y validación de interacciones en verde
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

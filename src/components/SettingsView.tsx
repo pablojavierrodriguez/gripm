@@ -13,7 +13,8 @@ import {
   Sun, 
   Monitor,
   ArrowLeft,
-  ArrowRight,
+  ArrowUp,
+  ArrowDown,
   Save,
   CheckCircle2,
   Database,
@@ -28,10 +29,13 @@ import {
   Check,
   Globe,
   Boxes,
-  Calendar
+  Box,
+  BarChart2,
+  Calendar,
+  ChevronDown
 } from 'lucide-react';
 import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig, EstimationMethod, VisibleCardMetadata } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, isTimelineModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, isTimelineModuleActive, isMetricsModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
@@ -124,7 +128,7 @@ export const AVAILABLE_CUSTOM_ICONS = [
   'Feather', 'GitBranch', 'Terminal', 'Tag', 'Star', 'Bookmark', 'Layers'
 ];
 
-export type SettingsTabId = 'views' | 'modules' | 'kanban' | 'taxonomy' | 'visual' | 'tools' | 'advanced';
+export type SettingsTabId = 'views' | 'modules' | 'kanban' | 'taxonomy' | 'components' | 'visual' | 'tools' | 'advanced';
 
 interface SettingsSwitchProps {
   checked: boolean;
@@ -207,7 +211,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [density, setDensity] = useState<'comfortable' | 'compact'>(config.density || 'comfortable');
   const [locale, setLocale] = useState<'es' | 'en'>(config.locale || language || 'es');
   const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
-  const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'timeline' | 'settings'>(config.defaultView || 'kanban');
+  const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'timeline' | 'metrics' | 'settings'>(config.defaultView || 'kanban');
   const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
   const [modulesState, setModulesState] = useState<ModulesConfig>(() => ({
     sprint: isSprintModuleActive(config),
@@ -219,7 +223,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     kanban: config.enabledTabs?.kanban !== false,
     sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : true,
     release: config.enabledTabs?.release !== false,
-    timeline: config.enabledTabs?.timeline !== false
+    timeline: config.enabledTabs?.timeline !== false,
+    metrics: config.enabledTabs?.metrics !== false
   });
   const [autoSave, setAutoSave] = useState<boolean>(config.autoSave ?? true);
   const [rankingEnabled, setRankingEnabled] = useState<boolean>(config.rankingEnabled !== false);
@@ -298,6 +303,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!isTimelineModOn && initialDefaultView === 'timeline') {
       initialDefaultView = 'kanban';
     }
+    const isMetricsModOn = isMetricsModuleActive(config) && config.enabledTabs?.metrics !== false;
+    if (!isMetricsModOn && initialDefaultView === 'metrics') {
+      initialDefaultView = 'kanban';
+    }
 
     setTheme(getResolvedTheme(config.theme, isDarkMode));
     setDensity(config.density || 'comfortable');
@@ -315,7 +324,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
       release: config.enabledTabs?.release !== false,
-      timeline: config.enabledTabs?.timeline !== false
+      timeline: config.enabledTabs?.timeline !== false,
+      metrics: config.enabledTabs?.metrics !== false
     });
     setAutoSave(config.autoSave ?? true);
     setRankingEnabled(config.rankingEnabled !== false);
@@ -405,7 +415,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         kanban: enabledTabs.kanban,
         sprint: enabledTabs.sprint,
         release: enabledTabs.release,
-        timeline: enabledTabs.timeline
+        timeline: enabledTabs.timeline,
+        metrics: enabledTabs.metrics
       },
       autoSave,
       rankingEnabled,
@@ -451,7 +462,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
         sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
         release: c.enabledTabs?.release !== false,
-        timeline: c.enabledTabs?.timeline !== false
+        timeline: c.enabledTabs?.timeline !== false,
+        metrics: c.enabledTabs?.metrics !== false
       },
       autoSave: c.autoSave ?? true,
       rankingEnabled: c.rankingEnabled !== false,
@@ -498,6 +510,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const isSprintOn = config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : config.methodology !== 'kanban';
     const isReleaseOn = config.enabledTabs?.release !== false;
     const isTimelineOn = config.enabledTabs?.timeline !== false;
+    const isMetricsOn = config.enabledTabs?.metrics !== false;
     let initialMethodology = config.methodology || 'scrumban';
     if (!isSprintOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
       initialMethodology = 'kanban';
@@ -512,6 +525,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!isTimelineOn && initialDefaultView === 'timeline') {
       initialDefaultView = 'kanban';
     }
+    if (!isMetricsOn && initialDefaultView === 'metrics') {
+      initialDefaultView = 'kanban';
+    }
 
     setTheme(getResolvedTheme(config.theme, isDarkMode));
     setDensity(config.density || 'comfortable');
@@ -522,7 +538,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: isSprintOn,
       release: isReleaseOn,
-      timeline: isTimelineOn
+      timeline: isTimelineOn,
+      metrics: isMetricsOn
     });
     setAutoSave(config.autoSave ?? true);
     setRankingEnabled(config.rankingEnabled !== false);
@@ -948,7 +965,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // DEV-275: Centralized module and components catalog section
   const renderModulesCatalogSection = () => (
     <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
-      <div className="flex items-center justify-between min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
         <div>
           <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
             <Boxes className="w-4 h-4 text-indigo-500" />
@@ -960,61 +977,68 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : 'Official catalog of modules and transversal components (e.g. UI, API, Auth, Database). Persisted in project configuration and suggested when categorizing tasks.'}
           </p>
         </div>
-        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.08]">
-          {modulesList.length} {language === 'es' ? 'módulos' : 'modules'}
+        <span className="self-start sm:self-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08] shrink-0 tabular-nums">
+          {modulesList.length} {language === 'es' ? (modulesList.length === 1 ? 'módulo' : 'módulos') : (modulesList.length === 1 ? 'module' : 'modules')}
         </span>
       </div>
 
-      {/* Input to add a new module */}
-      <div className="flex items-center gap-2 max-w-md">
-        <input
-          type="text"
-          value={newModuleInput}
-          onChange={(e) => setNewModuleInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleAddModule();
-            }
-          }}
-          placeholder={language === 'es' ? 'Nombre del nuevo módulo (ej. UI, API, Auth)...' : 'New module name (e.g. UI, API, Auth)...'}
-          className="flex-1 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-        />
+      {/* Input group to add a new module */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAddModule();
+        }}
+        className="flex items-center gap-2 max-w-md"
+      >
+        <div className="relative flex-1">
+          <Box className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={newModuleInput}
+            onChange={(e) => setNewModuleInput(e.target.value)}
+            placeholder={language === 'es' ? 'Nombre del nuevo módulo (ej. UI, API, Auth)...' : 'New module name (e.g. UI, API, Auth)...'}
+            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+          />
+        </div>
         <button
-          type="button"
-          onClick={handleAddModule}
+          type="submit"
           disabled={!newModuleInput.trim()}
           title={language === 'es' ? 'Agregar módulo' : 'Add module'}
           aria-label={language === 'es' ? 'Agregar módulo' : 'Add module'}
-          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-medium flex items-center gap-1 transition-colors shrink-0"
+          className="px-3.5 py-2 min-h-[36px] rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{language === 'es' ? 'Agregar' : 'Add'}</span>
         </button>
-      </div>
+      </form>
 
       {/* List of existing module chips */}
       {modulesList.length === 0 ? (
-        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-white/10 text-center text-xs text-slate-400 dark:text-slate-500">
-          {language === 'es'
-            ? 'No hay módulos configurados aún. Agrega un componente arriba para empezar a categorizar tareas.'
-            : 'No modules configured yet. Add a component above to start categorizing tasks.'}
+        <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center text-center gap-2">
+          <Box className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            {language === 'es'
+              ? 'No hay módulos configurados aún. Agrega un componente arriba para empezar a categorizar tareas.'
+              : 'No modules configured yet. Add a component above to start categorizing tasks.'}
+          </p>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {modulesList.map((mod) => (
             <span
               key={mod}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/20 shadow-2xs group transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-white/[0.04] text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-2xs group transition-all"
             >
-              <span>🧩 {mod}</span>
+              <Box className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span className="font-semibold text-slate-900 dark:text-white">{mod}</span>
               <button
                 type="button"
                 onClick={() => handleRemoveModule(mod)}
                 title={language === 'es' ? `Eliminar módulo ${mod}` : `Remove module ${mod}`}
-                className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
+                aria-label={language === 'es' ? `Eliminar módulo ${mod}` : `Remove module ${mod}`}
+                className="p-0.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </span>
           ))}
@@ -1180,6 +1204,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </button>
 
+          {/* DEV-275: Tab Módulos y Componentes de Software */}
+          <button
+            type="button"
+            onClick={() => handleTabChange('components')}
+            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
+              activeTab === 'components'
+                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
+            }`}
+          >
+            <Box className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'components' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+            <div>
+              <div className="text-xs font-semibold">{t('settings.navComponents')}</div>
+              <div className="text-xs text-slate-500">{t('settings.navComponentsDesc')}</div>
+            </div>
+          </button>
+
           <button
             type="button"
             onClick={() => handleTabChange('visual')}
@@ -1255,137 +1296,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Methodology Selector (DEV-038, DEV-274) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {t('settings.methodologyLabel')}
-                    </label>
-                    <p className="text-xs text-slate-500">
-                      {t('settings.methodologyDesc')}
-                    </p>
-                  </div>
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="methodology-select" className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {t('settings.methodologyLabel')}
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    {t('settings.methodologyDesc')}
+                  </p>
                 </div>
 
-                {!modulesState.sprint ? (
-                  <div className="space-y-2 pt-1 max-w-2xl">
-                    <div className="p-3 rounded-xl border bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
-                          <span className="truncate">{t('settings.methodologyKanban')}</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
-                          {t('settings.moduleActive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyKanbanDesc')}>
-                        {t('settings.methodologyKanbanDesc')}
-                      </p>
-                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                          {t('settings.methodologyKanbanBadgeBoard')}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                          {t('settings.methodologyKanbanBadgeSprints')}
-                        </span>
-                      </div>
-                    </div>
+                <div className="relative max-w-xl">
+                  <select
+                    id="methodology-select"
+                    value={methodology}
+                    onChange={(e) => handleSelectMethodology(e.target.value as ProjectMethodology)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none pr-10"
+                  >
+                    <option value="kanban">{t('settings.methodologyKanban')} — {t('settings.methodologyKanbanBadgeBoard')}</option>
+                    {modulesState.sprint && (
+                      <>
+                        <option value="scrum">{t('settings.methodologyScrum')} — {t('settings.methodologyScrumBadgeSprints')}</option>
+                        <option value="scrumban">{t('settings.methodologyScrumban')} — {t('settings.methodologyScrumbanBadgeBoard')}</option>
+                      </>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
 
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Boxes className="w-4 h-4 text-amber-500 shrink-0" />
-                        <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
-                          {t('settings.methodologySprintModuleHint')}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('modules')}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      >
-                        {t('settings.goToModules')}
-                      </button>
+                {/* Active Methodology Summary Card */}
+                <div className="p-3.5 rounded-xl border bg-slate-50/80 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] max-w-xl">
+                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                      {methodology === 'kanban' && <Layers className="w-4 h-4 text-indigo-500 shrink-0" />}
+                      {methodology === 'scrum' && <Target className="w-4 h-4 text-amber-500 shrink-0" />}
+                      {methodology === 'scrumban' && <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />}
+                      <span className="truncate">
+                        {methodology === 'kanban' ? t('settings.methodologyKanban') : methodology === 'scrum' ? t('settings.methodologyScrum') : t('settings.methodologyScrumban')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {methodology === 'kanban' && (
+                        <>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                            {t('settings.methodologyKanbanBadgeBoard')}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
+                            {t('settings.methodologyKanbanBadgeSprints')}
+                          </span>
+                        </>
+                      )}
+                      {methodology === 'scrum' && (
+                        <>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
+                            {t('settings.methodologyScrumBadgeSprints')}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
+                            {t('settings.methodologyScrumBadgeBoard')}
+                          </span>
+                        </>
+                      )}
+                      {methodology === 'scrumban' && (
+                        <>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
+                            {t('settings.methodologyScrumbanBadgeBoard')}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
+                            {t('settings.methodologyScrumbanBadgeSprints')}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={methodology === 'kanban'}
-                      onClick={() => handleSelectMethodology('kanban')}
-                      title={t('settings.methodologyKanbanDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        methodology === 'kanban'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
-                          <span className="truncate">{t('settings.methodologyKanban')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                          {t('settings.methodologyKanbanBadgeBoard')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.methodologyKanbanDesc')}
-                      </p>
-                    </button>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {methodology === 'kanban' ? t('settings.methodologyKanbanDesc') : methodology === 'scrum' ? t('settings.methodologyScrumDesc') : t('settings.methodologyScrumbanDesc')}
+                  </p>
+                </div>
 
+                {!modulesState.sprint && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3 max-w-xl">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Boxes className="w-4 h-4 text-amber-500 shrink-0" />
+                      <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                        {t('settings.methodologySprintModuleHint')}
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      role="radio"
-                      aria-checked={methodology === 'scrum'}
-                      onClick={() => handleSelectMethodology('scrum')}
-                      title={t('settings.methodologyScrumDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        methodology === 'scrum'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
+                      onClick={() => handleTabChange('modules')}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Target className="w-4 h-4 text-amber-500 shrink-0" />
-                          <span className="truncate">{t('settings.methodologyScrum')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
-                          {t('settings.methodologyScrumBadgeSprints')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.methodologyScrumDesc')}
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={methodology === 'scrumban'}
-                      onClick={() => handleSelectMethodology('scrumban')}
-                      title={t('settings.methodologyScrumbanDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        methodology === 'scrumban'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="truncate">{t('settings.methodologyScrumban')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
-                          {t('settings.methodologyScrumbanBadgeBoard')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.methodologyScrumbanDesc')}
-                      </p>
+                      {t('settings.goToModules')}
                     </button>
                   </div>
                 )}
@@ -1394,7 +1395,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {/* Default View Selector (DEV-274) */}
               <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/[0.08]">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <label htmlFor="default-view-select" className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                     {t('settings.defaultViewLabel')}
                   </label>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1402,124 +1403,58 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
 
-                <div
-                  className={`grid gap-2.5 pt-1 ${
-                    modulesState.sprint && enabledTabs.sprint && modulesState.release && enabledTabs.release
-                      ? 'grid-cols-1 sm:grid-cols-3'
-                      : (modulesState.sprint && enabledTabs.sprint) || (modulesState.release && enabledTabs.release)
-                      ? 'grid-cols-1 sm:grid-cols-2'
-                      : 'grid-cols-1 max-w-2xl'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={defaultView === 'kanban'}
-                    onClick={() => setDefaultView('kanban')}
-                    title={t('settings.defaultViewKanbanDesc')}
-                    className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                      defaultView === 'kanban'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                    }`}
+                <div className="relative max-w-xl">
+                  <select
+                    id="default-view-select"
+                    value={defaultView}
+                    onChange={(e) => setDefaultView(e.target.value as any)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none pr-10"
                   >
-                    <div className="flex items-center justify-between gap-1.5 mb-2">
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                        <Layout className="w-4 h-4 text-indigo-500 shrink-0" />
-                        <span className="truncate">{t('header.kanban')}</span>
-                      </div>
-                      <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                        {t('settings.coreViewBadge')}
+                    <option value="kanban">{t('header.kanban')} ({t('settings.coreViewBadge')})</option>
+                    {modulesState.sprint && enabledTabs.sprint && (
+                      <option value="sprint">{t('header.sprints')}</option>
+                    )}
+                    {modulesState.release && enabledTabs.release && (
+                      <option value="release">{t('header.releases')}</option>
+                    )}
+                    {modulesState.timeline && enabledTabs.timeline && (
+                      <option value="timeline">{t('header.timeline')}</option>
+                    )}
+                    {enabledTabs.metrics && (
+                      <option value="metrics">{t('header.metrics')}</option>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Active Default View Summary Card */}
+                <div className="p-3.5 rounded-xl border bg-slate-50/80 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] max-w-xl">
+                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                      {defaultView === 'kanban' && <Layout className="w-4 h-4 text-indigo-500 shrink-0" />}
+                      {defaultView === 'sprint' && <Target className="w-4 h-4 text-amber-500 shrink-0" />}
+                      {defaultView === 'release' && <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />}
+                      {defaultView === 'timeline' && <Calendar className="w-4 h-4 text-blue-500 shrink-0" />}
+                      {defaultView === 'metrics' && <BarChart2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+                      <span className="truncate">
+                        {defaultView === 'kanban' && t('header.kanban')}
+                        {defaultView === 'sprint' && t('header.sprints')}
+                        {defaultView === 'release' && t('header.releases')}
+                        {defaultView === 'timeline' && t('header.timeline')}
+                        {defaultView === 'metrics' && t('header.metrics')}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {t('settings.defaultViewKanbanDesc')}
-                    </p>
-                  </button>
-
-                  {modulesState.sprint && enabledTabs.sprint && (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={defaultView === 'sprint'}
-                      onClick={() => setDefaultView('sprint')}
-                      title={t('settings.defaultViewSprintDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        defaultView === 'sprint'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Target className="w-4 h-4 text-amber-500 shrink-0" />
-                          <span className="truncate">{t('header.sprints')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
-                          Sprints
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.defaultViewSprintDesc')}
-                      </p>
-                    </button>
-                  )}
-
-                  {modulesState.release && enabledTabs.release && (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={defaultView === 'release'}
-                      onClick={() => setDefaultView('release')}
-                      title={t('settings.defaultViewReleaseDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        defaultView === 'release'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="truncate">{t('header.releases')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
-                          Releases
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.defaultViewReleaseDesc')}
-                      </p>
-                    </button>
-                  )}
-
-                  {modulesState.timeline && enabledTabs.timeline && (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={defaultView === 'timeline'}
-                      onClick={() => setDefaultView('timeline')}
-                      title={t('settings.defaultViewTimelineDesc')}
-                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
-                        defaultView === 'timeline'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                          <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
-                          <span className="truncate">{t('header.timeline')}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-blue-500/15 text-blue-600 dark:text-blue-300 font-semibold">
-                          Roadmap
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {t('settings.defaultViewTimelineDesc')}
-                      </p>
-                    </button>
-                  )}
+                    <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                      {defaultView === 'kanban' ? t('settings.coreViewBadge') : defaultView.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {defaultView === 'kanban' && t('settings.defaultViewKanbanDesc')}
+                    {defaultView === 'sprint' && t('settings.defaultViewSprintDesc')}
+                    {defaultView === 'release' && t('settings.defaultViewReleaseDesc')}
+                    {defaultView === 'timeline' && t('settings.defaultViewTimelineDesc')}
+                    {defaultView === 'metrics' && t('settings.defaultViewMetricsDesc')}
+                  </p>
                 </div>
               </div>
 
@@ -1657,6 +1592,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         }
                       }}
                       ariaLabel={t('header.timeline')}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl border transition-colors bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BarChart2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.metrics')}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">{t('settings.metricsTabDesc')}</div>
+                      </div>
+                    </div>
+                    <SettingsSwitch
+                      checked={Boolean(enabledTabs.metrics)}
+                      onChange={(checked) => {
+                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint && !enabledTabs.release && !enabledTabs.timeline) return;
+                        setEnabledTabs({ ...enabledTabs, metrics: checked });
+                        if (!checked && defaultView === 'metrics') {
+                          setDefaultView('kanban');
+                        }
+                      }}
+                      ariaLabel={t('header.metrics')}
                     />
                   </label>
                 </div>
@@ -1989,9 +1947,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* DEV-275: Catálogo de Módulos y Componentes del Proyecto */}
-              {renderModulesCatalogSection()}
             </div>
           )}
 
@@ -2099,15 +2054,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {kanbanEditMode === 'ampliada' ? t('settings.expandedModeBtn') : t('settings.simplifiedModeBtn')} ({activeColumnsList.length})
                 </div>
 
-                {/* Horizontal mini-board flow */}
-                <div className="flex flex-row overflow-x-auto gap-4 pb-4 items-stretch scrollbar-thin">
+                {/* Vertical column card flow */}
+                <div className="space-y-4">
                   {activeColumnsList.map((col, index) => {
                     const currentWip = wipLimits[col.id] || col.wipLimit || 0;
 
                     return (
                       <div
                         key={col.id}
-                        className={`w-72 sm:w-80 shrink-0 p-4 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs flex flex-col justify-between gap-3.5 transition-all duration-150 ${
+                        className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs space-y-4 transition-all duration-150 ${
                           dragOverColId === col.id && draggingStatus?.fromColId !== col.id
                             ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-300/50 dark:ring-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/[0.04]'
                             : 'border-slate-200 dark:border-white/[0.08]'
@@ -2117,52 +2072,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onDrop={(e) => { e.preventDefault(); handleMoveStatusToColumn(col.id); }}
                       >
                         {/* Header: Dot + Title Input + Subtitle + Reorder Buttons */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <span className={`w-3.5 h-3.5 rounded-full ${col.dotColor} shrink-0`} />
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 max-w-sm min-w-0">
                               <input
                                 type="text"
                                 value={col.title}
                                 onChange={(e) => handleUpdateColumnField(index, 'title', e.target.value)}
-                                className="text-sm font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:outline-none px-1 text-slate-900 dark:text-white w-full truncate"
+                                className="text-sm font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:outline-none px-1 text-slate-900 dark:text-white w-full"
                                 title={t('settings.editColTitle')}
                               />
                               {col.subtitle && (
-                                <p className="text-xs text-slate-400 px-1 font-mono truncate">
+                                <p className="text-xs text-slate-400 px-1 font-mono">
                                   {col.subtitle}
                                 </p>
                               )}
                             </div>
                           </div>
 
-                          {/* Order Buttons (ArrowLeft / ArrowRight) */}
+                          {/* Order Buttons */}
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
-                              onClick={() => handleMoveColumn(index, 'left')}
+                              onClick={() => handleMoveColumn(index, 'up')}
                               disabled={index === 0}
                               title={t('settings.moveColLeft')}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
                             >
-                              <ArrowLeft className="w-3.5 h-3.5" />
+                              <ArrowUp className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleMoveColumn(index, 'right')}
+                              onClick={() => handleMoveColumn(index, 'down')}
                               disabled={index === activeColumnsList.length - 1}
                               title={t('settings.moveColRight')}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
                             >
-                              <ArrowRight className="w-3.5 h-3.5" />
+                              <ArrowDown className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
 
                         {/* WIP Limit & Drop Target Settings */}
-                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.wipLimitLabel')}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{t('settings.wipLimitLabel')}</span>
                             <input
                               type="number"
                               min="0"
@@ -2179,16 +2134,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 }
                                 setWipLimits(next);
                               }}
-                              className="w-20 px-2 py-1 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 text-right"
+                              className="w-28 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 text-right"
                             />{/* ux-audit-ignore UX-001: integer WIP counter bounded 0-50, not a monetary amount, so a regional decimal comma cannot occur */}
                           </div>
 
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.dropStatusLabel')}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{t('settings.dropStatusLabel')}</span>
                             <select
                               value={col.dropTargetStatus || col.statuses[0] || 'draft'}
                               onChange={(e) => handleUpdateColumnField(index, 'dropTargetStatus', e.target.value as ItemStatus)}
-                              className="appearance-none px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] truncate"
+                              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 max-w-[180px] truncate"
                             >
                               {col.statuses.map((st) => (
                                 <option key={st} value={st}>
@@ -2200,7 +2155,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
 
                         {/* Interactive Status Remapping */}
-                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04] flex-1">
+                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                               {t('settings.assignedStatuses', { count: col.statuses.length })}
@@ -2210,7 +2165,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
                             {draggingStatus && draggingStatus.fromColId !== col.id && (
                               <span className="text-xs text-indigo-500 dark:text-indigo-400 italic animate-pulse">
                                 {t('settings.dropHereToMove')}
@@ -2225,7 +2180,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   setDraggingStatus({ status: st as ItemStatus, fromColId: col.id });
                                 }}
                                 onDragEnd={() => { setDraggingStatus(null); setDragOverColId(null); }}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-mono font-medium border shadow-2xs group/st cursor-grab active:cursor-grabbing select-none transition-opacity ${
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border shadow-2xs group/st cursor-grab active:cursor-grabbing select-none transition-opacity ${
                                   draggingStatus?.status === st && draggingStatus?.fromColId === col.id
                                     ? 'opacity-40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
                                     : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
@@ -2255,7 +2210,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     handleAddStatusToColumn(col.id, e.target.value as ItemStatus);
                                   }
                                 }}
-                                className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2 pr-5 py-0.5 cursor-pointer focus:outline-none transition-colors"
+                                className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2.5 pr-6 py-1 focus:outline-none transition-colors"
                               >
                                 <option value="" disabled>{t('settings.assignStatusPrompt')}</option>
                                 <optgroup label={t('settings.canonicalStatusesGroup')}>
@@ -2273,7 +2228,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   ))}
                                 </optgroup>
                               </select>
-                              <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-1.5" />
+                              <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-2" />
                             </div>
                           </div>
                         </div>
@@ -2725,8 +2680,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </form>
               </div>
+            </div>
+          )}
 
-              {/* DEV-275: Catálogo de Módulos y Componentes del Proyecto */}
+          {/* TAB: MÓDULOS Y COMPONENTES DEL PROYECTO */}
+          {activeTab === 'components' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+                  {language === 'es' ? 'Módulos y Componentes de Software' : 'Software Modules & Components'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {language === 'es'
+                    ? 'Estructura modular del proyecto. Administra las áreas de arquitectura y código (ej. Frontend, Backend, API, Auth, Database) que categorizan las historias y tareas en el tablero.'
+                    : 'Project modular structure. Manage architecture and codebase areas (e.g. Frontend, Backend, API, Auth, Database) that categorize stories and tasks on the board.'}
+                </p>
+              </div>
+
               {renderModulesCatalogSection()}
             </div>
           )}

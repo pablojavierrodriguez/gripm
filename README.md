@@ -2,7 +2,7 @@
   <img src="docs/brand/gripm-logo-lockup.png" alt="gripm logo in its dark frame" width="140" />
 </p>
 
-<h1 align="center">gripm ⚡</h1>
+<h1 align="center">gripm</h1>
 
 <p align="center">
   <strong>Traction for AI-velocity engineering: A sovereign, local-first Agile & Product Management Cockpit for developers and AI pair programmers.</strong>

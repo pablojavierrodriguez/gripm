@@ -1,15 +1,16 @@
 ---
 id: DEV-228
 title: "Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)"
-status: ready
+status: done
 created_date: '2026-10-09'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "core"
   - "import"
   - "onboarding"
   - "migration"
   - "local-first"
+dependencies: []
 priority: medium
 type: feature
 ---
@@ -34,6 +35,11 @@ Extender el sistema de importación para admitir la ingesta de backlogs exportad
 - [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
 <!-- AC:END -->
 
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
@@ -53,4 +59,3 @@ Extender el sistema de importación para admitir la ingesta de backlogs exportad
   - Detección automática del esquema y prefijo canónico a partir del repositorio o tareas existentes en `backlog/tasks/`.
   - Generación de archivos atómicos individuales `.md` con sanitización estricta de nombres y numeración correlativa.
 <!-- SECTION:NOTES:END -->
-

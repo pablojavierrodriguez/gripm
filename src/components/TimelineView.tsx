@@ -11,6 +11,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import type { BacklogItem, GripmConfig, ItemStatus, Sprint, Release } from '../types';
+import { isSprintModuleActive } from '../types';
 import { useTranslation } from '../utils/i18n';
 
 interface TimelineViewProps {
@@ -27,6 +28,11 @@ const MONTH_NAMES_ES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 
 const MONTH_FULL_ES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+const MONTH_NAMES_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const MONTH_FULL_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
 type TimeScale = 'quarters' | 'months' | 'sprints';
@@ -56,7 +62,7 @@ function formatDisplayDate(dateStr: string): string {
   if (!dateStr || dateStr.length < 10) return '';
   const parts = dateStr.slice(0, 10).split('-');
   if (parts.length !== 3) return dateStr;
-  return `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 /**
@@ -151,8 +157,18 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onUpdateItem,
   config: _config
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const monthNames = language === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_ES;
+  const monthFull = language === 'en' ? MONTH_FULL_EN : MONTH_FULL_ES;
+  const isSprintEnabled = isSprintModuleActive(_config) && sprints.length > 0;
   const [scale, setScale] = useState<TimeScale>('months');
+
+  useEffect(() => {
+    if (!isSprintEnabled && scale === 'sprints') {
+      setScale('months');
+    }
+  }, [isSprintEnabled, scale]);
+
   const [search, setSearch] = useState('');
   const [groupByParent, setGroupByParent] = useState(true);
   const [expandedEpics, setExpandedEpics] = useState<Record<string, boolean>>({});
@@ -413,14 +429,23 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     const nowIso = new Date().toISOString().slice(0, 10);
     checkDate(nowIso);
 
-    // Month scale limits
-    const minObj = new Date(minD === '9999-12-31' ? nowIso : minD);
-    minObj.setDate(1);
-    minObj.setMonth(minObj.getMonth() - 1);
+    // Month scale limits: at least 1 month before earliest/today, and 3 months after latest/today
+    const minDateParsed = new Date(minD === '9999-12-31' ? nowIso : minD);
+    const maxDateParsed = new Date(maxD === '0000-01-01' ? nowIso : maxD);
+    const now = new Date();
 
-    const maxObj = new Date(maxD === '0000-01-01' ? nowIso : maxD);
-    maxObj.setMonth(maxObj.getMonth() + 2);
-    maxObj.setDate(0);
+    const earliestMonthTotal = Math.min(
+      minDateParsed.getFullYear() * 12 + minDateParsed.getMonth(),
+      now.getFullYear() * 12 + now.getMonth() - 1
+    );
+
+    const latestMonthTotal = Math.max(
+      maxDateParsed.getFullYear() * 12 + maxDateParsed.getMonth(),
+      now.getFullYear() * 12 + now.getMonth() + 3
+    );
+
+    const minObj = new Date(Math.floor(earliestMonthTotal / 12), earliestMonthTotal % 12, 1);
+    const maxObj = new Date(Math.floor(latestMonthTotal / 12), (latestMonthTotal % 12) + 1, 0);
 
     const minDateStr = minObj.toISOString().slice(0, 10);
     const maxDateStr = maxObj.toISOString().slice(0, 10);
@@ -438,7 +463,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
         cols.push({
           label: `Q${qNum} ${year}`,
-          sublabel: `${MONTH_NAMES_ES[startQ.getMonth()]} - ${MONTH_NAMES_ES[endQ.getMonth()]}`,
+          sublabel: `${monthNames[startQ.getMonth()]} - ${monthNames[endQ.getMonth()]} ${year}`,
           colWidthPx: colWidth,
           dateStr: startQ.toISOString().slice(0, 10)
         });
@@ -466,8 +491,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       const startM = new Date(year, month, 1);
 
       cols.push({
-        label: `${MONTH_FULL_ES[month]} ${year}`,
-        sublabel: `${MONTH_NAMES_ES[month]} • Días 1-${new Date(year, month + 1, 0).getDate()}`,
+        label: `${monthFull[month]} ${year}`,
+        sublabel: `${monthNames[month]} • ${language === 'en' ? 'Days' : 'Días'} 1-${new Date(year, month + 1, 0).getDate()} (${year})`,
         colWidthPx: colWidth,
         dateStr: startM.toISOString().slice(0, 10)
       });
@@ -842,17 +867,19 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             >
               {t('roadmap.scaleMonths') || 'Meses'}
             </button>
-            <button
-              type="button"
-              onClick={() => setScale('sprints')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                scale === 'sprints'
-                  ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-xs font-semibold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              {t('roadmap.scaleSprints') || 'Sprints'}
-            </button>
+            {isSprintEnabled && (
+              <button
+                type="button"
+                onClick={() => setScale('sprints')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  scale === 'sprints'
+                    ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-xs font-semibold'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                {t('roadmap.scaleSprints') || 'Sprints'}
+              </button>
+            )}
           </div>
         </div>
       </div>

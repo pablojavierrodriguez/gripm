@@ -1,9 +1,9 @@
 ---
 id: DEV-281
 title: "Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "epic"
   - "roadmap"
@@ -52,3 +52,8 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 - [x] #8 Acabado visual de calibre mundial estilo Linear/Jira (cero aspecto de juguete), con indicador de Hoy, tooltips flotantes en vivo y barras de alto contraste
 - [x] #9 Preservación de la Pirámide de Verificación (18/18 tests en verde, 0 errores TypeScript, 0 findings UX-011)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

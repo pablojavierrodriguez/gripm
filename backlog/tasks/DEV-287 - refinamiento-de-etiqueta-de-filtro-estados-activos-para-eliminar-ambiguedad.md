@@ -1,9 +1,9 @@
 ---
 id: DEV-287
 title: "Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "ux"
   - "filterbar"
@@ -37,8 +37,7 @@ Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en c
 - [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- Clave `filter.allActiveFlow` actualizada a "Estados activos" (`src/locales/es.json`) y "Active statuses" (`src/locales/en.json`).
-- `src/components/AdvancedFiltersPopover.tsx`: actualizado `isAllActiveFlow` para reconocer tanto el estado sin selección como la selección explícita del conjunto activo (`draft`, `doing`, `review`, `ready`), renderizando la nueva etiqueta.
-- `src/components/FilterBar.tsx`: soporte para rotulación de flujo activo en `getActiveFilterChips` (`labels.allActiveFlow`), `activeChips` `useMemo` y helper exportado `itemMatchesModule` para soporte y compatibilidad con filtro de módulo múltiple (`it.module === filters.module || it.modules?.includes(filters.module)`).
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

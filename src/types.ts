@@ -28,7 +28,7 @@ export type ItemStatus =
 
 export type ViewMode = "simplificada" | "ampliada";
 
-export type ActiveTab = 'kanban' | 'sprint' | 'release' | 'trash' | 'archive' | 'settings' | 'timeline';
+export type ActiveTab = 'kanban' | 'sprint' | 'release' | 'trash' | 'archive' | 'settings' | 'timeline' | 'metrics';
 
 export type StorageType = "json" | "markdown";
 
@@ -197,13 +197,14 @@ export interface ModulesConfig {
   release?: boolean;
   calendar?: boolean;
   timeline?: boolean;
+  metrics?: boolean;
 }
 
 export interface GripmConfig {
   theme?: 'dark' | 'light' | 'system';
   density?: 'comfortable' | 'compact';
   methodology?: ProjectMethodology;
-  defaultView?: 'kanban' | 'sprint' | 'release' | 'settings' | 'timeline';
+  defaultView?: 'kanban' | 'sprint' | 'release' | 'settings' | 'timeline' | 'metrics';
   mode?: 'single' | 'multi';
   modules?: ModulesConfig;
   modulesList?: string[];
@@ -212,6 +213,7 @@ export interface GripmConfig {
     sprint?: boolean;
     release?: boolean;
     timeline?: boolean;
+    metrics?: boolean;
   };
   kanban?: KanbanSettings;
   estimation?: EstimationConfig;
@@ -262,6 +264,15 @@ export function isCalendarModuleActive(config?: GripmConfig | null): boolean {
 export function isTimelineModuleActive(config?: GripmConfig | null): boolean {
   if (config?.modules?.timeline !== undefined) return config.modules.timeline;
   if (config?.enabledTabs?.timeline !== undefined) return config.enabledTabs.timeline;
+  return true;
+}
+
+/**
+ * Resolves whether the Metrics / Analytics functional capability is active.
+ */
+export function isMetricsModuleActive(config?: GripmConfig | null): boolean {
+  if (config?.modules?.metrics !== undefined) return config.modules.metrics;
+  if (config?.enabledTabs?.metrics !== undefined) return config.enabledTabs.metrics;
   return true;
 }
 

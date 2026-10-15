@@ -13,6 +13,37 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.5.0] — 2026-10-15 🚀 Métricas de Flujo, Importador Universal, Acciones Masivas y Blindaje de Persistencia Atómica
+
+### 🎯 Resumen
+*Versión 1.5.0 de Gripm: incorporación del módulo visual de analítica y métricas de flujo con KPIs de Throughput, Cycle Time, WIP y Salud de ACs (DEV-229), importador universal de backlogs externos para migración local-first desde Jira, Linear y CSV en modal visual y CLI (DEV-228), selección múltiple en backlog y barra de acciones masivas flotante con transferencias de sprint, release, estado y prioridad (DEV-277), rediseño de zonas de soltado a altura completa equitativas en Kanban para estados reales únicos y multi-estado (DEV-271), visualización de Timeline / Cronograma con rangos de fechas ampliados y nombres normalizados (DEV-281), gestión centralizada de módulos y componentes en Settings y multi-asignación en tareas (DEV-275), rediseño compacto en tarjetas de columnas Kanban en Settings (DEV-273), erradicación de truncamientos a cero bytes mediante persistencia atómica con temp, fsync y rename (DEV-291), desacople del servidor de desarrollo Vite en runtime productivo con servidor estático ligero y reducción de dependencias (DEV-290), blindaje de seguridad en daemon local contra path traversal y mutaciones en endpoints GET (DEV-292), prevención de procesos zombies y pureza de stdio en servidor MCP (DEV-295), integridad del parser Markdown/YAML protegiendo bloques de código cercados y metadatos personalizados (DEV-289), fin de fabricación de ACs y auto-promociones en sincronización (DEV-293), erradicación de stale closures en App.tsx con actualizaciones funcionales (DEV-294), refinamiento de etiquetas de filtros activos (DEV-287), visibilidad de versión en modal de atajos en modo Sandbox (DEV-288) e identidad minimalista sin clichés visuales.*
+
+### 📊 Métricas de Flujo y Analítica de Entregas
+- **DEV-229 — Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab V1):** cabecera con KPIs de Throughput, Cycle Time, AC Health y WIP activo, con gráficos proporcionales nativos en SVG y desglose por sprint y release sin librerías externas pesadas.
+
+### 🔄 Migración e Interoperabilidad Local-First
+- **DEV-228 — Importador Universal de Backlogs Externos (Jira, Linear y CSV):** asistente visual interactivo en `ImportWizardModal` y comando terminal `gripm import` con mapeo automático de estados, prioridades, tipos y extracción de ACs.
+
+### ⚡ Ergonomía, Productividad y Vistas de Trabajo
+- **DEV-271 — Zonas de soltado multi-estado ampliadas y apiladas a altura completa en Kanban:** partición vertical equitativa (`flex-1`) del espacio visible de la columna, con estados únicos ocupando el 100% de la altura y multi-estados dividiendo el espacio en mitades o tercios con hover temático.
+- **DEV-277 — Selección múltiple en Backlog y barra flotante de acciones masivas:** selección de rangos con `Shift + Click`, barra flotante fija inferior con reposicionamiento al tope/fondo, asignación masiva de sprint/release y cambio de estado o prioridad en lote.
+- **DEV-281 — Vista de Timeline / Cronograma interactivo:** visualización de cronograma jerárquico con cálculo de límites temporales ampliado a mínimo 1 mes en el pasado y 3 meses en el futuro con fechas de 4 dígitos.
+- **DEV-275 — Gestión centralizada de módulos y componentes en Settings y multi-asignación en tareas:** catálogo persistido en `config.modulesList` y selector multi-chip interactivo en `ItemModal`.
+- **DEV-273 — Editor de columnas Kanban en Settings:** disposición en tarjetas verticales de ancho completo con reordenamiento accesible.
+- **DEV-287 — Refinamiento de filtro de estados:** adopción de "Estados activos" / "Active statuses" para eliminar ambigüedad con estados completados.
+- **DEV-288 — Visibilidad de versión en Sandbox:** versión de aplicación expuesta siempre en el pie del modal de atajos en entornos estáticos de Vercel.
+
+### 🛡️ Seguridad, Persistencia Atómica e Integridad de Runtime
+- **DEV-291 — Persistencia Atómica: erradicación de truncamientos a cero bytes:** escrituras seguras con archivo temporal, `fs.fsyncSync` y rename atómico en tareas y registry.
+- **DEV-290 — Desacople de Vite en Runtime:** servidor estático nativo para distribución en producción y reducción de más de 120MB de dependencias de build.
+- **DEV-292 — Seguridad en Daemon Local:** sanitización estricta de IDs contra path traversal en tareas, endpoints `GET` puramente idempotentes y protección de `EPIPE` en SSE.
+- **DEV-289 — Integridad del Parser:** protección de secciones dentro de bloques de código cercados y preservación de campos YAML personalizados.
+- **DEV-293 — Gobernanza de Calidad en Backlog Sync:** erradicación de falsificación de checkboxes y auto-promoción a `ready`.
+- **DEV-294 — Prevención de Stale Closures en App:** sincronización funcional y prevención de conflictos 409 durante edición activa.
+- **DEV-295 — Saneamiento del Servidor MCP:** manejo limpio de señales de proceso (`SIGINT`, `SIGTERM`, stdio close), subcomando no posicional en CLI y stdio puro para JSON-RPC.
+
+---
+
 ## [1.4.0] — 2026-10-15 🚀 Modo Sandbox en Vercel, Ergonomía de Densidad a 1366×768, Acciones Rápidas y Jerarquía Semántica
 
 ### 🎯 Resumen

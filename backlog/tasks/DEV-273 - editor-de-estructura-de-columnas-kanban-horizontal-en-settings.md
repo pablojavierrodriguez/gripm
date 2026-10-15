@@ -1,9 +1,9 @@
 ---
 id: DEV-273
 title: "Editor de estructura de columnas Kanban horizontal e intuitivo en Settings"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "ux"
   - "settings"
@@ -38,10 +38,7 @@ Esta disposición contradice el modelo mental del usuario: un tablero Kanban se 
 - [x] #6 `npm test` y validación de guardado de configuración en verde
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- Se transformó el contenedor de columnas en `SettingsView.tsx` a un mini-tablero horizontal con clase `flex flex-row overflow-x-auto gap-4 pb-4 items-stretch scrollbar-thin`.
-- Cada columna se representa con una tarjeta estructurada (`w-72 sm:w-80 shrink-0 p-4 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs flex flex-col justify-between gap-3.5`).
-- Los botones de reordenamiento ahora utilizan `ArrowLeft` y `ArrowRight` acordes a sus tooltips espaciales (`moveColLeft` / `moveColRight`).
-- Preservada la edición de títulos, límites WIP, transferencias drag & drop de chips de estados entre columnas y persistencia de configuración.
-
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

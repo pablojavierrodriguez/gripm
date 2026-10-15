@@ -13,7 +13,7 @@ import type {
   ActiveTab,
   Sprint
 } from './types';
-import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive } from './types';
+import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, isMetricsModuleActive } from './types';
 // DEV-222: solo se usa para etiquetar el Header. `loadData` ya espera `ensureAdapter()`
 // a través de la fachada de `./api`, así que para el primer render ya está resuelto.
 import { isSandboxMode } from './data/detect';
@@ -59,7 +59,7 @@ import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Dow
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 
-type AppActiveTab = ActiveTab | 'metrics';
+type AppActiveTab = ActiveTab;
 
 const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
@@ -209,7 +209,7 @@ export function App() {
 
   const isReleaseTabEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
   const isTimelineTabEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
-  const isMetricsTabEnabled = (config?.enabledTabs as any)?.metrics !== false;
+  const isMetricsTabEnabled = isMetricsModuleActive(config) && (config?.enabledTabs?.metrics !== false);
 
   // Auto-redirect activeTab if current tab became disabled
   useEffect(() => {

@@ -1,9 +1,9 @@
 ---
 id: DEV-275
 title: "Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "feature"
   - "model"
@@ -38,10 +38,7 @@ Actualmente, el campo de módulo en las tareas (`module?: string`) es un string 
 - [x] #7 `npm test` y sincronización de backlog con código 0
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- Extendido `src/types.ts`: `modulesList?: string[];` en `GripmConfig` y `modules?: string[];` en `BacklogItem`.
-- En `SettingsView.tsx`: agregada sección visual y accesible para administrar la lista oficial de componentes del proyecto (`modulesList`) con agregado, eliminación por chip y persistencia inmediata.
-- En `ItemModal.tsx`: reemplazado el input plano por un selector multi-chip interactivo con sugerencias combinadas de `config.modulesList` y módulos preexistentes, permitiendo crear nuevos o seleccionar existentes. Al guardar persiste tanto `modules: selectedModules` como `module: selectedModules[0] || ''` preservando compatibilidad retroactiva.
-- En `ItemCard.tsx`: renderizado de badges de módulos de forma compacta y legible para múltiples componentes, e inclusión de todos los módulos asignados en la generación del prompt para agentes de IA.
-
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

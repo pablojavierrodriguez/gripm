@@ -872,21 +872,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </button>
           </div>
         )}
-        {/* Dynamic Multi-Status Sub-Drop Zones (DEV-052 & DEV-271) */}
-        {isDropActive && draggedItemId && col.statuses.length > 1 && (
-          <div className="mb-2.5 p-2 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-indigo-500/40 dark:border-indigo-400/40 shadow-xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
-            <div className="flex items-center justify-between gap-1 mb-2 px-1">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 min-w-0 truncate">
-                Soltar en estado específico:
-              </span>
-              <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400 font-medium shrink-0">
-                {col.statuses.length} estados disponibles
-              </span>
-            </div>
-            <div className="flex flex-col gap-2 w-full">
-              {col.statuses.map((st) => {
+        {/* Dynamic Full-Height Partitioned Drop Zones (DEV-052 & DEV-271) */}
+        {draggedItemId ? (
+          <div className="flex-1 flex flex-col w-full h-full min-h-[420px] transition-all duration-200">
+            {col.statuses.length === 1 ? (
+              // Single status in this column: occupies the full available height with centered label
+              (() => {
+                const st = col.statuses[0];
                 const meta = getStatusMeta(st);
-                const isHovered = activeSubDropTargetStatus?.colId === col.id && activeSubDropTargetStatus?.status === st;
+                const isHovered = (activeDropColumn === col.id) || (activeSubDropTargetStatus?.colId === col.id && activeSubDropTargetStatus?.status === st);
                 const theme = SUB_DROP_THEME[meta.key] || {
                   hoverBg: meta.bg || 'bg-slate-100 dark:bg-slate-800',
                   hoverBorder: meta.border || 'border-indigo-500',
@@ -896,14 +890,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 };
                 return (
                   <div
-                    key={st}
                     onDragOver={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       e.dataTransfer.dropEffect = 'move';
-                      if (dropTarget !== null) {
-                        setDropTarget(null);
-                      }
+                      if (activeDropColumn !== col.id) setActiveDropColumn(col.id);
                       if (activeSubDropTargetStatus?.colId !== col.id || activeSubDropTargetStatus?.status !== st) {
                         setActiveSubDropTargetStatus({ colId: col.id, status: st as ItemStatus });
                       }
@@ -920,24 +911,89 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       handleDrop(e, col, undefined, colItems, st as ItemStatus);
                       setActiveSubDropTargetStatus(null);
                     }}
-                    className={`w-full py-3 px-4 rounded-xl border-2 border-dashed transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer select-none ${
+                    className={`flex-1 w-full h-full rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-6 gap-3 select-none ${
                       isHovered
-                        ? `${theme.hoverBg} ${theme.hoverBorder} ${theme.hoverRing} ${theme.hoverText} scale-[1.01] shadow-sm`
-                        : 'bg-white/90 dark:bg-white/[0.04] border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-400/60 hover:bg-white dark:hover:bg-white/[0.06]'
+                        ? `${theme.hoverBg} ${theme.hoverBorder} ${theme.hoverRing} ${theme.hoverText} scale-[1.01] shadow-md`
+                        : 'bg-white/60 dark:bg-white/[0.03] border-slate-300 dark:border-white/15 text-slate-600 dark:text-slate-400 hover:border-indigo-400 dark:hover:border-indigo-500/50'
                     }`}
                   >
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform duration-150 pointer-events-none ${isHovered ? `${theme.dot} scale-125` : meta.dot}`} />
-                    <span className="text-xs font-medium text-inherit pointer-events-none">{meta.label}</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-3.5 h-3.5 rounded-full shrink-0 transition-transform duration-200 ${isHovered ? `${theme.dot} scale-125` : meta.dot}`} />
+                      <span className="text-sm font-semibold tracking-wide text-inherit">
+                        {meta.label}
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono uppercase px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400">
+                      {st}
+                    </span>
                   </div>
                 );
-              })}
-            </div>
+              })()
+            ) : (
+              // 2 or more statuses in this column: partition the vertical space in equal parts
+              <div className="flex-1 flex flex-col w-full h-full gap-2.5">
+                {col.statuses.map((st) => {
+                  const meta = getStatusMeta(st);
+                  const isHovered = activeSubDropTargetStatus?.colId === col.id && activeSubDropTargetStatus?.status === st;
+                  const theme = SUB_DROP_THEME[meta.key] || {
+                    hoverBg: meta.bg || 'bg-slate-100 dark:bg-slate-800',
+                    hoverBorder: meta.border || 'border-indigo-500',
+                    hoverText: 'text-slate-900 dark:text-white font-semibold',
+                    hoverRing: 'ring-2 ring-indigo-500/40',
+                    dot: meta.dot || 'bg-slate-500',
+                  };
+                  return (
+                    <div
+                      key={st}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'move';
+                        if (activeDropColumn !== col.id) setActiveDropColumn(col.id);
+                        if (activeSubDropTargetStatus?.colId !== col.id || activeSubDropTargetStatus?.status !== st) {
+                          setActiveSubDropTargetStatus({ colId: col.id, status: st as ItemStatus });
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        if (activeSubDropTargetStatus?.colId === col.id && activeSubDropTargetStatus?.status === st) {
+                          setActiveSubDropTargetStatus(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDrop(e, col, undefined, colItems, st as ItemStatus);
+                        setActiveSubDropTargetStatus(null);
+                      }}
+                      className={`flex-1 min-h-0 w-full rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-4 gap-2 select-none ${
+                        isHovered
+                          ? `${theme.hoverBg} ${theme.hoverBorder} ${theme.hoverRing} ${theme.hoverText} scale-[1.01] shadow-md`
+                          : isDropActive
+                          ? 'bg-white/70 dark:bg-white/[0.04] border-slate-300 dark:border-white/15 text-slate-700 dark:text-slate-300'
+                          : 'bg-white/40 dark:bg-white/[0.02] border-slate-300/80 dark:border-white/10 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded-full shrink-0 transition-transform duration-200 ${isHovered ? `${theme.dot} scale-125` : meta.dot}`} />
+                        <span className="text-sm font-semibold tracking-wide text-inherit">
+                          {meta.label}
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono uppercase px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400">
+                        {st}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
 
         {/* Items List */}
         <div 
-          className={`flex flex-col ${config?.density === 'compact' ? 'gap-1.5' : 'gap-2.5'} flex-1 overflow-y-auto pr-0.5`}
+          className={draggedItemId ? 'h-0 overflow-hidden opacity-0 pointer-events-none' : `flex flex-col ${config?.density === 'compact' ? 'gap-1.5' : 'gap-2.5'} flex-1 overflow-y-auto pr-0.5`}
           onDragOver={(e) => {
             e.preventDefault();
             if (activeDropColumn !== col.id) setActiveDropColumn(col.id);

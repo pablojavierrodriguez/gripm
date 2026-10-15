@@ -25,7 +25,7 @@ import {
   BarChart2
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, isMetricsModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 
@@ -128,7 +128,7 @@ export const Header: FC<HeaderProps> = ({
 
   const isReleaseEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
   const isTimelineEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
-  const isMetricsEnabled = (config?.enabledTabs as any)?.metrics !== false;
+  const isMetricsEnabled = isMetricsModuleActive(config) && (config?.enabledTabs?.metrics !== false);
 
   const defaultHomeTab: ActiveTab = config?.defaultView || (config?.methodology === 'scrum' ? 'sprint' : 'kanban');
 

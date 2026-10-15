@@ -1,16 +1,16 @@
 ---
 id: DEV-292
 title: "Seguridad en Daemon Local: Sanitización de Path Traversal en tareas y blindaje de endpoints"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "security"
   - "backend"
   - "api"
   - "sse"
 dependencies: []
-priority: p1
+priority: high
 type: security
 estimate: 3
 ---
@@ -57,6 +57,11 @@ console.assert(!resolved.startsWith(path.resolve('backlog/tasks')), 'FALLO: El a
 - [x] #4 `isAllowedBrowsePath()` en `server/services/fsExplorer.ts` resuelve `fs.realpathSync` **antes** de verificar la contención con `isPathContained`, bloqueando el bypass mediante symlinks
 - [x] #5 La suite de pruebas de seguridad aprueba limpiamente (`node scripts/test-api-security.js`)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

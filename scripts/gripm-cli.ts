@@ -291,7 +291,7 @@ async function main() {
       }
 
       const normalizeLf = (s: string) => s.replace(/\r\n/g, '\n').trim();
-      const stripDateHeader = (s: string) => s.replace(/^> Consolidado generado el \d{4}-\d{2}-\d{2} por gripm ⚡\n?/m, '');
+      const stripDateHeader = (s: string) => s.replace(/^> Consolidado generado el \d{4}-\d{2}-\d{2} por gripm( ⚡)?\n?/m, '');
       if (stripDateHeader(normalizeLf(existing)) !== stripDateHeader(normalizeLf(md))) {
         // Detectar tareas específicas cuya versión no coincide con el consolidado
         const differingFiles: string[] = [];

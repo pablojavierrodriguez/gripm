@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-15 por gripm ⚡
+> Consolidado generado el 2026-10-15 por gripm
 
 ## Resumen de Estados
 
@@ -82,500 +82,6 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 - [ ] #3 Validar las vistas Kanban y Backlog en anchos táctiles habituales, incluyendo navegación, acciones y scroll
 - [ ] #4 Mantener la experiencia desktop compacta y sin regresiones en resoluciones amplias
 - [ ] #5 Verificar ambos idiomas y temas, sin overflow horizontal accidental ni pérdida de controles
-
----
-
-### 🚀 Ready for Deploy (16)
-
-#### [DEV-228] Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Extender el sistema de importación para admitir la ingesta de backlogs exportados desde Jira y Linear (archivos CSV y JSON), transformándolos en tareas locales de gripm:
-1. **Adopción con cero fricción:** Eliminar la barrera de entrada para equipos existentes que ya tienen tareas en Jira o Linear, permitiendo importar proyectos enteros con un clic o comando sin tipear nada a mano.
-2. **Soberanía y privacidad de datos:** El procesamiento de los archivos de exportación se ejecuta 100% en local (en el cliente web y/o CLI). Cero llamadas a APIs de terceros, cero tokens y cero filtración de roadmap a la nube.
-3. **Mapeo canónico inteligente:** Normalizar estados, títulos, descripciones y prioridades de Jira/Linear al formato estándar de gripm (`backlog/tasks/*.md` o `.gripm/backlog.json`), extrayendo criterios de aceptación y etiquetas automáticamente.
-
-**Criterios de Aceptación:**
-- [x] #1 Soporte para parsear exports de Jira en formato JSON y CSV mapeando estados, prioridades y descripciones
-- [x] #2 Soporte para parsear exports de Linear en formato CSV y JSON preservando titulos, notas y estimaciones
-- [x] #3 ImportWizardModal permite soltar o seleccionar archivos de export con previsualizacion y conteo de tareas antes de confirmar
-- [x] #4 Comando CLI gripm import --file <path> para importar directamente desde la terminal
-- [x] #5 Cero dependencias de red o llamadas remotas; conversion puramente local
-- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
-
----
-
-#### [DEV-229] Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab)
-- **Prioridad**: `low` | **Tipo**: `feature`
-
-Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics` / `analytics`) en la barra de navegación, integrable con el catálogo de add-ons (DEV-220):
-1. **Métricas de flujo continuo (Lean):** Brindar visibilidad del ritmo y cadencia de entrega (throughput semanal de tareas cerradas, cycle time promedio) sin caer en estimaciones burocráticas de horas quemadas.
-2. **Salud y completitud de Criterios de Aceptación:** Panel visual con gráficos locales que muestra el ratio de criterios de aceptación verificados (`- [x]`) versus pendientes por release o sprint.
-3. **Desacoplado y configurable:** Módulo opcional gobernable vía `enabledTabs.metrics` en `.gripm/config.json`. Quien prefiera la experiencia minimalista puede mantenerlo desactivado.
-4. **Cálculo reactivo local-first:** Las métricas se calculan en tiempo real leyendo los propios archivos del proyecto en memoria, sin telemetría externa ni servicios analíticos de terceros.
-
-**Criterios de Aceptación:**
-- [x] #1 Pestaña opcional de métricas en la barra de navegación gobernable vía enabledTabs.metrics en .gripm/config.json
-- [x] #2 Gráficos de throughput y distribución por tipo y estado usando visualización ligera nativa en SVG/Tailwind sin dependencias externas pesadas
-- [x] #3 Panel de salud de criterios de aceptación que resume avance de verificación por release y sprint
-- [x] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
-- [x] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
-- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
-
----
-
-#### [DEV-271] Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En columnas Kanban que agrupan más de un estado (por ejemplo, la columna de trabajo en curso que agrupa `doing`, `review`, `testing_qa`), `KanbanBoard.tsx` renderiza las subzonas de soltado específicas dentro de un `grid grid-cols-2` con cajas pequeñas (`p-2 text-[11px] truncate`).
-
-Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente precisa para soltar sobre una de estas mitades estrechas. El texto suele cortarse y el área táctil / de puntero no ofrece la suficiente tolerancia ni claridad de a qué estado exacto se está transicionando la tarea.
-
-### Objetivos:
-1. Reemplazar la grilla compacta de dos columnas por una disposición vertical apilada que ocupe **todo el ancho de la columna** (`flex flex-col gap-2 w-full`).
-2. Incrementar la altura y el padding de cada slot de soltado (`py-3 px-4`) para transformarlo en un drop-target generoso y ergonómico.
-3. Incorporar borde discontinuo visible, dot de color del estado y texto completo sin elipsis (`truncate`) que confirme el destino antes de soltar.
-4. Mantener la animación suave de apertura y cierre de zonas durante el arrastre sin generar saltos de scroll.
-
-**Criterios de Aceptación:**
-- [x] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
-- [x] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
-- [x] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
-- [x] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
-- [x] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
-- [x] #6 `npm test` y validación de interacciones en verde
-
----
-
-#### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En `SettingsView.tsx` (sección *Kanban Board > Column Structure & Status Mapping*), las columnas del tablero se configuran dentro de una lista vertical apilada (`space-y-4`).
-
-Esta disposición contradice el modelo mental del usuario: un tablero Kanban se visualiza de izquierda a derecha en columnas horizontales. Actualmente, los botones de reordenamiento tienen flechas hacia arriba y hacia abajo (`ArrowUp` y `ArrowDown`), mientras que sus textos de ayuda indican textualmente `moveColLeft` ("Mover a la izquierda") y `moveColRight` ("Mover a la derecha"). Además, la lista vertical consume una cantidad excesiva de scroll.
-
-### Objetivos:
-1. Reestructurar la sección de mapeo de columnas para que se presente como un **mini-tablero horizontal** (`flex flex-row overflow-x-auto gap-4 pb-4`).
-2. Cada columna en el editor se representa como una tarjeta esbelta con su título editable, límite WIP, dot de color y los chips de los estados asignados.
-3. Los controles de reordenamiento utilizan flechas izquierda y derecha coherentes con la dirección espacial del tablero (`ArrowLeft` / `ArrowRight`).
-4. Se preserva y optimiza la interacción de drag & drop para mover chips de estado entre columnas (DEV-053).
-
-**Criterios de Aceptación:**
-- [x] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
-- [x] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
-- [x] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
-- [x] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
-- [x] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
-- [x] #6 `npm test` y validación de guardado de configuración en verde
-
----
-
-#### [DEV-275] Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Actualmente, el campo de módulo en las tareas (`module?: string`) es un string libre con un datalist no gobernado que se alimenta de valores preexistentes en las tarjetas. Esto provoca inconsistencias ortográficas y fragmentación (ej. `"UI"`, `"ui"`, `"Frontend"`, `"Front-end"`). Además, una tarea solo puede apuntar a un único módulo, impidiendo clasificar ítems que atraviesan componentes transversales (ej. un feature que afecta `Frontend` y `API`).
-
-### Objetivos:
-1. **Catálogo de Componentes/Módulos en Settings:** Permitir definir, agregar, renombrar y eliminar una lista oficial de módulos o componentes del proyecto en `.gripm/config.json` (`components: string[]` o `modulesList: string[]`).
-2. **Asignación Múltiple en Tareas:** Extender el modelo de `BacklogItem` para soportar múltiples módulos (`modules?: string[]`), preservando compatibilidad retroactiva con `module: string`.
-3. **Selector ergonómico en ItemModal:** Reemplazar el input simple por un selector multi-chip donde el usuario puede elegir uno o más componentes predefinidos y opcionalmente crear uno nuevo sobre la marcha si cuenta con permisos.
-4. **Filtro unificado:** Actualizar los filtros de la barra superior y del popover para filtrar por cualquiera de los módulos asociados.
-
-**Criterios de Aceptación:**
-- [x] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
-- [x] #2 Los componentes administrados se persisten en la configuración del proyecto
-- [x] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
-- [x] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
-- [x] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
-- [x] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
-- [x] #7 `npm test` y sincronización de backlog con código 0
-
----
-
-#### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-En la vista de Backlog y Sprints (`SprintView.tsx`), gestionar múltiples tareas simultáneamente no es posible desde la interfaz web. Los usuarios deben modificar o arrastrar tareas una por una, lo que ralentiza enormemente las ceremonias de Sprint Planning, priorización y ordenamiento de backlog.
-
-Esta tarea implementa **selección múltiple de ítems** y una **barra flotante de acciones masivas (*Bulk Action Bar*)**, incorporando además la capacidad de **mover múltiples ítems seleccionados al tope o al fondo del backlog/sprint en un solo movimiento en lote**.
-
-### Objetivos:
-1. **Mecanismo de Selección Múltiple:**
-   - Checkboxes de selección por fila en la tabla de `SprintView`.
-   - Checkbox "Seleccionar todos" en el encabezado de cada sección (Sprint o Backlog).
-   - Soporte para selección de rango contiguo mediante `Shift + Click`.
-2. **Barra Flotante de Acciones Masivas (Bulk Action Bar):**
-   - Aparece en la parte inferior de la pantalla al seleccionar $\ge 1$ ítem, indicando el contador de tareas seleccionadas y botón de deseleccionar.
-   - **Reposicionamiento en lote:** Botones para *"Mover selección al tope"* (Bulk Top) y *"Mover selección al fondo"* (Bulk Bottom) conservando el orden relativo entre los ítems seleccionados.
-   - **Asignación de Sprint en lote:** Mover todos los ítems seleccionados a un sprint vigente o devolverlos al backlog.
-   - **Asignación de Release en lote:** Vincular la selección a una versión planificada.
-   - **Cambio de Estado y Prioridad en lote:** Modificar estado (ej. pasar todos a `ready` o `draft`) o prioridad (ej. `p1`).
-   - **Mover a Papelera en lote:** Descarte masivo protegido con diálogo de confirmación `ConfirmModal`.
-3. Conectar la ejecución con el motor de mutaciones masivas existente o las rutas de API correspondientes.
-
-**Criterios de Aceptación:**
-- [x] #1 SprintView incluye checkboxes de selección por fila y en la cabecera de cada bloque de sprint/backlog
-- [x] #2 Permite selección rápida de rangos de tareas contiguas manteniendo pulsada la tecla Shift
-- [x] #3 Al seleccionar uno o más ítems se despliega una barra flotante inferior con el contador y las acciones masivas disponibles
-- [x] #4 Acción masiva para mover todos los ítems seleccionados al tope o al fondo del contenedor preservando su orden relativo
-- [x] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
-- [x] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
-- [x] #7 `npm test` y consistencia de datos en disco sin race conditions
-
----
-
-#### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Iniciativa de producto para dotar a Gripm de una vista visual de **Timeline / Roadmap (Gantt-style)**, orientada al planeamiento estratégico, seguimiento de compromisos temporales y comunicación con stakeholders.
-
-Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas individuales (`BacklogItem`), y la visualización temporal se limita a las fechas fijadas en Sprints y Releases.
-
-### Alcance propuesto por fases:
-
-#### Fase 1: Extensión del Modelo de Datos y Fechas
-1. Incorporar campos opcionales `startDate?: string` y `dueDate?: string` en `BacklogItem` (`src/types.ts`) y serialización transparente en frontmatter Markdown.
-2. Permitir que una tarea herede fechas estimadas automáticamente del Sprint asignado (`startDate` / `endDate`) o de la Release (`targetDate`) si no tiene fechas explícitas.
-
-#### Fase 2: Vista de Roadmap y Agrupación por Parent (Solo Lectura / Render)
-1. Nueva pestaña o submódulo de navegación: **Roadmap / Timeline**.
-2. Agrupación por jerarquía: Las Épicas e Iniciativas actúan como filas principales colapsables/desplegables que contienen sus tareas hijas (`parentId`).
-3. Escalas de tiempo dinámicas (zoom por Trimestre / Q1-Q4, Meses y Sprints).
-4. Barras visuales con código de color según estado (`draft`, `doing`, `ready`, `done`) y porcentaje de progreso.
-
-#### Fase 3: Interactividad y Planificación Directa
-1. Capacidad de arrastrar barras para desplazar fechas o extender/reducir plazos temporales.
-2. Renderizado de líneas de dependencia horizontal (`blocks` / `blockedBy`).
-
-**Criterios de Aceptación:**
-- [x] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
-- [x] #2 Naming canónico de producto como "Roadmap" en cabecera, navegación, settings y catálogos de traducción (EN/ES)
-- [x] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints) con reestructuración real de la cuadrícula y de los slots de tiempo
-- [x] #4 Panel de jerarquía lateral con divisor redimensionable manualmente (splitter drag con cursor col-resize y memoria de ancho)
-- [x] #5 Jerarquía parent-child explícita con líneas guía de árbol en L e indentación clara para tareas dependientes bajo sus Épicas
-- [x] #6 Drag & Drop interactivo de bloques temporales: recálculo dinámico de fechas en Meses/Trimestres y reasignación directa de Sprint en escala de Sprints (validando que el sprint no esté completado)
-- [x] #7 Redimensionamiento temporal directo mediante handles en los extremos de las barras (inicio y fin)
-- [x] #8 Acabado visual de calibre mundial estilo Linear/Jira (cero aspecto de juguete), con indicador de Hoy, tooltips flotantes en vivo y barras de alto contraste
-- [x] #9 Preservación de la Pirámide de Verificación (18/18 tests en verde, 0 errores TypeScript, 0 findings UX-011)
-
----
-
-#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
-- **Prioridad**: `low` | **Tipo**: `ux`
-
-En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
-
-Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
-
-Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
-1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
-2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
-   - Español: "Estados activos" (o "Todos los estados activos").
-   - Inglés: "Active statuses" (o "All active statuses").
-3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
-
-**Criterios de Aceptación:**
-- [x] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
-- [x] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
-- [x] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
-- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
-
----
-
-#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
-- **Prioridad**: `low` | **Tipo**: `bug`
-
-En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
-`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
-
-En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
-
-### Solución propuesta:
-1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
-2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
-   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
-3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
-
-**Criterios de Aceptación:**
-- [x] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
-- [x] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
-- [x] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
-- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
-
----
-
-#### [DEV-289] Integridad del Parser: Eliminación de mutilación de código y pérdida de campos YAML en backlogMdParser
-- **Prioridad**: `p0` | **Tipo**: `bug`
-
-Corrección crítica en `scripts/backlogMdParser.ts` para evitar la pérdida silenciosa de datos y la mutilación de texto Markdown al guardar tareas desde la UI Web o el servidor MCP.
-
-### Problemas identificados y reproducibles:
-
-1. **Pérdida silenciosa de campos YAML personalizados:**
-   En `scripts/backlogMdParser.ts:247-266`, la función `finalizeList()` solo procesa una lista fija de claves (`labels`, `assignees`, `dependencies`, `blocks`, `blocked_by`, `related_to`, `sprints`, `releases`). Cualquier otra clave YAML en formato de lista (ej: `tags:`, `reviewers:`, `qa_steps:`) se descarta de la memoria y **se elimina físicamente del archivo en disco al serializar**.
-2. **Rotura de listas inline con comas:**
-   En `scripts/backlogMdParser.ts:301`, listas como `labels: ["ui/ux", "auth, login"]` se parten con `.split(',')`, corrompiendo los valores.
-3. **Mutilación de descripciones con bloques de código Markdown:**
-   En `scripts/backlogMdParser.ts:202-213`, `extractSectionBlock()` busca delimitadores H2 (`## Acceptance Criteria`, `## Description`) mediante expresiones regulares ignorando bloques de código cercados (```markdown ... ```). Si una tarea contiene documentación técnica o ejemplos con encabezados H2 dentro de código, el parser corta la sección en el bloque de código y **borra todo el texto posterior al re-serializar**.
-
-### Script de Reproducción Inmediata (PoC):
-
-```javascript
-import { parseBacklogMd, serializeBacklogMd } from './scripts/backlogMdParser.ts';
-
-// Caso 1: Pérdida de campos YAML
-const md1 = `---\nid: DEV-999\ntags:\n  - security\nreviewers:\n  - alice\n---\n## Description\nTest.`;
-const p1 = parseBacklogMd(md1, 'DEV-999');
-const s1 = serializeBacklogMd(p1);
-console.assert(s1.includes('reviewers'), 'FALLO: reviewers fue eliminado del archivo');
-
-// Caso 2: Truncamiento por código
-const md2 = `## Description\n\`\`\`markdown\n## Acceptance Criteria\n- [ ] en código\n\`\`\`\nTexto que se borra.`;
-const p2 = parseBacklogMd(md2, 'DEV-999');
-console.assert(p2.description.includes('Texto que se borra'), 'FALLO: Texto posterior al código fue truncado');
-```
-
-**Criterios de Aceptación:**
-- [x] #1 `parseBacklogMd` y `serializeBacklogMd` preservan cualquier campo o lista YAML no estándar dentro de `rawExtraFrontmatter` sin pérdida de datos en el ciclo de lectura y serialización
-- [x] #2 Los valores de listas inline entre corchetes con comas entrecomilladas (`["a", "b, c"]`) se analizan respetando las cadenas sin dividirlas erróneamente
-- [x] #3 `extractSectionBlock` ignora cualquier encabezado H2 (`## ...`) que se encuentre dentro de bloques de código cercados (\`\`\` o ~~~), extrayendo la totalidad de la descripción y el plan
-- [x] #4 Un test de ida y vuelta (round-trip) verifica que tareas con bloques de código y metadatos YAML complejos conservan el 100% de su contenido
-- [x] #5 La suite de pruebas de sincronización aprueba limpiamente (`npm run backlog:check`)
-
----
-
-#### [DEV-290] Desacople de Vite en Runtime: Servidor estático para producción y reducción de dependencias
-- **Prioridad**: `p0` | **Tipo**: `architecture`
-
-Desacoplamiento del servidor de desarrollo de Vite del comando ejecutable de producción `bin/gripm.js` para que sirva los activos precompilados de `dist/` en lugar de compilar en caliente TypeScript y procesar CSS con PostCSS/Tailwind en la máquina del usuario final.
-
-### Problemas identificados y reproducibles:
-
-1. **Dev Server en Producción:**
-   En `bin/gripm.js:357-375`, `gripm` ejecuta `createServer()` de Vite apuntando a `vite.config.ts`. El bundle productivo `dist/` generado por `npm run build` nunca se sirve.
-2. **Dependencias infladas en producción (Bloat):**
-   Para que `bin/gripm.js` funcione, `package.json` declara en `dependencies`: `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss`, `autoprefixer`, `react`, `react-dom`, `lucide-react`. Esto fuerza una descarga de más de 120 MB en `npm install -g @gripm/board`.
-3. **Incompatibilidad de motores Node:**
-   `package.json` declara `"engines": { "node": ">=20.0.0" }`, pero los scripts usan `--experimental-strip-types` (requiere `>=22.6.0`). En Node 20 LTS, `npm test` o `npm run tasks` aborta con `bad option: --experimental-strip-types`.
-
-### Script de Reproducción Inmediata (PoC):
-
-```bash
-# Simular instalación limpia sin devDependencies en Node 20
-npm pack
-mkdir -p /tmp/gripm-clean && cd /tmp/gripm-clean
-npm install --omit=dev /path/to/gripm-board-*.tgz
-# En el estado actual, el paquete arrastra vite y esbuild (~130MB)
-npx @gripm/board --version
-```
-
-**Criterios de Aceptación:**
-- [x] #1 `bin/gripm.js` en modo producción sirve la interfaz compilada desde `dist/` utilizando un servidor estático minimalista (o módulo HTTP nativo de Node), sin invocar `createServer()` de Vite
-- [x] #2 `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` se mueven de `dependencies` a `devDependencies` en `package.json`
-- [x] #3 La huella de instalación en `node_modules` para una instalación de producción (`npm install --omit=dev`) se reduce de más de 120 MB a menos de 10 MB
-- [x] #4 El campo `engines.node` en `package.json` y la ejecución de scripts se unifican de forma compatible con la versión mínima declarada
-- [x] #5 La suite de pruebas de empaquetado y superficie de publicación aprueban limpiamente (`npm run publish:check` y `npm run verify:dist`)
-
----
-
-#### [DEV-291] Persistencia Atómica: Erradicación de truncamiento a cero bytes en tareas y registry
-- **Prioridad**: `p0` | **Tipo**: `bug`
-
-Reemplazo sistemático de llamadas directas a `fs.writeFileSync()` por una función de escritura atómica (`write to temp file` + `fs.fsync` + `fs.renameSync`) en toda la capa de almacenamiento del backend y configuración global para prevenir la pérdida irreversible de tareas y corrupción de datos ante interrupciones de proceso.
-
-### Problemas identificados y reproducibles:
-
-1. **Truncamiento instantáneo a 0 bytes:**
-   En `server/services/storage.ts:660`, `storage.ts:787` y `scripts/registryConfig.js:66`, los archivos se sobrescriben directamente con `fs.writeFileSync(path, content)`.
-   `fs.writeFileSync` con la bandera por defecto `'w'` trunca el archivo a 0 bytes inmediatamente al abrir el descriptor.
-2. **Corrupción irreversible ante interrupción:**
-   Si el proceso de Node.js se cancela bruscamente (Ctrl+C, desconexión de terminal, fallo del sistema, OOM Killer o excepción no capturada) durante la escritura, el archivo de la tarea o `~/.gripm/registry.json` queda vacío (0 bytes).
-3. **Reseteo catastrófico de registry:**
-   En `scripts/registryConfig.js:48`, si `registry.json` queda corrupto o vacío por un truncamiento, el bloque `catch` descarta el archivo y devuelve `{ activeProjectId: '', projects: [] }`, borrando todo el historial de proyectos en el siguiente guardado.
-
-### Script de Reproducción Inmediata (PoC):
-
-```javascript
-import fs from 'node:fs';
-// Simulación de interrupción forzada a mitad de escritura directa
-const target = './test-corrupt-task.md';
-fs.writeFileSync(target, 'contenido previo valioso');
-try {
-  const fd = fs.openSync(target, 'w');
-  // Proceso abortado antes de transferir bytes
-  process.kill(process.pid, 'SIGKILL');
-} catch {}
-// Resultado: test-corrupt-task.md queda con 0 bytes de tamaño
-```
-
-**Criterios de Aceptación:**
-- [x] #1 Se implementa un helper canónico `atomicWriteFileSync(filePath, content)` que escribe a un archivo temporal `.tmp.[pid].[timestamp]`, fuerza el vaciado físico a disco (`fs.fsyncSync`) y ejecuta `fs.renameSync` para reemplazar el archivo destino de forma atómica
-- [x] #2 `saveBacklogMdItem()` y `writeProjectBacklog()` en `server/services/storage.ts` utilizan la función de escritura atómica
-- [x] #3 `saveRegistryFile()` en `scripts/registryConfig.js` utiliza la función de escritura atómica
-- [x] #4 El servidor MCP en `scripts/mcp-server.ts` utiliza la función de escritura atómica para la creación y actualización de tareas
-- [x] #5 Un test de stress simula interrupciones y verifica que el archivo de destino nunca queda con 0 bytes ni en estado parcialmente escrito
-
----
-
-#### [DEV-292] Seguridad en Daemon Local: Sanitización de Path Traversal en tareas y blindaje de endpoints
-- **Prioridad**: `p1` | **Tipo**: `security`
-
-Corrección de vulnerabilidades de seguridad críticas en el servidor backend local de Gripm: escape de directorio (Path Traversal) en la generación de nombres de tareas, mutación de archivos sin validación CSRF vía HTTP `GET`, fuga de contención por enlaces simbólicos y caídas fatales del proceso Node por sockets SSE huérfanos.
-
-### Problemas identificados y reproducibles:
-
-1. **Path Traversal en `code` de tareas:**
-   En `scripts/backlogMdParser.ts:741`, `generateTaskFilename(id, title)` solo sanitiza caracteres no válidos en el título, pero deja intacto el `id`:
-   ```typescript
-   const cleanId = (id || 'TASK').trim().toUpperCase().replace(/--+/g, '-');
-   return `${cleanId} - ${cleanTitle || 'Task'}.md`;
-   ```
-   Si se envía `POST /api/items` con `{ "code": "../../../payload" }`, `path.join(tasksDir, targetFilename)` resuelve fuera de `backlog/tasks/` y escribe el archivo en la raíz del repositorio o fuera de él.
-2. **Mutación de disco en endpoint `GET` sin protección CSRF:**
-   En `server/routes/api.ts:832-838`, `GET /api/projects/:id/export-monolithic-md?save=true` escribe físicamente en `BACKLOG.md`. Las peticiones `GET` emitidas desde etiquetas HTML (`<img src="...">`) por una web externa no envían cabecera `Origin` y son autorizadas por el middleware de seguridad, permitiendo sobrescribir archivos locales sin interacción del usuario.
-3. **Crash Fatal por evento `EPIPE` no capturado en SSE:**
-   En `server/sse/sseManager.ts:10-16`, `broadcastSse` escribe en `http.ServerResponse`. En Node.js, si el cliente desconecta abruptamente, el stream emite un evento `'error'` asíncrono. Como no hay listener `res.on('error', ...)`, Node.js aborta el proceso completo con excepción fatal.
-4. **Fuga de contención en `/api/fs/browse` con Enlaces Simbólicos:**
-   En `server/services/fsExplorer.ts:56`, se evalúa `isPathContained` sobre la ruta sintáctica antes de resolver `fs.realpathSync`. Si un enlace simbólico en `/tmp` apunta a `/`, permite explorar todo el disco.
-
-### Script de Reproducción Inmediata (PoC):
-
-```javascript
-import path from 'node:path';
-import { generateTaskFilename } from './scripts/backlogMdParser.ts';
-
-const filename = generateTaskFilename('../../../evil', 'Payload');
-const resolved = path.resolve('backlog/tasks', filename);
-console.assert(!resolved.startsWith(path.resolve('backlog/tasks')), 'FALLO: El archivo escapó de tasksDir');
-```
-
-**Criterios de Aceptación:**
-- [x] #1 `generateTaskFilename()` en `scripts/backlogMdParser.ts` sanitiza estrictamente el identificador `id`, eliminando cualquier barra (`/`, `\`), punto relativo (`..`) o carácter fuera de `[a-zA-Z0-9_-]`
-- [x] #2 La funcionalidad de guardado en disco (`?save=true`) se remueve del método `GET` en `/api/projects/:id/export-monolithic-md` y se traslada a un método `POST` con validación estricta de `Origin` y `Content-Type: application/json`
-- [x] #3 `handleSseRoute()` en `server/sse/sseManager.ts` registra listeners `res.on('error', ...)` y `req.on('error', ...)` para liberar los sockets y limpiar temporizadores sin provocar un crash fatal de Node.js ante desconexiones intempestivas
-- [x] #4 `isAllowedBrowsePath()` en `server/services/fsExplorer.ts` resuelve `fs.realpathSync` **antes** de verificar la contención con `isPathContained`, bloqueando el bypass mediante symlinks
-- [x] #5 La suite de pruebas de seguridad aprueba limpiamente (`node scripts/test-api-security.js`)
-
----
-
-#### [DEV-293] Gobernanza de Calidad: Erradicación de fabricación de ACs y auto-promoción a ready en backlog sync
-- **Prioridad**: `p1` | **Tipo**: `bug`
-
-Corrección en el script de sincronización y verificación de backlog (`scripts/verify-backlog-sync.js`) para erradicar la alteración ilegítima de estados y la falsificación automática de criterios de aceptación (`- [ ]` ➔ `- [x]`).
-
-### Problemas identificados y reproducibles:
-
-1. **Fabricación automática de criterios de aceptación cumplidos:**
-   En `scripts/verify-backlog-sync.js:236-242`, si una tarea está en estado `done` pero tiene criterios sin tildar (`- [ ]`), ejecutar `npm run backlog:sync` (modo `--fix`) ejecuta:
-   ```javascript
-   const fixedAcBlock = acBlock.replace(/-\s*\[ \]/g, '- [x]');
-   ```
-   Tildando mecánicamente todos los criterios como aprobados sin ninguna verificación ejecutable. Esto viola directamente la regla de seguridad `SEC-02` y falsea la trazabilidad histórica de pruebas.
-2. **Auto-promoción ilegítima a `ready` saltando `review` y QA:**
-   En `scripts/verify-backlog-sync.js:220-228`, si todos los ACs de una tarea en `doing` están tildados, el modo `--fix` cambia su estado automáticamente a `status: ready`.
-   Esto viola la Invariante Fundamental de `STATE_MACHINE.md` y `AGENTS.md` (el paso a `ready` es potestad exclusiva del rol QA tras auditar bajo la Pirámide de Verificación).
-3. **Diffs artificiales de Git por fecha diaria en `BACKLOG.md`:**
-   En `scripts/backlogMdParser.ts:759`, `generateMonolithicBacklogMd` estampa `> Consolidado generado el ${now} por gripm ⚡`. Ejecutar el sync al día siguiente sin cambios en tareas produce un commit innecesario por la fecha.
-
-### Script de Reproducción Inmediata (PoC):
-
-```bash
-# Crear tarea en done con AC pendiente
-cat << 'EOF' > backlog/tasks/DEV-997\ -\ Test\ Sync.md
----
-id: DEV-997
-title: Tarea Test
-status: done
----
-## Acceptance Criteria
-- [ ] Criterio no probado
-EOF
-
-node scripts/verify-backlog-sync.js --fix
-# En el estado actual, el archivo pasa a tener "- [x] Criterio no probado" falsificado
-```
-
-**Criterios de Aceptación:**
-- [x] #1 `verify-backlog-sync.js` en modo `--fix` jamás altera checkboxes `- [ ]` a `- [x]` en tareas marcadas como `done`; en su lugar, reporta una advertencia o error exigiendo verificación real o reclasificación del estado
-- [x] #2 `verify-backlog-sync.js` en modo `--fix` jamás auto-promociona tareas de `doing` a `ready`; la transición formal a `ready` se preserva como gate manual/exclusivo del rol QA
-- [x] #3 `generateMonolithicBacklogMd` omite marcas de tiempo volátiles que generen git churn diario cuando el contenido de las tareas no ha variado
-- [x] #4 `npm run backlog:check` y `npm run backlog:sync` respetan estrictamente la State Machine sin alterar el contenido semántico de las tareas
-
----
-
-#### [DEV-294] Prevención de Stale Closures en App.tsx y Sincronización Funcional con SSE
-- **Prioridad**: `p2` | **Tipo**: `bug`
-
-Corrección de condiciones de carrera y pérdida silenciosa de tareas en el cliente React (`src/App.tsx`) causadas por el uso de copias obsoletas en closures (`setBoardData({ ...boardData, items })`) en lugar de mutaciones funcionales ante la llegada concurrente de eventos SSE.
-
-### Problemas identificados y reproducibles:
-
-1. **Stale Closure en guardado de tareas:**
-   En `src/App.tsx:848-856`:
-   ```tsx
-   const handleSaveItem = useCallback(async (itemData) => {
-     if (!boardData) return;
-     const updated = await updateItem(itemData.id, itemData);
-     setBoardData({
-       ...boardData, // ¡Referencia capturada al momento de invocar el handler!
-       items: boardData.items.map(...)
-     });
-   }, [boardData]);
-   ```
-2. **Eliminación silenciosa de tareas creadas concurrentemente:**
-   Si un usuario tiene el modal de edición abierto y en segundo plano un agente de IA o terminal crea una tarea nueva (`DEV-101`), el evento SSE actualiza `boardData` en la UI. Al hacer clic en "Guardar" en el modal, la promesa `updateItem()` se resuelve y ejecuta `setBoardData` utilizando la versión vieja capturada en el closure, **borrando inmediatamente la tarea recién llegada de la pantalla del usuario**.
-3. Idéntico patrón defectuoso ocurre en:
-   - `handleUpdateStatus` (`src/App.tsx:527`)
-   - `handleUpdatePriority` (`src/App.tsx:578`)
-   - `handleCreateProject` (`src/App.tsx:908`)
-
-### Escenario de Reproducción:
-
-1. Abrir la UI de Gripm en el navegador.
-2. Abrir el modal de edición de una tarea existente.
-3. Desde la terminal, crear una nueva tarea con `node scripts/gripm-cli.ts create --title "Tarea Concurrente"`.
-4. Verificar que la tarjeta aparece en el Kanban vía SSE.
-5. Guardar la tarea abierta en el modal en la UI.
-6. En el estado actual, "Tarea Concurrente" desaparece del tablero.
-
-**Criterios de Aceptación:**
-- [x] #1 Todas las invocaciones a `setBoardData` en `src/App.tsx` utilizan el patrón de actualización funcional (`setBoardData(prev => ...)`), garantizando que operan siempre sobre la versión más reciente del estado en memoria
-- [x] #2 Los eventos de actualización en vivo (`subscribeToBoardEvents`) no son sobrescritos ni descartados por operaciones de guardado pendientes o concurrentes
-- [x] #3 Si un ítem en edición es modificado externamente en disco mientras su modal está abierto, la UI advierte del cambio o actualiza `mtime` para prevenir conflictos 409 inesperados
-- [x] #4 La suite de pruebas de UI y Smoke Tests aprueban limpiamente (`npm run test:ui`)
-
----
-
-#### [DEV-295] Saneamiento del Servidor MCP: Prevención de procesos zombies y blindaje de JSON-RPC
-- **Prioridad**: `p2` | **Tipo**: `bug`
-
-Endurecimiento del servidor Model Context Protocol (`scripts/mcp-server.ts` y `bin/gripm-mcp.js`) para evitar procesos huérfanos en segundo plano, roturas del canal de comunicación stdio con agentes de IA (Cursor, Claude, Antigravity) y desincronizaciones entre el código fuente TypeScript y el binario empaquetado.
-
-### Problemas identificados y reproducibles:
-
-1. **Procesos Zombie por falta de listeners de cierre en `stdin`:**
-   En `scripts/mcp-server.ts:1820`, el servidor escucha líneas mediante `readline`, pero **no registra ningún listener para `process.stdin.on('close')`, `'end'`, `SIGINT` ni `SIGTERM`**. Cuando un cliente LLM desconecta o termina la sesión, el proceso Node.js permanece vivo consumiendo memoria y CPU si existen temporizadores activos (como `checkForUpdates`).
-2. **Rotura de protocolo JSON-RPC por enrutamiento fallido en CLI:**
-   En `bin/gripm.js:148-182`, la detección de MCP evalúa rígidamente `args[0] === 'mcp'`. Si un cliente o script invoca `gripm --repo /ruta mcp`, `args[0]` es `'--repo'`. El ejecutable no inicia MCP, sino que inicia el servidor web e imprime texto plano y banners ASCII en `stdout`, reventando la conexión JSON-RPC del cliente.
-3. **Peligro de salida en `readline`:**
-   En `scripts/mcp-server.ts:1810`, se declara `output: process.stdout` en `readline.createInterface`. En un transporte stdio de MCP, `output` debe ser nulo para evitar que secuencias de escape del terminal se filtren en la salida.
-4. **Desfase silencioso de binario compilado:**
-   El binario commiteado `bin/gripm-mcp.js` no cuenta con una verificación en pre-commit hook que valide si está sincronizado con los cambios en `scripts/mcp-server.ts`.
-
-### Script de Reproducción Inmediata (PoC):
-
-```bash
-# Simular invocación con banderas previas
-node bin/gripm.js --repo . mcp
-# En el estado actual, imprime "gripm v... listo / Tablero: http://..." en stdout en lugar de responder a JSON-RPC
-```
-
-**Criterios de Aceptación:**
-- [x] #1 `scripts/mcp-server.ts` registra manejadores explícitos para `process.stdin.on('close')`, `process.stdin.on('end')`, `SIGINT` y `SIGTERM` para terminar el proceso limpiamente de inmediato
-- [x] #2 `bin/gripm.js` analiza los argumentos de forma no posicional, reconociendo el subcomando `mcp` sin importar si está precedido por banderas como `--repo` o `-r`
-- [x] #3 `readline.createInterface` en `scripts/mcp-server.ts` omite `output: process.stdout` para blindar la pureza del canal JSON-RPC
-- [x] #4 Un check en `scripts/verify-changes.js` compila en memoria `mcp-server.ts` y verifica que `bin/gripm-mcp.js` coincida exactamente, abortando el commit si el binario está desactualizado
-- [x] #5 La suite de pruebas de MCP aprueba limpiamente (`node scripts/verify-mcp-binary.js`)
 
 ---
 
@@ -1097,7 +603,7 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 
 ---
 
-### ✅ Done / Deployed (251)
+### ✅ Done / Deployed (267)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -5773,6 +5279,43 @@ Actualizar de forma exhaustiva, simétrica y coherente la documentación del rep
 
 ---
 
+#### [DEV-228] Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Extender el sistema de importación para admitir la ingesta de backlogs exportados desde Jira y Linear (archivos CSV y JSON), transformándolos en tareas locales de gripm:
+1. **Adopción con cero fricción:** Eliminar la barrera de entrada para equipos existentes que ya tienen tareas en Jira o Linear, permitiendo importar proyectos enteros con un clic o comando sin tipear nada a mano.
+2. **Soberanía y privacidad de datos:** El procesamiento de los archivos de exportación se ejecuta 100% en local (en el cliente web y/o CLI). Cero llamadas a APIs de terceros, cero tokens y cero filtración de roadmap a la nube.
+3. **Mapeo canónico inteligente:** Normalizar estados, títulos, descripciones y prioridades de Jira/Linear al formato estándar de gripm (`backlog/tasks/*.md` o `.gripm/backlog.json`), extrayendo criterios de aceptación y etiquetas automáticamente.
+
+**Criterios de Aceptación:**
+- [x] #1 Soporte para parsear exports de Jira en formato JSON y CSV mapeando estados, prioridades y descripciones
+- [x] #2 Soporte para parsear exports de Linear en formato CSV y JSON preservando titulos, notas y estimaciones
+- [x] #3 ImportWizardModal permite soltar o seleccionar archivos de export con previsualizacion y conteo de tareas antes de confirmar
+- [x] #4 Comando CLI gripm import --file <path> para importar directamente desde la terminal
+- [x] #5 Cero dependencias de red o llamadas remotas; conversion puramente local
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-229] Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab)
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics` / `analytics`) en la barra de navegación, integrable con el catálogo de add-ons (DEV-220):
+1. **Métricas de flujo continuo (Lean):** Brindar visibilidad del ritmo y cadencia de entrega (throughput semanal de tareas cerradas, cycle time promedio) sin caer en estimaciones burocráticas de horas quemadas.
+2. **Salud y completitud de Criterios de Aceptación:** Panel visual con gráficos locales que muestra el ratio de criterios de aceptación verificados (`- [x]`) versus pendientes por release o sprint.
+3. **Desacoplado y configurable:** Módulo opcional gobernable vía `enabledTabs.metrics` en `.gripm/config.json`. Quien prefiera la experiencia minimalista puede mantenerlo desactivado.
+4. **Cálculo reactivo local-first:** Las métricas se calculan en tiempo real leyendo los propios archivos del proyecto en memoria, sin telemetría externa ni servicios analíticos de terceros.
+
+**Criterios de Aceptación:**
+- [x] #1 Pestaña opcional de métricas en la barra de navegación gobernable vía enabledTabs.metrics en .gripm/config.json
+- [x] #2 Gráficos de throughput y distribución por tipo y estado usando visualización ligera nativa en SVG/Tailwind sin dependencias externas pesadas
+- [x] #3 Panel de salud de criterios de aceptación que resume avance de verificación por release y sprint
+- [x] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
+- [x] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
 #### [DEV-230] Exportación Liviana de Eventos de Calendario sin Dependencias Cloud (Web Intent e iCal)
 - **Prioridad**: `low` | **Tipo**: `improvement`
 
@@ -6810,6 +6353,29 @@ Adicionalmente, en resoluciones compactas de escritorio (1024×768 a 1366×768),
 
 ---
 
+#### [DEV-271] Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En columnas Kanban que agrupan más de un estado (por ejemplo, la columna de trabajo en curso que agrupa `doing`, `review`, `testing_qa`), `KanbanBoard.tsx` renderiza las subzonas de soltado específicas dentro de un `grid grid-cols-2` con cajas pequeñas (`p-2 text-[11px] truncate`).
+
+Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente precisa para soltar sobre una de estas mitades estrechas. El texto suele cortarse y el área táctil / de puntero no ofrece la suficiente tolerancia ni claridad de a qué estado exacto se está transicionando la tarea.
+
+### Objetivos:
+1. Reemplazar la grilla compacta de dos columnas por una disposición vertical apilada que ocupe **todo el ancho de la columna** (`flex flex-col gap-2 w-full`).
+2. Incrementar la altura y el padding de cada slot de soltado (`py-3 px-4`) para transformarlo en un drop-target generoso y ergonómico.
+3. Incorporar borde discontinuo visible, dot de color del estado y texto completo sin elipsis (`truncate`) que confirme el destino antes de soltar.
+4. Mantener la animación suave de apertura y cierre de zonas durante el arrastre sin generar saltos de scroll.
+
+**Criterios de Aceptación:**
+- [x] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
+- [x] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
+- [x] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
+- [x] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
+- [x] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
+- [x] #6 `npm test` y validación de interacciones en verde
+
+---
+
 #### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
 - **Prioridad**: `medium` | **Tipo**: `feature`
 
@@ -6830,6 +6396,29 @@ En lugar de construir un panel de configuración complejo y pesado para personal
 - [x] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
 - [x] #5 Coherencia de accesibilidad y foco para los chips descartables
 - [x] #6 Tests unitarios para el estado de filtros y chips
+
+---
+
+#### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (sección *Kanban Board > Column Structure & Status Mapping*), las columnas del tablero se configuran dentro de una lista vertical apilada (`space-y-4`).
+
+Esta disposición contradice el modelo mental del usuario: un tablero Kanban se visualiza de izquierda a derecha en columnas horizontales. Actualmente, los botones de reordenamiento tienen flechas hacia arriba y hacia abajo (`ArrowUp` y `ArrowDown`), mientras que sus textos de ayuda indican textualmente `moveColLeft` ("Mover a la izquierda") y `moveColRight` ("Mover a la derecha"). Además, la lista vertical consume una cantidad excesiva de scroll.
+
+### Objetivos:
+1. Reestructurar la sección de mapeo de columnas para que se presente como un **mini-tablero horizontal** (`flex flex-row overflow-x-auto gap-4 pb-4`).
+2. Cada columna en el editor se representa como una tarjeta esbelta con su título editable, límite WIP, dot de color y los chips de los estados asignados.
+3. Los controles de reordenamiento utilizan flechas izquierda y derecha coherentes con la dirección espacial del tablero (`ArrowLeft` / `ArrowRight`).
+4. Se preserva y optimiza la interacción de drag & drop para mover chips de estado entre columnas (DEV-053).
+
+**Criterios de Aceptación:**
+- [x] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
+- [x] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
+- [x] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
+- [x] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
+- [x] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
+- [x] #6 `npm test` y validación de guardado de configuración en verde
 
 ---
 
@@ -6855,6 +6444,28 @@ En resoluciones de escritorio habituales como 1366×768 (y monitores estándar d
 
 ---
 
+#### [DEV-275] Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, el campo de módulo en las tareas (`module?: string`) es un string libre con un datalist no gobernado que se alimenta de valores preexistentes en las tarjetas. Esto provoca inconsistencias ortográficas y fragmentación (ej. `"UI"`, `"ui"`, `"Frontend"`, `"Front-end"`). Además, una tarea solo puede apuntar a un único módulo, impidiendo clasificar ítems que atraviesan componentes transversales (ej. un feature que afecta `Frontend` y `API`).
+
+### Objetivos:
+1. **Catálogo de Componentes/Módulos en Settings:** Permitir definir, agregar, renombrar y eliminar una lista oficial de módulos o componentes del proyecto en `.gripm/config.json` (`components: string[]` o `modulesList: string[]`).
+2. **Asignación Múltiple en Tareas:** Extender el modelo de `BacklogItem` para soportar múltiples módulos (`modules?: string[]`), preservando compatibilidad retroactiva con `module: string`.
+3. **Selector ergonómico en ItemModal:** Reemplazar el input simple por un selector multi-chip donde el usuario puede elegir uno o más componentes predefinidos y opcionalmente crear uno nuevo sobre la marcha si cuenta con permisos.
+4. **Filtro unificado:** Actualizar los filtros de la barra superior y del popover para filtrar por cualquiera de los módulos asociados.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
+- [x] #2 Los componentes administrados se persisten en la configuración del proyecto
+- [x] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
+- [x] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
+- [x] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
+- [x] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
+- [x] #7 `npm test` y sincronización de backlog con código 0
+
+---
+
 #### [DEV-276] Acciones rápidas de reposicionamiento individual en tarjetas y backlog (Top, Bottom y Asignar Sprint)
 - **Prioridad**: `high` | **Tipo**: `feature`
 
@@ -6876,6 +6487,38 @@ Asimismo, asignar una tarea a un sprint específico exige arrastrarla verticalme
 - [x] #4 El recálculo del campo `order` mantiene la estabilidad de ranking sin solapamientos
 - [x] #5 Accesibilidad por teclado en las nuevas opciones de menú
 - [x] #6 `npm test` y verificación de consistencia en verde
+
+---
+
+#### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+En la vista de Backlog y Sprints (`SprintView.tsx`), gestionar múltiples tareas simultáneamente no es posible desde la interfaz web. Los usuarios deben modificar o arrastrar tareas una por una, lo que ralentiza enormemente las ceremonias de Sprint Planning, priorización y ordenamiento de backlog.
+
+Esta tarea implementa **selección múltiple de ítems** y una **barra flotante de acciones masivas (*Bulk Action Bar*)**, incorporando además la capacidad de **mover múltiples ítems seleccionados al tope o al fondo del backlog/sprint en un solo movimiento en lote**.
+
+### Objetivos:
+1. **Mecanismo de Selección Múltiple:**
+   - Checkboxes de selección por fila en la tabla de `SprintView`.
+   - Checkbox "Seleccionar todos" en el encabezado de cada sección (Sprint o Backlog).
+   - Soporte para selección de rango contiguo mediante `Shift + Click`.
+2. **Barra Flotante de Acciones Masivas (Bulk Action Bar):**
+   - Aparece en la parte inferior de la pantalla al seleccionar $\ge 1$ ítem, indicando el contador de tareas seleccionadas y botón de deseleccionar.
+   - **Reposicionamiento en lote:** Botones para *"Mover selección al tope"* (Bulk Top) y *"Mover selección al fondo"* (Bulk Bottom) conservando el orden relativo entre los ítems seleccionados.
+   - **Asignación de Sprint en lote:** Mover todos los ítems seleccionados a un sprint vigente o devolverlos al backlog.
+   - **Asignación de Release en lote:** Vincular la selección a una versión planificada.
+   - **Cambio de Estado y Prioridad en lote:** Modificar estado (ej. pasar todos a `ready` o `draft`) o prioridad (ej. `p1`).
+   - **Mover a Papelera en lote:** Descarte masivo protegido con diálogo de confirmación `ConfirmModal`.
+3. Conectar la ejecución con el motor de mutaciones masivas existente o las rutas de API correspondientes.
+
+**Criterios de Aceptación:**
+- [x] #1 SprintView incluye checkboxes de selección por fila y en la cabecera de cada bloque de sprint/backlog
+- [x] #2 Permite selección rápida de rangos de tareas contiguas manteniendo pulsada la tecla Shift
+- [x] #3 Al seleccionar uno o más ítems se despliega una barra flotante inferior con el contador y las acciones masivas disponibles
+- [x] #4 Acción masiva para mover todos los ítems seleccionados al tope o al fondo del contenedor preservando su orden relativo
+- [x] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
+- [x] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
+- [x] #7 `npm test` y consistencia de datos en disco sin race conditions
 
 ---
 
@@ -6958,6 +6601,349 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
 - [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
 - [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
 - [x] #6 `npm test` y consistencia en la jerarquía de ítems
+
+---
+
+#### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Iniciativa de producto para dotar a Gripm de una vista visual de **Timeline / Roadmap (Gantt-style)**, orientada al planeamiento estratégico, seguimiento de compromisos temporales y comunicación con stakeholders.
+
+Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas individuales (`BacklogItem`), y la visualización temporal se limita a las fechas fijadas en Sprints y Releases.
+
+### Alcance propuesto por fases:
+
+#### Fase 1: Extensión del Modelo de Datos y Fechas
+1. Incorporar campos opcionales `startDate?: string` y `dueDate?: string` en `BacklogItem` (`src/types.ts`) y serialización transparente en frontmatter Markdown.
+2. Permitir que una tarea herede fechas estimadas automáticamente del Sprint asignado (`startDate` / `endDate`) o de la Release (`targetDate`) si no tiene fechas explícitas.
+
+#### Fase 2: Vista de Roadmap y Agrupación por Parent (Solo Lectura / Render)
+1. Nueva pestaña o submódulo de navegación: **Roadmap / Timeline**.
+2. Agrupación por jerarquía: Las Épicas e Iniciativas actúan como filas principales colapsables/desplegables que contienen sus tareas hijas (`parentId`).
+3. Escalas de tiempo dinámicas (zoom por Trimestre / Q1-Q4, Meses y Sprints).
+4. Barras visuales con código de color según estado (`draft`, `doing`, `ready`, `done`) y porcentaje de progreso.
+
+#### Fase 3: Interactividad y Planificación Directa
+1. Capacidad de arrastrar barras para desplazar fechas o extender/reducir plazos temporales.
+2. Renderizado de líneas de dependencia horizontal (`blocks` / `blockedBy`).
+
+**Criterios de Aceptación:**
+- [x] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
+- [x] #2 Naming canónico de producto como "Roadmap" en cabecera, navegación, settings y catálogos de traducción (EN/ES)
+- [x] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints) con reestructuración real de la cuadrícula y de los slots de tiempo
+- [x] #4 Panel de jerarquía lateral con divisor redimensionable manualmente (splitter drag con cursor col-resize y memoria de ancho)
+- [x] #5 Jerarquía parent-child explícita con líneas guía de árbol en L e indentación clara para tareas dependientes bajo sus Épicas
+- [x] #6 Drag & Drop interactivo de bloques temporales: recálculo dinámico de fechas en Meses/Trimestres y reasignación directa de Sprint en escala de Sprints (validando que el sprint no esté completado)
+- [x] #7 Redimensionamiento temporal directo mediante handles en los extremos de las barras (inicio y fin)
+- [x] #8 Acabado visual de calibre mundial estilo Linear/Jira (cero aspecto de juguete), con indicador de Hoy, tooltips flotantes en vivo y barras de alto contraste
+- [x] #9 Preservación de la Pirámide de Verificación (18/18 tests en verde, 0 errores TypeScript, 0 findings UX-011)
+
+---
+
+#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
+- **Prioridad**: `low` | **Tipo**: `ux`
+
+En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
+
+Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
+
+Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
+1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
+2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
+   - Español: "Estados activos" (o "Todos los estados activos").
+   - Inglés: "Active statuses" (o "All active statuses").
+3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
+
+**Criterios de Aceptación:**
+- [x] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
+- [x] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
+- [x] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
+
+---
+
+#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
+- **Prioridad**: `low` | **Tipo**: `bug`
+
+En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
+`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
+
+En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
+
+### Solución propuesta:
+1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
+2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
+   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
+3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
+
+**Criterios de Aceptación:**
+- [x] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
+- [x] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
+- [x] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
+
+---
+
+#### [DEV-289] Integridad del Parser: Eliminación de mutilación de código y pérdida de campos YAML en backlogMdParser
+- **Prioridad**: `urgent` | **Tipo**: `bug`
+
+Corrección crítica en `scripts/backlogMdParser.ts` para evitar la pérdida silenciosa de datos y la mutilación de texto Markdown al guardar tareas desde la UI Web o el servidor MCP.
+
+### Problemas identificados y reproducibles:
+
+1. **Pérdida silenciosa de campos YAML personalizados:**
+   En `scripts/backlogMdParser.ts:247-266`, la función `finalizeList()` solo procesa una lista fija de claves (`labels`, `assignees`, `dependencies`, `blocks`, `blocked_by`, `related_to`, `sprints`, `releases`). Cualquier otra clave YAML en formato de lista (ej: `tags:`, `reviewers:`, `qa_steps:`) se descarta de la memoria y **se elimina físicamente del archivo en disco al serializar**.
+2. **Rotura de listas inline con comas:**
+   En `scripts/backlogMdParser.ts:301`, listas como `labels: ["ui/ux", "auth, login"]` se parten con `.split(',')`, corrompiendo los valores.
+3. **Mutilación de descripciones con bloques de código Markdown:**
+   En `scripts/backlogMdParser.ts:202-213`, `extractSectionBlock()` busca delimitadores H2 (`## Acceptance Criteria`, `## Description`) mediante expresiones regulares ignorando bloques de código cercados (```markdown ... ```). Si una tarea contiene documentación técnica o ejemplos con encabezados H2 dentro de código, el parser corta la sección en el bloque de código y **borra todo el texto posterior al re-serializar**.
+
+### Script de Reproducción Inmediata (PoC):
+
+```javascript
+import { parseBacklogMd, serializeBacklogMd } from './scripts/backlogMdParser.ts';
+
+// Caso 1: Pérdida de campos YAML
+const md1 = `---\nid: DEV-999\ntags:\n  - security\nreviewers:\n  - alice\n---\n## Description\nTest.`;
+const p1 = parseBacklogMd(md1, 'DEV-999');
+const s1 = serializeBacklogMd(p1);
+console.assert(s1.includes('reviewers'), 'FALLO: reviewers fue eliminado del archivo');
+
+// Caso 2: Truncamiento por código
+const md2 = `## Description\n\`\`\`markdown\n## Acceptance Criteria\n- [ ] en código\n\`\`\`\nTexto que se borra.`;
+const p2 = parseBacklogMd(md2, 'DEV-999');
+console.assert(p2.description.includes('Texto que se borra'), 'FALLO: Texto posterior al código fue truncado');
+```
+
+**Criterios de Aceptación:**
+- [x] #1 `parseBacklogMd` y `serializeBacklogMd` preservan cualquier campo o lista YAML no estándar dentro de `rawExtraFrontmatter` sin pérdida de datos en el ciclo de lectura y serialización
+- [x] #2 Los valores de listas inline entre corchetes con comas entrecomilladas (`["a", "b, c"]`) se analizan respetando las cadenas sin dividirlas erróneamente
+- [x] #3 `extractSectionBlock` ignora cualquier encabezado H2 (`## ...`) que se encuentre dentro de bloques de código cercados (\`\`\` o ~~~), extrayendo la totalidad de la descripción y el plan
+- [x] #4 Un test de ida y vuelta (round-trip) verifica que tareas con bloques de código y metadatos YAML complejos conservan el 100% de su contenido
+- [x] #5 La suite de pruebas de sincronización aprueba limpiamente (`npm run backlog:check`)
+
+---
+
+#### [DEV-290] Desacople de Vite en Runtime: Servidor estático para producción y reducción de dependencias
+- **Prioridad**: `urgent` | **Tipo**: `architecture`
+
+Desacoplamiento del servidor de desarrollo de Vite del comando ejecutable de producción `bin/gripm.js` para que sirva los activos precompilados de `dist/` en lugar de compilar en caliente TypeScript y procesar CSS con PostCSS/Tailwind en la máquina del usuario final.
+
+### Problemas identificados y reproducibles:
+
+1. **Dev Server en Producción:**
+   En `bin/gripm.js:357-375`, `gripm` ejecuta `createServer()` de Vite apuntando a `vite.config.ts`. El bundle productivo `dist/` generado por `npm run build` nunca se sirve.
+2. **Dependencias infladas en producción (Bloat):**
+   Para que `bin/gripm.js` funcione, `package.json` declara en `dependencies`: `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss`, `autoprefixer`, `react`, `react-dom`, `lucide-react`. Esto fuerza una descarga de más de 120 MB en `npm install -g @gripm/board`.
+3. **Incompatibilidad de motores Node:**
+   `package.json` declara `"engines": { "node": ">=20.0.0" }`, pero los scripts usan `--experimental-strip-types` (requiere `>=22.6.0`). En Node 20 LTS, `npm test` o `npm run tasks` aborta con `bad option: --experimental-strip-types`.
+
+### Script de Reproducción Inmediata (PoC):
+
+```bash
+# Simular instalación limpia sin devDependencies en Node 20
+npm pack
+mkdir -p /tmp/gripm-clean && cd /tmp/gripm-clean
+npm install --omit=dev /path/to/gripm-board-*.tgz
+# En el estado actual, el paquete arrastra vite y esbuild (~130MB)
+npx @gripm/board --version
+```
+
+**Criterios de Aceptación:**
+- [x] #1 `bin/gripm.js` en modo producción sirve la interfaz compilada desde `dist/` utilizando un servidor estático minimalista (o módulo HTTP nativo de Node), sin invocar `createServer()` de Vite
+- [x] #2 `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` se mueven de `dependencies` a `devDependencies` en `package.json`
+- [x] #3 La huella de instalación en `node_modules` para una instalación de producción (`npm install --omit=dev`) se reduce de más de 120 MB a menos de 10 MB
+- [x] #4 El campo `engines.node` en `package.json` y la ejecución de scripts se unifican de forma compatible con la versión mínima declarada
+- [x] #5 La suite de pruebas de empaquetado y superficie de publicación aprueban limpiamente (`npm run publish:check` y `npm run verify:dist`)
+
+---
+
+#### [DEV-291] Persistencia Atómica: Erradicación de truncamiento a cero bytes en tareas y registry
+- **Prioridad**: `urgent` | **Tipo**: `bug`
+
+Reemplazo sistemático de llamadas directas a `fs.writeFileSync()` por una función de escritura atómica (`write to temp file` + `fs.fsync` + `fs.renameSync`) en toda la capa de almacenamiento del backend y configuración global para prevenir la pérdida irreversible de tareas y corrupción de datos ante interrupciones de proceso.
+
+### Problemas identificados y reproducibles:
+
+1. **Truncamiento instantáneo a 0 bytes:**
+   En `server/services/storage.ts:660`, `storage.ts:787` y `scripts/registryConfig.js:66`, los archivos se sobrescriben directamente con `fs.writeFileSync(path, content)`.
+   `fs.writeFileSync` con la bandera por defecto `'w'` trunca el archivo a 0 bytes inmediatamente al abrir el descriptor.
+2. **Corrupción irreversible ante interrupción:**
+   Si el proceso de Node.js se cancela bruscamente (Ctrl+C, desconexión de terminal, fallo del sistema, OOM Killer o excepción no capturada) durante la escritura, el archivo de la tarea o `~/.gripm/registry.json` queda vacío (0 bytes).
+3. **Reseteo catastrófico de registry:**
+   En `scripts/registryConfig.js:48`, si `registry.json` queda corrupto o vacío por un truncamiento, el bloque `catch` descarta el archivo y devuelve `{ activeProjectId: '', projects: [] }`, borrando todo el historial de proyectos en el siguiente guardado.
+
+### Script de Reproducción Inmediata (PoC):
+
+```javascript
+import fs from 'node:fs';
+// Simulación de interrupción forzada a mitad de escritura directa
+const target = './test-corrupt-task.md';
+fs.writeFileSync(target, 'contenido previo valioso');
+try {
+  const fd = fs.openSync(target, 'w');
+  // Proceso abortado antes de transferir bytes
+  process.kill(process.pid, 'SIGKILL');
+} catch {}
+// Resultado: test-corrupt-task.md queda con 0 bytes de tamaño
+```
+
+**Criterios de Aceptación:**
+- [x] #1 Se implementa un helper canónico `atomicWriteFileSync(filePath, content)` que escribe a un archivo temporal `.tmp.[pid].[timestamp]`, fuerza el vaciado físico a disco (`fs.fsyncSync`) y ejecuta `fs.renameSync` para reemplazar el archivo destino de forma atómica
+- [x] #2 `saveBacklogMdItem()` y `writeProjectBacklog()` en `server/services/storage.ts` utilizan la función de escritura atómica
+- [x] #3 `saveRegistryFile()` en `scripts/registryConfig.js` utiliza la función de escritura atómica
+- [x] #4 El servidor MCP en `scripts/mcp-server.ts` utiliza la función de escritura atómica para la creación y actualización de tareas
+- [x] #5 Un test de stress simula interrupciones y verifica que el archivo de destino nunca queda con 0 bytes ni en estado parcialmente escrito
+
+---
+
+#### [DEV-292] Seguridad en Daemon Local: Sanitización de Path Traversal en tareas y blindaje de endpoints
+- **Prioridad**: `high` | **Tipo**: `security`
+
+Corrección de vulnerabilidades de seguridad críticas en el servidor backend local de Gripm: escape de directorio (Path Traversal) en la generación de nombres de tareas, mutación de archivos sin validación CSRF vía HTTP `GET`, fuga de contención por enlaces simbólicos y caídas fatales del proceso Node por sockets SSE huérfanos.
+
+### Problemas identificados y reproducibles:
+
+1. **Path Traversal en `code` de tareas:**
+   En `scripts/backlogMdParser.ts:741`, `generateTaskFilename(id, title)` solo sanitiza caracteres no válidos en el título, pero deja intacto el `id`:
+   ```typescript
+   const cleanId = (id || 'TASK').trim().toUpperCase().replace(/--+/g, '-');
+   return `${cleanId} - ${cleanTitle || 'Task'}.md`;
+   ```
+   Si se envía `POST /api/items` con `{ "code": "../../../payload" }`, `path.join(tasksDir, targetFilename)` resuelve fuera de `backlog/tasks/` y escribe el archivo en la raíz del repositorio o fuera de él.
+2. **Mutación de disco en endpoint `GET` sin protección CSRF:**
+   En `server/routes/api.ts:832-838`, `GET /api/projects/:id/export-monolithic-md?save=true` escribe físicamente en `BACKLOG.md`. Las peticiones `GET` emitidas desde etiquetas HTML (`<img src="...">`) por una web externa no envían cabecera `Origin` y son autorizadas por el middleware de seguridad, permitiendo sobrescribir archivos locales sin interacción del usuario.
+3. **Crash Fatal por evento `EPIPE` no capturado en SSE:**
+   En `server/sse/sseManager.ts:10-16`, `broadcastSse` escribe en `http.ServerResponse`. En Node.js, si el cliente desconecta abruptamente, el stream emite un evento `'error'` asíncrono. Como no hay listener `res.on('error', ...)`, Node.js aborta el proceso completo con excepción fatal.
+4. **Fuga de contención en `/api/fs/browse` con Enlaces Simbólicos:**
+   En `server/services/fsExplorer.ts:56`, se evalúa `isPathContained` sobre la ruta sintáctica antes de resolver `fs.realpathSync`. Si un enlace simbólico en `/tmp` apunta a `/`, permite explorar todo el disco.
+
+### Script de Reproducción Inmediata (PoC):
+
+```javascript
+import path from 'node:path';
+import { generateTaskFilename } from './scripts/backlogMdParser.ts';
+
+const filename = generateTaskFilename('../../../evil', 'Payload');
+const resolved = path.resolve('backlog/tasks', filename);
+console.assert(!resolved.startsWith(path.resolve('backlog/tasks')), 'FALLO: El archivo escapó de tasksDir');
+```
+
+**Criterios de Aceptación:**
+- [x] #1 `generateTaskFilename()` en `scripts/backlogMdParser.ts` sanitiza estrictamente el identificador `id`, eliminando cualquier barra (`/`, `\`), punto relativo (`..`) o carácter fuera de `[a-zA-Z0-9_-]`
+- [x] #2 La funcionalidad de guardado en disco (`?save=true`) se remueve del método `GET` en `/api/projects/:id/export-monolithic-md` y se traslada a un método `POST` con validación estricta de `Origin` y `Content-Type: application/json`
+- [x] #3 `handleSseRoute()` en `server/sse/sseManager.ts` registra listeners `res.on('error', ...)` y `req.on('error', ...)` para liberar los sockets y limpiar temporizadores sin provocar un crash fatal de Node.js ante desconexiones intempestivas
+- [x] #4 `isAllowedBrowsePath()` en `server/services/fsExplorer.ts` resuelve `fs.realpathSync` **antes** de verificar la contención con `isPathContained`, bloqueando el bypass mediante symlinks
+- [x] #5 La suite de pruebas de seguridad aprueba limpiamente (`node scripts/test-api-security.js`)
+
+---
+
+#### [DEV-293] Gobernanza de Calidad: Erradicación de fabricación de ACs y auto-promoción a ready en backlog sync
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Corrección en el script de sincronización y verificación de backlog (`scripts/verify-backlog-sync.js`) para erradicar la alteración ilegítima de estados y la falsificación automática de criterios de aceptación (`- [ ]` ➔ `- [x]`).
+
+### Problemas identificados y reproducibles:
+
+1. **Fabricación automática de criterios de aceptación cumplidos:**
+   En `scripts/verify-backlog-sync.js:236-242`, si una tarea está en estado `done` pero tiene criterios sin tildar (`- [ ]`), ejecutar `npm run backlog:sync` (modo `--fix`) ejecuta:
+   ```javascript
+   const fixedAcBlock = acBlock.replace(/-\s*\[ \]/g, '- [x]');
+   ```
+   Tildando mecánicamente todos los criterios como aprobados sin ninguna verificación ejecutable. Esto viola directamente la regla de seguridad `SEC-02` y falsea la trazabilidad histórica de pruebas.
+2. **Auto-promoción ilegítima a `ready` saltando `review` y QA:**
+   En `scripts/verify-backlog-sync.js:220-228`, si todos los ACs de una tarea en `doing` están tildados, el modo `--fix` cambia su estado automáticamente a `status: ready`.
+   Esto viola la Invariante Fundamental de `STATE_MACHINE.md` y `AGENTS.md` (el paso a `ready` es potestad exclusiva del rol QA tras auditar bajo la Pirámide de Verificación).
+3. **Diffs artificiales de Git por fecha diaria en `BACKLOG.md`:**
+   En `scripts/backlogMdParser.ts:759`, `generateMonolithicBacklogMd` estampa `> Consolidado generado el ${now} por gripm ⚡`. Ejecutar el sync al día siguiente sin cambios en tareas produce un commit innecesario por la fecha.
+
+### Script de Reproducción Inmediata (PoC):
+
+```bash
+# Crear tarea en done con AC pendiente
+cat << 'EOF' > backlog/tasks/DEV-997\ -\ Test\ Sync.md
+---
+id: DEV-997
+title: Tarea Test
+status: done
+---
+
+---
+
+#### [DEV-294] Prevención de Stale Closures en App.tsx y Sincronización Funcional con SSE
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+Corrección de condiciones de carrera y pérdida silenciosa de tareas en el cliente React (`src/App.tsx`) causadas por el uso de copias obsoletas en closures (`setBoardData({ ...boardData, items })`) en lugar de mutaciones funcionales ante la llegada concurrente de eventos SSE.
+
+### Problemas identificados y reproducibles:
+
+1. **Stale Closure en guardado de tareas:**
+   En `src/App.tsx:848-856`:
+   ```tsx
+   const handleSaveItem = useCallback(async (itemData) => {
+     if (!boardData) return;
+     const updated = await updateItem(itemData.id, itemData);
+     setBoardData({
+       ...boardData, // ¡Referencia capturada al momento de invocar el handler!
+       items: boardData.items.map(...)
+     });
+   }, [boardData]);
+   ```
+2. **Eliminación silenciosa de tareas creadas concurrentemente:**
+   Si un usuario tiene el modal de edición abierto y en segundo plano un agente de IA o terminal crea una tarea nueva (`DEV-101`), el evento SSE actualiza `boardData` en la UI. Al hacer clic en "Guardar" en el modal, la promesa `updateItem()` se resuelve y ejecuta `setBoardData` utilizando la versión vieja capturada en el closure, **borrando inmediatamente la tarea recién llegada de la pantalla del usuario**.
+3. Idéntico patrón defectuoso ocurre en:
+   - `handleUpdateStatus` (`src/App.tsx:527`)
+   - `handleUpdatePriority` (`src/App.tsx:578`)
+   - `handleCreateProject` (`src/App.tsx:908`)
+
+### Escenario de Reproducción:
+
+1. Abrir la UI de Gripm en el navegador.
+2. Abrir el modal de edición de una tarea existente.
+3. Desde la terminal, crear una nueva tarea con `node scripts/gripm-cli.ts create --title "Tarea Concurrente"`.
+4. Verificar que la tarjeta aparece en el Kanban vía SSE.
+5. Guardar la tarea abierta en el modal en la UI.
+6. En el estado actual, "Tarea Concurrente" desaparece del tablero.
+
+**Criterios de Aceptación:**
+- [x] #1 Todas las invocaciones a `setBoardData` en `src/App.tsx` utilizan el patrón de actualización funcional (`setBoardData(prev => ...)`), garantizando que operan siempre sobre la versión más reciente del estado en memoria
+- [x] #2 Los eventos de actualización en vivo (`subscribeToBoardEvents`) no son sobrescritos ni descartados por operaciones de guardado pendientes o concurrentes
+- [x] #3 Si un ítem en edición es modificado externamente en disco mientras su modal está abierto, la UI advierte del cambio o actualiza `mtime` para prevenir conflictos 409 inesperados
+- [x] #4 La suite de pruebas de UI y Smoke Tests aprueban limpiamente (`npm run test:ui`)
+
+---
+
+#### [DEV-295] Saneamiento del Servidor MCP: Prevención de procesos zombies y blindaje de JSON-RPC
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+Endurecimiento del servidor Model Context Protocol (`scripts/mcp-server.ts` y `bin/gripm-mcp.js`) para evitar procesos huérfanos en segundo plano, roturas del canal de comunicación stdio con agentes de IA (Cursor, Claude, Antigravity) y desincronizaciones entre el código fuente TypeScript y el binario empaquetado.
+
+### Problemas identificados y reproducibles:
+
+1. **Procesos Zombie por falta de listeners de cierre en `stdin`:**
+   En `scripts/mcp-server.ts:1820`, el servidor escucha líneas mediante `readline`, pero **no registra ningún listener para `process.stdin.on('close')`, `'end'`, `SIGINT` ni `SIGTERM`**. Cuando un cliente LLM desconecta o termina la sesión, el proceso Node.js permanece vivo consumiendo memoria y CPU si existen temporizadores activos (como `checkForUpdates`).
+2. **Rotura de protocolo JSON-RPC por enrutamiento fallido en CLI:**
+   En `bin/gripm.js:148-182`, la detección de MCP evalúa rígidamente `args[0] === 'mcp'`. Si un cliente o script invoca `gripm --repo /ruta mcp`, `args[0]` es `'--repo'`. El ejecutable no inicia MCP, sino que inicia el servidor web e imprime texto plano y banners ASCII en `stdout`, reventando la conexión JSON-RPC del cliente.
+3. **Peligro de salida en `readline`:**
+   En `scripts/mcp-server.ts:1810`, se declara `output: process.stdout` en `readline.createInterface`. En un transporte stdio de MCP, `output` debe ser nulo para evitar que secuencias de escape del terminal se filtren en la salida.
+4. **Desfase silencioso de binario compilado:**
+   El binario commiteado `bin/gripm-mcp.js` no cuenta con una verificación en pre-commit hook que valide si está sincronizado con los cambios en `scripts/mcp-server.ts`.
+
+### Script de Reproducción Inmediata (PoC):
+
+```bash
+# Simular invocación con banderas previas
+node bin/gripm.js --repo . mcp
+# En el estado actual, imprime "gripm v... listo / Tablero: http://..." en stdout en lugar de responder a JSON-RPC
+```
+
+**Criterios de Aceptación:**
+- [x] #1 `scripts/mcp-server.ts` registra manejadores explícitos para `process.stdin.on('close')`, `process.stdin.on('end')`, `SIGINT` y `SIGTERM` para terminar el proceso limpiamente de inmediato
+- [x] #2 `bin/gripm.js` analiza los argumentos de forma no posicional, reconociendo el subcomando `mcp` sin importar si está precedido por banderas como `--repo` o `-r`
+- [x] #3 `readline.createInterface` en `scripts/mcp-server.ts` omite `output: process.stdout` para blindar la pureza del canal JSON-RPC
+- [x] #4 Un check en `scripts/verify-changes.js` compila en memoria `mcp-server.ts` y verifica que `bin/gripm-mcp.js` coincida exactamente, abortando el commit si el binario está desactualizado
+- [x] #5 La suite de pruebas de MCP aprueba limpiamente (`node scripts/verify-mcp-binary.js`)
 
 ---
 

@@ -1,16 +1,16 @@
 ---
 id: DEV-289
 title: "Integridad del Parser: Eliminación de mutilación de código y pérdida de campos YAML en backlogMdParser"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "parser"
   - "data-integrity"
   - "markdown"
   - "yaml"
 dependencies: []
-priority: p0
+priority: urgent
 type: bug
 estimate: 3
 ---
@@ -56,6 +56,11 @@ console.assert(p2.description.includes('Texto que se borra'), 'FALLO: Texto post
 - [x] #4 Un test de ida y vuelta (round-trip) verifica que tareas con bloques de código y metadatos YAML complejos conservan el 100% de su contenido
 - [x] #5 La suite de pruebas de sincronización aprueba limpiamente (`npm run backlog:check`)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -26,7 +26,8 @@ import {
   Download,
   ExternalLink,
   Zap,
-  Search
+  Search,
+  Box
 } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ItemType, Priority, Project, AcceptanceCriterion, GripmConfig, Sprint, Release } from '../types';
 import { isSprintModuleActive, isCalendarModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
@@ -144,7 +145,7 @@ export const ItemModal: FC<ItemModalProps> = ({
   config,
   allItems = []
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const isEditing = !!item;
 
   const [title, setTitle] = useState('');
@@ -2263,120 +2264,118 @@ export const ItemModal: FC<ItemModalProps> = ({
                   </div>
                 </div>
 
-                {/* Module & Code (DEV-275: Multi-Module Chip Selector) */}
-                <div className="space-y-2.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                          <span>{t('itemModal.moduleLabel')}</span>
-                        </label>
-                        {selectedModules.length > 0 && (
-                          <span className="text-xs text-slate-500">
-                            {selectedModules.length} {selectedModules.length === 1 ? 'módulo' : 'módulos'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={moduleInput}
-                          onChange={(e) => setModuleInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ',') {
-                              e.preventDefault();
-                              handleAddModule();
-                            }
-                          }}
-                          placeholder="Ej: UI, API, DB... (Enter)"
-                          list="modules-autocomplete-list"
-                          className="flex-1 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                        />
-                        <datalist id="modules-autocomplete-list">
-                          {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).map((m: string) => (
-                            <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200" />
-                          ))}
-                        </datalist>
-
-                        {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).length > 0 && (
-                          <div className="relative shrink-0">
-                            <select
-                              value=""
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleAddModule(e.target.value);
-                                }
-                              }}
-                              className="appearance-none px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300 font-medium transition-colors cursor-pointer"
-                              title="Seleccionar módulo existente"
-                            >
-                              <option value="" disabled>+</option>
-                              {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).map((m: string) => (
-                                <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200">
-                                  {m}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => handleAddModule()}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.1] text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium transition-colors shrink-0"
-                          title="Agregar módulo"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* Selected modules chips */}
-                      {selectedModules.length > 0 && (
-                        <div className="mt-1.5 flex items-center gap-1 flex-wrap">
-                          {selectedModules.map((m) => (
-                            <span
-                              key={m}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
-                            >
-                              <span>🧩 {m}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveModule(m)}
-                                className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors ml-0.5 text-xs leading-none"
-                                title={`Quitar ${m}`}
-                              >
-                                &times;
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.codeLabel')}</label>
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        placeholder="Auto-generado"
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                      />
-                    </div>
+                {/* Modules & Components (DEV-275) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                      <Box className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>{t('itemModal.moduleLabel')}</span>
+                    </label>
+                    {selectedModules.length > 0 && (
+                      <span className="text-xs text-slate-500 tabular-nums">
+                        {selectedModules.length} {selectedModules.length === 1 ? (language === 'es' ? 'módulo' : 'module') : (language === 'es' ? 'módulos' : 'modules')}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Quick-select from project catalog (if available and has unselected candidates) */}
+                  {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).length > 0 && (
+                    <div className="relative mb-2">
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAddModule(e.target.value);
+                          }
+                        }}
+                        className="w-full appearance-none px-3 py-1.5 pr-8 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300 font-medium focus:outline-none focus:border-indigo-500/50"
+                      >
+                        <option value="" disabled>+ {t('itemModal.selectFromCatalog')}</option>
+                        {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).map((m: string) => (
+                          <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200">
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  )}
+
+                  {/* Input for custom/free-form module */}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={moduleInput}
+                      onChange={(e) => setModuleInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          handleAddModule();
+                        }
+                      }}
+                      placeholder={language === 'es' ? 'Nuevo componente (ej. UI, API)...' : 'New component (e.g. UI, API)...'}
+                      className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddModule()}
+                      disabled={!moduleInput.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-xs text-white font-semibold transition-colors shrink-0 flex items-center gap-1 shadow-2xs"
+                      title={language === 'es' ? 'Agregar componente' : 'Add component'}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{language === 'es' ? 'Agregar' : 'Add'}</span>
+                    </button>
+                  </div>
+
+                  {/* Selected modules chips */}
+                  {selectedModules.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      {selectedModules.map((m) => (
+                        <span
+                          key={m}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-white/[0.06] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-2xs group transition-all"
+                        >
+                          <Box className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <span>{m}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveModule(m)}
+                            className="p-0.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
+                            title={`Quitar ${m}`}
+                            aria-label={`Quitar ${m}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Impacted File */}
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.impactedFileLabel')}</label>
-                  <input
-                    type="text"
-                    value={impactedFile}
-                    onChange={(e) => setImpactedFile(e.target.value)}
-                    placeholder="src/components/Header.tsx"
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                  />
+                {/* Code & Impacted File */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="min-w-0">
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.codeLabel')}</label>
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      placeholder="Auto-generado"
+                      className="w-full min-w-0 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50 font-mono"
+                    />
+                  </div>
+
+                  <div className="min-w-0">
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.impactedFileLabel')}</label>
+                    <input
+                      type="text"
+                      value={impactedFile}
+                      onChange={(e) => setImpactedFile(e.target.value)}
+                      placeholder="src/Header.tsx"
+                      className="w-full min-w-0 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50 font-mono"
+                    />
+                  </div>
                 </div>
 
                 {/* Project selector if multiple projects */}

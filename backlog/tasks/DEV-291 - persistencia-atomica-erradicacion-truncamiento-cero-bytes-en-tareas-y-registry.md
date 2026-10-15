@@ -1,16 +1,16 @@
 ---
 id: DEV-291
 title: "Persistencia Atómica: Erradicación de truncamiento a cero bytes en tareas y registry"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "storage"
   - "data-integrity"
   - "concurrency"
   - "io"
 dependencies: []
-priority: p0
+priority: urgent
 type: bug
 estimate: 2
 ---
@@ -56,21 +56,7 @@ try {
 - [x] #5 Un test de stress simula interrupciones y verifica que el archivo de destino nunca queda con 0 bytes ni en estado parcialmente escrito
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- **Módulo canónico `server/services/atomicWrite.ts`:**
-  - Implementa `atomicWriteFileSync` y `atomicWriteFile` (async).
-  - Genera archivo temporal en el mismo directorio `${filePath}.tmp.${process.pid}.${Date.now()}.${rand}` para garantizar persistencia en el mismo inodo y compatibilidad atómica en Linux, macOS y Windows (NTFS).
-  - Vaciado físico a disco forzado mediante `fs.fsyncSync(fd)` y `handle.sync()`.
-  - Reemplazo seguro mediante `fs.renameSync` con backoff y reintentos ante bloqueos transitorios en Windows (`EPERM`, `EBUSY`, `EACCES`).
-  - Bloque `try / finally` para garantizar cierre de descriptores y limpieza limpia de archivos temporales huérfanos.
-- **Migración en `server/services/storage.ts`:**
-  - Sustitución de las 10 llamadas a `fs.writeFileSync` por `atomicWriteFileSync` (`saveBacklogMdItem`, `writeProjectBacklog`, `softDeleteBacklogMdItem`, `restoreBacklogMdItem`, auto-sincronización de `releases.json` y `sprints.json`, e inicialización de JSON backlog).
-- **Protección de registry en `scripts/registryConfig.js`:**
-  - Implementación de `atomicWriteFileSync` en `saveRegistryFile()`, erradicando el truncamiento a 0 bytes de `~/.gripm/registry.json`.
-- **Integración y aislamiento con DEV-295:**
-  - Para evitar colisiones con el subagente paralelo que opera sobre `scripts/mcp-server.ts`, la función canónica `atomicWriteFileSync` quedó exportada y lista para consumo en `server/services/atomicWrite.ts` y `scripts/registryConfig.js`.
-- **Validación y Stress Testing:**
-  - Suite de stress ejecutada (`test-atomic-write.js`): 100 escrituras concurrentes sincrónicas y asincrónicas sin truncamiento ni corrupción (tamaño final íntegro).
-  - Simulación de aborto/crash antes de rename: archivo destino intacto al 100%.
-  - `npx tsc --noEmit`: 0 errores.
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

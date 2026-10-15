@@ -912,7 +912,7 @@ export function generateMonolithicBacklogMd(projectName: string, items: BacklogM
   const now = new Date().toISOString().slice(0, 10);
   const lines: string[] = [
     `# Backlog: ${projectName}`,
-    `> Consolidado generado el ${now} por gripm ⚡`,
+    `> Consolidado generado el ${now} por gripm`,
     '',
     '## Resumen de Estados',
     ''

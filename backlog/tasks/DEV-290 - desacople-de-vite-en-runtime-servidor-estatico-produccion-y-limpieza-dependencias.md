@@ -1,9 +1,9 @@
 ---
 id: DEV-290
 title: "Desacople de Vite en Runtime: Servidor estático para producción y reducción de dependencias"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "cli"
   - "packaging"
@@ -11,7 +11,7 @@ labels:
   - "vite"
   - "npm"
 dependencies: []
-priority: p0
+priority: urgent
 type: architecture
 estimate: 5
 ---
@@ -52,22 +52,7 @@ npx @gripm/board --version
 - [x] #5 La suite de pruebas de empaquetado y superficie de publicación aprueban limpiamente (`npm run publish:check` y `npm run verify:dist`)
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- **Servidor estático nativo en producción ([bin/gripm.js](file:///c:/Users/Pablo/Proyectos/gripm/bin/gripm.js)):**
-  - Se implementó la distinción entre modo producción (por defecto) y modo desarrollo (`--dev`).
-  - En producción, `bin/gripm.js` inicia un servidor `node:http` nativo con streaming (`fs.createReadStream`), tipos MIME canónicos, cabeceras de seguridad estrictas (CSP, nosniff, DENY, Referrer), contención de rutas contra directory traversal y fallback de SPA a `dist/index.html`.
-  - Si el backend local está presente, se monta transparentemente el middleware de API (`/api/*` y eventos SSE) sin requerir Vite.
-  - Con `--dev`, preserva la invocación de Vite dev server con HMR para desarrollo activo en el repositorio.
-- **Limpieza de dependencias en [package.json](file:///c:/Users/Pablo/Proyectos/gripm/package.json):**
-  - Se trasladaron `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` de `dependencies` a `devDependencies`.
-- **Compatibilidad con Node 20 LTS:**
-  - `devEngines.runtime.version` unificado a `">=20.0.0"`.
-  - El script `npm test` ahora invoca directamente `node scripts/run-tests.js` sin el flag `--experimental-strip-types` (incompatible con Node 20).
-  - En [scripts/run-tests.js](file:///c:/Users/Pablo/Proyectos/gripm/scripts/run-tests.js), se detecta dinámicamente si Node soporta `--experimental-strip-types` (Node >= 22.6.0) o si se debe emplear fallback loader de `esbuild` para Node 20 LTS.
-- **Verificaciones exitosas:**
-  - `npm test`: 18/18 pasos en verde.
-  - `npm run build`: bundle Vite compilado en `dist/` y binarios standalone generados con código 0.
-  - `npm run publish:check`: superficie pública limpia y sin fugas.
-  - `npm run verify:dist`: empaquetado e instalación en repositorios consumidores aprobados.
-  - `node bin/gripm.js --help`: salida limpia con opciones `--dev`.
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

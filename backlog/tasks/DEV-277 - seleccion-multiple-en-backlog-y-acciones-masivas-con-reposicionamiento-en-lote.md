@@ -1,9 +1,9 @@
 ---
 id: DEV-277
 title: "Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "ux"
   - "ui"
@@ -11,7 +11,7 @@ labels:
   - "bulk-actions"
   - "ranking"
 dependencies:
-  - DEV-276
+  - "DEV-276"
 priority: high
 type: feature
 ---
@@ -50,6 +50,11 @@ Esta tarea implementa **selección múltiple de ítems** y una **barra flotante 
 - [x] #7 `npm test` y consistencia de datos en disco sin race conditions
 <!-- AC:END -->
 
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
@@ -61,4 +66,3 @@ Esta tarea implementa **selección múltiple de ítems** y una **barra flotante 
 - **Anti-Race-Conditions:** Mutaciones ejecutadas secuencialmente con feedback visual mediante toast de confirmación flotante.
 - **Auditoría UX y Accesibilidad:** Todos los controles cuentan con atributos `aria-label`, `title`, estados activos (`active:scale-95`) y tipografía canónica Tailwind (`text-xs`), cumpliendo 100% con `audit-ux-code.cjs` (0 errores).
 <!-- SECTION:NOTES:END -->
-

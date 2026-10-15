@@ -1,16 +1,16 @@
 ---
 id: DEV-294
 title: "Prevención de Stale Closures en App.tsx y Sincronización Funcional con SSE"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-15 23:26'
 labels:
   - "frontend"
   - "react"
   - "concurrency"
   - "sse"
 dependencies: []
-priority: p2
+priority: medium
 type: bug
 estimate: 3
 ---
@@ -60,14 +60,7 @@ Corrección de condiciones de carrera y pérdida silenciosa de tareas en el clie
 - [x] #4 La suite de pruebas de UI y Smoke Tests aprueban limpiamente (`npm run test:ui`)
 <!-- AC:END -->
 
-## Implementation Notes
+## Implementation Plan
 
-- **src/App.tsx:**
-  - Migradas todas las llamadas no-funcionales a `setBoardData` al patrón funcional `setBoardData((prev) => prev ? { ...prev, ... } : null)` en `handleUpdateStatus` (optimistic update y rollback), `handleUpdatePriority`, `handleSaveItem` (actualización y creación), `handleUnlinkChildTask` y `handleCreateProject`.
-  - En `loadData`: incorporada la sincronización funcional de `setEditingItem((prevEditing) => ...)` para refrescar el `expectedMtime` y notificar toast en vivo ante modificaciones externas en disco de la tarea actualmente abierta en edición, erradicando conflictos 409 y desincronizaciones de mtime.
-- **src/components/ItemCard.tsx:**
-  - Optimizado el listener de clic exterior `document.addEventListener('mousedown', handleClickOutside)` agregando un guard temprano `if (!menuOpen && !statusMenuOpen && !sprintMenuOpen) return;` con dependencias `[menuOpen, statusMenuOpen, sprintMenuOpen]`, eliminando listeners redundantes en cada tarjeta inactiva montada.
-- **Verificación:**
-  - `npx tsc --noEmit`: 0 errores de TypeScript estricto.
-  - `npm run test:ui`: Prueba UI smoke aprobada en verde.
-  - `npm test`: Suite completa de 18 pasos aprobada exitosamente.
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
