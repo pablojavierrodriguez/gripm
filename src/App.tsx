@@ -53,7 +53,7 @@ import { ImportWizardModal } from './components/ImportWizardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
-import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, RotateCcw } from 'lucide-react';
+import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 
@@ -168,9 +168,7 @@ export function App() {
       types: [],
       priority: 'all',
       priorities: [],
-      statuses: initialIdeas
-        ? ['ideas', 'draft', 'doing', 'review', 'ready', 'done']
-        : ['draft', 'doing', 'review', 'ready', 'done'],
+      statuses: [],
       includeIdeas: initialIdeas,
       includePreviousDone: false,
       includeDismissedCancelled: false,
@@ -1318,16 +1316,6 @@ export function App() {
             {t('app.sandboxBannerBody')}
           </span>
           <span className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={handleRestoreDemo}
-              title={t('header.resetDemoDesc')}
-              aria-label={t('header.resetDemo')}
-              className="flex items-center gap-1.5 min-h-[44px] px-2.5 rounded-lg font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/15 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t('header.resetDemo')}</span>
-            </button>
             <a
               href="https://github.com/pablojavierrodriguez/gripm"
               target="_blank"
@@ -1410,9 +1398,6 @@ export function App() {
             onToggleIdeas={(val) => setFilters((prev) => ({
               ...prev,
               includeIdeas: val,
-              statuses: val
-                ? Array.from(new Set([...(prev.statuses || []), 'ideas' as ItemStatus]))
-                : (prev.statuses || []).filter((s) => s !== 'ideas')
             }))}
             onNavigateToTab={setActiveTab}
             onUpdateColumnTitle={handleUpdateColumnTitle}

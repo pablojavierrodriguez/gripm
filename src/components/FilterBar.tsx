@@ -12,80 +12,86 @@ export interface ActiveFilterChip {
   rawKey?: string | number;
 }
 
+export interface ActiveFilterChipOptions {
+  showSprint?: boolean;
+  customItemTypes?: CustomItemTypeConfig[];
+  labels?: {
+    module?: string;
+    sprint?: string;
+    release?: string;
+    status?: string;
+    include?: string;
+    estimate?: string;
+    type?: string;
+    noSprint?: string;
+    statusLabels?: Record<string, string>;
+  };
+}
+
 export function getActiveFilterChips(
   filters: FilterState,
-  options?: {
-    showSprint?: boolean;
-    customItemTypes?: CustomItemTypeConfig[];
-    labels?: {
-      module?: string;
-      sprint?: string;
-      release?: string;
-      status?: string;
-      estimate?: string;
-      type?: string;
-      noSprint?: string;
-    };
-  }
+  options?: ActiveFilterChipOptions
 ): ActiveFilterChip[] {
   const chips: ActiveFilterChip[] = [];
   const labels = options?.labels;
   const showSprint = options?.showSprint ?? true;
   const customTypes = options?.customItemTypes || [];
 
-  // 1. Status
-  const defaultStatuses: ItemStatus[] = ['draft', 'doing', 'review', 'ready', 'done'];
-  const activeStatusesWithoutIdeas = (filters.statuses || []).filter((st) => st !== 'ideas');
-  const hasCustomStatuses = Boolean(
-    filters.statuses && (
-      activeStatusesWithoutIdeas.length !== defaultStatuses.length ||
-      !defaultStatuses.every((st) => activeStatusesWithoutIdeas.includes(st as any))
-    )
-  );
+  // 1. Status Filter Chips
+  // Inclusions:
+  if (filters.includeIdeas) {
+    chips.push({
+      id: 'include-ideas',
+      dimension: labels?.include || 'Incluir',
+      value: labels?.statusLabels?.['ideas'] || 'Ideas',
+      type: 'status',
+      rawKey: 'ideas',
+    });
+  }
+  if (filters.includeDismissedCancelled) {
+    chips.push({
+      id: 'include-dismissed',
+      dimension: labels?.include || 'Incluir',
+      value: labels?.statusLabels?.['dismissed'] || 'Descartados',
+      type: 'status',
+      rawKey: 'dismissed',
+    });
+  }
 
+  // Explicit lifecycle status filter (if user selected specific statuses):
   const fAny = filters as any;
   if (fAny.status && fAny.status !== 'all') {
     chips.push({
       id: `status-${fAny.status}`,
       dimension: labels?.status || 'Estado',
-      value: String(fAny.status),
+      value: labels?.statusLabels?.[fAny.status] || String(fAny.status),
       type: 'status',
       rawKey: fAny.status,
     });
   }
 
-  if (hasCustomStatuses) {
-    (filters.statuses || []).forEach((st) => {
+  const explicitStatuses = (filters.statuses || []).filter(
+    (st) => st !== 'ideas' && st !== 'dismissed' && (st as any) !== 'cancelled'
+  );
+
+  if (explicitStatuses.length === 1 || explicitStatuses.length === 2) {
+    explicitStatuses.forEach((st) => {
       chips.push({
         id: `status-${st}`,
         dimension: labels?.status || 'Estado',
-        value: st,
+        value: labels?.statusLabels?.[st] || st,
         type: 'status',
         rawKey: st,
       });
     });
-  } else {
-    if (filters.includeIdeas && (filters.statuses || []).includes('ideas')) {
-      chips.push({
-        id: 'status-ideas',
-        dimension: labels?.status || 'Estado',
-        value: 'ideas',
-        type: 'status',
-        rawKey: 'ideas',
-      });
-    }
-    if (
-      filters.includeDismissedCancelled &&
-      ((filters.statuses || []).includes('dismissed') || (filters.statuses || []).includes('cancelled'))
-    ) {
-      chips.push({
-        id: 'status-dismissed',
-        dimension: labels?.status || 'Estado',
-        value: 'dismissed',
-        type: 'status',
-        rawKey: 'dismissed',
-      });
-    }
+  } else if (explicitStatuses.length >= 3) {
+    chips.push({
+      id: 'statuses-multi',
+      dimension: labels?.status || 'Estados',
+      value: `${explicitStatuses.length} activos`,
+      type: 'status',
+      rawKey: '__all_custom__',
+    });
   }
 
   // 2. Module
@@ -254,29 +260,27 @@ export function removeFilterFromState(
       break;
     }
     case 'status': {
-      const st = (chip.rawKey ?? chip.value) as ItemStatus;
-      const fAny = next as any;
-      if (fAny.status === st) {
-        delete fAny.status;
-      }
-      const defaultStatuses: ItemStatus[] = ['draft', 'doing', 'review', 'ready', 'done'];
-      const currentStatuses = next.statuses ? [...next.statuses] : [...defaultStatuses];
-      const remainingStatuses = currentStatuses.filter((s) => s !== st);
-
-      const nextIncludeIdeas = st === 'ideas' ? false : next.includeIdeas;
-      const nextIncludeDismissed = (st === 'dismissed' || (st as any) === 'cancelled') ? false : next.includeDismissedCancelled;
-
-      if (remainingStatuses.length === 0) {
-        // If all statuses removed, restore canonical defaults
-        next.statuses = nextIncludeIdeas
-          ? ['draft', 'doing', 'review', 'ready', 'done', 'ideas']
-          : ['draft', 'doing', 'review', 'ready', 'done'];
-        next.includeIdeas = nextIncludeIdeas;
-        next.includeDismissedCancelled = nextIncludeDismissed;
+      if (chip.rawKey === 'ideas') {
+        next.includeIdeas = false;
+        if (next.statuses) {
+          next.statuses = next.statuses.filter((s) => s !== 'ideas');
+        }
+      } else if (chip.rawKey === 'dismissed') {
+        next.includeDismissedCancelled = false;
+        if (next.statuses) {
+          next.statuses = next.statuses.filter((s) => s !== 'dismissed' && (s as any) !== 'cancelled');
+        }
+      } else if (chip.rawKey === '__all_custom__') {
+        next.statuses = [];
       } else {
-        next.statuses = remainingStatuses;
-        next.includeIdeas = nextIncludeIdeas ?? remainingStatuses.includes('ideas');
-        next.includeDismissedCancelled = nextIncludeDismissed ?? (remainingStatuses.includes('dismissed') || (remainingStatuses as any).includes('cancelled'));
+        const st = (chip.rawKey ?? chip.value) as ItemStatus;
+        const fAny = next as any;
+        if (fAny.status === st) {
+          delete fAny.status;
+        }
+        if (next.statuses) {
+          next.statuses = next.statuses.filter((s) => s !== st);
+        }
       }
       break;
     }
@@ -375,31 +379,26 @@ export const FilterBar: FC<FilterBarProps> = ({
   }, []);
 
   // Compute active filters count
-  const defaultStatuses = ['draft', 'doing', 'review', 'ready', 'done'];
-  const activeStatusesWithoutIdeas = (filters.statuses || []).filter((st) => st !== 'ideas');
-  const hasCustomStatuses = Boolean(
-    filters.statuses && (
-      activeStatusesWithoutIdeas.length !== defaultStatuses.length ||
-      !defaultStatuses.every((st) => activeStatusesWithoutIdeas.includes(st as any))
-    )
-  );
-
   const fAny = filters as any;
   const hasSingularStatus = Boolean(fAny.status && fAny.status !== 'all');
-  const hasIdeas = Boolean(filters.includeIdeas && (filters.statuses || []).includes('ideas'));
-  const hasDismissed = Boolean(
-    filters.includeDismissedCancelled &&
-    ((filters.statuses || []).includes('dismissed') || (filters.statuses || []).includes('cancelled'))
+  const hasIdeas = Boolean(filters.includeIdeas);
+  const hasDismissed = Boolean(filters.includeDismissedCancelled);
+  const explicitStatuses = (filters.statuses || []).filter(
+    (st) => st !== 'ideas' && st !== 'dismissed' && (st as any) !== 'cancelled'
   );
+  const statusFilterCount = explicitStatuses.length >= 3 ? 1 : explicitStatuses.length;
 
   const activeFiltersCount =
     (filters.search ? 1 : 0) +
     (filters.types && filters.types.length > 0 ? filters.types.length : filters.type !== 'all' ? 1 : 0) +
     (filters.priorities && filters.priorities.length > 0 ? filters.priorities.length : filters.priority !== 'all' ? 1 : 0) +
-    (hasCustomStatuses || hasSingularStatus || hasIdeas || hasDismissed ? 1 : 0) +
-    (showSprint && ((filters.sprint && filters.sprint !== 'all') || (filters.sprints && filters.sprints.length > 0)) ? 1 : 0) +
-    ((filters.release && filters.release !== 'all') || (filters.releases && filters.releases.length > 0) ? 1 : 0) +
-    ((filters.module && filters.module !== 'all') || (filters.modules && filters.modules.length > 0) ? 1 : 0) +
+    (hasIdeas ? 1 : 0) +
+    (hasDismissed ? 1 : 0) +
+    (hasSingularStatus ? 1 : 0) +
+    statusFilterCount +
+    (showSprint && ((filters.sprint && filters.sprint !== 'all') || (filters.sprints && filters.sprints.length > 0)) ? (filters.sprints?.length || 1) : 0) +
+    ((filters.release && filters.release !== 'all') || (filters.releases && filters.releases.length > 0) ? (filters.releases?.length || 1) : 0) +
+    ((filters.module && filters.module !== 'all') || (filters.modules && filters.modules.length > 0) ? (filters.modules?.length || 1) : 0) +
     (filters.estimates && filters.estimates.length > 0 ? filters.estimates.length : 0);
 
   const resetFilters = () => {
@@ -410,10 +409,8 @@ export const FilterBar: FC<FilterBarProps> = ({
       types: [],
       priority: 'all',
       priorities: [],
-      statuses: filters.includeIdeas
-        ? ['draft', 'doing', 'review', 'ready', 'done', 'ideas']
-        : ['draft', 'doing', 'review', 'ready', 'done'],
-      includeIdeas: filters.includeIdeas,
+      statuses: [],
+      includeIdeas: false,
       includePreviousDone: false,
       includeDismissedCancelled: false,
       module: 'all',
@@ -435,9 +432,20 @@ export const FilterBar: FC<FilterBarProps> = ({
         sprint: t('itemModal.sprintLabel') || 'Sprint',
         release: 'Release',
         status: t('itemModal.statusLabel') || 'Estado',
+        include: t('filter.include') || 'Incluir',
         estimate: t('filter.estimation') || 'Estimación',
         type: t('itemModal.typeLabel') || 'Tipo',
         noSprint: t('filter.noSprint') || 'Sin Sprint',
+        statusLabels: {
+          ideas: t('status.ideas'),
+          draft: t('status.draft'),
+          doing: t('status.doing'),
+          review: t('status.review'),
+          ready: t('status.ready'),
+          done: t('status.done'),
+          dismissed: t('status.dismissed'),
+          cancelled: t('status.cancelled'),
+        },
       },
     });
   }, [filters, showSprint, customItemTypes, t]);
@@ -502,10 +510,10 @@ export const FilterBar: FC<FilterBarProps> = ({
     <div className="w-full border-b border-slate-200 dark:border-white/[0.06] bg-white/70 dark:bg-[#0c111c]/60 backdrop-blur-sm py-2 transition-colors relative z-10">
       <div className="max-w-[1680px] mx-auto px-4 sm:px-6 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 min-w-0">
-          {/* Left: Search + Popover Button + Quick Filters + Active Chips */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none scroll-smooth">
+          {/* Left Fixed: Search + Advanced Filters Popover (no overflow clipping) */}
+          <div className="flex items-center gap-2 shrink-0">
             {/* Search Input */}
-            <div className="relative w-full sm:w-44 lg:w-52 xl:w-60 shrink-0">
+            <div className="relative w-36 sm:w-44 lg:w-52 xl:w-60 shrink-0">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 ref={searchInputRef}
@@ -568,7 +576,10 @@ export const FilterBar: FC<FilterBarProps> = ({
                 estimationConfig={estimationConfig}
               />
             </div>
+          </div>
 
+          {/* Center / Scrollable: Active Chips + Quick Filter Pills */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none scroll-smooth">
             {/* Active Dismissible Filter Chips (DEV-272) */}
             {activeChips.length > 0 && (
               <div

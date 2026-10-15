@@ -137,11 +137,17 @@ try {
   await dialog.waitFor({ state: 'visible' });
   await dialog.getByPlaceholder(/Describe the concrete goal|Describe el objetivo concreto/).fill(relatedTaskTitle);
   await dialog.getByRole('button', { name: /Relations|Relaciones/ }).click();
-  const parentTrigger = dialog.locator('button[aria-haspopup="listbox"]').filter({ hasText: /No parent|Sin padre/ });
-  assert.equal(await parentTrigger.count(), 1, 'The parent selector should be uniquely identifiable');
-  await parentTrigger.click();
-  const parentOption = dialog.locator('[role="option"]').filter({ hasText: editedTaskTitle });
-  await parentOption.click();
+  const parentSelect = dialog.locator('select').filter({ hasText: /No parent|Sin padre/ });
+  if (await parentSelect.count() > 0) {
+    const parentOption = parentSelect.locator('option').filter({ hasText: editedTaskTitle });
+    await parentSelect.selectOption(await parentOption.getAttribute('value'));
+  } else {
+    const parentTrigger = dialog.locator('button[aria-haspopup="listbox"]').filter({ hasText: /No parent|Sin padre/ });
+    assert.equal(await parentTrigger.count(), 1, 'The parent selector should be uniquely identifiable');
+    await parentTrigger.click();
+    const parentOption = dialog.locator('[role="option"]').filter({ hasText: editedTaskTitle });
+    await parentOption.click();
+  }
   const relatedSelect = dialog.locator('select').filter({ hasText: /Link task conceptually|Vincular tarea conceptualmente/ });
   assert.equal(await relatedSelect.count(), 1, 'The related item should be available in the relationship selector');
   const relationOption = relatedSelect.locator('option').filter({ hasText: editedTaskTitle });

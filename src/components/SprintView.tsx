@@ -8,6 +8,7 @@ import {
   Layers,
   Edit3,
   Trash2,
+  MoreHorizontal,
   ChevronDown,
   ChevronRight,
   Maximize2,
@@ -165,25 +166,49 @@ export const SprintView: FC<SprintViewProps> = ({
     return allAvailableSprints;
   }, [sprints, allAvailableSprints]);
 
-  const [sprintMenuState, setSprintMenuState] = useState<{ itemId: string; top: number; left: number } | null>(null);
+  const [rowMenuState, setRowMenuState] = useState<{
+    itemId: string;
+    top: number;
+    left: number;
+    group: { key: string; items: BacklogItem[] };
+    rowIdx: number;
+    sprintSubmenuOpen?: boolean;
+  } | null>(null);
+  const rowMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!sprintMenuState) return;
-    const handleClose = () => setSprintMenuState(null);
+    if (!rowMenuState) return;
+    const handleMouseDown = (e: MouseEvent | TouchEvent) => {
+      if (rowMenuRef.current && rowMenuRef.current.contains(e.target as Node)) {
+        return; // Click/touch inside portal: allow button onClick to execute
+      }
+      setRowMenuState(null);
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSprintMenuState(null);
+      if (e.key === 'Escape') setRowMenuState(null);
     };
-    document.addEventListener('mousedown', handleClose);
+    const handleScroll = (e: Event) => {
+      if (rowMenuRef.current && (rowMenuRef.current === e.target || rowMenuRef.current.contains(e.target as Node))) {
+        return; // Don't close when scrolling inside menu
+      }
+      setRowMenuState(null);
+    };
+    const handleResize = () => {
+      setRowMenuState(null);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('touchstart', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', handleClose, true);
-    window.addEventListener('resize', handleClose);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
     return () => {
-      document.removeEventListener('mousedown', handleClose);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('touchstart', handleMouseDown);
       document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleClose, true);
-      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [sprintMenuState]);
+  }, [rowMenuState]);
 
   const handleTransferSprint = (itemId: string, newSprint: string) => {
     const existing = items.find((it) => it.id === itemId);
@@ -1342,65 +1367,39 @@ export const SprintView: FC<SprintViewProps> = ({
 
                               {/* Actions */}
                               <td className="py-2.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-end gap-1">
-                                  {rankingEnabled && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMoveItemToTop(item, group)}
-                                        disabled={rowIdx === 0}
-                                        title={t('card.moveToTop')}
-                                        className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                                      >
-                                        <ArrowUpToLine className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMoveItemToBottom(item, group)}
-                                        disabled={rowIdx === group.items.length - 1}
-                                        title={t('card.moveToBottom')}
-                                        className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                                      >
-                                        <ArrowDownToLine className="w-3.5 h-3.5" />
-                                      </button>
-                                    </>
-                                  )}
+                                <div className="flex items-center justify-end">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (sprintMenuState?.itemId === item.id) {
-                                        setSprintMenuState(null);
+                                      if (rowMenuState?.itemId === item.id) {
+                                        setRowMenuState(null);
                                       } else {
                                         const rect = e.currentTarget.getBoundingClientRect();
-                                        const menuWidth = 192;
+                                        const menuWidth = 208;
                                         const left = Math.max(16, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 16));
-                                        const top = rect.bottom + 4 + 220 > window.innerHeight
-                                          ? Math.max(16, rect.top - 220)
+                                        const top = rect.bottom + 4 + 280 > window.innerHeight
+                                          ? Math.max(16, rect.top - 280)
                                           : rect.bottom + 4;
-                                        setSprintMenuState({ itemId: item.id, top, left });
+                                        setRowMenuState({
+                                          itemId: item.id,
+                                          top,
+                                          left,
+                                          group,
+                                          rowIdx,
+                                          sprintSubmenuOpen: false,
+                                        });
                                       }
                                     }}
-                                    title={t('card.assignSprint')}
-                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]"
+                                    aria-label={t('common.actions')}
+                                    title={t('common.actions')}
+                                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                      rowMenuState?.itemId === item.id
+                                        ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                                    }`}
                                   >
-                                    <Target className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onClickItem(item)}
-                                    title={t('common.edit')}
-                                    className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08]"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setItemToDelete(item)}
-                                    title="Eliminar"
-                                    className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <MoreHorizontal className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>
@@ -1429,59 +1428,156 @@ export const SprintView: FC<SprintViewProps> = ({
         onClose={() => setItemToDelete(null)}
       />
 
-      {/* Quick Sprint Assignment Portal (DEV-276) */}
-      {sprintMenuState && (() => {
-        const targetItem = items.find((it) => it.id === sprintMenuState.itemId);
+      {/* Unified Row Actions Portal */}
+      {rowMenuState && (() => {
+        const targetItem = items.find((it) => it.id === rowMenuState.itemId);
         if (!targetItem) return null;
         const curSprint = targetItem.sprint || targetItem.targetSprint || '';
+        const canMoveTop = rankingEnabled && rowMenuState.rowIdx > 0;
+        const canMoveBottom = rankingEnabled && rowMenuState.rowIdx < rowMenuState.group.items.length - 1;
 
         return createPortal(
           <div
+            ref={rowMenuRef}
             onClick={(e) => e.stopPropagation()}
-            style={{ top: sprintMenuState.top, left: sprintMenuState.left }}
-            className="fixed w-48 max-h-64 overflow-y-auto rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-[100] text-xs animate-in fade-in zoom-in-95"
+            style={{ top: rowMenuState.top, left: rowMenuState.left }}
+            className="fixed w-52 max-h-96 overflow-y-auto rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-[100] text-xs animate-in fade-in zoom-in-95"
           >
-            <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              {t('card.assignSprint')}
+            {rankingEnabled && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleMoveItemToTop(targetItem, rowMenuState.group);
+                    setRowMenuState(null);
+                  }}
+                  disabled={!canMoveTop}
+                  aria-label={t('card.moveToTop')}
+                  title={t('card.moveToTop')}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left transition-colors"
+                >
+                  <ArrowUpToLine className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('card.moveToTop')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleMoveItemToBottom(targetItem, rowMenuState.group);
+                    setRowMenuState(null);
+                  }}
+                  disabled={!canMoveBottom}
+                  aria-label={t('card.moveToBottom')}
+                  title={t('card.moveToBottom')}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed text-left transition-colors"
+                >
+                  <ArrowDownToLine className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('card.moveToBottom')}</span>
+                </button>
+
+                <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+              </>
+            )}
+
+            {/* Sprint Assignment Submenu */}
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRowMenuState((prev) =>
+                    prev ? { ...prev, sprintSubmenuOpen: !prev.sprintSubmenuOpen } : null
+                  );
+                }}
+                aria-label={t('card.assignSprint')}
+                title={t('card.assignSprint')}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-left transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Target className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span className="truncate">{t('card.assignSprint')}</span>
+                </div>
+                <ChevronRight
+                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                    rowMenuState.sprintSubmenuOpen ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
+
+              {rowMenuState.sprintSubmenuOpen && (
+                <div className="mt-1 pl-2 pr-1 py-1 space-y-0.5 border-l-2 border-indigo-500/30 ml-2 animate-in fade-in duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleTransferSprint(targetItem.id, '');
+                      setRowMenuState(null);
+                    }}
+                    aria-label={t('card.returnToBacklog')}
+                    title={t('card.returnToBacklog')}
+                    className={`w-full flex items-center justify-between min-w-0 px-2 py-1.5 rounded-lg text-left text-xs ${
+                      !curSprint
+                        ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <span className="truncate">{t('card.returnToBacklog')}</span>
+                    {!curSprint && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+                  </button>
+
+                  {activeSprints.map((sp) => (
+                    <button
+                      key={sp}
+                      type="button"
+                      onClick={() => {
+                        handleTransferSprint(targetItem.id, sp);
+                        setRowMenuState(null);
+                      }}
+                      aria-label={sp}
+                      title={sp}
+                      className={`w-full flex items-center justify-between min-w-0 px-2 py-1.5 rounded-lg text-left text-xs ${
+                        curSprint === sp
+                          ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className="truncate">{sp}</span>
+                      {curSprint === sp && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+
+            {/* Edit Item */}
             <button
               type="button"
               onClick={() => {
-                handleTransferSprint(targetItem.id, '');
-                setSprintMenuState(null);
+                onClickItem(targetItem);
+                setRowMenuState(null);
               }}
-              className={`w-full flex items-center justify-between min-w-0 px-2.5 py-1.5 rounded-lg text-left text-xs ${
-                !curSprint
-                  ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-              }`}
+              aria-label={t('common.edit')}
+              title={t('common.edit')}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] text-left transition-colors"
             >
-              <span className="truncate">{t('card.returnToBacklog')}</span>
-              {!curSprint && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
+              <Edit3 className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('common.edit')}</span>
             </button>
 
-            {activeSprints.length > 0 && (
-              <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
-            )}
-
-            {activeSprints.map((sp) => (
-              <button
-                key={sp}
-                type="button"
-                onClick={() => {
-                  handleTransferSprint(targetItem.id, sp);
-                  setSprintMenuState(null);
-                }}
-                className={`w-full flex items-center justify-between min-w-0 px-2.5 py-1.5 rounded-lg text-left text-xs ${
-                  curSprint === sp
-                    ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 font-medium'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                }`}
-              >
-                <span className="truncate">{sp}</span>
-                {curSprint === sp && <Check className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />}
-              </button>
-            ))}
+            {/* Delete Item */}
+            <button
+              type="button"
+              onClick={() => {
+                setItemToDelete(targetItem);
+                setRowMenuState(null);
+              }}
+              aria-label={t('common.delete')}
+              title={t('common.delete')}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-left transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('common.delete')}</span>
+            </button>
           </div>,
           document.body
         );
