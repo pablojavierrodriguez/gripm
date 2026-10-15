@@ -1,8 +1,309 @@
-import { useState, useRef, useEffect, type FC } from 'react';
+import { useState, useRef, useEffect, useMemo, type FC } from 'react';
 import { Search, X, SlidersHorizontal, RotateCcw } from 'lucide-react';
-import type { FilterState, ItemType, Priority, CustomItemTypeConfig, EstimationConfig } from '../types';
+import type { FilterState, ItemType, Priority, ItemStatus, CustomItemTypeConfig, EstimationConfig } from '../types';
 import { AdvancedFiltersPopover } from './AdvancedFiltersPopover';
 import { useTranslation } from '../utils/i18n';
+
+export interface ActiveFilterChip {
+  id: string;
+  dimension: string;
+  value: string;
+  type: 'module' | 'sprint' | 'release' | 'status' | 'estimate' | 'customType';
+  rawKey?: string | number;
+}
+
+export function getActiveFilterChips(
+  filters: FilterState,
+  options?: {
+    showSprint?: boolean;
+    customItemTypes?: CustomItemTypeConfig[];
+    labels?: {
+      module?: string;
+      sprint?: string;
+      release?: string;
+      status?: string;
+      estimate?: string;
+      type?: string;
+      noSprint?: string;
+    };
+  }
+): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = [];
+  const labels = options?.labels;
+  const showSprint = options?.showSprint ?? true;
+  const customTypes = options?.customItemTypes || [];
+
+  // 1. Status
+  const defaultStatuses: ItemStatus[] = ['draft', 'doing', 'review', 'ready', 'done'];
+  const activeStatusesWithoutIdeas = (filters.statuses || []).filter((st) => st !== 'ideas');
+  const hasCustomStatuses = Boolean(
+    filters.statuses && (
+      activeStatusesWithoutIdeas.length !== defaultStatuses.length ||
+      !defaultStatuses.every((st) => activeStatusesWithoutIdeas.includes(st as any))
+    )
+  );
+
+  const fAny = filters as any;
+  if (fAny.status && fAny.status !== 'all') {
+    chips.push({
+      id: `status-${fAny.status}`,
+      dimension: labels?.status || 'Estado',
+      value: String(fAny.status),
+      type: 'status',
+      rawKey: fAny.status,
+    });
+  }
+
+  if (hasCustomStatuses) {
+    (filters.statuses || []).forEach((st) => {
+      chips.push({
+        id: `status-${st}`,
+        dimension: labels?.status || 'Estado',
+        value: st,
+        type: 'status',
+        rawKey: st,
+      });
+    });
+  } else {
+    if (filters.includeIdeas && (filters.statuses || []).includes('ideas')) {
+      chips.push({
+        id: 'status-ideas',
+        dimension: labels?.status || 'Estado',
+        value: 'ideas',
+        type: 'status',
+        rawKey: 'ideas',
+      });
+    }
+    if (
+      filters.includeDismissedCancelled &&
+      ((filters.statuses || []).includes('dismissed') || (filters.statuses || []).includes('cancelled'))
+    ) {
+      chips.push({
+        id: 'status-dismissed',
+        dimension: labels?.status || 'Estado',
+        value: 'dismissed',
+        type: 'status',
+        rawKey: 'dismissed',
+      });
+    }
+  }
+
+  // 2. Module
+  const seenModules = new Set<string>();
+  if (filters.modules && filters.modules.length > 0) {
+    filters.modules.forEach((mod) => {
+      if (mod && mod !== 'all') {
+        seenModules.add(mod);
+        chips.push({
+          id: `mod-${mod}`,
+          dimension: labels?.module || 'Módulo',
+          value: mod,
+          type: 'module',
+          rawKey: mod,
+        });
+      }
+    });
+  }
+  if (filters.module && filters.module !== 'all' && !seenModules.has(filters.module)) {
+    chips.push({
+      id: `mod-${filters.module}`,
+      dimension: labels?.module || 'Módulo',
+      value: filters.module,
+      type: 'module',
+      rawKey: filters.module,
+    });
+  }
+
+  // 3. Sprint
+  if (showSprint) {
+    const seenSprints = new Set<string>();
+    const formatSprintVal = (sp: string) =>
+      sp === 'backlog' || sp === 'no_sprint' ? (labels?.noSprint || 'Sin Sprint') : sp;
+
+    if (filters.sprints && filters.sprints.length > 0) {
+      filters.sprints.forEach((sp) => {
+        if (sp && sp !== 'all') {
+          seenSprints.add(sp);
+          chips.push({
+            id: `sp-${sp}`,
+            dimension: labels?.sprint || 'Sprint',
+            value: formatSprintVal(sp),
+            type: 'sprint',
+            rawKey: sp,
+          });
+        }
+      });
+    }
+    if (filters.sprint && filters.sprint !== 'all' && !seenSprints.has(filters.sprint)) {
+      chips.push({
+        id: `sp-${filters.sprint}`,
+        dimension: labels?.sprint || 'Sprint',
+        value: formatSprintVal(filters.sprint),
+        type: 'sprint',
+        rawKey: filters.sprint,
+      });
+    }
+  }
+
+  // 4. Release
+  const seenReleases = new Set<string>();
+  const formatReleaseVal = (rel: string) => (rel.startsWith('v') ? rel : `v${rel}`);
+
+  if (filters.releases && filters.releases.length > 0) {
+    filters.releases.forEach((rel) => {
+      if (rel && rel !== 'all') {
+        seenReleases.add(rel);
+        chips.push({
+          id: `rel-${rel}`,
+          dimension: labels?.release || 'Release',
+          value: formatReleaseVal(rel),
+          type: 'release',
+          rawKey: rel,
+        });
+      }
+    });
+  }
+  if (filters.release && filters.release !== 'all' && !seenReleases.has(filters.release)) {
+    chips.push({
+      id: `rel-${filters.release}`,
+      dimension: labels?.release || 'Release',
+      value: formatReleaseVal(filters.release),
+      type: 'release',
+      rawKey: filters.release,
+    });
+  }
+
+  // 5. Estimates
+  if (filters.estimates && filters.estimates.length > 0) {
+    filters.estimates.forEach((est) => {
+      chips.push({
+        id: `est-${est}`,
+        dimension: labels?.estimate || 'Estimación',
+        value: `${est}`,
+        type: 'estimate',
+        rawKey: est,
+      });
+    });
+  }
+
+  // 6. Non-standard types (e.g. epic, initiative)
+  const standardTypes = new Set(['bug', 'feature', 'tech_debt', 'ux', ...customTypes.map((c) => c.key)]);
+  const currentTypes = filters.types && filters.types.length > 0
+    ? filters.types
+    : filters.type !== 'all' ? [filters.type] : [];
+
+  currentTypes.forEach((tId) => {
+    if (!standardTypes.has(tId)) {
+      chips.push({
+        id: `type-${tId}`,
+        dimension: labels?.type || 'Tipo',
+        value: tId,
+        type: 'customType',
+        rawKey: tId,
+      });
+    }
+  });
+
+  return chips;
+}
+
+export function removeFilterFromState(
+  filters: FilterState,
+  chip: ActiveFilterChip
+): FilterState {
+  const next: FilterState = { ...filters };
+
+  switch (chip.type) {
+    case 'module': {
+      const mod = String(chip.rawKey ?? chip.value);
+      if (next.modules && next.modules.length > 0) {
+        const nextMods = next.modules.filter((m) => m !== mod);
+        next.modules = nextMods;
+        if (next.module === mod) {
+          next.module = nextMods.length === 1 ? nextMods[0] : (nextMods.length === 0 ? 'all' : next.module);
+        }
+      } else {
+        next.module = 'all';
+      }
+      break;
+    }
+    case 'sprint': {
+      const sp = String(chip.rawKey ?? chip.value);
+      if (next.sprints && next.sprints.length > 0) {
+        const nextSprints = next.sprints.filter((s) => s !== sp);
+        next.sprints = nextSprints;
+        if (next.sprint === sp) {
+          next.sprint = nextSprints.length === 1 ? nextSprints[0] : (nextSprints.length === 0 ? 'all' : next.sprint);
+        }
+      } else {
+        next.sprint = 'all';
+      }
+      break;
+    }
+    case 'release': {
+      const rel = String(chip.rawKey ?? chip.value);
+      if (next.releases && next.releases.length > 0) {
+        const nextReleases = next.releases.filter((r) => r !== rel);
+        next.releases = nextReleases;
+        if (next.release === rel) {
+          next.release = nextReleases.length === 1 ? nextReleases[0] : (nextReleases.length === 0 ? 'all' : next.release);
+        }
+      } else {
+        next.release = 'all';
+      }
+      break;
+    }
+    case 'status': {
+      const st = (chip.rawKey ?? chip.value) as ItemStatus;
+      const fAny = next as any;
+      if (fAny.status === st) {
+        delete fAny.status;
+      }
+      const defaultStatuses: ItemStatus[] = ['draft', 'doing', 'review', 'ready', 'done'];
+      const currentStatuses = next.statuses ? [...next.statuses] : [...defaultStatuses];
+      const remainingStatuses = currentStatuses.filter((s) => s !== st);
+
+      const nextIncludeIdeas = st === 'ideas' ? false : next.includeIdeas;
+      const nextIncludeDismissed = (st === 'dismissed' || (st as any) === 'cancelled') ? false : next.includeDismissedCancelled;
+
+      if (remainingStatuses.length === 0) {
+        // If all statuses removed, restore canonical defaults
+        next.statuses = nextIncludeIdeas
+          ? ['draft', 'doing', 'review', 'ready', 'done', 'ideas']
+          : ['draft', 'doing', 'review', 'ready', 'done'];
+        next.includeIdeas = nextIncludeIdeas;
+        next.includeDismissedCancelled = nextIncludeDismissed;
+      } else {
+        next.statuses = remainingStatuses;
+        next.includeIdeas = nextIncludeIdeas ?? remainingStatuses.includes('ideas');
+        next.includeDismissedCancelled = nextIncludeDismissed ?? (remainingStatuses.includes('dismissed') || (remainingStatuses as any).includes('cancelled'));
+      }
+      break;
+    }
+    case 'estimate': {
+      const est = chip.rawKey !== undefined ? chip.rawKey : chip.value;
+      if (next.estimates) {
+        next.estimates = next.estimates.filter((e) => String(e) !== String(est));
+      }
+      break;
+    }
+    case 'customType': {
+      const tId = (chip.rawKey ?? chip.value) as ItemType;
+      if (next.types && next.types.length > 0) {
+        const nextTypes = next.types.filter((t) => t !== tId);
+        next.types = nextTypes;
+        if (next.type === tId) {
+          next.type = nextTypes.length === 1 ? nextTypes[0] : 'all';
+        }
+      } else if (next.type === tId) {
+        next.type = 'all';
+      }
+      break;
+    }
+  }
+
+  return next;
+}
 
 interface FilterBarProps {
   filters: FilterState;
@@ -74,19 +375,29 @@ export const FilterBar: FC<FilterBarProps> = ({
   // Compute active filters count
   const defaultStatuses = ['draft', 'doing', 'review', 'ready', 'done'];
   const activeStatusesWithoutIdeas = (filters.statuses || []).filter((st) => st !== 'ideas');
-  const hasCustomStatuses = filters.statuses && (
-    activeStatusesWithoutIdeas.length !== defaultStatuses.length ||
-    !defaultStatuses.every((st) => activeStatusesWithoutIdeas.includes(st as any))
+  const hasCustomStatuses = Boolean(
+    filters.statuses && (
+      activeStatusesWithoutIdeas.length !== defaultStatuses.length ||
+      !defaultStatuses.every((st) => activeStatusesWithoutIdeas.includes(st as any))
+    )
+  );
+
+  const fAny = filters as any;
+  const hasSingularStatus = Boolean(fAny.status && fAny.status !== 'all');
+  const hasIdeas = Boolean(filters.includeIdeas && (filters.statuses || []).includes('ideas'));
+  const hasDismissed = Boolean(
+    filters.includeDismissedCancelled &&
+    ((filters.statuses || []).includes('dismissed') || (filters.statuses || []).includes('cancelled'))
   );
 
   const activeFiltersCount =
     (filters.search ? 1 : 0) +
     (filters.types && filters.types.length > 0 ? filters.types.length : filters.type !== 'all' ? 1 : 0) +
     (filters.priorities && filters.priorities.length > 0 ? filters.priorities.length : filters.priority !== 'all' ? 1 : 0) +
-    (hasCustomStatuses ? 1 : 0) +
-    (showSprint && filters.sprint && filters.sprint !== 'all' ? 1 : 0) +
-    (filters.release && filters.release !== 'all' ? 1 : 0) +
-    (filters.module && filters.module !== 'all' ? 1 : 0) +
+    (hasCustomStatuses || hasSingularStatus || hasIdeas || hasDismissed ? 1 : 0) +
+    (showSprint && ((filters.sprint && filters.sprint !== 'all') || (filters.sprints && filters.sprints.length > 0)) ? 1 : 0) +
+    ((filters.release && filters.release !== 'all') || (filters.releases && filters.releases.length > 0) ? 1 : 0) +
+    ((filters.module && filters.module !== 'all') || (filters.modules && filters.modules.length > 0) ? 1 : 0) +
     (filters.estimates && filters.estimates.length > 0 ? filters.estimates.length : 0);
 
   const resetFilters = () => {
@@ -112,6 +423,22 @@ export const FilterBar: FC<FilterBarProps> = ({
       estimates: [],
     });
   };
+
+  const activeChips = useMemo(() => {
+    return getActiveFilterChips(filters, {
+      showSprint,
+      customItemTypes,
+      labels: {
+        module: t('itemModal.moduleLabel') || 'Módulo',
+        sprint: t('itemModal.sprintLabel') || 'Sprint',
+        release: 'Release',
+        status: t('itemModal.statusLabel') || 'Estado',
+        estimate: t('filter.estimation') || 'Estimación',
+        type: t('itemModal.typeLabel') || 'Tipo',
+        noSprint: t('filter.noSprint') || 'Sin Sprint',
+      },
+    });
+  }, [filters, showSprint, customItemTypes, t]);
 
   // Quick type click
   const handleQuickType = (t: ItemType | 'all') => {
@@ -173,8 +500,8 @@ export const FilterBar: FC<FilterBarProps> = ({
     <div className="w-full border-b border-slate-200 dark:border-white/[0.06] bg-white/70 dark:bg-[#0c111c]/60 backdrop-blur-sm py-2 transition-colors relative z-10">
       <div className="max-w-[1680px] mx-auto px-4 sm:px-6 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 min-w-0">
-          {/* Left: Search + Popover Button + Quick Filters */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+          {/* Left: Search + Popover Button + Quick Filters + Active Chips */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none scroll-smooth">
             {/* Search Input */}
             <div className="relative w-full sm:w-44 lg:w-52 xl:w-60 shrink-0">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -239,6 +566,36 @@ export const FilterBar: FC<FilterBarProps> = ({
                 estimationConfig={estimationConfig}
               />
             </div>
+
+            {/* Active Dismissible Filter Chips (DEV-272) */}
+            {activeChips.length > 0 && (
+              <div
+                className="flex items-center gap-1.5 shrink-0"
+                role="region"
+                aria-label={t('filter.filters')}
+              >
+                {activeChips.map((chip) => (
+                  <span
+                    key={chip.id}
+                    className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs font-medium bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 animate-in fade-in zoom-in-95 duration-100 shrink-0 select-none group"
+                  >
+                    <span className="text-indigo-500/75 dark:text-indigo-400/75 font-normal">
+                      {chip.dimension}:
+                    </span>
+                    <span className="font-semibold">{chip.value}</span>
+                    <button
+                      type="button"
+                      onClick={() => onChangeFilters(removeFilterFromState(filters, chip))}
+                      aria-label={`${t('common.clear')} ${chip.dimension}: ${chip.value}`}
+                      title={`${t('common.clear')} ${chip.dimension}: ${chip.value}`}
+                      className="min-h-[20px] min-w-[20px] flex items-center justify-center p-0.5 ml-0.5 rounded text-indigo-400 hover:text-indigo-700 dark:hover:text-white hover:bg-indigo-500/20 active:bg-indigo-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer touch-manipulation"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block shrink-0" />
 

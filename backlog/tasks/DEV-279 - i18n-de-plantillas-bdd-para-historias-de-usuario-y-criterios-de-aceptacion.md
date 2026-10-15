@@ -1,7 +1,7 @@
 ---
 id: DEV-279
 title: "Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -41,9 +41,20 @@ Cuando la aplicación está configurada en inglés (`config.language = 'en'`), p
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
-- [ ] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
-- [ ] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
-- [ ] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
-- [ ] #5 `npm test` y validación de tipos sin errores
+- [x] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
+- [x] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
+- [x] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
+- [x] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
+- [x] #5 `npm test` y validación de tipos sin errores
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- **Internacionalización de plantillas BDD (DEV-279):**
+  - Añadidas las claves `itemModal.bddStoryTemplate` y `itemModal.bddAcTemplate` en `src/locales/en.json` y `src/locales/es.json`.
+  - En inglés (`en.json`): plantilla de historia con formato `**AS A** [user role] / **I WANT** [action or capability] / **SO THAT** [business value or benefit]` y criterio BDD con formato `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`.
+  - En español (`es.json`): preservadas las plantillas canónicas `**COMO** [rol del usuario] / **QUIERO** [capacidad o acción] / **PARA** [beneficio o valor de negocio]` y `DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]`.
+  - En `src/components/ItemModal.tsx`: reemplazadas las cadenas literales hardcodeadas por `t('itemModal.bddStoryTemplate')` y `t('itemModal.bddAcTemplate')`.
+  - Verificada la Pirámide de Verificación: `npx tsc --noEmit` limpio (0 errores) y `npm test` completo (18/18 pasos en verde).
+<!-- SECTION:NOTES:END -->

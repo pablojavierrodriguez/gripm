@@ -118,7 +118,7 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
-### 🚀 Ready for Deploy (10)
+### 🚀 Ready for Deploy (13)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -445,7 +445,85 @@ Adicionalmente, en resoluciones compactas de escritorio (1024×768 a 1366×768),
 
 ---
 
-### 📋 Backlog / Draft (26)
+#### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, la barra superior `FilterBar.tsx` cuenta con píldoras de acceso rápido rígidas (Tipos y Prioridades fijos). Si un usuario desea filtrar frecuentemente por estados concretos (ej: solo `doing` y `review`) o por un módulo específico (ej: `UI / Layout`), debe abrir repetidamente el popover de filtros avanzados.
+
+En lugar de construir un panel de configuración complejo y pesado para personalizar qué botones se colocan en la barra (lo que generaría sobre-ingeniería), se adopta el estándar de la industria (Linear / GitHub): **materialización dinámica de filtros activos como chips descartables**.
+
+### Objetivos:
+1. Toda dimensión aplicada desde el Popover de Filtros Avanzados que no pertenezca a los accesos directos estándar (ej. Estados específicos, Módulo, Asignado, Sprint) se refleja de inmediato en la barra como una píldora activa interactiva (ej: `[Estado: doing ✕]`, `[Módulo: Auth ✕]`).
+2. El usuario puede remover cualquier filtro individual con un clic sobre la X del chip sin tener que abrir el popover.
+3. El botón general de "Limpiar filtros" sigue reseteando todas las condiciones activas.
+4. Diseño responsivo con scroll horizontal suave o colapso elegante en pantallas pequeñas para evitar solapamientos con las estadísticas.
+
+**Criterios de Aceptación:**
+- [x] #1 Al aplicar filtros desde AdvancedFiltersPopover (estados, módulos, sprints, releases), estos se renderizan como chips activos en la barra principal
+- [x] #2 Cada chip muestra la dimensión, el valor y un botón de descarte individual (✕)
+- [x] #3 Hacer clic en la ✕ de un chip elimina ese filtro específico de inmediato y actualiza la vista
+- [x] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
+- [x] #5 Coherencia de accesibilidad y foco para los chips descartables
+- [x] #6 Tests unitarios para el estado de filtros y chips
+
+---
+
+#### [DEV-274] Optimización de densidad para Metodología y Vistas en Settings (1366×768)
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (pestaña *Workflow & Views*), la sección *Project Work Methodology* despliega tres tarjetas voluminosas con descripciones extensas y badges, seguidas inmediatamente por otras tres tarjetas similares para *Default View Selector*.
+
+En resoluciones de escritorio habituales como 1366×768 (y monitores estándar de laptop), esta distribución consume prácticamente todo el primer pliegue de pantalla (*above the fold*), desplazando hacia abajo las opciones críticas de activación de pestañas y configuración de vistas.
+
+### Objetivos:
+1. Reemplazar los bloques masivos de tarjetas por selectores compactos (ej. radio cards de 1 fila o segmented control interactivo con icono, título y badge conciso).
+2. Trasladar los textos explicativos extensos a tooltips contextuales o descripciones de una sola línea con jerarquía atenuada.
+3. Asegurar que las opciones de *Habilitación de Pestañas* y *Vistas de Trabajo* queden visibles sin requerir scroll excesivo.
+4. Mantener la alineación con los principios de densidad de escritorio establecidos en DEV-264.
+
+**Criterios de Aceptación:**
+- [x] #1 El selector de Metodología de Trabajo ocupa una altura significativamente menor mediante un diseño horizontal compacto
+- [x] #2 El selector de Vista por Defecto utiliza un control segmentado estilizado y no una grilla de tarjetas altas
+- [x] #3 A resolución 1366×768, la sección completa de Metodología y Vistas permite visualizar los controles principales en el primer scroll
+- [x] #4 Las descripciones de cada metodología siguen accesibles para el usuario (mediante hint o tooltip)
+- [x] #5 `npm run audit:ux` y `npm test` pasan sin regresiones
+
+---
+
+#### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
+- **Prioridad**: `medium` | **Tipo**: `bug`
+
+En `src/components/ItemModal.tsx`, las plantillas predefinidas que se insertan al presionar los botones de ayuda de BDD se encuentran hardcodeadas en español:
+
+1. **Plantilla de Historia de Usuario (línea 728):**
+   ```ts
+   const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
+   ```
+2. **Criterio de Aceptación BDD (línea 797):**
+   ```ts
+   text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]'
+   ```
+
+Cuando la aplicación está configurada en inglés (`config.language = 'en'`), presionar estos botones sigue insertando texto literal en español en lugar de los equivalentes canónicos en inglés (`AS A... I WANT... SO THAT...` y `GIVEN... WHEN... THEN...`).
+
+### Objetivos:
+1. Extraer los textos y plantillas de BDD al catálogo de traducciones `src/utils/i18n.ts`.
+2. Proporcionar las versiones canónicas en inglés:
+   - Story: `**AS A** [user role]\n**I WANT** [action or capability]\n**SO THAT** [business value or benefit]\n`
+   - AC Scenario: `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`
+3. Mantener las versiones canónicas en español en `t(...)`.
+4. Asegurar que la inserción respete el idioma activo del usuario en la sesión.
+
+**Criterios de Aceptación:**
+- [x] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
+- [x] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
+- [x] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
+- [x] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
+- [x] #5 `npm test` y validación de tipos sin errores
+
+---
+
+### 📋 Backlog / Draft (23)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -903,29 +981,6 @@ Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente p
 
 ---
 
-#### [DEV-272] Chips descartables de filtros activos en FilterBar para dinamizar el filtrado rápido
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Actualmente, la barra superior `FilterBar.tsx` cuenta con píldoras de acceso rápido rígidas (Tipos y Prioridades fijos). Si un usuario desea filtrar frecuentemente por estados concretos (ej: solo `doing` y `review`) o por un módulo específico (ej: `UI / Layout`), debe abrir repetidamente el popover de filtros avanzados.
-
-En lugar de construir un panel de configuración complejo y pesado para personalizar qué botones se colocan en la barra (lo que generaría sobre-ingeniería), se adopta el estándar de la industria (Linear / GitHub): **materialización dinámica de filtros activos como chips descartables**.
-
-### Objetivos:
-1. Toda dimensión aplicada desde el Popover de Filtros Avanzados que no pertenezca a los accesos directos estándar (ej. Estados específicos, Módulo, Asignado, Sprint) se refleja de inmediato en la barra como una píldora activa interactiva (ej: `[Estado: doing ✕]`, `[Módulo: Auth ✕]`).
-2. El usuario puede remover cualquier filtro individual con un clic sobre la X del chip sin tener que abrir el popover.
-3. El botón general de "Limpiar filtros" sigue reseteando todas las condiciones activas.
-4. Diseño responsivo con scroll horizontal suave o colapso elegante en pantallas pequeñas para evitar solapamientos con las estadísticas.
-
-**Criterios de Aceptación:**
-- [ ] #1 Al aplicar filtros desde AdvancedFiltersPopover (estados, módulos, sprints, releases), estos se renderizan como chips activos en la barra principal
-- [ ] #2 Cada chip muestra la dimensión, el valor y un botón de descarte individual (✕)
-- [ ] #3 Hacer clic en la ✕ de un chip elimina ese filtro específico de inmediato y actualiza la vista
-- [ ] #4 La barra de filtros no genera scroll vertical ni roturas de layout en resoluciones estándar
-- [ ] #5 Coherencia de accesibilidad y foco para los chips descartables
-- [ ] #6 Tests unitarios para el estado de filtros y chips
-
----
-
 #### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
 - **Prioridad**: `medium` | **Tipo**: `ux`
 
@@ -946,28 +1001,6 @@ Esta disposición contradice el modelo mental del usuario: un tablero Kanban se 
 - [ ] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
 - [ ] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
 - [ ] #6 `npm test` y validación de guardado de configuración en verde
-
----
-
-#### [DEV-274] Optimización de densidad para Metodología y Vistas en Settings (1366×768)
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En `SettingsView.tsx` (pestaña *Workflow & Views*), la sección *Project Work Methodology* despliega tres tarjetas voluminosas con descripciones extensas y badges, seguidas inmediatamente por otras tres tarjetas similares para *Default View Selector*.
-
-En resoluciones de escritorio habituales como 1366×768 (y monitores estándar de laptop), esta distribución consume prácticamente todo el primer pliegue de pantalla (*above the fold*), desplazando hacia abajo las opciones críticas de activación de pestañas y configuración de vistas.
-
-### Objetivos:
-1. Reemplazar los bloques masivos de tarjetas por selectores compactos (ej. radio cards de 1 fila o segmented control interactivo con icono, título y badge conciso).
-2. Trasladar los textos explicativos extensos a tooltips contextuales o descripciones de una sola línea con jerarquía atenuada.
-3. Asegurar que las opciones de *Habilitación de Pestañas* y *Vistas de Trabajo* queden visibles sin requerir scroll excesivo.
-4. Mantener la alineación con los principios de densidad de escritorio establecidos en DEV-264.
-
-**Criterios de Aceptación:**
-- [ ] #1 El selector de Metodología de Trabajo ocupa una altura significativamente menor mediante un diseño horizontal compacto
-- [ ] #2 El selector de Vista por Defecto utiliza un control segmentado estilizado y no una grilla de tarjetas altas
-- [ ] #3 A resolución 1366×768, la sección completa de Metodología y Vistas permite visualizar los controles principales en el primer scroll
-- [ ] #4 Las descripciones de cada metodología siguen accesibles para el usuario (mediante hint o tooltip)
-- [ ] #5 `npm run audit:ux` y `npm test` pasan sin regresiones
 
 ---
 
@@ -1067,39 +1100,6 @@ En pantallas medianas o portátiles, esta cadena de texto compite directamente p
 - [ ] #3 Cuando el switch está desactivado, FilterBar no renderiza el bloque de métricas a la derecha
 - [ ] #4 En modo activo, el bloque de estadísticas se muestra con su formato y separadores habituales
 - [ ] #5 `npm test` y consistencia de esquemas de configuración en verde
-
----
-
-#### [DEV-279] Internacionalización (i18n) de plantillas BDD para Historias de Usuario y Criterios de Aceptación
-- **Prioridad**: `medium` | **Tipo**: `bug`
-
-En `src/components/ItemModal.tsx`, las plantillas predefinidas que se insertan al presionar los botones de ayuda de BDD se encuentran hardcodeadas en español:
-
-1. **Plantilla de Historia de Usuario (línea 728):**
-   ```ts
-   const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
-   ```
-2. **Criterio de Aceptación BDD (línea 797):**
-   ```ts
-   text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]'
-   ```
-
-Cuando la aplicación está configurada en inglés (`config.language = 'en'`), presionar estos botones sigue insertando texto literal en español en lugar de los equivalentes canónicos en inglés (`AS A... I WANT... SO THAT...` y `GIVEN... WHEN... THEN...`).
-
-### Objetivos:
-1. Extraer los textos y plantillas de BDD al catálogo de traducciones `src/utils/i18n.ts`.
-2. Proporcionar las versiones canónicas en inglés:
-   - Story: `**AS A** [user role]\n**I WANT** [action or capability]\n**SO THAT** [business value or benefit]\n`
-   - AC Scenario: `GIVEN [initial context], WHEN [event or action], THEN [expected outcome]`
-3. Mantener las versiones canónicas en español en `t(...)`.
-4. Asegurar que la inserción respete el idioma activo del usuario en la sesión.
-
-**Criterios de Aceptación:**
-- [ ] #1 Al insertar plantilla de Historia de Usuario con la app en inglés, se genera el formato `**AS A** / **I WANT** / **SO THAT**`
-- [ ] #2 Al insertar plantilla de Historia de Usuario con la app en español, se genera el formato `**COMO** / **QUIERO** / **PARA**`
-- [ ] #3 Al agregar Criterio de Aceptación BDD con la app en inglés, el texto predeterminado es `GIVEN ..., WHEN ..., THEN ...`
-- [ ] #4 Al agregar Criterio de Aceptación BDD con la app en español, el texto predeterminado es `DADO ..., CUANDO ..., ENTONCES ...`
-- [ ] #5 `npm test` y validación de tipos sin errores
 
 ---
 

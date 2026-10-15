@@ -725,7 +725,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const bddTemplate = `\n\n**COMO** [rol del usuario]\n**QUIERO** [capacidad o acción]\n**PARA** [beneficio o valor de negocio]\n`;
+                      const bddTemplate = t('itemModal.bddStoryTemplate');
                       setDescription(prev => prev.trim() ? `${prev}\n${bddTemplate}` : bddTemplate.trimStart());
                     }}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 transition-colors"
@@ -794,7 +794,7 @@ export const ItemModal: FC<ItemModalProps> = ({
                           ...acceptanceCriteriaList,
                           {
                             index: nextIndex,
-                            text: 'DADO [contexto inicial], CUANDO [evento o acción], ENTONCES [resultado esperado]',
+                            text: t('itemModal.bddAcTemplate'),
                             checked: false
                           }
                         ]);

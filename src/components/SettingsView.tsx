@@ -1068,7 +1068,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <main className="flex-1 min-w-0 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-xs">
           {/* TAB 1: FLUJO & VISTAS */}
           {activeTab === 'views' && (
-            <div className="space-y-8 animate-fade-in">
+            <div className="space-y-6 animate-fade-in">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
                   {t('settings.viewsTitle')}
@@ -1078,8 +1078,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </p>
               </div>
 
-              {/* Methodology Selector (DEV-038) */}
-              <div className="space-y-3">
+              {/* Methodology Selector (DEV-038, DEV-274) */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -1092,19 +1092,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {!modulesState.sprint ? (
-                  <div className="space-y-3 pt-1">
-                    <div className="p-4 rounded-xl border bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs max-w-xl">
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Layers className="w-4 h-4 text-indigo-500" />
-                        <span>{t('settings.methodologyKanban')}</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 ml-auto">
+                  <div className="space-y-2 pt-1 max-w-2xl">
+                    <div className="p-3 rounded-xl border bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
+                          <span className="truncate">{t('settings.methodologyKanban')}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
                           {t('settings.moduleActive')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyKanbanDesc')}>
                         {t('settings.methodologyKanbanDesc')}
                       </p>
-                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                         <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
                           {t('settings.methodologyKanbanBadgeBoard')}
                         </span>
@@ -1114,173 +1116,178 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-xl">
-                      <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Boxes className="w-4 h-4 text-amber-500 shrink-0" />
-                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                           {t('settings.methodologySprintModuleHint')}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleTabChange('modules')}
-                        className="self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0"
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       >
                         {t('settings.goToModules')}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={methodology === 'kanban'}
                       onClick={() => handleSelectMethodology('kanban')}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={t('settings.methodologyKanbanDesc')}
+                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'kanban'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Layers className="w-4 h-4 text-indigo-500" />
-                        <span>{t('settings.methodologyKanban')}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {t('settings.methodologyKanbanDesc')}
-                      </p>
-                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
+                          <span className="truncate">{t('settings.methodologyKanban')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
                           {t('settings.methodologyKanbanBadgeBoard')}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                          {t('settings.methodologyKanbanBadgeSprints')}
-                        </span>
                       </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyKanbanDesc')}>
+                        {t('settings.methodologyKanbanDesc')}
+                      </p>
                     </button>
 
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={methodology === 'scrum'}
                       onClick={() => handleSelectMethodology('scrum')}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={t('settings.methodologyScrumDesc')}
+                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'scrum'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Target className="w-4 h-4 text-amber-500" />
-                        <span>{t('settings.methodologyScrum')}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {t('settings.methodologyScrumDesc')}
-                      </p>
-                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Target className="w-4 h-4 text-amber-500 shrink-0" />
+                          <span className="truncate">{t('settings.methodologyScrum')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
                           {t('settings.methodologyScrumBadgeSprints')}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                          {t('settings.methodologyScrumBadgeBoard')}
-                        </span>
                       </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyScrumDesc')}>
+                        {t('settings.methodologyScrumDesc')}
+                      </p>
                     </button>
 
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={methodology === 'scrumban'}
                       onClick={() => handleSelectMethodology('scrumban')}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={t('settings.methodologyScrumbanDesc')}
+                      className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 ${
                         methodology === 'scrumban'
                           ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/15'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Sliders className="w-4 h-4 text-emerald-500" />
-                        <span>{t('settings.methodologyScrumban')}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {t('settings.methodologyScrumbanDesc')}
-                      </p>
-                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
+                          <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <span className="truncate">{t('settings.methodologyScrumban')}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
                           {t('settings.methodologyScrumbanBadgeBoard')}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
-                          {t('settings.methodologyScrumbanBadgeSprints')}
-                        </span>
                       </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate leading-normal" title={t('settings.methodologyScrumbanDesc')}>
+                        {t('settings.methodologyScrumbanDesc')}
+                      </p>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Default View Selector */}
-              <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/[0.08]">
-                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  {t('settings.defaultViewLabel')}
-                </label>
-                <p className="text-xs text-slate-500">
-                  {t('settings.defaultViewDesc')}
-                </p>
+              {/* Default View Selector (DEV-274) */}
+              <div className="space-y-2 pt-5 border-t border-slate-200 dark:border-white/[0.08]">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {t('settings.defaultViewLabel')}
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    {t('settings.defaultViewDesc')}
+                  </p>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="inline-flex flex-wrap p-1 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] gap-1 max-w-full">
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={defaultView === 'kanban'}
                     onClick={() => setDefaultView('kanban')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
+                    title={t('settings.defaultViewKanbanDesc')}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                       defaultView === 'kanban'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                        ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
+                        : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Layout className="w-4 h-4 text-indigo-500" />
-                      <span>{t('header.kanban')}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 leading-normal">
-                      {t('settings.defaultViewKanbanDesc')}
-                    </p>
+                    <Layout className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'kanban' ? 'text-indigo-500' : 'text-slate-400'}`} />
+                    <span>{t('header.kanban')}</span>
+                    <span className="hidden md:inline text-xs text-slate-400 font-normal ml-0.5">
+                      · {t('settings.coreViewBadge')}
+                    </span>
                   </button>
 
                   {modulesState.sprint && enabledTabs.sprint && (
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={defaultView === 'sprint'}
                       onClick={() => setDefaultView('sprint')}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={t('settings.defaultViewSprintDesc')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                         defaultView === 'sprint'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Target className="w-4 h-4 text-amber-500" />
-                        <span>{t('header.sprints')}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {t('settings.defaultViewSprintDesc')}
-                      </p>
-                    </button>
+                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
+                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Target className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'sprint' ? 'text-amber-500' : 'text-slate-400'}`} />
+                    <span>{t('header.sprints')}</span>
+                  </button>
                   )}
 
                   {modulesState.release && enabledTabs.release && (
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={defaultView === 'release'}
                       onClick={() => setDefaultView('release')}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={t('settings.defaultViewReleaseDesc')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                         defaultView === 'release'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                          : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
+                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                        <Rocket className="w-4 h-4 text-emerald-500" />
-                        <span>{t('header.releases')}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {t('settings.defaultViewReleaseDesc')}
-                      </p>
+                      <Rocket className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'release' ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      <span>{t('header.releases')}</span>
                     </button>
                   )}
                 </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                  {defaultView === 'kanban' && t('settings.defaultViewKanbanDesc')}
+                  {defaultView === 'sprint' && t('settings.defaultViewSprintDesc')}
+                  {defaultView === 'release' && t('settings.defaultViewReleaseDesc')}
+                </p>
               </div>
 
               {/* Header Visible Tabs */}
