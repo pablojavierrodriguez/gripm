@@ -118,7 +118,7 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
-### 📋 Backlog / Draft (25)
+### 📋 Backlog / Draft (26)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -778,6 +778,28 @@ Mecanismo de carga progresiva y optimizaciones de renderizado de DOM para column
 - [ ] #2 El scroll en columnas densas se mantiene a 60 FPS estables sin bloqueos del hilo principal
 - [ ] #3 La funcionalidad de arrastrar y soltar (drag & drop) y reordenamiento de tareas sigue operando con total precisión
 - [ ] #4 Las pruebas unitarias y de integración (`npm test`) se ejecutan sin regresiones
+
+---
+
+#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
+- **Prioridad**: `low` | **Tipo**: `ux`
+
+En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
+
+Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
+
+Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
+1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
+2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
+   - Español: "Estados activos" (o "Todos los estados activos").
+   - Inglés: "Active statuses" (o "All active statuses").
+3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
+
+**Criterios de Aceptación:**
+- [ ] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
+- [ ] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
+- [ ] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
+- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
 
 ---
 
