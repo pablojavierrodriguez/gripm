@@ -1,7 +1,7 @@
 ---
 id: DEV-290
 title: "Desacople de Vite en Runtime: Servidor estático para producción y reducción de dependencias"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -45,15 +45,29 @@ npx @gripm/board --version
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `bin/gripm.js` en modo producción sirve la interfaz compilada desde `dist/` utilizando un servidor estático minimalista (o módulo HTTP nativo de Node), sin invocar `createServer()` de Vite
-- [ ] #2 `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` se mueven de `dependencies` a `devDependencies` en `package.json`
-- [ ] #3 La huella de instalación en `node_modules` para una instalación de producción (`npm install --omit=dev`) se reduce de más de 120 MB a menos de 10 MB
-- [ ] #4 El campo `engines.node` en `package.json` y la ejecución de scripts se unifican de forma compatible con la versión mínima declarada
-- [ ] #5 La suite de pruebas de empaquetado y superficie de publicación aprueban limpiamente (`npm run publish:check` y `npm run verify:dist`)
+- [x] #1 `bin/gripm.js` en modo producción sirve la interfaz compilada desde `dist/` utilizando un servidor estático minimalista (o módulo HTTP nativo de Node), sin invocar `createServer()` de Vite
+- [x] #2 `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` se mueven de `dependencies` a `devDependencies` en `package.json`
+- [x] #3 La huella de instalación en `node_modules` para una instalación de producción (`npm install --omit=dev`) se reduce de más de 120 MB a menos de 10 MB
+- [x] #4 El campo `engines.node` en `package.json` y la ejecución de scripts se unifican de forma compatible con la versión mínima declarada
+- [x] #5 La suite de pruebas de empaquetado y superficie de publicación aprueban limpiamente (`npm run publish:check` y `npm run verify:dist`)
 <!-- AC:END -->
 
 ## Implementation Notes
 
-- Archivos principales: [bin/gripm.js](file:///c:/Users/Pablo/Proyectos/gripm/bin/gripm.js) (líneas 356-375), [package.json](file:///c:/Users/Pablo/Proyectos/gripm/package.json) (líneas 37-46, 103-120), [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts).
-- Integrar un handler estático liviano (como `sirv` o 30 líneas de `node:http` con `fs.createReadStream`) en `bin/gripm.js`.
-- Preservar el modo de desarrollo (`npm run dev`) intacto con Vite HMR para el trabajo diario en el repositorio.
+- **Servidor estático nativo en producción ([bin/gripm.js](file:///c:/Users/Pablo/Proyectos/gripm/bin/gripm.js)):**
+  - Se implementó la distinción entre modo producción (por defecto) y modo desarrollo (`--dev`).
+  - En producción, `bin/gripm.js` inicia un servidor `node:http` nativo con streaming (`fs.createReadStream`), tipos MIME canónicos, cabeceras de seguridad estrictas (CSP, nosniff, DENY, Referrer), contención de rutas contra directory traversal y fallback de SPA a `dist/index.html`.
+  - Si el backend local está presente, se monta transparentemente el middleware de API (`/api/*` y eventos SSE) sin requerir Vite.
+  - Con `--dev`, preserva la invocación de Vite dev server con HMR para desarrollo activo en el repositorio.
+- **Limpieza de dependencias en [package.json](file:///c:/Users/Pablo/Proyectos/gripm/package.json):**
+  - Se trasladaron `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss` y `autoprefixer` de `dependencies` a `devDependencies`.
+- **Compatibilidad con Node 20 LTS:**
+  - `devEngines.runtime.version` unificado a `">=20.0.0"`.
+  - El script `npm test` ahora invoca directamente `node scripts/run-tests.js` sin el flag `--experimental-strip-types` (incompatible con Node 20).
+  - En [scripts/run-tests.js](file:///c:/Users/Pablo/Proyectos/gripm/scripts/run-tests.js), se detecta dinámicamente si Node soporta `--experimental-strip-types` (Node >= 22.6.0) o si se debe emplear fallback loader de `esbuild` para Node 20 LTS.
+- **Verificaciones exitosas:**
+  - `npm test`: 18/18 pasos en verde.
+  - `npm run build`: bundle Vite compilado en `dist/` y binarios standalone generados con código 0.
+  - `npm run publish:check`: superficie pública limpia y sin fugas.
+  - `npm run verify:dist`: empaquetado e instalación en repositorios consumidores aprobados.
+  - `node bin/gripm.js --help`: salida limpia con opciones `--dev`.

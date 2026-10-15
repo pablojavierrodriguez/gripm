@@ -263,6 +263,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
     : undefined;
 
   useEffect(() => {
+    if (!menuOpen && !statusMenuOpen && !sprintMenuOpen) return;
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
       const insideTrigger = menuRef.current?.contains(target) ?? false;
@@ -275,7 +276,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [menuOpen, statusMenuOpen, sprintMenuOpen]);
 
   /**
    * DEV-129: calcula la posición del menú a partir del rect del disparador.

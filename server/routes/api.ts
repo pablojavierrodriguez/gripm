@@ -23,6 +23,7 @@ import {
   parseReleaseNotesMd
 } from '../services/storage.ts';
 import { isAllowedBrowsePath, getSafeInitialBrowseDir } from '../services/fsExplorer.ts';
+import { atomicWriteFileSync } from '../services/atomicWrite.ts';
 import { broadcastSse } from '../sse/sseManager.ts';
 import { getBody, sendJson } from '../middleware/security.ts';
 import { runMigration } from '../../scripts/import-docs.js';
@@ -809,7 +810,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       });
     }
 
-    // GET /api/projects/:id/export-monolithic-md
+    // GET /api/projects/:id/export-monolithic-md (Read-only, no disk mutations DEV-292)
     if (req.method === 'GET' && url.includes('/export-monolithic-md')) {
       const id = url.split('?')[0].split('/')[3];
       const project = registry.projects.find(proj => proj.id === id);
@@ -829,12 +830,36 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
 
       const markdownContent = generateMonolithicBacklogMd(project.name, tasks);
 
-      const shouldSave = url.includes('save=true');
-      let savedPath = null;
-      if (shouldSave && project.repoPath) {
-        savedPath = path.join(project.repoPath, 'BACKLOG.md');
-        fs.writeFileSync(savedPath, markdownContent, 'utf8');
-      }
+      return sendJson(res, 200, {
+        ok: true,
+        content: markdownContent
+      });
+    }
+
+    // POST /api/projects/:id/export-monolithic-md (Saves BACKLOG.md to disk atomically DEV-292)
+    if (req.method === 'POST' && url.includes('/export-monolithic-md')) {
+      const id = url.split('?')[0].split('/')[3];
+      const project = registry.projects.find(proj => proj.id === id);
+      if (!project) return sendJson(res, 404, { error: 'Project not found' });
+      if (!project.repoPath) return sendJson(res, 400, { error: 'Project lacks repoPath' });
+
+      await getBody(req, res).catch(() => ({}));
+
+      const backlog = readProjectBacklog(project);
+      const tasks: BacklogMdTask[] = backlog.items.map((it: any) => ({
+        id: it.code || it.id,
+        title: it.title,
+        status: normalizeStatus(it.status),
+        type: it.type,
+        priority: it.priority,
+        milestone: it.targetSprint || it.milestone,
+        description: it.description,
+        acceptanceCriteria: it.acceptanceCriteriaList || []
+      }));
+
+      const markdownContent = generateMonolithicBacklogMd(project.name, tasks);
+      const savedPath = path.join(project.repoPath, 'BACKLOG.md');
+      atomicWriteFileSync(savedPath, markdownContent, 'utf8');
 
       return sendJson(res, 200, {
         ok: true,

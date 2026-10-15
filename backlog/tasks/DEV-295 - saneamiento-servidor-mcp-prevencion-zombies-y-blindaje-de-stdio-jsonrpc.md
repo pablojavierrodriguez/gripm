@@ -1,7 +1,7 @@
 ---
 id: DEV-295
 title: "Saneamiento del Servidor MCP: Prevención de procesos zombies y blindaje de JSON-RPC"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -43,13 +43,27 @@ node bin/gripm.js --repo . mcp
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `scripts/mcp-server.ts` registra manejadores explícitos para `process.stdin.on('close')`, `process.stdin.on('end')`, `SIGINT` y `SIGTERM` para terminar el proceso limpiamente de inmediato
-- [ ] #2 `bin/gripm.js` analiza los argumentos de forma no posicional, reconociendo el subcomando `mcp` sin importar si está precedido por banderas como `--repo` o `-r`
-- [ ] #3 `readline.createInterface` en `scripts/mcp-server.ts` omite `output: process.stdout` para blindar la pureza del canal JSON-RPC
-- [ ] #4 Un check en `scripts/verify-changes.js` compila en memoria `mcp-server.ts` y verifica que `bin/gripm-mcp.js` coincida exactamente, abortando el commit si el binario está desactualizado
-- [ ] #5 La suite de pruebas de MCP aprueba limpiamente (`node scripts/verify-mcp-binary.js`)
+- [x] #1 `scripts/mcp-server.ts` registra manejadores explícitos para `process.stdin.on('close')`, `process.stdin.on('end')`, `SIGINT` y `SIGTERM` para terminar el proceso limpiamente de inmediato
+- [x] #2 `bin/gripm.js` analiza los argumentos de forma no posicional, reconociendo el subcomando `mcp` sin importar si está precedido por banderas como `--repo` o `-r`
+- [x] #3 `readline.createInterface` en `scripts/mcp-server.ts` omite `output: process.stdout` para blindar la pureza del canal JSON-RPC
+- [x] #4 Un check en `scripts/verify-changes.js` compila en memoria `mcp-server.ts` y verifica que `bin/gripm-mcp.js` coincida exactamente, abortando el commit si el binario está desactualizado
+- [x] #5 La suite de pruebas de MCP aprueba limpiamente (`node scripts/verify-mcp-binary.js`)
 <!-- AC:END -->
 
 ## Implementation Notes
 
-- Archivos principales: [scripts/mcp-server.ts](file:///c:/Users/Pablo/Proyectos/gripm/scripts/mcp-server.ts) (líneas 1805-1830), [bin/gripm.js](file:///c:/Users/Pablo/Proyectos/gripm/bin/gripm.js) (líneas 148-182), [scripts/verify-changes.js](file:///c:/Users/Pablo/Proyectos/gripm/scripts/verify-changes.js).
+- **Blindaje de transporte stdio y prevención de zombies (AC #1 & AC #3):**
+  - En `scripts/mcp-server.ts`, se eliminó `output: process.stdout` de `readline.createInterface` para evitar que secuencias de escape o eco del terminal contaminen el flujo JSON-RPC en stdout.
+  - Se implementó `handleExit` registrando listeners en `process.stdin.on('close')`, `process.stdin.on('end')`, `process.on('SIGINT')` y `process.on('SIGTERM')`. Verificado con apagado inmediato (< 32ms tras cierre de stdin).
+  - Se sustituyeron todas las escrituras directas `fs.writeFileSync` en `scripts/mcp-server.ts` por `atomicWriteFileSync` de `server/services/atomicWrite.ts` para blindar mutaciones del backlog y BACKLOG.md contra truncamientos a 0 bytes.
+  - Se incorporó soporte explícito para `-r` además de `--repo` en la detección CLI de repositorio en `scripts/mcp-server.ts`.
+- **Enrutamiento no posicional en CLI (AC #2):**
+  - En `bin/gripm.js`, la función `main()` ahora filtra los argumentos de valor (`--repo`, `-r`, `--port`, `-p`, `--host`, etc.) y extrae los comandos no-bandera de forma posicional/no-posicional.
+  - La invocación `gripm --repo <ruta> mcp` o `gripm -r <ruta> mcp` enruta de forma inmediata al servidor MCP sin iniciar Vite ni emitir banners a stdout.
+- **Guard pre-commit de paridad de binario empaquetado (AC #4):**
+  - En `scripts/verify-changes.js`, se implementó `checkMcpBinarySync()` que compila en memoria `scripts/mcp-server.ts` con `esbuild.buildSync({ write: false, ... })` y valida que `bin/gripm-mcp.js` (sea stageado o en disco bajo `--all`) coincida byte por byte (normalizando CRLF/LF).
+  - Ante cualquier desincronización, aborta con código 1 indicando ejecutar `npm run build:bin`.
+- **Validación y suite (AC #5):**
+  - Se regeneró `bin/gripm-mcp.js` mediante `npm run build:bin`.
+  - Se validó `node scripts/verify-mcp-binary.js` (17/17 checks aprobados).
+  - Se corrió `npm test` (18/18 pasos en verde), `npx tsc --noEmit` (0 errores) y `node scripts/verify-changes.js --all`.

@@ -216,33 +216,26 @@ for (const { file, filePath, content } of taskEntries) {
   const totalAcs = allAcs.length;
   const totalChecked = checkedAcs.length;
 
-  // REGLA 1: Si tiene criterios definidos y todos están marcados (- [x]), no puede estar en 'draft' ni 'doing'
+  // REGLA 1 (DEV-293): Si tiene criterios definidos y todos están marcados (- [x]), se advierte
+  // si sigue en 'draft' o 'doing'. En ningún caso el modo --fix debe auto-promocionar a 'ready'
+  // (la certificación formal es potestad exclusiva del rol QA tras la Pirámide de Verificación).
   if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === 'draft' || rawStatus === 'doing')) {
-    if (isFixMode) {
-      const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: ready');
-      const updatedContent = content.replace(fmMatch[0], `---\n${updatedFm}\n---`);
-      fs.writeFileSync(filePath, updatedContent, 'utf8');
-      console.log(`✨ [Auto-fix] ${taskId}: Todos los AC completados (${totalChecked}/${totalAcs}). Promocionado a 'status: ready'.`);
-      fixedCount++;
+    if (rawStatus === 'draft') {
+      console.warn(`⚠️  [Inconsistencia de Backlog] ${taskId} (${file}):`);
+      console.warn(`   Está en 'draft' pero tiene todos sus criterios tildados (${totalChecked}/${totalAcs} AC).`);
     } else {
-      console.error(`❌ [Error de Sincronización] ${taskId} (${file}):`);
-      console.error(`   Tiene todos los criterios de aceptación cumplidos (${totalChecked}/${totalAcs} AC), pero su estado en el backlog sigue siendo '${rawStatus}'.`);
-      console.error(`   👉 Acción requerida: Cambia el status a 'ready' o ejecuta 'npm run backlog:sync'.`);
-      errorsFound++;
+      console.warn(`⚠️  [Aviso de Ciclo de Vida] ${taskId} (${file}):`);
+      console.warn(`   Tiene todos los criterios de aceptación cumplidos (${totalChecked}/${totalAcs} AC) pero continúa en 'doing'.`);
+      console.warn(`   👉 Si la implementación concluyó, avanza a 'review' para auditoría de QA. No se auto-promociona a 'ready' para preservar la State Machine.`);
     }
   }
 
-  // REGLA 2: Si el estado es 'done', no debería tener ACs pendientes sin tildar
+  // REGLA 2 (DEV-293): Si el estado es 'done', no debería tener ACs pendientes sin tildar.
+  // Erradicación de fabricación de ACs (SEC-02): el modo --fix NUNCA altera '- [ ]' por '- [x]'.
   if (rawStatus === 'done' && totalAcs > 0 && totalChecked < totalAcs) {
-    if (isFixMode) {
-      const fixedAcBlock = acBlock.replace(/-\s*\[ \]/g, '- [x]');
-      const updatedContent = content.replace(acBlock, fixedAcBlock);
-      fs.writeFileSync(filePath, updatedContent, 'utf8');
-      console.log(`✨ [Auto-fix] ${taskId}: Estado es 'done'. Tildando automáticamente todos los ACs (${totalAcs}/${totalAcs}).`);
-      fixedCount++;
-    } else {
-      console.warn(`⚠️  [Advertencia] ${taskId}: El estado es 'done' pero solo tiene ${totalChecked}/${totalAcs} criterios tildados.`);
-    }
+    console.warn(`⚠️  [Advertencia de Calidad] ${taskId} (${file}):`);
+    console.warn(`   El estado es 'done' pero tiene ${totalAcs - totalChecked} de ${totalAcs} criterios de aceptación sin tildar (- [ ]).`);
+    console.warn(`   👉 Prohibida la fabricación automática de ACs (SEC-02). Exige verificación real o reclasificación del estado.`);
   }
 }
 
@@ -368,7 +361,20 @@ try {
   const exportScript = path.join(ROOT_DIR, 'scripts/gripm-cli.ts');
   if (fs.existsSync(exportScript)) {
     if (isFixMode) {
-      execSync(`node --experimental-strip-types "${exportScript}" export`, { cwd: currentRepoDir, stdio: 'inherit' });
+      // DEV-293: Verificar si BACKLOG.md ya está al día para evitar churn diario de git por fecha en cabecera
+      let isAlreadySynced = false;
+      try {
+        execSync(`node --experimental-strip-types "${exportScript}" export --check`, { cwd: currentRepoDir, stdio: 'pipe' });
+        isAlreadySynced = true;
+      } catch {
+        isAlreadySynced = false;
+      }
+
+      if (isAlreadySynced) {
+        console.log('📄 [Consolidado] BACKLOG.md ya se encuentra sincronizado (sin diffs artificiales de timestamp).');
+      } else {
+        execSync(`node --experimental-strip-types "${exportScript}" export`, { cwd: currentRepoDir, stdio: 'inherit' });
+      }
     } else if (isHookMode) {
       execSync(`node --experimental-strip-types "${exportScript}" export --check --staged`, { cwd: currentRepoDir, stdio: 'inherit' });
     } else {

@@ -50,7 +50,7 @@ export interface BacklogMdTask {
   estimate?: string | number;
   startDate?: string;
   dueDate?: string;
-  rawExtraFrontmatter?: Record<string, string>;
+  rawExtraFrontmatter?: Record<string, any>;
 }
 
 /**
@@ -196,20 +196,143 @@ export function unescapeSectionMarkers(text: string): string {
 }
 
 /**
- * DEV-132: Extrae el bloque de contenido delimitado bajo un encabezado H2 específico (## HeaderName)
- * hasta el siguiente encabezado H2 o el fin del documento.
+ * DEV-132 / DEV-289: Extrae el bloque de contenido delimitado bajo un encabezado H2 específico (## HeaderName)
+ * hasta el siguiente encabezado H2 fuera de bloques de código cercados (``` o ~~~) o el fin del documento.
  */
-function extractSectionBlock(body: string, headerName: string): string {
-  const headerRegex = new RegExp(`^##\\s+${headerName}\\b[^\r\n]*`, 'im');
-  const match = body.match(headerRegex);
-  if (!match || match.index === undefined) return '';
-  const startIndex = match.index + match[0].length;
-  const rest = body.slice(startIndex);
-  const nextHeaderMatch = rest.match(/\r?\n##\s+[^\r\n]+/);
-  const endIndex = nextHeaderMatch && nextHeaderMatch.index !== undefined
-    ? startIndex + nextHeaderMatch.index
-    : body.length;
+export function extractSectionBlock(body: string, headerName: string): string {
+  if (!body) return '';
+
+  const escapedHeader = headerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const targetHeaderRegex = new RegExp(`^##\\s+${escapedHeader}\\b[^\r\n]*`, 'i');
+
+  const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+  let match: RegExpExecArray | null;
+
+  let inCodeFence = false;
+  let fenceChar = '';
+  let fenceLength = 0;
+
+  let sectionFound = false;
+  let startIndex = -1;
+  let endIndex = body.length;
+
+  while ((match = lineRegex.exec(body)) !== null) {
+    const line = match[1];
+    const lineStart = match.index;
+    const lineEnd = match.index + match[0].length;
+
+    if (match[0].length === 0 && lineStart >= body.length) {
+      break;
+    }
+
+    if (!inCodeFence) {
+      const fenceMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})/);
+      if (fenceMatch) {
+        inCodeFence = true;
+        fenceChar = fenceMatch[1][0];
+        fenceLength = fenceMatch[1].length;
+      } else {
+        const isH2 = /^##\s+[^\r\n]*/.test(line);
+        if (isH2) {
+          if (!sectionFound) {
+            if (targetHeaderRegex.test(line)) {
+              sectionFound = true;
+              startIndex = lineEnd;
+            }
+          } else {
+            endIndex = lineStart;
+            break;
+          }
+        }
+      }
+    } else {
+      const closeMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
+        inCodeFence = false;
+      }
+    }
+  }
+
+  if (!sectionFound || startIndex === -1) {
+    return '';
+  }
+
   return body.slice(startIndex, endIndex);
+}
+
+function cleanItem(val: string): string {
+  let s = val.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1);
+  }
+  return s.trim();
+}
+
+/**
+ * DEV-289: Parsea listas inline entre corchetes respetando comillas y comas internas.
+ * e.g. ["ui/ux", "auth, login"] -> ["ui/ux", "auth, login"]
+ */
+export function parseInlineList(raw: string): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return [];
+
+  // Intento 1: Si es JSON válido, parsearlo directamente con soporte nativo para escapes y comas
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => String(item).trim()).filter(Boolean);
+    }
+  } catch {
+    // Si falla (por ejemplo con comillas simples YAML o elementos sin entrecomillar), usar tokenizador
+  }
+
+  const inner = trimmed.slice(1, -1).trim();
+  if (!inner) return [];
+
+  const items: string[] = [];
+  let currentToken = '';
+  let inQuote: null | '"' | "'" = null;
+  let escaped = false;
+
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+
+    if (escaped) {
+      currentToken += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      currentToken += char;
+      continue;
+    }
+
+    if (inQuote) {
+      currentToken += char;
+      if (char === inQuote) {
+        inQuote = null;
+      }
+    } else {
+      if (char === '"' || char === "'") {
+        inQuote = char;
+        currentToken += char;
+      } else if (char === ',') {
+        const item = cleanItem(currentToken);
+        if (item) items.push(item);
+        currentToken = '';
+      } else {
+        currentToken += char;
+      }
+    }
+  }
+
+  const lastItem = cleanItem(currentToken);
+  if (lastItem) items.push(lastItem);
+
+  return items;
 }
 
 /**
@@ -259,7 +382,11 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
             result.targetSprint = currentList[currentList.length - 1];
           }
         }
-        else if (currentKey === 'releases') result.releases = currentList;
+        else if (currentKey === 'releases' || currentKey === 'release') result.releases = currentList;
+        else {
+          if (!result.rawExtraFrontmatter) result.rawExtraFrontmatter = {};
+          result.rawExtraFrontmatter[currentKey] = currentList;
+        }
       }
       inList = false;
       currentList = [];
@@ -298,7 +425,7 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 
         if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
           // Inline list [a, b, c]
-          const items = rawVal.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+          const items = parseInlineList(rawVal);
           if (key === 'labels') result.labels = items;
           else if (key === 'assignee' || key === 'assignees') result.assignees = items;
           else if (key === 'dependencies') result.dependencies = items;
@@ -312,7 +439,11 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
               result.targetSprint = items[items.length - 1];
             }
           }
-          else if (key === 'releases') result.releases = items;
+          else if (key === 'releases' || key === 'release') result.releases = items;
+          else {
+            if (!result.rawExtraFrontmatter) result.rawExtraFrontmatter = {};
+            result.rawExtraFrontmatter[key] = items;
+          }
           continue;
         }
 
@@ -667,8 +798,22 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
 
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
-      if (!['id', 'title', 'status', 'assignee', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints', 'start_date', 'startdate', 'due_date', 'duedate', 'target_date', 'targetdate'].includes(k.toLowerCase())) {
-        frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
+      if (!['id', 'title', 'status', 'assignee', 'assignees', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints', 'start_date', 'startdate', 'due_date', 'duedate', 'target_date', 'targetdate'].includes(k.toLowerCase())) {
+        if (v === undefined || v === null) {
+          continue;
+        }
+        if (Array.isArray(v)) {
+          if (v.length === 0) {
+            frontmatterLines.push(`${k}: []`);
+          } else {
+            frontmatterLines.push(`${k}:`);
+            v.forEach(item => frontmatterLines.push(`  - ${JSON.stringify(item)}`));
+          }
+        } else if (typeof v === 'number' || typeof v === 'boolean') {
+          frontmatterLines.push(`${k}: ${v}`);
+        } else {
+          frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
+        }
       }
     }
   }
@@ -736,11 +881,19 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
  * Genera el nombre estándar canónico de archivo para una tarea Backlog.md:
  * e.g. "DOM-SPEC-001 - SPEC-001 Arquitectura de Persistencia Real & Sincronización con Supabase.md"
  * El nombre DEBE comenzar con el ID en MAYÚSCULAS seguido de " - " y el título limpio preservando mayúsculas y espacios.
+ * SEC-01 de DEV-292: Sanitización estricta de Path Traversal para garantizar contención en backlog/tasks.
  */
 export function generateTaskFilename(id: string, title: string): string {
-  const cleanId = (id || 'TASK').trim().toUpperCase().replace(/--+/g, '-');
-  let cleanTitle = (title || 'task')
+  const sanitizedId = (id || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/--+/g, '-')
+    .trim()
+    .toUpperCase();
+  const cleanId = sanitizedId || 'TASK';
+
+  let cleanTitle = (title || 'Task')
     .replace(/[/\\:*?"<>|]/g, '')
+    .replace(/\.\.+/g, '')
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

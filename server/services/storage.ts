@@ -16,6 +16,7 @@ import {
   getBacklogTasksDir,
   getProjectBacklogPath
 } from './registry.ts';
+import { atomicWriteFileSync } from './atomicWrite.ts';
 
 export function parseReleaseNotesMd(repoPath: string, projectPrefix?: string, knownItems: any[] = []): any[] {
   if (!repoPath) return [];
@@ -209,10 +210,7 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
         if (parsed.length > 0) {
           releases = parsed;
           try {
-            if (!fs.existsSync(path.dirname(releasesPath))) {
-              fs.mkdirSync(path.dirname(releasesPath), { recursive: true });
-            }
-            fs.writeFileSync(releasesPath, JSON.stringify(releases, null, 2), 'utf8');
+            atomicWriteFileSync(releasesPath, JSON.stringify(releases, null, 2), 'utf8');
           } catch (writeErr: any) {
             console.warn(`[gripm API] Error persisting auto-synced releases:`, writeErr.message);
           }
@@ -322,10 +320,7 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
 
           if (hasMutations) {
             try {
-              if (!fs.existsSync(path.dirname(sprintsPath))) {
-                fs.mkdirSync(path.dirname(sprintsPath), { recursive: true });
-              }
-              fs.writeFileSync(sprintsPath, JSON.stringify(sprints, null, 2), 'utf8');
+              atomicWriteFileSync(sprintsPath, JSON.stringify(sprints, null, 2), 'utf8');
             } catch {}
           }
         }
@@ -362,10 +357,7 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
         lastUpdated: new Date().toISOString()
       };
       try {
-        if (!fs.existsSync(path.dirname(filePath))) {
-          fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        }
-        fs.writeFileSync(filePath, JSON.stringify(initial, null, 2), 'utf8');
+        atomicWriteFileSync(filePath, JSON.stringify(initial, null, 2), 'utf8');
       } catch (writeErr: any) {
         console.error(`[gripm API] Cannot initialize backlog at ${filePath}:`, writeErr.message);
       }
@@ -641,7 +633,7 @@ export function saveBacklogMdItem(project: ProjectMeta, item: any) {
           }
 
           if (changed) {
-            fs.writeFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
+            atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
           }
         } catch (syncErr: any) {
           console.warn('[gripm API] Error sincronizando releases.json al guardar tarea:', syncErr.message);
@@ -657,7 +649,7 @@ export function saveBacklogMdItem(project: ProjectMeta, item: any) {
   const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
   const targetFilePath = path.join(tasksDir, targetFilename);
 
-  fs.writeFileSync(targetFilePath, content, 'utf8');
+  atomicWriteFileSync(targetFilePath, content, 'utf8');
 }
 
 export function findBacklogMdFile(project: ProjectMeta, id: string): { filePath: string; filename: string; task: any } | null {
@@ -724,7 +716,7 @@ export function softDeleteBacklogMdItem(project: ProjectMeta, id: string): boole
     updated = updated.replace(/^---\r?\n/, `---\nisDeleted: true\ndeletedAt: "${nowIso}"\npreviousStatus: "${previousStatus}"\n`);
   }
 
-  fs.writeFileSync(filePath, updated, 'utf8');
+  atomicWriteFileSync(filePath, updated, 'utf8');
   return true;
 }
 
@@ -744,7 +736,7 @@ export function restoreBacklogMdItem(project: ProjectMeta, id: string): boolean 
   raw = raw.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, '');
   raw = raw.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, '');
   raw = raw.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, '');
-  fs.writeFileSync(filePath, raw, 'utf8');
+  atomicWriteFileSync(filePath, raw, 'utf8');
   return true;
 }
 
@@ -784,9 +776,9 @@ export function writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog) 
             }
           } catch {}
         }
-        fs.writeFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), 'utf8');
+        atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), 'utf8');
         if (data.sprints !== undefined) {
-          fs.writeFileSync(path.join(dir, 'sprints.json'), JSON.stringify(data.sprints || [], null, 2), 'utf8');
+          atomicWriteFileSync(path.join(dir, 'sprints.json'), JSON.stringify(data.sprints || [], null, 2), 'utf8');
         }
       } catch (err: any) {
         console.warn(`[gripm API] Warning writing releases/sprints: ${err.message}`);
@@ -799,10 +791,7 @@ export function writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog) 
   data.lastUpdated = new Date().toISOString();
 
   try {
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    atomicWriteFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
   } catch (err: any) {
     console.error(`[gripm API] Error writing project backlog to ${filePath}:`, err.message);
   }

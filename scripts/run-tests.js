@@ -20,9 +20,11 @@
  *   node scripts/run-tests.js [--timeout <seconds>] [--bail]
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -72,20 +74,68 @@ const env = {
   GIT_PAGER: 'cat',
 };
 
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+const supportsStripTypes = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 6);
+
+let node20LoaderUrl = null;
+if (!supportsStripTypes) {
+  try {
+    const esbuildMain = path.resolve(ROOT, 'node_modules/esbuild/lib/main.js');
+    if (fs.existsSync(esbuildMain)) {
+      const loaderContent = `
+import fs from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import esbuild from ${JSON.stringify(pathToFileURL(esbuildMain).href)};
+
+export function load(url, context, nextLoad) {
+  if (url.endsWith('.ts') || url.endsWith('.tsx')) {
+    const filePath = fileURLToPath(url);
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const { code } = esbuild.transformSync(raw, {
+      loader: 'ts',
+      format: 'esm',
+      sourcefile: filePath,
+      target: 'node20'
+    });
+    return {
+      format: 'module',
+      shortCircuit: true,
+      source: code
+    };
+  }
+  return nextLoad(url, context);
+}
+`;
+      const loaderPath = path.join(os.tmpdir(), `gripm-ts-loader-${process.pid}.mjs`);
+      fs.writeFileSync(loaderPath, loaderContent, 'utf8');
+      node20LoaderUrl = pathToFileURL(loaderPath).href;
+      process.on('exit', () => {
+        try { fs.unlinkSync(loaderPath); } catch {}
+      });
+    }
+  } catch {}
+}
+
 const runStep = ([name, script]) =>
   new Promise((resolve) => {
     const started = Date.now();
+    const stepArgs = [
+      // The watchdog preload turns a hang into a diagnosis: it names the
+      // handles that are keeping the loop alive. Its timer is unref'd, so it
+      // never delays a healthy step.
+      '--import',
+      './scripts/watchdog.js',
+    ];
+    if (supportsStripTypes) {
+      stepArgs.push('--experimental-strip-types');
+    } else if (node20LoaderUrl) {
+      stepArgs.push('--loader', node20LoaderUrl);
+    }
+    stepArgs.push(script);
+
     const child = spawn(
       process.execPath,
-      [
-        // The watchdog preload turns a hang into a diagnosis: it names the
-        // handles that are keeping the loop alive. Its timer is unref'd, so it
-        // never delays a healthy step.
-        '--import',
-        './scripts/watchdog.js',
-        '--experimental-strip-types',
-        script,
-      ],
+      stepArgs,
       {
         cwd: ROOT,
         env: { ...env, GRIPM_WATCHDOG_MS: String(TIMEOUT_SECONDS * 1000) },

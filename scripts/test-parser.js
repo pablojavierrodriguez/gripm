@@ -9,7 +9,9 @@ import {
   formatStatusForMd,
   formatPriorityForMd,
   generateTaskFilename,
-  generateMonolithicBacklogMd
+  generateMonolithicBacklogMd,
+  parseInlineList,
+  extractSectionBlock
 } from './backlogMdParser.ts';
 
 console.log('Testing backlogMdParser...');
@@ -589,6 +591,172 @@ Alias test
 }
 console.log('✅ DEV-281: Timeline dates parsing, serialization and aliases passed');
 
+// DEV-289 & SEC-01 DEV-292: Parser Integrity, Custom YAML lists, Code fence preservation & Path Traversal Sanitization
+{
+  // 1. Custom YAML lists and scalar fields preservation (AC #1 & PoC Caso 1)
+  const mdWithCustomYaml = `---
+id: DEV-999
+title: "Task with custom YAML fields"
+status: draft
+tags:
+  - security
+  - audit
+reviewers:
+  - alice
+  - bob
+custom_scalar: "verified"
+custom_empty_list: []
+---
+
+## Description
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Test description for custom YAML.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 AC test
+<!-- AC:END -->
+`;
+
+  const parsedCustom = parseBacklogMd(mdWithCustomYaml, 'DEV-999');
+  assert.deepStrictEqual(parsedCustom.rawExtraFrontmatter?.tags, ['security', 'audit'], 'DEV-289: tags custom list must be parsed');
+  assert.deepStrictEqual(parsedCustom.rawExtraFrontmatter?.reviewers, ['alice', 'bob'], 'DEV-289: reviewers custom list must be parsed');
+  assert.strictEqual(parsedCustom.rawExtraFrontmatter?.custom_scalar, 'verified', 'DEV-289: custom_scalar must be parsed');
+  assert.deepStrictEqual(parsedCustom.rawExtraFrontmatter?.custom_empty_list, [], 'DEV-289: custom_empty_list must be parsed as empty array');
+
+  const serializedCustom = serializeBacklogMd(parsedCustom);
+  assert.ok(serializedCustom.includes('tags:'), 'DEV-289: serialized markdown must include tags');
+  assert.ok(serializedCustom.includes('- "security"'), 'DEV-289: serialized markdown must include security tag');
+  assert.ok(serializedCustom.includes('reviewers:'), 'DEV-289: serialized markdown must include reviewers');
+  assert.ok(serializedCustom.includes('- "alice"'), 'DEV-289: serialized markdown must include alice reviewer');
+  assert.ok(serializedCustom.includes('custom_empty_list: []'), 'DEV-289: serialized markdown must include custom_empty_list: []');
+
+  const roundTripCustom = parseBacklogMd(serializedCustom);
+  assert.deepStrictEqual(roundTripCustom.rawExtraFrontmatter?.tags, ['security', 'audit'], 'DEV-289: tags must survive round-trip');
+  assert.deepStrictEqual(roundTripCustom.rawExtraFrontmatter?.reviewers, ['alice', 'bob'], 'DEV-289: reviewers must survive round-trip');
+  assert.strictEqual(roundTripCustom.rawExtraFrontmatter?.custom_scalar, 'verified', 'DEV-289: custom_scalar must survive round-trip');
+  assert.deepStrictEqual(roundTripCustom.rawExtraFrontmatter?.custom_empty_list, [], 'DEV-289: custom_empty_list must survive round-trip');
+
+  // 2. Inline lists with quoted commas (AC #2)
+  const mdWithInlineLists = `---
+id: DEV-INLINE-1
+title: "Inline lists test"
+status: draft
+labels: ["ui/ux", "auth, login"]
+tags: ["a", "b, c"]
+single_quoted: ['first, item', 'second']
+unquoted: [one, two, three]
+---
+
+## Description
+Test inline.
+`;
+
+  const parsedInline = parseBacklogMd(mdWithInlineLists);
+  assert.deepStrictEqual(parsedInline.labels, ['ui/ux', 'auth, login'], 'DEV-289: labels with commas in quotes must not be split');
+  assert.deepStrictEqual(parsedInline.rawExtraFrontmatter?.tags, ['a', 'b, c'], 'DEV-289: custom inline tags with commas in quotes must not be split');
+  assert.deepStrictEqual(parsedInline.rawExtraFrontmatter?.single_quoted, ['first, item', 'second'], 'DEV-289: single quoted inline list with commas must not be split');
+  assert.deepStrictEqual(parsedInline.rawExtraFrontmatter?.unquoted, ['one', 'two', 'three'], 'DEV-289: unquoted inline list must be parsed');
+
+  const serializedInline = serializeBacklogMd(parsedInline);
+  const reparsedInline = parseBacklogMd(serializedInline);
+  assert.deepStrictEqual(reparsedInline.labels, ['ui/ux', 'auth, login'], 'DEV-289: labels must survive round trip');
+  assert.deepStrictEqual(reparsedInline.rawExtraFrontmatter?.tags, ['a', 'b, c'], 'DEV-289: tags must survive round trip');
+
+  // Direct parseInlineList tests
+  assert.deepStrictEqual(parseInlineList('["a", "b, c"]'), ['a', 'b, c'], 'DEV-289: parseInlineList handles quoted commas');
+  assert.deepStrictEqual(parseInlineList("['x', 'y, z']"), ['x', 'y, z'], 'DEV-289: parseInlineList handles single quoted commas');
+  assert.deepStrictEqual(parseInlineList('[]'), [], 'DEV-289: parseInlineList handles empty array');
+
+  // 3. Code fence protection in Markdown descriptions (AC #3 & PoC Caso 2)
+  const mdWithFencedCode = `---
+id: DEV-FENCE-1
+title: "Code fence test"
+status: draft
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Intro text.
+\`\`\`markdown
+## Acceptance Criteria
+- [ ] fake AC in code
+- [ ] another fake AC in code
+\`\`\`
+Text after code block that must NOT be truncated.
+~~~markdown
+## Implementation Plan
+1. Fake step
+~~~
+Final description text.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+
+<!-- AC:BEGIN -->
+- [x] #1 Real acceptance criterion
+- [ ] #2 Second real criterion
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Real implementation step 1.
+<!-- SECTION:PLAN:END -->
+`;
+
+  const parsedFenced = parseBacklogMd(mdWithFencedCode);
+  assert.ok(parsedFenced.description?.includes('## Acceptance Criteria'), 'DEV-289: description must include code snippet');
+  assert.ok(parsedFenced.description?.includes('Text after code block that must NOT be truncated.'), 'DEV-289: text after code block must be preserved');
+  assert.ok(parsedFenced.description?.includes('Final description text.'), 'DEV-289: text after second code block must be preserved');
+
+  // Real ACs outside code blocks must be captured accurately
+  assert.strictEqual(parsedFenced.acceptanceCriteria?.length, 2, 'DEV-289: only the 2 real ACs outside code blocks must be parsed');
+  assert.strictEqual(parsedFenced.acceptanceCriteria?.[0].text, 'Real acceptance criterion');
+  assert.strictEqual(parsedFenced.acceptanceCriteria?.[0].checked, true);
+  assert.strictEqual(parsedFenced.acceptanceCriteria?.[1].text, 'Second real criterion');
+  assert.strictEqual(parsedFenced.acceptanceCriteria?.[1].checked, false);
+
+  // Real plan must be preserved
+  assert.ok(parsedFenced.implementationPlan?.includes('Real implementation step 1.'), 'DEV-289: real plan outside code blocks must be preserved');
+
+  // Direct extractSectionBlock test
+  const descBlock = extractSectionBlock(mdWithFencedCode, 'Description');
+  assert.ok(descBlock.includes('Text after code block that must NOT be truncated.'), 'DEV-289: extractSectionBlock must not cut off at H2 inside code block');
+
+  // 4. Full round-trip of complex task with code blocks and custom YAML metadata (AC #4)
+  const complexSerialized = serializeBacklogMd(parsedFenced);
+  const complexReparsed = parseBacklogMd(complexSerialized);
+  assert.strictEqual(complexReparsed.id, 'DEV-FENCE-1');
+  assert.strictEqual(complexReparsed.description, parsedFenced.description, 'DEV-289: complex description must match 100% after round-trip');
+  assert.deepStrictEqual(complexReparsed.acceptanceCriteria, parsedFenced.acceptanceCriteria, 'DEV-289: complex ACs must match 100% after round-trip');
+  assert.strictEqual(complexReparsed.implementationPlan, parsedFenced.implementationPlan, 'DEV-289: complex plan must match 100% after round-trip');
+
+  // 5. Sanitización de Path Traversal en generateTaskFilename (SEC-01 de DEV-292)
+  const fn1 = generateTaskFilename('../../../danger', 'Evil');
+  assert.strictEqual(fn1, 'DANGER - Evil.md', 'DEV-292 SEC-01: generateTaskFilename must sanitize path traversal in id');
+  assert.ok(!fn1.includes('..') && !fn1.includes('/') && !fn1.includes('\\'), 'Filename must not contain directory traversal characters');
+
+  const tasksBaseDir = path.resolve('backlog/tasks');
+  const resolvedTarget = path.resolve(tasksBaseDir, fn1);
+  const relPath = path.relative(tasksBaseDir, resolvedTarget);
+  assert.ok(!relPath.startsWith('..') && !path.isAbsolute(relPath), 'DEV-292 SEC-01: resolved task file must be strictly contained inside backlog/tasks');
+
+  // Additional traversal edge cases
+  const fn2 = generateTaskFilename('..\\..\\etc\\passwd', 'System File');
+  assert.strictEqual(fn2, 'ETCPASSWD - System File.md', 'DEV-292 SEC-01: backslashes and dots stripped');
+
+  const fn3 = generateTaskFilename('../..', '../evil');
+  assert.strictEqual(fn3, 'TASK - evil.md', 'DEV-292 SEC-01: empty traversal id must fall back to TASK');
+
+  const fn4 = generateTaskFilename('', '');
+  assert.strictEqual(fn4, 'TASK - Task.md', 'DEV-292 SEC-01: empty id and title fallback safely');
+}
+console.log('✅ DEV-289 & SEC-01 DEV-292: Parser Integrity, custom YAML fields, code fence preservation & Path Traversal sanitization verified');
+
 console.log('🎉 All parser tests passed successfully!');
+
 
 

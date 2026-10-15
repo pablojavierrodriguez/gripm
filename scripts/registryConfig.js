@@ -53,17 +53,68 @@ export function loadRegistryFile(pkgRoot = DEFAULT_PKG_ROOT) {
 }
 
 /**
+ * Synchronously writes data to a file atomically by writing to a temporary file
+ * in the same directory, syncing to physical storage, and renaming it over the target file.
+ */
+export function atomicWriteFileSync(filePath, content, encoding = 'utf8') {
+  const resolvedPath = path.resolve(filePath);
+  const targetDir = path.dirname(resolvedPath);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const tempPath = `${resolvedPath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+  let fd;
+  let renamed = false;
+
+  try {
+    fd = fs.openSync(tempPath, 'w');
+    if (typeof content === 'string') {
+      fs.writeFileSync(fd, content, encoding);
+    } else {
+      fs.writeFileSync(fd, content);
+    }
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+
+    let attempts = 0;
+    while (!renamed) {
+      try {
+        fs.renameSync(tempPath, resolvedPath);
+        renamed = true;
+      } catch (renameErr) {
+        attempts++;
+        if ((renameErr.code === 'EPERM' || renameErr.code === 'EACCES' || renameErr.code === 'EBUSY') && attempts <= 5) {
+          const end = Date.now() + 10;
+          while (Date.now() < end) {}
+          continue;
+        }
+        throw renameErr;
+      }
+    }
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch {}
+    }
+    if (!renamed && fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {}
+    }
+  }
+}
+
+/**
  * Persists the project registry to ~/.gripm/registry.json (or XDG path).
  */
 export function saveRegistryFile(registry, pkgRoot = DEFAULT_PKG_ROOT) {
   const targetPath = getRegistryPath(pkgRoot);
 
   try {
-    const targetDir = path.dirname(targetPath);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-    fs.writeFileSync(targetPath, JSON.stringify(registry, null, 2), 'utf8');
+    atomicWriteFileSync(targetPath, JSON.stringify(registry, null, 2), 'utf8');
   } catch {
     // Ignore if target path cannot be written
   }

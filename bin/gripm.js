@@ -75,6 +75,7 @@ function printMainHelp() {
     --port, -p <puerto>            Puerto para el servidor web (por defecto: 4100)
     --host <host>                  Host de enlace (por defecto: 127.0.0.1)
     --repo, -r <ruta>              Proyecto destino (por defecto: carpeta actual)
+    --dev                          Inicia en modo desarrollo con Vite HMR (requiere devDependencies)
     --no-open                      No abrir el navegador automáticamente
     --single                       Forzar modo de proyecto único
     --hub, --multi                 Abrir en modo hub multi-proyecto
@@ -145,8 +146,28 @@ function printPlaybookHelp() {
 }
 
 async function main() {
-  const command = args[0];
-  if (command && !command.startsWith('-') && !['mcp', 'playbook', 'help'].includes(command)) {
+  const VALUE_FLAGS = new Set([
+    '--port', '-p',
+    '--host',
+    '--repo', '-r',
+    '--language', '--lang',
+    '--branch', '-b',
+    '--remote'
+  ]);
+
+  const nonFlagArgs = [];
+  for (let i = 0; i < args.length; i++) {
+    if (VALUE_FLAGS.has(args[i])) {
+      i++; // skip option value
+      continue;
+    }
+    if (!args[i].startsWith('-')) {
+      nonFlagArgs.push(args[i]);
+    }
+  }
+
+  const command = nonFlagArgs[0];
+  if (command && !['mcp', 'playbook', 'help'].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
@@ -154,7 +175,7 @@ async function main() {
 
   // Handle 'help' subcommand alias
   if (command === 'help') {
-    const sub = args[1];
+    const sub = nonFlagArgs[1];
     if (sub === 'mcp') {
       printMcpHelp();
       process.exit(0);
@@ -167,8 +188,8 @@ async function main() {
     process.exit(0);
   }
 
-  // DEV-150: Handle 'mcp' subcommand directly without starting Vite
-  if (args[0] === 'mcp') {
+  // DEV-150 / DEV-295: Handle 'mcp' subcommand directly without starting Vite (positional or non-positional)
+  if (command === 'mcp' || (args.includes('mcp') && command !== 'help')) {
     if (hasHelpFlag(args)) {
       printMcpHelp();
       process.exit(0);
@@ -182,13 +203,14 @@ async function main() {
   }
 
   // Handle 'playbook' subcommand
-  if (args[0] === 'playbook') {
+  if (command === 'playbook' || (args.includes('playbook') && command !== 'help')) {
     if (hasHelpFlag(args)) {
       printPlaybookHelp();
       process.exit(0);
     }
 
-    if (args[1] !== 'sync') {
+    const playbookSub = nonFlagArgs[1] || (args[args.indexOf('playbook') + 1]);
+    if (playbookSub !== 'sync') {
       console.error('Uso: gripm playbook sync [--repo <ruta>] [--dry-run] [--force]');
       console.error('Ejecuta "gripm playbook --help" para ver las opciones disponibles.');
       console.error('Este comando sincroniza materiales del Playbook en un proyecto; no instala Gripm Playbook.');
@@ -353,30 +375,200 @@ async function main() {
     }
   }
 
-  // Start Vite server
-  const { createServer } = await import('vite');
-  
+  // DEV-290: Distinction between production static server (default) and development server (--dev)
+  const isDev = args.includes('--dev');
+  let server;
+  let actualPort;
+  let displayHost;
+  let url;
+
   const resolvedPort = await findAvailablePort(port, host);
   if (resolvedPort !== port) {
     console.log(`\n  ${c.yellow('▲')}  Puerto ${port} ocupado en el sistema. Utilizando puerto disponible ${resolvedPort}...`);
   }
 
-  const server = await createServer({
-    root: PKG_ROOT,
-    configFile: path.resolve(PKG_ROOT, 'vite.config.ts'),
-    server: {
-      port: resolvedPort,
-      host,
-      strictPort: false,
-      open: false
-    }
-  });
+  if (isDev) {
+    // Development mode: Start Vite HMR server
+    const { createServer } = await import('vite');
+    server = await createServer({
+      root: PKG_ROOT,
+      configFile: path.resolve(PKG_ROOT, 'vite.config.ts'),
+      server: {
+        port: resolvedPort,
+        host,
+        strictPort: false,
+        open: false
+      }
+    });
 
-  await server.listen();
-  const address = server.httpServer?.address();
-  const actualPort = typeof address === 'object' && address?.port ? address.port : resolvedPort;
-  const displayHost = host === '127.0.0.1' ? 'localhost' : host;
-  const url = `http://${displayHost}:${actualPort}`;
+    await server.listen();
+    const address = server.httpServer?.address();
+    actualPort = typeof address === 'object' && address?.port ? address.port : resolvedPort;
+    displayHost = host === '127.0.0.1' ? 'localhost' : host;
+    url = `http://${displayHost}:${actualPort}`;
+  } else {
+    // Production mode: Minimal native HTTP static server serving precompiled dist/ (DEV-290)
+    const http = await import('node:http');
+
+    let apiMiddleware = null;
+    let closeWatchers = null;
+    try {
+      const { gripmApi } = await import('../server/plugin.ts');
+      const plugin = gripmApi();
+      closeWatchers = plugin.closeWatchers;
+      plugin.configureServer({
+        middlewares: {
+          use: (fn) => { apiMiddleware = fn; }
+        }
+      });
+    } catch {
+      // In environments without TS loader / runtime support, static files are served directly
+    }
+
+    const distDir = path.resolve(PKG_ROOT, 'dist');
+    const publicDir = path.resolve(PKG_ROOT, 'public');
+
+    const MIME_TYPES = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.mjs': 'application/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.svg': 'image/svg+xml',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.ico': 'image/x-icon',
+      '.woff2': 'font/woff2',
+      '.woff': 'font/woff',
+      '.ttf': 'font/ttf',
+      '.map': 'application/json',
+      '.txt': 'text/plain; charset=utf-8'
+    };
+
+    function serveFile(filePath, req, res) {
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+          const indexInDir = path.join(filePath, 'index.html');
+          if (fs.existsSync(indexInDir) && fs.statSync(indexInDir).isFile()) {
+            return serveFile(indexInDir, req, res);
+          }
+          return false;
+        }
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+        res.setHeader(
+          'Content-Security-Policy',
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+        );
+
+        if (req.method === 'HEAD') {
+          res.statusCode = 200;
+          res.end();
+          return true;
+        }
+
+        res.statusCode = 200;
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', () => {
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end('Internal Server Error');
+          }
+        });
+        stream.pipe(res);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function handleStatic(req, res) {
+      const rawUrl = req.url || '/';
+      let pathname = rawUrl.split('?')[0];
+      try {
+        pathname = decodeURIComponent(pathname);
+      } catch {
+        res.statusCode = 400;
+        res.end('Bad Request');
+        return;
+      }
+
+      const safePath = path.normalize(path.join(distDir, pathname));
+      if (!safePath.startsWith(distDir)) {
+        res.statusCode = 403;
+        res.end('Forbidden');
+        return;
+      }
+
+      if (fs.existsSync(safePath) && safePath !== distDir) {
+        if (serveFile(safePath, req, res)) return;
+      }
+
+      // Check public folder fallback
+      const safePublicPath = path.normalize(path.join(publicDir, pathname));
+      if (safePublicPath.startsWith(publicDir) && fs.existsSync(safePublicPath) && safePublicPath !== publicDir) {
+        if (serveFile(safePublicPath, req, res)) return;
+      }
+
+      const indexPath = path.join(distDir, 'index.html');
+      if (pathname === '/' || pathname === '') {
+        if (fs.existsSync(indexPath)) {
+          if (serveFile(indexPath, req, res)) return;
+        }
+        res.statusCode = 503;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end('<h1>dist/index.html no encontrado</h1><p>Ejecuta <code>npm run build</code> antes de iniciar gripm en produccion.</p>');
+        return;
+      }
+
+      // SPA fallback: non-asset routes fallback to index.html
+      const hasExtension = path.extname(pathname).length > 0;
+      if (!hasExtension && fs.existsSync(indexPath)) {
+        if (serveFile(indexPath, req, res)) return;
+      }
+
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.end('Not Found');
+    }
+
+    server = http.createServer((req, res) => {
+      if (apiMiddleware) {
+        apiMiddleware(req, res, () => handleStatic(req, res));
+      } else {
+        handleStatic(req, res);
+      }
+    });
+
+    if (closeWatchers) {
+      server.on('close', () => {
+        try { closeWatchers(); } catch {}
+      });
+    }
+
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(resolvedPort, host, () => {
+        server.removeListener('error', reject);
+        resolve();
+      });
+    });
+
+    const address = server.address();
+    actualPort = typeof address === 'object' && address?.port ? address.port : resolvedPort;
+    displayHost = host === '127.0.0.1' ? 'localhost' : host;
+    url = `http://${displayHost}:${actualPort}`;
+  }
 
   console.log(`
   ${c.bold('gripm')} ${c.dim(`v${currentVersion}`)}  ${c.green('listo')}

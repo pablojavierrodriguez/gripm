@@ -29,6 +29,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+let esbuild;
+try {
+  esbuild = (await import('esbuild')).default;
+} catch {}
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const problems = [];
@@ -230,6 +235,93 @@ function checkScriptRefs() {
   }
 }
 
+// --- 6. Standalone MCP binary parity (DEV-295) -------------------------------
+//
+// Verify that bin/gripm-mcp.js stays in sync with scripts/mcp-server.ts and its dependencies.
+// Compiles scripts/mcp-server.ts in-memory and asserts exact match with bin/gripm-mcp.js.
+
+function checkMcpBinarySync(filesList, isAllMode) {
+  const mcpSourcePatterns = [
+    'scripts/mcp-server.ts',
+    'bin/gripm-mcp.js',
+    'scripts/backlogMdParser.ts',
+    'scripts/registryConfig.js',
+    'scripts/updateChecker.js',
+    'server/services/atomicWrite.ts',
+  ];
+
+  const hasMcpChanges = isAllMode || filesList.some((f) =>
+    mcpSourcePatterns.some((pattern) => f === pattern || f.endsWith(pattern))
+  );
+
+  if (!hasMcpChanges) return;
+
+  if (!esbuild) {
+    skipped.push('bin/gripm-mcp.js: sincronización de binario MCP sin validar (esbuild no disponible)');
+    return;
+  }
+
+  const binaryPath = path.join(ROOT, 'bin/gripm-mcp.js');
+  let currentBinaryContent;
+
+  if (isAllMode) {
+    if (!fs.existsSync(binaryPath)) {
+      fail('bin/gripm-mcp.js', 'El binario compilado bin/gripm-mcp.js no existe', 'Ejecutá `npm run build:bin`.');
+      return;
+    }
+    currentBinaryContent = fs.readFileSync(binaryPath, 'utf8');
+  } else {
+    currentBinaryContent = stagedContent('bin/gripm-mcp.js');
+    if (currentBinaryContent === null) {
+      fail(
+        'bin/gripm-mcp.js',
+        'El archivo bin/gripm-mcp.js no está stageado junto a los cambios del servidor MCP',
+        'Ejecutá `npm run build:bin` y stageá bin/gripm-mcp.js con `git add bin/gripm-mcp.js`.'
+      );
+      return;
+    }
+  }
+
+  try {
+    const mcpServerContent = isAllMode
+      ? fs.readFileSync(path.join(ROOT, 'scripts/mcp-server.ts'), 'utf8')
+      : (stagedContent('scripts/mcp-server.ts') ?? (fs.existsSync(path.join(ROOT, 'scripts/mcp-server.ts')) ? fs.readFileSync(path.join(ROOT, 'scripts/mcp-server.ts'), 'utf8') : null));
+
+    if (!mcpServerContent) {
+      fail('scripts/mcp-server.ts', 'No se pudo leer el contenido de scripts/mcp-server.ts para la verificación.');
+      return;
+    }
+
+    const res = esbuild.buildSync({
+      stdin: {
+        contents: mcpServerContent,
+        resolveDir: path.join(ROOT, 'scripts'),
+        sourcefile: 'mcp-server.ts',
+        loader: 'ts'
+      },
+      bundle: true,
+      platform: 'node',
+      target: 'node18',
+      format: 'esm',
+      write: false,
+      external: ['fsevents']
+    });
+
+    const compiledText = res.outputFiles[0].text;
+    const normalize = (s) => s.replace(/\r\n/g, '\n').trim();
+
+    if (normalize(currentBinaryContent) !== normalize(compiledText)) {
+      fail(
+        'bin/gripm-mcp.js',
+        'El binario compilado bin/gripm-mcp.js está desactualizado respecto al código fuente de scripts/mcp-server.ts',
+        'Ejecutá `npm run build:bin` para regenerar el binario compilado.'
+      );
+    }
+  } catch (err) {
+    fail('scripts/mcp-server.ts', `Error al compilar servidor MCP para verificación: ${err.message}`);
+  }
+}
+
 // --- run ---------------------------------------------------------------------
 
 const isAll = process.argv.includes('--all');
@@ -261,6 +353,7 @@ for (const file of files) {
 }
 
 checkScriptRefs();
+checkMcpBinarySync(files, isAll);
 
 for (const s of skipped) console.log(`   ℹ️  ${s}`);
 

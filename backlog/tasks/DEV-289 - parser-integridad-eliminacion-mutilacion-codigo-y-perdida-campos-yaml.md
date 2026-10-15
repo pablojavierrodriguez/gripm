@@ -1,7 +1,7 @@
 ---
 id: DEV-289
 title: "Integridad del Parser: Eliminación de mutilación de código y pérdida de campos YAML en backlogMdParser"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -50,14 +50,27 @@ console.assert(p2.description.includes('Texto que se borra'), 'FALLO: Texto post
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `parseBacklogMd` y `serializeBacklogMd` preservan cualquier campo o lista YAML no estándar dentro de `rawExtraFrontmatter` sin pérdida de datos en el ciclo de lectura y serialización
-- [ ] #2 Los valores de listas inline entre corchetes con comas entrecomilladas (`["a", "b, c"]`) se analizan respetando las cadenas sin dividirlas erróneamente
-- [ ] #3 `extractSectionBlock` ignora cualquier encabezado H2 (`## ...`) que se encuentre dentro de bloques de código cercados (\`\`\` o ~~~), extrayendo la totalidad de la descripción y el plan
-- [ ] #4 Un test de ida y vuelta (round-trip) verifica que tareas con bloques de código y metadatos YAML complejos conservan el 100% de su contenido
-- [ ] #5 La suite de pruebas de sincronización aprueba limpiamente (`npm run backlog:check`)
+- [x] #1 `parseBacklogMd` y `serializeBacklogMd` preservan cualquier campo o lista YAML no estándar dentro de `rawExtraFrontmatter` sin pérdida de datos en el ciclo de lectura y serialización
+- [x] #2 Los valores de listas inline entre corchetes con comas entrecomilladas (`["a", "b, c"]`) se analizan respetando las cadenas sin dividirlas erróneamente
+- [x] #3 `extractSectionBlock` ignora cualquier encabezado H2 (`## ...`) que se encuentre dentro de bloques de código cercados (\`\`\` o ~~~), extrayendo la totalidad de la descripción y el plan
+- [x] #4 Un test de ida y vuelta (round-trip) verifica que tareas con bloques de código y metadatos YAML complejos conservan el 100% de su contenido
+- [x] #5 La suite de pruebas de sincronización aprueba limpiamente (`npm run backlog:check`)
 <!-- AC:END -->
 
 ## Implementation Notes
 
-- Archivos principales: [scripts/backlogMdParser.ts](file:///c:/Users/Pablo/Proyectos/gripm/scripts/backlogMdParser.ts) (líneas 202-213, 247-317, 700-740).
-- Considerar integrar un parser YAML estándar (`yaml`) en `dependencies` para erradicar definitivamente la máquina de estados manual de parsing léxico en `backlogMdParser.ts`.
+<!-- SECTION:NOTES:BEGIN -->
+- **Preservación de campos YAML personalizados:**
+  - `finalizeList()` y el parser inline de `parseBacklogMd()` almacenan dinámicamente cualquier lista YAML o clave no estándar dentro de `result.rawExtraFrontmatter`.
+  - `serializeBacklogMd()` recorre `rawExtraFrontmatter` y emite arrays como listas YAML indented (`key:\n  - "value"`), arrays vacíos como `key: []`, valores numéricos/booleanos de forma nativa y cadenas JSON-escapadas, garantizando persistencia bidireccional sin pérdida.
+- **Parser de listas inline sin mutilación por comas:**
+  - Nueva función `parseInlineList()` que procesa listas inline entre corchetes (`[...]`). Si es JSON válido, aprovecha `JSON.parse`; de lo contrario emplea un tokenizador que respeta comillas simples/dobles y caracteres de escape, preservando cadenas como `["ui/ux", "auth, login"]` intactas.
+- **Protección de bloques de código en `extractSectionBlock`:**
+  - Se implementó un escaneo línea por línea con seguimiento de fences (` ``` ` y ` ~~~ ` respetando longitud y apertura/cierre de bloques de código según CommonMark).
+  - Los encabezados H2 (`## ...`) ubicados dentro de bloques de código son ignorados, eliminando por completo la mutilación de texto posterior en descripciones o planes técnicos.
+- **Sanitización de Path Traversal en `generateTaskFilename` (SEC-01 de DEV-292):**
+  - Sanitización estricta de `id` con `[^a-zA-Z0-9_-]` eliminando secuencias `..`, `/` y `\`, con fallback seguro a `'TASK'`.
+  - Garantiza contención estricta dentro de `backlog/tasks`.
+- **Tests y Verificación:**
+  - Se añadieron tests exhaustivos en `scripts/test-parser.js` cubriendo round-trips de metadatos YAML complejos, listas inline con comas, código cercado con encabezados H2, y contención segura de rutas contra path traversal.
+<!-- SECTION:NOTES:END -->

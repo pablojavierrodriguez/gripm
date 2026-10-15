@@ -321,6 +321,18 @@ export function App() {
       if (!silent) setLoading(true);
       const data = await fetchBoardData();
       setBoardData(data);
+      setEditingItem((prevEditing) => {
+        if (!prevEditing) return null;
+        const updated = data.items.find((it) => it.id === prevEditing.id);
+        if (!updated) return prevEditing;
+        if (updated.mtime && prevEditing.mtime && updated.mtime !== prevEditing.mtime) {
+          showToast(`Tarea ${updated.code || updated.id} sincronizada con cambios en disco`, 'info');
+        }
+        return {
+          ...prevEditing,
+          mtime: updated.mtime ?? prevEditing.mtime,
+        };
+      });
       if (data.projects.length > 0) {
         if (data.singleProject || data.projects.length <= 1) {
           const activeId = data.activeProjectId || data.projects[0].id;
@@ -524,10 +536,7 @@ export function App() {
     const prevItems = [...boardData.items];
 
     // Optimistic update
-    setBoardData({
-      ...boardData,
-      items: newItems
-    });
+    setBoardData((prev) => (prev ? { ...prev, items: newItems } : null));
 
     try {
       const updated = await updateItem(id, { status: newStatus, order: newOrder });
@@ -545,7 +554,7 @@ export function App() {
       }
     } catch (err: any) {
       // Rollback
-      setBoardData({ ...boardData, items: prevItems });
+      setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
       showToast(`Error al actualizar estado: ${err.message}`, 'error');
     }
   }, [boardData, viewMode, showToast]);
@@ -575,10 +584,14 @@ export function App() {
     if (existing && existing.priority === newPriority) return;
     try {
       const updated = await updateItem(id, { priority: newPriority });
-      setBoardData({
-        ...boardData,
-        items: boardData.items.map((it) => (it.id === id ? updated : it))
-      });
+      setBoardData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((it) => (it.id === id ? updated : it))
+            }
+          : null
+      );
       showToast(`Prioridad de ${updated.code} cambiada a ${newPriority.toUpperCase()}`, 'info');
     } catch (err: any) {
       showToast(`Error al cambiar prioridad: ${err.message}`, 'error');
@@ -850,10 +863,14 @@ export function App() {
     if (itemData.id) {
       // Update
       const updated = await updateItem(itemData.id, itemData);
-      setBoardData({
-        ...boardData,
-        items: boardData.items.map((it) => (it.id === updated.id ? updated : it))
-      });
+      setBoardData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((it) => (it.id === updated.id ? updated : it))
+            }
+          : null
+      );
       showToast(t('app.itemSaved', { code: updated.code }), 'success');
     } else {
       // Create
@@ -861,10 +878,14 @@ export function App() {
         ...itemData,
         projectId: itemData.projectId || (selectedProjectId === 'all' ? (boardData?.projects[0]?.id || '') : selectedProjectId)
       });
-      setBoardData({
-        ...boardData,
-        items: [created, ...boardData.items]
-      });
+      setBoardData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: [created, ...prev.items]
+            }
+          : null
+      );
       showToast(t('app.itemCreated', { code: created.code }), 'success');
     }
   }, [boardData, selectedProjectId, showToast, t]);
@@ -875,10 +896,14 @@ export function App() {
     if (!child) return;
     try {
       const updated = await updateItem(child.id, { parentId: '' });
-      setBoardData({
-        ...boardData,
-        items: boardData.items.map((it) => (it.id === child.id ? updated : it)),
-      });
+      setBoardData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((it) => (it.id === child.id ? updated : it)),
+            }
+          : null
+      );
       showToast(`${t('itemModal.unlinkChild')}: ${child.code || child.id}`, 'info');
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
@@ -902,15 +927,17 @@ export function App() {
 
   const handleCreateProject = useCallback(async (projectData: Partial<Project>) => {
     const created = await createProject(projectData);
-    if (boardData) {
-      setBoardData({
-        ...boardData,
-        projects: [...boardData.projects, created]
-      });
-    }
+    setBoardData((prev) =>
+      prev
+        ? {
+            ...prev,
+            projects: [...prev.projects, created]
+          }
+        : null
+    );
     setSelectedProjectId(created.id);
     showToast(t('app.projectCreated', { name: created.name }), 'success');
-  }, [boardData, showToast, t]);
+  }, [showToast, t]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
     try {

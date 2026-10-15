@@ -22,6 +22,7 @@ import {
 } from './backlogMdParser.ts';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
 import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from './updateChecker.js';
+import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -163,10 +164,10 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
     reg = { activeProjectId: '', projects: [] };
   }
 
-  // CLI arg support: --repo <dir> or -p <dir>
+  // CLI arg support: --repo <dir>, -r <dir> or -p <dir>
   const args = process.argv.slice(2);
   let cliRepo: string | null = null;
-  const repoIdx = args.findIndex(a => a === '--repo' || a === '-p');
+  const repoIdx = args.findIndex(a => a === '--repo' || a === '-r' || a === '-p');
   if (repoIdx !== -1 && args[repoIdx + 1]) {
     cliRepo = path.resolve(args[repoIdx + 1]);
     // SEC-03: Validate containment and existence of --repo
@@ -953,7 +954,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
             const serialized = serializeBacklogMd(current);
             // Sobreescritura in-place del archivo existente sin renombrar ni generar slugs innecesarios
-            fs.writeFileSync(fullPath, serialized, 'utf8');
+            atomicWriteFileSync(fullPath, serialized, 'utf8');
             updatedCount++;
             updatedIds.push(current.id);
           }
@@ -1027,7 +1028,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
       data.items = items;
       data.lastUpdated = now;
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      atomicWriteFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 
       return {
         ok: true,
@@ -1118,7 +1119,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       if (!fs.existsSync(tasksDir)) fs.mkdirSync(tasksDir, { recursive: true });
       const filename = generateTaskFilename(code, args.title);
       const filepath = path.join(tasksDir, filename);
-      fs.writeFileSync(filepath, serializeBacklogMd(taskData), 'utf8');
+      atomicWriteFileSync(filepath, serializeBacklogMd(taskData), 'utf8');
       return { ok: true, task: taskData, savedFile: filepath };
     }
 
@@ -1140,7 +1141,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       existingData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
     existingData.items.push(newItem);
-    fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf8');
+    atomicWriteFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf8');
     return { ok: true, task: newItem, savedFile: filePath };
   }
 
@@ -1313,7 +1314,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
           const serialized = serializeBacklogMd(current);
           // Sobreescritura in-place del archivo existente (fullPath) sin borrar ni generar slugs innecesarios
-          fs.writeFileSync(fullPath, serialized, 'utf8');
+          atomicWriteFileSync(fullPath, serialized, 'utf8');
           const resp: any = { ok: true, updatedTask: current, filePath: fullPath };
           if (usedUpdatesObject) {
             resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
@@ -1438,7 +1439,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             delete current.verifyCommand;
 
             data.items[idx] = current;
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+            atomicWriteFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
             const resp: any = { ok: true, updatedTask: current, filePath };
             if (usedUpdatesObject) {
               resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
@@ -1482,7 +1483,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
     let savedPath = null;
     if (project.repoPath) {
       savedPath = path.join(project.repoPath, 'BACKLOG.md');
-      fs.writeFileSync(savedPath, content, 'utf8');
+      atomicWriteFileSync(savedPath, content, 'utf8');
     }
 
     return {
@@ -1533,7 +1534,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
             if (autoFix) {
               const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: ready');
               const updatedContent = content.replace(fmMatch[0], `---\n${updatedFm}\n---`);
-              fs.writeFileSync(filePath, updatedContent, 'utf8');
+              atomicWriteFileSync(filePath, updatedContent, 'utf8');
               fixedCount++;
             } else {
               errors.push(`${taskId}: Todos los AC completados (${totalChecked}/${totalAcs}) pero status es '${rawStatus}'`);
@@ -1565,7 +1566,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
     let backlogPath = null;
     if (targetProject.repoPath) {
       backlogPath = path.join(targetProject.repoPath, 'BACKLOG.md');
-      fs.writeFileSync(backlogPath, content, 'utf8');
+      atomicWriteFileSync(backlogPath, content, 'utf8');
     }
 
     return {
@@ -1750,7 +1751,7 @@ ${Array.isArray(args.actions) && args.actions.length > 0
   : '- [ ] Continuar aplicando las buenas prácticas establecidas.'}
 `;
 
-    fs.writeFileSync(filePath, mdContent, 'utf8');
+    atomicWriteFileSync(filePath, mdContent, 'utf8');
     return {
       ok: true,
       sprint: sprintTitle,
@@ -1806,12 +1807,21 @@ try {
   process.exit(1);
 }
 
-// JSON-RPC stdio event loop
+// JSON-RPC stdio event loop (AC #3: omit output: process.stdout to prevent escape sequences / terminal echo polluting JSON-RPC channel)
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout,
   terminal: false
 });
+
+// AC #1: Clean termination handlers on stdin close/end, SIGINT, and SIGTERM to prevent zombie processes
+const handleExit = () => {
+  try { rl.close(); } catch {}
+  process.exit(0);
+};
+process.stdin.on('close', handleExit);
+process.stdin.on('end', handleExit);
+process.on('SIGINT', handleExit);
+process.on('SIGTERM', handleExit);
 
 function sendJsonRpc(response: any) {
   process.stdout.write(JSON.stringify(response) + '\n');

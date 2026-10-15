@@ -1,7 +1,7 @@
 ---
 id: DEV-293
 title: "Gobernanza de Calidad: Erradicación de fabricación de ACs y auto-promoción a ready en backlog sync"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -56,13 +56,15 @@ node scripts/verify-backlog-sync.js --fix
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `verify-backlog-sync.js` en modo `--fix` jamás altera checkboxes `- [ ]` a `- [x]` en tareas marcadas como `done`; en su lugar, reporta una advertencia o error exigiendo verificación real o reclasificación del estado
-- [ ] #2 `verify-backlog-sync.js` en modo `--fix` jamás auto-promociona tareas de `doing` a `ready`; la transición formal a `ready` se preserva como gate manual/exclusivo del rol QA
-- [ ] #3 `generateMonolithicBacklogMd` omite marcas de tiempo volátiles que generen git churn diario cuando el contenido de las tareas no ha variado
-- [ ] #4 `npm run backlog:check` y `npm run backlog:sync` respetan estrictamente la State Machine sin alterar el contenido semántico de las tareas
+- [x] #1 `verify-backlog-sync.js` en modo `--fix` jamás altera checkboxes `- [ ]` a `- [x]` en tareas marcadas como `done`; en su lugar, reporta una advertencia o error exigiendo verificación real o reclasificación del estado
+- [x] #2 `verify-backlog-sync.js` en modo `--fix` jamás auto-promociona tareas de `doing` a `ready`; la transición formal a `ready` se preserva como gate manual/exclusivo del rol QA
+- [x] #3 `generateMonolithicBacklogMd` omite marcas de tiempo volátiles que generen git churn diario cuando el contenido de las tareas no ha variado
+- [x] #4 `npm run backlog:check` y `npm run backlog:sync` respetan estrictamente la State Machine sin alterar el contenido semántico de las tareas
 <!-- AC:END -->
 
 ## Implementation Notes
 
-- Archivos principales: [scripts/verify-backlog-sync.js](file:///c:/Users/Pablo/Proyectos/gripm/scripts/verify-backlog-sync.js) (líneas 218-245), [scripts/backlogMdParser.ts](file:///c:/Users/Pablo/Proyectos/gripm/scripts/backlogMdParser.ts) (líneas 758-765).
-- Garantizar que los hooks pre-commit reporten inconsistencias de estado como bloqueos informativos sin forzar mutaciones falsificadas sobre los archivos Markdown.
+- **Erradicación de fabricación de ACs (SEC-02):** Se eliminó la sustitución automática de `- [ ]` por `- [x]` en tareas con `status: done` dentro de `scripts/verify-backlog-sync.js`. El script ahora emite una advertencia formal de calidad indicando los ACs pendientes sin mutar el archivo.
+- **Erradicación de auto-promoción a `ready`:** Se eliminó la mutación del frontmatter a `status: ready` cuando todos los ACs están cumplidos en `doing`. Ahora emite un aviso informativo indicando que la tarea puede avanzar a `review`, preservando la potestad exclusiva de QA para la transición a `ready` según la State Machine.
+- **Prevención de Git Churn por Timestamp:** En modo `--fix`, `verify-backlog-sync.js` valida previamente mediante `export --check` si `BACKLOG.md` ya se encuentra sincronizado con el contenido semántico de las tareas. Si coincide, omite la reescritura, evitando diffs innecesarios causados por la fecha diaria en el encabezado.
+- **Verificación PoC:** Verificado con tarea de prueba en `done` con `- [ ]` y en `doing` con `- [x]`, demostrando que `node scripts/verify-backlog-sync.js --fix` no muta estados ni checkboxes. Suites `npm run backlog:check` y `npm run backlog:sync` en verde.

@@ -9,6 +9,10 @@ export function broadcastSse(event: string, data: any) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try {
+      if (client.destroyed || client.writableEnded) {
+        sseClients.delete(client);
+        continue;
+      }
       client.write(msg);
     } catch {
       sseClients.delete(client);
@@ -101,18 +105,25 @@ export function handleSseRoute(req: any, res: any, originHeader?: string, isAllo
   res.write(`event: connected\ndata: ${JSON.stringify({ status: 'connected', clients: sseClients.size + 1 })}\n\n`);
   sseClients.add(res);
 
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    clearInterval(pingInterval);
+    sseClients.delete(res);
+  };
+
   const pingInterval = setInterval(() => {
     try {
       res.write(': ping\n\n');
     } catch {
-      clearInterval(pingInterval);
-      sseClients.delete(res);
+      cleanup();
     }
   }, 25000);
   if (typeof pingInterval.unref === 'function') pingInterval.unref();
 
-  req.on('close', () => {
-    clearInterval(pingInterval);
-    sseClients.delete(res);
-  });
+  req.on('close', cleanup);
+  req.on('error', cleanup);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
 }

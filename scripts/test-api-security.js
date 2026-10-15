@@ -370,5 +370,251 @@ class MockRequest extends EventEmitter {
   console.log('✅ Body Size Limit 10MB (DEV-243): Peticiones mutantes que exceden 10MB son rechazadas con HTTP 413');
 }
 
+// Test 17: Path Traversal en generateTaskFilename (DEV-292 AC #1)
+{
+  const { generateTaskFilename } = await import('../scripts/backlogMdParser.ts');
+  const baseDir = path.resolve('backlog/tasks');
+
+  const dangerousInputs = [
+    '../../../evil',
+    '..\\..\\evil',
+    '/etc/passwd',
+    'C:\\Windows\\System32',
+    '..',
+    '....//....//payload',
+    'foo/../../bar'
+  ];
+
+  for (const input of dangerousInputs) {
+    const filename = generateTaskFilename(input, 'Safe Title');
+    assert(!filename.includes('/'), `Filename no debe contener slash (/): ${filename}`);
+    assert(!filename.includes('\\'), `Filename no debe contener backslash (\\): ${filename}`);
+    assert(!filename.includes('..'), `Filename no debe contener punto relativo (..): ${filename}`);
+    const resolved = path.resolve(baseDir, filename);
+    assert(resolved.startsWith(baseDir), `Path resuelto (${resolved}) escapó de ${baseDir}`);
+  }
+
+  const fallbackFilename = generateTaskFilename('', '');
+  assert.strictEqual(fallbackFilename, 'TASK - Task.md');
+
+  console.log('✅ Task ID Path Traversal (DEV-292 AC #1): generateTaskFilename sanitiza estrictamente el ID y previene escape de backlog/tasks');
+}
+
+// Test 18: GET /api/projects/:id/export-monolithic-md es de solo lectura y no escribe a disco (DEV-292 AC #2)
+{
+  const { getRegistry } = await import('../server/services/registry.ts');
+  const registry = getRegistry();
+  const project = registry.projects[0];
+  assert(project, 'Debe existir al menos un proyecto en el registry');
+
+  const backlogPath = project.repoPath ? path.join(project.repoPath, 'BACKLOG.md') : null;
+  const existedBefore = backlogPath ? fs.existsSync(backlogPath) : false;
+  const mtimeBefore = existedBefore ? fs.statSync(backlogPath).mtimeMs : null;
+
+  // Intentar mutación vía GET con parámetro save=true
+  const req = new MockRequest('GET', `/api/projects/${project.id}/export-monolithic-md?save=true`, {
+    host: 'localhost:4100',
+    origin: 'http://localhost:4100'
+  });
+  const res = new MockResponse();
+  middlewareHandler(req, res, () => {});
+
+  assert.strictEqual(res.statusCode, 200, 'GET debe responder 200 OK');
+  const payload = JSON.parse(res.body);
+  assert.strictEqual(payload.ok, true);
+  assert.strictEqual(payload.savedPath, undefined, 'GET no debe devolver savedPath');
+  assert(typeof payload.content === 'string' && payload.content.length > 0, 'GET debe devolver el contenido Markdown');
+
+  if (backlogPath) {
+    const existedAfter = fs.existsSync(backlogPath);
+    if (!existedBefore) {
+      assert.strictEqual(existedAfter, false, 'GET ?save=true no debe crear el archivo BACKLOG.md en disco');
+    } else {
+      const mtimeAfter = fs.statSync(backlogPath).mtimeMs;
+      assert.strictEqual(mtimeAfter, mtimeBefore, 'GET ?save=true no debe modificar el archivo BACKLOG.md en disco');
+    }
+  }
+
+  console.log('✅ Export Monolithic MD (DEV-292 AC #2a): GET export-monolithic-md es estrictamente de solo lectura');
+}
+
+// Test 19: POST /api/projects/:id/export-monolithic-md valida CSRF/Content-Type y guarda en disco atómicamente (DEV-292 AC #2)
+{
+  const { getRegistry } = await import('../server/services/registry.ts');
+  const registry = getRegistry();
+  const project = registry.projects[0];
+  assert(project, 'Debe existir un proyecto para el test');
+
+  // Caso 1: Rechazado sin application/json (415)
+  const reqNoJson = new MockRequest('POST', `/api/projects/${project.id}/export-monolithic-md`, {
+    host: 'localhost:4100',
+    origin: 'http://localhost:4100',
+    'content-type': 'text/plain'
+  });
+  const resNoJson = new MockResponse();
+  middlewareHandler(reqNoJson, resNoJson, () => {});
+  assert.strictEqual(resNoJson.statusCode, 415, 'POST sin application/json debe responder 415');
+
+  // Caso 2: Rechazado con origen malicioso (403)
+  const reqMalicious = new MockRequest('POST', `/api/projects/${project.id}/export-monolithic-md`, {
+    host: 'localhost:4100',
+    origin: 'https://evil-attacker.com',
+    'content-type': 'application/json'
+  });
+  const resMalicious = new MockResponse();
+  middlewareHandler(reqMalicious, resMalicious, () => {});
+  assert.strictEqual(resMalicious.statusCode, 403, 'POST con Origin malicioso debe responder 403');
+
+  // Caso 3: Petición autorizada con application/json guarda atómicamente
+  const backlogPath = project.repoPath ? path.join(project.repoPath, 'BACKLOG.md') : null;
+  const originalBacklogContent = backlogPath && fs.existsSync(backlogPath) ? fs.readFileSync(backlogPath, 'utf8') : null;
+  try {
+    const reqValid = new MockRequest('POST', `/api/projects/${project.id}/export-monolithic-md`, {
+      host: 'localhost:4100',
+      origin: 'http://localhost:4100',
+      'content-type': 'application/json'
+    });
+    const resValid = new MockResponse();
+    middlewareHandler(reqValid, resValid, () => {});
+    reqValid.emit('data', JSON.stringify({}));
+    reqValid.emit('end');
+
+    await new Promise(r => resValid.once('finish', r));
+    assert.strictEqual(resValid.statusCode, 200, 'POST autorizado debe responder 200');
+    const payloadValid = JSON.parse(resValid.body);
+    assert.strictEqual(payloadValid.ok, true);
+    assert(payloadValid.savedPath && fs.existsSync(payloadValid.savedPath), 'POST debe guardar BACKLOG.md en disco');
+  } finally {
+    if (originalBacklogContent !== null && backlogPath) {
+      fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8');
+    }
+  }
+
+  console.log('✅ Export Monolithic MD (DEV-292 AC #2b): POST valida Content-Type y Origin, persistiendo atómicamente');
+}
+
+// Test 20: SSE Crash Prevention ante eventos error/EPIPE (DEV-292 AC #3)
+{
+  const { handleSseRoute, sseClients, broadcastSse } = await import('../server/sse/sseManager.ts');
+
+  // Caso 1: Error en res no arroja excepción no capturada y limpia socket
+  const sseReq1 = new MockRequest('GET', '/api/events', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+  const sseRes1 = new MockResponse();
+  sseRes1.write = () => true;
+
+  handleSseRoute(sseReq1, sseRes1, 'http://localhost:4100', true);
+  assert(sseClients.has(sseRes1), 'Cliente SSE debe estar registrado en el pool');
+  assert(sseRes1.listenerCount('error') > 0, 'res debe tener listener para error');
+  assert(sseReq1.listenerCount('error') > 0, 'req debe tener listener para error');
+
+  // Disparar error EPIPE en res
+  assert.doesNotThrow(() => {
+    sseRes1.emit('error', new Error('EPIPE: write after end'));
+  }, 'Error en res no debe arrojar excepción no capturada');
+  assert(!sseClients.has(sseRes1), 'Error en res debe eliminar el socket de sseClients');
+
+  // Caso 2: Error en req limpia socket
+  const sseReq2 = new MockRequest('GET', '/api/events', { host: 'localhost:4100', origin: 'http://localhost:4100' });
+  const sseRes2 = new MockResponse();
+  sseRes2.write = () => true;
+
+  handleSseRoute(sseReq2, sseRes2, 'http://localhost:4100', true);
+  assert(sseClients.has(sseRes2));
+  assert.doesNotThrow(() => {
+    sseReq2.emit('error', new Error('ECONNRESET'));
+  }, 'Error en req no debe arrojar excepción no capturada');
+  assert(!sseClients.has(sseRes2), 'Error en req debe eliminar el socket de sseClients');
+
+  // Caso 3: broadcastSse defensivo ante cliente destruido/con error
+  const deadClient = {
+    destroyed: true,
+    writableEnded: true,
+    write: () => { throw new Error('EPIPE: write on dead socket'); }
+  };
+  sseClients.add(deadClient);
+  assert.doesNotThrow(() => {
+    broadcastSse('ping_test', { ok: true });
+  }, 'broadcastSse debe capturar errores y no arrojar excepciones fatales');
+  assert(!sseClients.has(deadClient), 'broadcastSse debe descartar cliente muerto');
+
+  console.log('✅ SSE EPIPE Prevention (DEV-292 AC #3): Listeners de error y broadcastSse defensivo blindan el daemon ante caídas por EPIPE');
+}
+
+// Test 21: Fuga de contención en /api/fs/browse con enlaces simbólicos (DEV-292 AC #4)
+{
+  const { isAllowedBrowsePath } = await import('../server/services/fsExplorer.ts');
+
+  // 1. Simular symlink mediante fs.realpathSync para verificar que se resuelve ANTES de isPathContained
+  const origRealpathSync = fs.realpathSync;
+  try {
+    const fakeSymlinkInCwd = path.join(process.cwd(), 'fake_symlink_inside_allowed_root');
+    const systemRoot = path.parse(process.cwd()).root;
+
+    // Cuando se consulta el symlink (cuya ruta sintáctica está dentro de process.cwd),
+    // su realpath resuelve fuera (la raíz del sistema)
+    fs.realpathSync = (p) => {
+      if (path.resolve(p) === path.resolve(fakeSymlinkInCwd)) {
+        return systemRoot;
+      }
+      return origRealpathSync(p);
+    };
+
+    const isAllowed = isAllowedBrowsePath(fakeSymlinkInCwd);
+    assert.strictEqual(isAllowed, false, 'Symlink que apunta fuera de roots permitidos debe ser bloqueado por isAllowedBrowsePath');
+  } finally {
+    fs.realpathSync = origRealpathSync;
+  }
+
+  // 2. Verificar a través de una petición HTTP GET /api/fs/browse
+  {
+    const origRealpathSync2 = fs.realpathSync;
+    try {
+      const fakeSymlinkPath = path.join(process.cwd(), 'simulated_evil_symlink');
+      const systemRoot = path.parse(process.cwd()).root;
+      fs.realpathSync = (p) => {
+        if (path.resolve(p) === path.resolve(fakeSymlinkPath)) {
+          return systemRoot;
+        }
+        return origRealpathSync2(p);
+      };
+
+      const req = new MockRequest('GET', `/api/fs/browse?dir=${encodeURIComponent(fakeSymlinkPath)}`, {
+        host: 'localhost:4100'
+      });
+      const res = new MockResponse();
+      middlewareHandler(req, res, () => {});
+      assert.strictEqual(res.statusCode, 403, '/api/fs/browse con symlink hacia raíz debe responder 403 Forbidden');
+    } finally {
+      fs.realpathSync = origRealpathSync2;
+    }
+  }
+
+  // 3. Probar creación de symlink/junction real si el entorno lo soporta
+  const tmpSymlinkDir = path.join(os.tmpdir(), `gripm-symlink-test-${Date.now()}`);
+  try {
+    fs.mkdirSync(tmpSymlinkDir, { recursive: true });
+    const realSymlinkPath = path.join(tmpSymlinkDir, 'link_out');
+    const systemRoot = path.parse(process.cwd()).root;
+    let symlinkCreated = false;
+    try {
+      fs.symlinkSync(systemRoot, realSymlinkPath, 'junction');
+      symlinkCreated = true;
+    } catch {
+      try {
+        fs.symlinkSync(systemRoot, realSymlinkPath, 'dir');
+        symlinkCreated = true;
+      } catch {}
+    }
+    if (symlinkCreated && fs.existsSync(realSymlinkPath)) {
+      const allowed = isAllowedBrowsePath(realSymlinkPath);
+      assert.strictEqual(allowed, false, 'Symlink real hacia raíz debe ser rechazado');
+    }
+  } finally {
+    try { fs.rmSync(tmpSymlinkDir, { recursive: true, force: true }); } catch {}
+  }
+
+  console.log('✅ Symlink Containment (DEV-292 AC #4): isAllowedBrowsePath resuelve fs.realpathSync antes de verificar contención');
+}
+
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');
 

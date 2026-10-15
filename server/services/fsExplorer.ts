@@ -53,14 +53,13 @@ export function isAllowedBrowsePath(targetPath: string): boolean {
   try {
     const resolved = path.resolve(path.normalize(targetPath));
     const roots = getAllowedBrowseRoots();
-    if (roots.some(root => isPathContained(resolved, root))) return true;
 
     try {
       const real = fs.realpathSync(resolved);
-      if (roots.some(root => isPathContained(real, root))) return true;
-    } catch {}
-
-    return false;
+      return roots.some(root => isPathContained(real, root));
+    } catch {
+      return roots.some(root => isPathContained(resolved, root));
+    }
   } catch {
     return false;
   }
