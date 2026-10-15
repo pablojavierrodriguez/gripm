@@ -176,6 +176,8 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [estimate, setEstimate] = useState<string | number | undefined>(undefined);
   const [customEstimateInput, setCustomEstimateInput] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [calendarMenuOpen, setCalendarMenuOpen] = useState(false);
   const [childTasksExpanded, setChildTasksExpanded] = useState(true);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -347,6 +349,8 @@ export const ItemModal: FC<ItemModalProps> = ({
     setAcceptanceCriteriaList(source.acceptanceCriteriaList || []);
     const sourceEst = source.estimate !== undefined ? source.estimate : undefined;
     setEstimate(sourceEst);
+    setStartDate(source.startDate || '');
+    setDueDate(source.dueDate || '');
     const baseEstOptions: (string | number)[] = (config?.estimation?.method === 'tshirt'
       ? (config?.estimation?.customTshirt || DEFAULT_TSHIRT)
       : (config?.estimation?.customFibonacci || DEFAULT_FIBONACCI));
@@ -422,6 +426,8 @@ export const ItemModal: FC<ItemModalProps> = ({
         setAcceptanceCriteriaList([]);
         setEstimate(undefined);
         setCustomEstimateInput('');
+        setStartDate('');
+        setDueDate('');
         setLabels([]);
         setLabelInput('');
         setAssignees([]);
@@ -447,7 +453,7 @@ export const ItemModal: FC<ItemModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, title, code, projectId, type, priority, status, module, impactedFile, sprint, release, description, risk, fix, implementationPlan, acceptanceCriteriaList, labels, assignees, showDeleteConfirm]);
+  }, [isOpen, title, code, projectId, type, priority, status, module, impactedFile, sprint, release, description, risk, fix, implementationPlan, acceptanceCriteriaList, labels, assignees, startDate, dueDate, showDeleteConfirm]);
 
   const handleAddLabel = (val?: string) => {
     const raw = (val !== undefined ? val : labelInput).trim();
@@ -513,6 +519,8 @@ export const ItemModal: FC<ItemModalProps> = ({
         labels: labels.filter(Boolean),
         assignees: assignees.filter(Boolean),
         estimate: estimate !== undefined && estimate !== '' ? estimate : undefined,
+        startDate: startDate.trim() || undefined,
+        dueDate: dueDate.trim() || undefined,
         expectedMtime: item?.mtime,
         force
       });
@@ -1796,6 +1804,52 @@ export const ItemModal: FC<ItemModalProps> = ({
                           </button>
                         )}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fechas de Planificación (Timeline / Roadmap - DEV-281) */}
+                <div>
+                  <div className="flex items-center justify-between min-w-0 mb-1.5">
+                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                      <span>{t('itemModal.planningDates')}</span>
+                    </label>
+                    {(startDate || dueDate) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStartDate('');
+                          setDueDate('');
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                      >
+                        {t('common.clear')}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
+                        {t('itemModal.startDate')}
+                      </span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500/60 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
+                        {t('itemModal.dueDate')}
+                      </span>
+                      <input
+                        type="date"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500/60 transition-colors"
+                      />
                     </div>
                   </div>
                 </div>

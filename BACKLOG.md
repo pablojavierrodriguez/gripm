@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (5)
+### 💡 Ideas / Discovery (4)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -85,40 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-#### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Iniciativa de producto para dotar a Gripm de una vista visual de **Timeline / Roadmap (Gantt-style)**, orientada al planeamiento estratégico, seguimiento de compromisos temporales y comunicación con stakeholders.
-
-Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas individuales (`BacklogItem`), y la visualización temporal se limita a las fechas fijadas en Sprints y Releases.
-
-### Alcance propuesto por fases:
-
-#### Fase 1: Extensión del Modelo de Datos y Fechas
-1. Incorporar campos opcionales `startDate?: string` y `dueDate?: string` en `BacklogItem` (`src/types.ts`) y serialización transparente en frontmatter Markdown.
-2. Permitir que una tarea herede fechas estimadas automáticamente del Sprint asignado (`startDate` / `endDate`) o de la Release (`targetDate`) si no tiene fechas explícitas.
-
-#### Fase 2: Vista de Roadmap y Agrupación por Parent (Solo Lectura / Render)
-1. Nueva pestaña o submódulo de navegación: **Roadmap / Timeline**.
-2. Agrupación por jerarquía: Las Épicas e Iniciativas actúan como filas principales colapsables/desplegables que contienen sus tareas hijas (`parentId`).
-3. Escalas de tiempo dinámicas (zoom por Trimestre / Q1-Q4, Meses y Sprints).
-4. Barras visuales con código de color según estado (`draft`, `doing`, `ready`, `done`) y porcentaje de progreso.
-
-#### Fase 3: Interactividad y Planificación Directa
-1. Capacidad de arrastrar barras para desplazar fechas o extender/reducir plazos temporales.
-2. Renderizado de líneas de dependencia horizontal (`blocks` / `blockedBy`).
-
-**Criterios de Aceptación:**
-- [ ] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
-- [ ] #2 Vista Timeline accesible desde la navegación principal de vistas
-- [ ] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints)
-- [ ] #4 Agrupación jerárquica por Parent (Épica/Iniciativa) con acordeón colapsable para sus tareas dependientes
-- [ ] #5 Renderizado claro de barras temporales diferenciando tareas planificadas, en curso y completadas
-- [ ] #6 Preservación del rendimiento y Zero-CLS en el canvas de timeline sin dependencias pesadas
-
----
-
-### 🚀 Ready for Deploy (16)
+### 🚀 Ready for Deploy (17)
 
 #### [DEV-222] Modo Sandbox interactivo y deploy público en Vercel con dataset en memoria
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -593,6 +560,39 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
 - [x] #4 Seleccionar una épica actualiza inmediatamente el campo `parentId` y muestra la referencia vinculada
 - [x] #5 La interfaz permite limpiar la relación de forma rápida con el botón de desvinculación
 - [x] #6 `npm test` y consistencia en la jerarquía de ítems
+
+---
+
+#### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Iniciativa de producto para dotar a Gripm de una vista visual de **Timeline / Roadmap (Gantt-style)**, orientada al planeamiento estratégico, seguimiento de compromisos temporales y comunicación con stakeholders.
+
+Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas individuales (`BacklogItem`), y la visualización temporal se limita a las fechas fijadas en Sprints y Releases.
+
+### Alcance propuesto por fases:
+
+#### Fase 1: Extensión del Modelo de Datos y Fechas
+1. Incorporar campos opcionales `startDate?: string` y `dueDate?: string` en `BacklogItem` (`src/types.ts`) y serialización transparente en frontmatter Markdown.
+2. Permitir que una tarea herede fechas estimadas automáticamente del Sprint asignado (`startDate` / `endDate`) o de la Release (`targetDate`) si no tiene fechas explícitas.
+
+#### Fase 2: Vista de Roadmap y Agrupación por Parent (Solo Lectura / Render)
+1. Nueva pestaña o submódulo de navegación: **Roadmap / Timeline**.
+2. Agrupación por jerarquía: Las Épicas e Iniciativas actúan como filas principales colapsables/desplegables que contienen sus tareas hijas (`parentId`).
+3. Escalas de tiempo dinámicas (zoom por Trimestre / Q1-Q4, Meses y Sprints).
+4. Barras visuales con código de color según estado (`draft`, `doing`, `ready`, `done`) y porcentaje de progreso.
+
+#### Fase 3: Interactividad y Planificación Directa
+1. Capacidad de arrastrar barras para desplazar fechas o extender/reducir plazos temporales.
+2. Renderizado de líneas de dependencia horizontal (`blocks` / `blockedBy`).
+
+**Criterios de Aceptación:**
+- [x] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
+- [x] #2 Vista Timeline accesible desde la navegación principal de vistas
+- [x] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints)
+- [x] #4 Agrupación jerárquica por Parent (Épica/Iniciativa) con acordeón colapsable para sus tareas dependientes
+- [x] #5 Renderizado claro de barras temporales diferenciando tareas planificadas, en curso y completadas
+- [x] #6 Preservación del rendimiento y Zero-CLS en el canvas de timeline sin dependencias pesadas
 
 ---
 

@@ -28,7 +28,7 @@ export type ItemStatus =
 
 export type ViewMode = "simplificada" | "ampliada";
 
-export type ActiveTab = 'kanban' | 'sprint' | 'release' | 'trash' | 'archive' | 'settings';
+export type ActiveTab = 'kanban' | 'sprint' | 'release' | 'trash' | 'archive' | 'settings' | 'timeline';
 
 export type StorageType = "json" | "markdown";
 
@@ -94,6 +94,8 @@ export interface BacklogItem {
   releasedAt?: string;
   mtime?: number; // File modification timestamp (ms) for optimistic concurrency locking
   estimate?: string | number;
+  startDate?: string; // "YYYY-MM-DD"
+  dueDate?: string; // "YYYY-MM-DD"
   // DEV-049: Soft delete / Trash fields
   isDeleted?: boolean;
   deletedAt?: string;
@@ -193,19 +195,21 @@ export interface ModulesConfig {
   sprint?: boolean;
   release?: boolean;
   calendar?: boolean;
+  timeline?: boolean;
 }
 
 export interface GripmConfig {
   theme?: 'dark' | 'light' | 'system';
   density?: 'comfortable' | 'compact';
   methodology?: ProjectMethodology;
-  defaultView?: 'kanban' | 'sprint' | 'release' | 'settings';
+  defaultView?: 'kanban' | 'sprint' | 'release' | 'settings' | 'timeline';
   mode?: 'single' | 'multi';
   modules?: ModulesConfig;
   enabledTabs?: {
     kanban?: boolean;
     sprint?: boolean;
     release?: boolean;
+    timeline?: boolean;
   };
   kanban?: KanbanSettings;
   estimation?: EstimationConfig;
@@ -249,6 +253,16 @@ export function isCalendarModuleActive(config?: GripmConfig | null): boolean {
   if (config?.modules?.calendar !== undefined) return config.modules.calendar;
   return true;
 }
+
+/**
+ * Resolves whether the Timeline / Roadmap functional capability is active.
+ */
+export function isTimelineModuleActive(config?: GripmConfig | null): boolean {
+  if (config?.modules?.timeline !== undefined) return config.modules.timeline;
+  if (config?.enabledTabs?.timeline !== undefined) return config.enabledTabs.timeline;
+  return true;
+}
+
 
 
 export interface FilterState {

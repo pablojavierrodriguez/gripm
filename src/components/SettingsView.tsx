@@ -32,7 +32,7 @@ import {
   Calendar
 } from 'lucide-react';
 import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig, EstimationMethod, VisibleCardMetadata } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, isTimelineModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
 import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
 import { getIconByName } from './ItemCard';
 import { useTranslation, type Language } from '../utils/i18n';
@@ -208,17 +208,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [density, setDensity] = useState<'comfortable' | 'compact'>(config.density || 'comfortable');
   const [locale, setLocale] = useState<'es' | 'en'>(config.locale || language || 'es');
   const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
-  const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'settings'>(config.defaultView || 'kanban');
+  const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'timeline' | 'settings'>(config.defaultView || 'kanban');
   const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
   const [modulesState, setModulesState] = useState<ModulesConfig>(() => ({
     sprint: isSprintModuleActive(config),
     release: isReleaseModuleActive(config),
     calendar: isCalendarModuleActive(config),
+    timeline: isTimelineModuleActive(config),
   }));
   const [enabledTabs, setEnabledTabs] = useState({
     kanban: config.enabledTabs?.kanban !== false,
     sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : true,
-    release: config.enabledTabs?.release !== false
+    release: config.enabledTabs?.release !== false,
+    timeline: config.enabledTabs?.timeline !== false
   });
   const [autoSave, setAutoSave] = useState<boolean>(config.autoSave ?? true);
   const [rankingEnabled, setRankingEnabled] = useState<boolean>(config.rankingEnabled !== false);
@@ -278,6 +280,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   useEffect(() => {
     const isSprintModOn = isSprintModuleActive(config);
     const isReleaseModOn = isReleaseModuleActive(config);
+    const isTimelineModOn = isTimelineModuleActive(config);
     let initialMethodology = config.methodology || 'scrumban';
     if (!isSprintModOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
       initialMethodology = 'kanban';
@@ -287,6 +290,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       initialDefaultView = 'kanban';
     }
     if (!isReleaseModOn && initialDefaultView === 'release') {
+      initialDefaultView = 'kanban';
+    }
+    if (!isTimelineModOn && initialDefaultView === 'timeline') {
       initialDefaultView = 'kanban';
     }
 
@@ -299,12 +305,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setModulesState({
       sprint: isSprintModOn,
       release: isReleaseModOn,
-      calendar: isCalendarModuleActive(config)
+      calendar: isCalendarModuleActive(config),
+      timeline: isTimelineModOn
     });
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
-      release: config.enabledTabs?.release !== false
+      release: config.enabledTabs?.release !== false,
+      timeline: config.enabledTabs?.timeline !== false
     });
     setAutoSave(config.autoSave ?? true);
     setRankingEnabled(config.rankingEnabled !== false);
@@ -384,13 +392,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       modules: {
         sprint: modulesState.sprint,
         release: modulesState.release,
-        calendar: modulesState.calendar
+        calendar: modulesState.calendar,
+        timeline: modulesState.timeline
       },
       calendarExport: modulesState.calendar !== false,
       enabledTabs: {
         kanban: enabledTabs.kanban,
         sprint: enabledTabs.sprint,
-        release: enabledTabs.release
+        release: enabledTabs.release,
+        timeline: enabledTabs.timeline
       },
       autoSave,
       rankingEnabled,
@@ -427,13 +437,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       modules: {
         sprint: isSprintModuleActive(c as GripmConfig),
         release: isReleaseModuleActive(c as GripmConfig),
-        calendar: isCalendarModuleActive(c as GripmConfig)
+        calendar: isCalendarModuleActive(c as GripmConfig),
+        timeline: isTimelineModuleActive(c as GripmConfig)
       },
       calendarExport: isCalendarModuleActive(c as GripmConfig),
       enabledTabs: {
         kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
         sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
-        release: c.enabledTabs?.release !== false
+        release: c.enabledTabs?.release !== false,
+        timeline: c.enabledTabs?.timeline !== false
       },
       autoSave: c.autoSave ?? true,
       rankingEnabled: c.rankingEnabled !== false,
@@ -478,6 +490,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleResetChanges = () => {
     const isSprintOn = config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : config.methodology !== 'kanban';
     const isReleaseOn = config.enabledTabs?.release !== false;
+    const isTimelineOn = config.enabledTabs?.timeline !== false;
     let initialMethodology = config.methodology || 'scrumban';
     if (!isSprintOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
       initialMethodology = 'kanban';
@@ -489,6 +502,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!isReleaseOn && initialDefaultView === 'release') {
       initialDefaultView = 'kanban';
     }
+    if (!isTimelineOn && initialDefaultView === 'timeline') {
+      initialDefaultView = 'kanban';
+    }
 
     setTheme(getResolvedTheme(config.theme, isDarkMode));
     setDensity(config.density || 'comfortable');
@@ -498,7 +514,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setEnabledTabs({
       kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
       sprint: isSprintOn,
-      release: isReleaseOn
+      release: isReleaseOn,
+      timeline: isTimelineOn
     });
     setAutoSave(config.autoSave ?? true);
     setRankingEnabled(config.rankingEnabled !== false);
@@ -612,6 +629,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await onSaveConfig(nextConfig);
     onShowToast?.(
       checked ? t('settings.toastModuleCalendarEnabled') : t('settings.toastModuleCalendarDisabled'),
+      'success'
+    );
+  };
+
+  const handleToggleTimelineModule = async (checked: boolean) => {
+    const nextModules = { ...modulesState, timeline: checked };
+    setModulesState(nextModules);
+    let nextDefaultView = defaultView;
+    if (!checked && defaultView === 'timeline') {
+      nextDefaultView = 'kanban';
+      setDefaultView('kanban');
+    }
+    const activeTheme = getResolvedTheme(theme, isDarkMode);
+    const nextConfig: GripmConfig = {
+      ...builtConfig,
+      theme: activeTheme,
+      modules: nextModules,
+      defaultView: nextDefaultView
+    };
+    await onSaveConfig(nextConfig);
+    onShowToast?.(
+      checked ? t('settings.toastModuleTimelineEnabled') : t('settings.toastModuleTimelineDisabled'),
       'success'
     );
   };
@@ -1294,12 +1333,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <span>{t('header.releases')}</span>
                     </button>
                   )}
+
+                  {modulesState.timeline && enabledTabs.timeline && (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={defaultView === 'timeline'}
+                      onClick={() => setDefaultView('timeline')}
+                      title={t('settings.defaultViewTimelineDesc')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                        defaultView === 'timeline'
+                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-200 border border-indigo-500/40 shadow-xs font-semibold'
+                          : 'border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Calendar className={`w-3.5 h-3.5 shrink-0 ${defaultView === 'timeline' ? 'text-blue-500' : 'text-slate-400'}`} />
+                    <span>{t('header.timeline')}</span>
+                  </button>
+                  )}
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 italic">
                   {defaultView === 'kanban' && t('settings.defaultViewKanbanDesc')}
                   {defaultView === 'sprint' && t('settings.defaultViewSprintDesc')}
                   {defaultView === 'release' && t('settings.defaultViewReleaseDesc')}
+                  {defaultView === 'timeline' && t('settings.defaultViewTimelineDesc')}
                 </p>
               </div>
 
@@ -1404,6 +1462,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         }
                       }}
                       ariaLabel={t('header.releases')}
+                    />
+                  </label>
+
+                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                    !modulesState.timeline
+                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
+                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
+                  }`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Calendar className={`w-4 h-4 shrink-0 ${modulesState.timeline ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.timeline')}</span>
+                          {!modulesState.timeline && (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
+                              {t('settings.moduleInactiveHint')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">{t('settings.timelineTabDesc')}</div>
+                      </div>
+                    </div>
+                    <SettingsSwitch
+                      checked={modulesState.timeline ? Boolean(enabledTabs.timeline) : false}
+                      disabled={!modulesState.timeline}
+                      onChange={(checked) => {
+                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint && !enabledTabs.release) return;
+                        setEnabledTabs({ ...enabledTabs, timeline: checked });
+                        if (!checked && defaultView === 'timeline') {
+                          setDefaultView('kanban');
+                        }
+                      }}
+                      ariaLabel={t('header.timeline')}
                     />
                   </label>
                 </div>
@@ -1699,6 +1790,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       checked={modulesState.calendar !== false}
                       onChange={handleToggleCalendarModule}
                       ariaLabel={t('settings.moduleCalendarTitle')}
+                    />
+                  </div>
+                </div>
+
+                {/* 6. Timeline & Roadmap */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {t('settings.moduleTimelineTitle')}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                          modulesState.timeline !== false
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
+                        }`}>
+                          {modulesState.timeline !== false ? t('settings.moduleActive') : t('settings.moduleInactive')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {t('settings.moduleTimelineDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 sm:self-center shrink-0">
+                    <SettingsSwitch
+                      checked={modulesState.timeline !== false}
+                      onChange={handleToggleTimelineModule}
+                      ariaLabel={t('settings.moduleTimelineTitle')}
                     />
                   </div>
                 </div>

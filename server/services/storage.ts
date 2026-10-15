@@ -179,6 +179,8 @@ export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
             assignees: task.assignees || [],
             labels: task.labels || [],
             estimate: task.estimate !== undefined ? task.estimate : rawFm.estimate,
+            startDate: task.startDate || rawFm.start_date || rawFm.startDate || undefined,
+            dueDate: task.dueDate || rawFm.due_date || rawFm.dueDate || rawFm.target_date || rawFm.targetDate || undefined,
             order: rawFm.order !== undefined ? Number(rawFm.order) : order++,
             isDeleted: isDeletedVal ? true : undefined,
             deletedAt: deletedAtVal,
@@ -462,6 +464,8 @@ export function saveBacklogMdItem(project: ProjectMeta, item: any) {
     implementationNotes: item.fix || item.implementationNotes || existingTask.implementationNotes,
     finalSummary: item.finalSummary || existingTask.finalSummary,
     estimate: item.estimate !== undefined ? (item.estimate === '' ? undefined : item.estimate) : existingTask.estimate,
+    startDate: item.startDate !== undefined ? item.startDate : existingTask.startDate,
+    dueDate: item.dueDate !== undefined ? item.dueDate : existingTask.dueDate,
     rawExtraFrontmatter: {
       ...(existingTask.rawExtraFrontmatter || {})
     }

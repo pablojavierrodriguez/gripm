@@ -546,5 +546,49 @@ Test
 }
 console.log('✅ DEV-137: Estimation model parsing, serialization and aliases passed');
 
+// DEV-281: startDate and dueDate parsing, serialization and round-trip
+{
+  const timelineMd = `---
+id: DEV-TL-1
+title: "Timeline task test"
+status: doing
+start_date: '2026-10-15'
+due_date: '2026-10-30'
+---
+
+## Description
+Timeline test description
+`;
+  const parsed = parseBacklogMd(timelineMd);
+  assert.strictEqual(parsed.startDate, '2026-10-15', 'DEV-281: Debe parsear start_date');
+  assert.strictEqual(parsed.dueDate, '2026-10-30', 'DEV-281: Debe parsear due_date');
+
+  const serialized = serializeBacklogMd(parsed);
+  assert.ok(serialized.includes('start_date: "2026-10-15"'), 'DEV-281: Debe serializar start_date');
+  assert.ok(serialized.includes('due_date: "2026-10-30"'), 'DEV-281: Debe serializar due_date');
+
+  const roundTrip = parseBacklogMd(serialized);
+  assert.strictEqual(roundTrip.startDate, '2026-10-15', 'DEV-281: Round-trip debe preservar startDate');
+  assert.strictEqual(roundTrip.dueDate, '2026-10-30', 'DEV-281: Round-trip debe preservar dueDate');
+
+  // Alias support (target_date and camelCase)
+  const aliasMd = `---
+id: DEV-TL-2
+title: "Target date alias test"
+status: draft
+startDate: '2026-11-01'
+target_date: '2026-11-20'
+---
+
+## Description
+Alias test
+`;
+  const parsedAlias = parseBacklogMd(aliasMd);
+  assert.strictEqual(parsedAlias.startDate, '2026-11-01', 'DEV-281: Debe soportar startDate');
+  assert.strictEqual(parsedAlias.dueDate, '2026-11-20', 'DEV-281: Debe soportar target_date como alias de dueDate');
+}
+console.log('✅ DEV-281: Timeline dates parsing, serialization and aliases passed');
+
 console.log('🎉 All parser tests passed successfully!');
+
 

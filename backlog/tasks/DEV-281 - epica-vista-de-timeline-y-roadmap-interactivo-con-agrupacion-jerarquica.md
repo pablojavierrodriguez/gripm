@@ -1,7 +1,7 @@
 ---
 id: DEV-281
 title: "Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas"
-status: ideas
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -42,10 +42,10 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
-- [ ] #2 Vista Timeline accesible desde la navegación principal de vistas
-- [ ] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints)
-- [ ] #4 Agrupación jerárquica por Parent (Épica/Iniciativa) con acordeón colapsable para sus tareas dependientes
-- [ ] #5 Renderizado claro de barras temporales diferenciando tareas planificadas, en curso y completadas
-- [ ] #6 Preservación del rendimiento y Zero-CLS en el canvas de timeline sin dependencias pesadas
+- [x] #1 Especificación y diseño de arquitectura para el soporte de fechas (startDate/dueDate) en BacklogItem
+- [x] #2 Vista Timeline accesible desde la navegación principal de vistas
+- [x] #3 Capacidad de alternar escalas de tiempo (Trimestres, Meses, Sprints)
+- [x] #4 Agrupación jerárquica por Parent (Épica/Iniciativa) con acordeón colapsable para sus tareas dependientes
+- [x] #5 Renderizado claro de barras temporales diferenciando tareas planificadas, en curso y completadas
+- [x] #6 Preservación del rendimiento y Zero-CLS en el canvas de timeline sin dependencias pesadas
 <!-- AC:END -->

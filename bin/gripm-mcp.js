@@ -295,6 +295,16 @@ function parseBacklogMd(content, defaultId = "") {
           case "updatedat":
             result.updatedDate = cleanVal;
             break;
+          case "start_date":
+          case "startdate":
+            result.startDate = cleanVal;
+            break;
+          case "due_date":
+          case "duedate":
+          case "target_date":
+          case "targetdate":
+            result.dueDate = cleanVal;
+            break;
           case "assignee":
             result.assignees = [cleanVal];
             break;
@@ -493,9 +503,15 @@ function serializeBacklogMd(task) {
       frontmatterLines.push(`estimate: ${JSON.stringify(task.estimate)}`);
     }
   }
+  if (task.startDate) {
+    frontmatterLines.push(`start_date: ${JSON.stringify(task.startDate)}`);
+  }
+  if (task.dueDate) {
+    frontmatterLines.push(`due_date: ${JSON.stringify(task.dueDate)}`);
+  }
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
-      if (!["id", "title", "status", "assignee", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints"].includes(k.toLowerCase())) {
+      if (!["id", "title", "status", "assignee", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints", "start_date", "startdate", "due_date", "duedate", "target_date", "targetdate"].includes(k.toLowerCase())) {
         frontmatterLines.push(`${k}: ${JSON.stringify(v)}`);
       }
     }

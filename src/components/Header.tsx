@@ -20,10 +20,11 @@ import {
   X,
   Sparkles,
   Globe,
-  Keyboard
+  Keyboard,
+  Calendar
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive } from '../types';
+import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 
@@ -123,6 +124,7 @@ export const Header: FC<HeaderProps> = ({
     : config?.methodology === 'scrum' || config?.methodology === 'scrumban');
 
   const isReleaseEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
+  const isTimelineEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
 
   const defaultHomeTab: ActiveTab = config?.defaultView || (config?.methodology === 'scrum' ? 'sprint' : 'kanban');
 
@@ -403,6 +405,20 @@ export const Header: FC<HeaderProps> = ({
               >
                 <Rocket className="w-3.5 h-3.5 shrink-0" />
                 <span>{t('header.releases')}</span>
+              </button>
+            )}
+
+            {isTimelineEnabled && (
+              <button
+                onClick={() => onSelectTab('timeline')}
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'timeline'
+                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>{t('header.timeline') || 'Roadmap'}</span>
               </button>
             )}
           </nav>

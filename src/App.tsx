@@ -13,7 +13,7 @@ import type {
   ActiveTab,
   Sprint
 } from './types';
-import { isSprintModuleActive, isReleaseModuleActive } from './types';
+import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive } from './types';
 // DEV-222: solo se usa para etiquetar el Header. `loadData` ya espera `ensureAdapter()`
 // a través de la fachada de `./api`, así que para el primer render ya está resuelto.
 import { isSandboxMode } from './data/detect';
@@ -46,6 +46,7 @@ import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
 import { SprintView } from './components/SprintView';
+import { TimelineView } from './components/TimelineView';
 import { ItemModal } from './components/ItemModal';
 import { ProjectModal } from './components/ProjectModal';
 import { PlanGuardModal } from './components/PlanGuardModal';
@@ -53,7 +54,7 @@ import { ImportWizardModal } from './components/ImportWizardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
-import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, RotateCcw } from 'lucide-react';
+import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, RotateCcw, Calendar } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 
@@ -206,6 +207,7 @@ export function App() {
     : config?.methodology === 'scrum' || config?.methodology === 'scrumban');
 
   const isReleaseTabEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
+  const isTimelineTabEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
 
   // Auto-redirect activeTab if current tab became disabled
   useEffect(() => {
@@ -218,8 +220,11 @@ export function App() {
     } else if (activeTab === 'release' && !isReleaseTabEnabled) {
       const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
       setActiveTab(fallback);
+    } else if (activeTab === 'timeline' && !isTimelineTabEnabled) {
+      const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
+      setActiveTab(fallback);
     }
-  }, [activeTab, isKanbanTabEnabled, isSprintTabEnabled, isReleaseTabEnabled]);
+  }, [activeTab, isKanbanTabEnabled, isSprintTabEnabled, isReleaseTabEnabled, isTimelineTabEnabled]);
 
   const loadSettings = useCallback(async (projId?: string) => {
     try {
@@ -1518,6 +1523,20 @@ export function App() {
             />
           </Suspense>
         )}
+
+        {activeTab === 'timeline' && (
+          <TimelineView
+            items={visibleItems}
+            allItems={allProjectItems}
+            sprints={projectSprints}
+            releases={projectReleases}
+            onClickItem={(item) => {
+              setEditingItem(item);
+              setItemModalOpen(true);
+            }}
+            config={config}
+          />
+        )}
       </main>
 
       {/* Item Detail / Edit / Create Modal */}
@@ -1627,6 +1646,20 @@ export function App() {
           >
             <Rocket className="w-5 h-5 mb-0.5" />
             <span className="text-[10px] tracking-tight">{t('header.releases')}</span>
+          </button>
+        )}
+
+        {isTimelineTabEnabled && (
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
+              activeTab === 'timeline'
+                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Calendar className="w-5 h-5 mb-0.5" />
+            <span className="text-xs tracking-tight">{t('header.timeline') || 'Roadmap'}</span>
           </button>
         )}
 
