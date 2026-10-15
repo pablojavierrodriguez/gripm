@@ -596,7 +596,7 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
 
 ---
 
-### 📋 Backlog / Draft (20)
+### 📋 Backlog / Draft (25)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1128,6 +1128,134 @@ Esta tarea implementa **selección múltiple de ítems** y una **barra flotante 
 - [ ] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
 - [ ] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
 - [ ] #7 `npm test` y consistencia de datos en disco sin race conditions
+
+---
+
+#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
+
+### Problemas identificados:
+1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
+2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
+3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
+4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
+
+### Solución propuesta:
+- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
+- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
+- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
+- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
+
+**Criterios de Aceptación:**
+- [ ] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
+- [ ] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
+- [ ] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
+- [ ] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
+- [ ] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
+
+---
+
+#### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento de I/O en disco en el servicio de almacenamiento del backend ([server/services/storage.ts](file:///c:/Users/Pablo/Proyectos/gripm/server/services/storage.ts)) para evitar la lectura y parseo redundante de cientos de archivos Markdown en cada solicitud.
+
+### Problemas identificados:
+1. **Lectura síncrona bloqueante masiva:** Cada petición a `/api/data` (al cargar el tablero, tras guardar tareas o al dispararse eventos SSE) ejecuta `loadProjectBacklog`, el cual itera síncronamente sobre todos los archivos `.md` de `backlog/tasks/` (278 archivos en proyectos medianos).
+2. Para cada archivo realiza `fs.statSync`, `fs.readFileSync` y `parseBacklogMd` (análisis léxico de frontmatter y expresiones regulares), congelando el event loop de Node.js durante 50-150 ms en cada ciclo.
+3. El 99% de las veces, los archivos en disco no han cambiado entre una solicitud y la siguiente.
+
+### Solución propuesta:
+- Implementar una estructura de caché en memoria (`Map<string, { mtimeMs: number, item: any }>`) indexada por la ruta absoluta del archivo de tarea.
+- Al listar archivos en `loadProjectBacklog`, obtener únicamente el `stat` rápido del archivo: si `fileStat.mtimeMs` coincide con el valor en caché, reutilizar la tarea parseada en memoria sin llamar a `fs.readFileSync` ni `parseBacklogMd`.
+- Invalidar o actualizar la entrada puntual en el caché cuando se realicen escrituras a través de las funciones de mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, `restoreBacklogMdItem`, `purgeBacklogMdItem`).
+- Limpiar entradas obsoletas si se eliminan archivos de disco.
+
+**Criterios de Aceptación:**
+- [ ] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
+- [ ] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
+- [ ] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
+- [ ] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
+- [ ] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
+
+---
+
+#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
+
+### Problemas identificados:
+1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
+2. **Componentes gigantes en el chunk raíz:**
+   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
+   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
+   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
+3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
+
+### Solución propuesta:
+- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
+- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
+- Cargar de forma diferida los modales secundarios de configuración o importación.
+- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
+
+**Criterios de Aceptación:**
+- [ ] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
+- [ ] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
+- [ ] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
+- [ ] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
+- [ ] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
+
+---
+
+#### [DEV-285] Carga diferida y asíncrona bajo demanda de diccionarios i18n
+- **Prioridad**: `low` | **Tipo**: `tech_debt`
+
+Optimización del sistema de internacionalización ([src/utils/i18n.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/utils/i18n.tsx)) para cargar únicamente el diccionario del idioma activo (`es.json` o `en.json`) en lugar de incluir ambos de forma estática en el paquete principal de la aplicación.
+
+### Problemas identificados:
+1. Actualmente `i18n.tsx` importa directamente ambos archivos JSON al inicio del archivo:
+   ```ts
+   import esDict from '../locales/es.json';
+   import enDict from '../locales/en.json';
+   ```
+2. Esto suma más de **108 kB de datos JSON planos** al bundle inicial de JavaScript, a pesar de que el usuario solo puede usar un idioma a la vez.
+
+### Solución propuesta:
+- Modificar el proveedor `I18nProvider` para resolver dinámicamente mediante `import()` el archivo de idioma requerido según la preferencia del usuario o del sistema.
+- Cargar inicialmente solo el idioma determinado por `getInitialLanguage()`.
+- Si el usuario cambia de idioma en `SettingsView` o vía selector, cargar asíncronamente el nuevo diccionario y almacenarlo en caché en memoria.
+- Mantener las firmas de tipado estricto `TranslationKey` usando `typeof` sobre una definición de tipo sin forzar la importación del contenido completo en tiempo de ejecución.
+
+**Criterios de Aceptación:**
+- [ ] #1 El bundle inicial no incluye los diccionarios de idiomas que no coincidan con el idioma activo
+- [ ] #2 Al cambiar de idioma en configuración, el nuevo diccionario se carga bajo demanda de forma asíncrona sin errores
+- [ ] #3 La función `t(...)` mantiene total compatibilidad hacia atrás y conserva el tipado estricto de TypeScript
+- [ ] #4 `npx tsc --noEmit` y `npm test` pasan sin fallas
+
+---
+
+#### [DEV-286] Carga progresiva y optimización de layout containment en columnas masivas
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Mecanismo de carga progresiva y optimizaciones de renderizado de DOM para columnas del tablero Kanban que contengan un volumen muy elevado de tareas (ej. columnas `Draft` o `Done` con cientos de ítems acumulados).
+
+### Problemas identificados:
+1. Cuando una columna acumula más de 100 tarjetas (situación común en proyectos maduros o con historiales extensos), el navegador debe gestionar simultáneamente miles de nodos DOM, SVGs en línea y estilos computados en un contenedor desplazable.
+2. Esto provoca que el scroll vertical de la columna o el drag-and-drop de tarjetas presente micro-tirones (jank de layout/reflow).
+
+### Solución propuesta:
+- Implementar renderizado progresivo por lotes (ej. renderizar las primeras 40-50 tarjetas y cargar las siguientes al hacer scroll o mediante botón "Cargar más tareas").
+- Aplicar optimizaciones modernas de CSS en las tarjetas del Kanban: `contain-intrinsic-size` y `content-visibility: auto` (o `contain: content`) para que el motor del navegador omita los cálculos de pintura y layout de las tarjetas fuera del viewport visible.
+- Preservar completamente la experiencia de arrastre (`Drag and Drop`) e indicadores visuales de drop target.
+
+**Criterios de Aceptación:**
+- [ ] #1 Las columnas con más de 50 tareas adoptan carga progresiva o contención de layout para evitar sobrecarga del DOM
+- [ ] #2 El scroll en columnas densas se mantiene a 60 FPS estables sin bloqueos del hilo principal
+- [ ] #3 La funcionalidad de arrastrar y soltar (drag & drop) y reordenamiento de tareas sigue operando con total precisión
+- [ ] #4 Las pruebas unitarias y de integración (`npm test`) se ejecutan sin regresiones
 
 ---
 
