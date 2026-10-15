@@ -28,8 +28,22 @@ await esbuild.build({
   external: ['fsevents']
 });
 
+// 2. Bundle server/plugin.ts into bin/server.js (pure JS backend middleware, zero TS runtime dependency)
+await esbuild.build({
+  entryPoints: [path.join(ROOT_DIR, 'server/plugin.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outfile: path.join(BIN_DIR, 'server.js'),
+  external: ['fsevents', 'vite']
+});
+
 fs.chmodSync(path.join(BIN_DIR, 'gripm-mcp.js'), 0o755);
-console.log('✅ bin/gripm-mcp.js generado con éxito.');
+if (fs.existsSync(path.join(BIN_DIR, 'server.js'))) {
+  fs.chmodSync(path.join(BIN_DIR, 'server.js'), 0o755);
+}
+console.log('✅ bin/gripm-mcp.js y bin/server.js generados con éxito.');
 
 if (fs.existsSync(path.join(BIN_DIR, 'gripm.js'))) {
   fs.chmodSync(path.join(BIN_DIR, 'gripm.js'), 0o755);

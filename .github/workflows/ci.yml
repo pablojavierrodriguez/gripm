@@ -80,6 +80,8 @@ jobs:
     name: Browser smoke test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NODE_OPTIONS: "--experimental-strip-types"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -95,6 +97,9 @@ jobs:
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Build production bundle & standalone binaries
+        run: npm run build
 
       - name: Run browser smoke test
         run: npm run test:ui

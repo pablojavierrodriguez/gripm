@@ -554,7 +554,16 @@ async function main() {
     let apiMiddleware = null;
     let closeWatchers = null;
     try {
-      const { gripmApi } = await import('../server/plugin.ts');
+      const serverBundle = path.join(PKG_ROOT, 'bin', 'server.js');
+      let gripmApi;
+      if (fs.existsSync(serverBundle)) {
+        const { pathToFileURL } = await import('node:url');
+        const mod = await import(pathToFileURL(serverBundle).href);
+        gripmApi = mod.gripmApi;
+      } else {
+        const mod = await import('../server/plugin.ts');
+        gripmApi = mod.gripmApi;
+      }
       const plugin = gripmApi();
       closeWatchers = plugin.closeWatchers;
       plugin.configureServer({

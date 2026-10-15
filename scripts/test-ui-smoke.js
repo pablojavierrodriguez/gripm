@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -11,6 +11,14 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const distIndexPath = path.join(ROOT, 'dist', 'index.html');
+const serverBundlePath = path.join(ROOT, 'bin', 'server.js');
+
+if (!fs.existsSync(distIndexPath) || !fs.existsSync(serverBundlePath)) {
+  console.log('📦 dist/index.html o bin/server.js no encontrados. Compilando bundle de producción...');
+  execSync('npm run build', { cwd: ROOT, stdio: 'inherit' });
+}
+
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-ui-smoke-'));
 const repoPath = path.join(tempRoot, 'consumer-repo');
 const homePath = path.join(tempRoot, 'gripm-home');
@@ -36,6 +44,7 @@ async function reservePort() {
 
 async function waitForServer(url) {
   const deadline = Date.now() + 30_000;
+  let lastStatus = 'unreachable';
   while (Date.now() < deadline) {
     if (serverProcess.exitCode !== null) {
       throw new Error(`Gripm server exited early (${serverProcess.exitCode}).\n${serverOutput.join('')}`);
@@ -43,11 +52,13 @@ async function waitForServer(url) {
     try {
       const response = await fetch(url);
       if (response.ok) return;
-    } catch {
+      lastStatus = `${response.status} ${response.statusText}`;
+    } catch (err) {
+      lastStatus = err.message;
       await delay(200);
     }
   }
-  throw new Error(`Gripm server did not become ready.\n${serverOutput.join('')}`);
+  throw new Error(`Gripm server did not become ready (last status: ${lastStatus}).\n${serverOutput.join('')}`);
 }
 
 async function waitForTask(title = taskTitle) {
@@ -91,7 +102,11 @@ try {
     '--no-open'
   ], {
     cwd: ROOT,
-    env: { ...process.env, GRIPM_HOME: homePath },
+    env: {
+      ...process.env,
+      GRIPM_HOME: homePath,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --experimental-strip-types`.trim()
+    },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   serverProcess.stdout.setEncoding('utf8').on('data', (chunk) => serverOutput.push(chunk));
