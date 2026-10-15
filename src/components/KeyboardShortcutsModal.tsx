@@ -5,6 +5,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { TranslationKey } from '../utils/i18n';
 import type { UpdateInfo } from '../types';
 import { Modal } from './Modal';
+import { APP_VERSION } from '../version';
 
 export interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -59,6 +60,8 @@ export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
   const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
+
+  const displayVersion = updateAvailable?.currentVersion || APP_VERSION;
 
   const groups: ShortcutGroup[] = [
     {
@@ -220,7 +223,7 @@ export const KeyboardShortcutsModal: FC<KeyboardShortcutsModalProps> = ({
             className="flex flex-wrap items-center gap-x-3 min-w-0"
           >
             <span className="font-mono text-xs font-semibold tracking-tight text-slate-500 dark:text-slate-400">
-              gripm{updateAvailable?.currentVersion ? ` v${updateAvailable.currentVersion}` : ''}
+              gripm v{displayVersion}
             </span>
             {FOOTER_LINKS.map((link) => (
               <a

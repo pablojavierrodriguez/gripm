@@ -1,9 +1,9 @@
 ---
 id: DEV-269
 title: "Calidad visual de escritorio: jerarquía, estados, motion y cero CLS a 1366×768"
-status: draft
+status: dismissed
 created_date: '2026-10-14'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 labels:
   - "ux"
   - "ui"

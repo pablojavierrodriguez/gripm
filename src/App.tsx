@@ -53,10 +53,13 @@ import { PlanGuardModal } from './components/PlanGuardModal';
 import { ImportWizardModal } from './components/ImportWizardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
+import { MetricsView } from './components/MetricsView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
-import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar } from 'lucide-react';
+import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
+
+type AppActiveTab = ActiveTab | 'metrics';
 
 const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
@@ -81,11 +84,11 @@ export function App() {
       setActiveProjectApi(selectedProjectId).catch(() => {});
     }
   }, [selectedProjectId, boardData]);
-  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+  const [activeTab, setActiveTab] = useState<AppActiveTab>(() => {
     try {
-      const saved = getStoredItem(STORAGE_KEYS.ACTIVE_TAB) as ActiveTab | null;
+      const saved = getStoredItem(STORAGE_KEYS.ACTIVE_TAB) as AppActiveTab | null;
       if (saved === 'archive') return 'trash';
-      if (saved === 'kanban' || saved === 'sprint' || saved === 'release' || saved === 'trash' || saved === 'settings') return saved;
+      if (saved === 'kanban' || saved === 'sprint' || saved === 'release' || saved === 'trash' || saved === 'settings' || saved === 'timeline' || saved === 'metrics') return saved;
     } catch {}
     return 'kanban';
   });
@@ -206,6 +209,7 @@ export function App() {
 
   const isReleaseTabEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
   const isTimelineTabEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
+  const isMetricsTabEnabled = (config?.enabledTabs as any)?.metrics !== false;
 
   // Auto-redirect activeTab if current tab became disabled
   useEffect(() => {
@@ -221,8 +225,11 @@ export function App() {
     } else if (activeTab === 'timeline' && !isTimelineTabEnabled) {
       const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
       setActiveTab(fallback);
+    } else if (activeTab === 'metrics' && !isMetricsTabEnabled) {
+      const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
+      setActiveTab(fallback);
     }
-  }, [activeTab, isKanbanTabEnabled, isSprintTabEnabled, isReleaseTabEnabled, isTimelineTabEnabled]);
+  }, [activeTab, isKanbanTabEnabled, isSprintTabEnabled, isReleaseTabEnabled, isTimelineTabEnabled, isMetricsTabEnabled]);
 
   const loadSettings = useCallback(async (projId?: string) => {
     try {
@@ -1372,7 +1379,7 @@ export function App() {
       )}
 
       {/* Filter Bar (Active in Kanban and Sprint tabs) */}
-      {activeTab !== 'release' && activeTab !== 'settings' && activeTab !== 'trash' && (
+      {activeTab !== 'release' && activeTab !== 'settings' && activeTab !== 'trash' && activeTab !== 'metrics' && (
         <FilterBar
           filters={filters}
           onChangeFilters={setFilters}
@@ -1550,6 +1557,15 @@ export function App() {
             config={config}
           />
         )}
+
+        {activeTab === 'metrics' && (
+          <MetricsView
+            items={allProjectItems}
+            sprints={projectSprints}
+            releases={projectReleases}
+            config={config}
+          />
+        )}
       </main>
 
       {/* Item Detail / Edit / Create Modal */}
@@ -1673,6 +1689,20 @@ export function App() {
           >
             <Calendar className="w-5 h-5 mb-0.5" />
             <span className="text-xs tracking-tight">{t('header.timeline') || 'Roadmap'}</span>
+          </button>
+        )}
+
+        {isMetricsTabEnabled && (
+          <button
+            onClick={() => setActiveTab('metrics')}
+            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
+              activeTab === 'metrics'
+                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <BarChart2 className="w-5 h-5 mb-0.5" />
+            <span className="text-xs tracking-tight">{t('header.metrics')}</span>
           </button>
         )}
 

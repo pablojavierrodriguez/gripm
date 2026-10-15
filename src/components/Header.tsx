@@ -21,19 +21,22 @@ import {
   Sparkles,
   Globe,
   Keyboard,
-  Calendar
+  Calendar,
+  BarChart2
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
 import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { useTranslation } from '../utils/i18n';
 
+export type HeaderActiveTab = ActiveTab | 'metrics';
+
 interface HeaderProps {
   projects: Project[];
   selectedProjectId: string;
   onSelectProject: (id: string) => void;
-  activeTab: ActiveTab;
-  onSelectTab: (tab: ActiveTab) => void;
+  activeTab: HeaderActiveTab;
+  onSelectTab: (tab: HeaderActiveTab) => void;
   onNewItem: () => void;
   onNewProject: () => void;
   onDeleteProject?: (id: string) => void;
@@ -125,6 +128,7 @@ export const Header: FC<HeaderProps> = ({
 
   const isReleaseEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
   const isTimelineEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
+  const isMetricsEnabled = (config?.enabledTabs as any)?.metrics !== false;
 
   const defaultHomeTab: ActiveTab = config?.defaultView || (config?.methodology === 'scrum' ? 'sprint' : 'kanban');
 
@@ -421,6 +425,20 @@ export const Header: FC<HeaderProps> = ({
                 <span>{t('header.timeline') || 'Roadmap'}</span>
               </button>
             )}
+
+            {isMetricsEnabled && (
+              <button
+                onClick={() => onSelectTab('metrics')}
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'metrics'
+                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
+                }`}
+              >
+                <BarChart2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{t('header.metrics')}</span>
+              </button>
+            )}
           </nav>
 
           {/* Right: Actions, Live Sync, Archive, Theme Switcher & Settings */}
@@ -661,6 +679,23 @@ export const Header: FC<HeaderProps> = ({
                   >
                     <Upload className="w-4 h-4 text-violet-500" />
                     <span>{t('header.importMarkdown')}</span>
+                  </button>
+                )}
+
+                {isMetricsEnabled && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSelectTab('metrics');
+                    }}
+                    className={`w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                      activeTab === 'metrics'
+                        ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-semibold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <BarChart2 className="w-4 h-4 text-indigo-500" />
+                    <span>{t('header.metrics')}</span>
                   </button>
                 )}
 

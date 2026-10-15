@@ -1,7 +1,7 @@
 ---
 id: DEV-271
 title: "Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -30,10 +30,21 @@ Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente p
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
-- [ ] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
-- [ ] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
-- [ ] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
-- [ ] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
-- [ ] #6 `npm test` y validación de interacciones en verde
+- [x] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
+- [x] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
+- [x] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
+- [x] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
+- [x] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
+- [x] #6 `npm test` y validación de interacciones en verde
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- Se reemplazó la grilla compacta `grid grid-cols-2` de `KanbanBoard.tsx` por una disposición vertical apilada `flex flex-col gap-2 w-full`.
+- Cada subzona de soltado cuenta ahora con altura y padding ergonómico `w-full py-3 px-4 rounded-xl border-2 border-dashed`, superando con holgura los 44px de target táctil y garantizando área de captura amplia.
+- Se configuró la paleta temática canónica por estado (`SUB_DROP_THEME`) con estados de hover/dragOver intensos y de alto contraste (borde discontinuo coloreado, fondo tintado y realce de dot y texto sin saltos de scroll).
+- Se eliminó la clase `truncate` del nombre del estado, permitiendo la lectura íntegra y sin elipsis de etiquetas localizadas.
+- Los hijos dentro de la subzona incluyen `pointer-events-none` para estabilizar el dragOver evitando parpadeos de eventos del cursor, y se limpia `dropTarget` de tarjetas al sobrevolar una subzona para mantener foco visual exclusivo en la transición.
+- Se verificaron la Pirámide de Verificación y la suite headless unificada (`npm test`, 18 pasos en verde).
+<!-- SECTION:NOTES:END -->

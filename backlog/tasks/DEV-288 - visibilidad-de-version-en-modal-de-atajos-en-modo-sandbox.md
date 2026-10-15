@@ -1,7 +1,7 @@
 ---
 id: DEV-288
 title: "Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -31,8 +31,13 @@ En entornos locales con el backend daemon activo, `updateAvailable` se resuelve 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
-- [ ] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
-- [ ] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
-- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
+- [x] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
+- [x] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
+- [x] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
 <!-- AC:END -->
+
+## Implementation Notes
+
+- Creado `src/version.ts` exportando `APP_VERSION = '1.4.0'`.
+- `src/components/KeyboardShortcutsModal.tsx`: importa `APP_VERSION`, resuelve `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;` y renderiza visiblemente `gripm v{displayVersion}` en el pie del modal, garantizando la visibilidad de la versión en Modo Sandbox sin requerir respuesta de `/api/updates`.

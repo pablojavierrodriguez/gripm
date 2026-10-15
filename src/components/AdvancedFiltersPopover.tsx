@@ -182,6 +182,11 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
     (st) => st !== 'ideas' && st !== 'dismissed' && (st as any) !== 'cancelled'
   );
 
+  const ACTIVE_FLOW_STATUSES: ItemStatus[] = ['draft', 'doing', 'review', 'ready'];
+  const isAllActiveFlow =
+    selectedFlowStatuses.length === 0 ||
+    (selectedFlowStatuses.length === 4 && ACTIVE_FLOW_STATUSES.every((st) => selectedFlowStatuses.includes(st)));
+
   return (
     <div
       ref={popoverRef}
@@ -276,7 +281,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
             {t('filter.statusFilter')}
           </span>
           <span className="text-xs text-slate-400 font-mono">
-            {selectedFlowStatuses.length === 0
+            {isAllActiveFlow
               ? t('filter.allActiveFlow')
               : t('filter.selectedCount', { count: selectedFlowStatuses.length })}
           </span>
@@ -288,7 +293,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
             type="button"
             onClick={() => onChangeFilters({ ...filters, statuses: [] })}
             className={`flex min-w-0 items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all col-span-2 ${
-              selectedFlowStatuses.length === 0
+              isAllActiveFlow
                 ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-xs'
                 : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
@@ -297,7 +302,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
               <span className="text-xs">✨</span>
               <span className="truncate">{t('filter.allActiveFlow')}</span>
             </div>
-            {selectedFlowStatuses.length === 0 && (
+            {isAllActiveFlow && (
               <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
             )}
           </button>

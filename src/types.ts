@@ -63,6 +63,7 @@ export interface BacklogItem {
   priority: Priority;
   status: ItemStatus;
   module?: string;
+  modules?: string[];
   impactedFile?: string;
   risk?: string;
   fix?: string;
@@ -205,6 +206,7 @@ export interface GripmConfig {
   defaultView?: 'kanban' | 'sprint' | 'release' | 'settings' | 'timeline';
   mode?: 'single' | 'multi';
   modules?: ModulesConfig;
+  modulesList?: string[];
   enabledTabs?: {
     kanban?: boolean;
     sprint?: boolean;

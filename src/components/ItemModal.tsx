@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, type FC } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, type FC } from 'react';
 import { 
   X, 
   Save, 
@@ -153,7 +153,9 @@ export const ItemModal: FC<ItemModalProps> = ({
   const [type, setType] = useState<ItemType>('feature');
   const [priority, setPriority] = useState<Priority>('p2');
   const [status, setStatus] = useState<ItemStatus>(defaultStatus);
-  const [module, setModule] = useState('');
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [moduleInput, setModuleInput] = useState('');
+  const module = selectedModules[0] || '';
   const [impactedFile, setImpactedFile] = useState('');
   const [sprint, setSprint] = useState('');
   const [release, setRelease] = useState('');
@@ -275,7 +277,11 @@ export const ItemModal: FC<ItemModalProps> = ({
     setType(source.type || 'feature');
     setPriority(source.priority || 'p2');
     setStatus(source.status || 'draft');
-    setModule(source.module || '');
+    const initialMods = (source.modules && source.modules.length > 0)
+      ? source.modules
+      : (source.module ? [source.module] : []);
+    setSelectedModules(Array.from(new Set(initialMods.map(m => m.trim()).filter(Boolean))));
+    setModuleInput('');
     setImpactedFile(source.impactedFile || '');
     const sVal = source.sprint || source.targetSprint || (source.sprints && source.sprints.length > 0 ? source.sprints[source.sprints.length - 1] : '') || '';
     const rawRVal = source.release || source.targetRelease || '';
@@ -353,7 +359,8 @@ export const ItemModal: FC<ItemModalProps> = ({
         setType('feature');
         setPriority('p2');
         setStatus(defaultStatus);
-        setModule('');
+        setSelectedModules([]);
+        setModuleInput('');
         setImpactedFile('');
         setSprint(defaultSprint || '');
         setRelease('');
@@ -398,7 +405,32 @@ export const ItemModal: FC<ItemModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, title, code, projectId, type, priority, status, module, impactedFile, sprint, release, description, risk, fix, implementationPlan, acceptanceCriteriaList, labels, assignees, startDate, dueDate, showDeleteConfirm]);
+  }, [isOpen, title, code, projectId, type, priority, status, selectedModules, impactedFile, sprint, release, description, risk, fix, implementationPlan, acceptanceCriteriaList, labels, assignees, startDate, dueDate, showDeleteConfirm]);
+
+  // DEV-275: Multi-module candidate list and handlers
+  const allCandidateModules = useMemo(() => {
+    const set = new Set<string>();
+    if (config?.modulesList) {
+      config.modulesList.forEach(m => { if (m && m.trim()) set.add(m.trim()); });
+    }
+    if (availableModules) {
+      availableModules.forEach(m => { if (m && m.trim()) set.add(m.trim()); });
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [config?.modulesList, availableModules]);
+
+  const handleAddModule = (val?: string) => {
+    const raw = (val !== undefined ? val : moduleInput).trim();
+    if (!raw) return;
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const next = Array.from(new Set([...selectedModules, ...parts]));
+    setSelectedModules(next);
+    setModuleInput('');
+  };
+
+  const handleRemoveModule = (modToRemove: string) => {
+    setSelectedModules(selectedModules.filter(m => m !== modToRemove));
+  };
 
   const handleAddLabel = (val?: string) => {
     const raw = (val !== undefined ? val : labelInput).trim();
@@ -443,7 +475,8 @@ export const ItemModal: FC<ItemModalProps> = ({
         type,
         priority,
         status,
-        module: module.trim() || undefined,
+        module: selectedModules[0] ? selectedModules[0].trim() : '',
+        modules: selectedModules,
         impactedFile: impactedFile.trim() || undefined,
         sprint: sprint.trim(),
         release: selectedReleases[0] ? selectedReleases[0].trim() : (release.trim() || ''),
@@ -2230,34 +2263,107 @@ export const ItemModal: FC<ItemModalProps> = ({
                   </div>
                 </div>
 
-                {/* Module & Code */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.moduleLabel')}</label>
-                    <input
-                      type="text"
-                      value={module}
-                      onChange={(e) => setModule(e.target.value)}
-                      placeholder="Ej: UI / Layout"
-                      list="modules-list"
-                      className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                    />
-                    <datalist id="modules-list">
-                      {availableModules.map((m) => (
-                        <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200" />
-                      ))}
-                    </datalist>
-                  </div>
+                {/* Module & Code (DEV-275: Multi-Module Chip Selector) */}
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                          <span>{t('itemModal.moduleLabel')}</span>
+                        </label>
+                        {selectedModules.length > 0 && (
+                          <span className="text-xs text-slate-500">
+                            {selectedModules.length} {selectedModules.length === 1 ? 'módulo' : 'módulos'}
+                          </span>
+                        )}
+                      </div>
 
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.codeLabel')}</label>
-                    <input
-                      type="text"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder="Auto-generado"
-                      className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
-                    />
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={moduleInput}
+                          onChange={(e) => setModuleInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault();
+                              handleAddModule();
+                            }
+                          }}
+                          placeholder="Ej: UI, API, DB... (Enter)"
+                          list="modules-autocomplete-list"
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                        />
+                        <datalist id="modules-autocomplete-list">
+                          {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).map((m: string) => (
+                            <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200" />
+                          ))}
+                        </datalist>
+
+                        {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).length > 0 && (
+                          <div className="relative shrink-0">
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleAddModule(e.target.value);
+                                }
+                              }}
+                              className="appearance-none px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.1] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300 font-medium transition-colors cursor-pointer"
+                              title="Seleccionar módulo existente"
+                            >
+                              <option value="" disabled>+</option>
+                              {allCandidateModules.filter((m: string) => !selectedModules.includes(m)).map((m: string) => (
+                                <option key={m} value={m} className="bg-white dark:bg-[#0e1626] text-slate-800 dark:text-slate-200">
+                                  {m}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddModule()}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.1] text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium transition-colors shrink-0"
+                          title="Agregar módulo"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Selected modules chips */}
+                      {selectedModules.length > 0 && (
+                        <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                          {selectedModules.map((m) => (
+                            <span
+                              key={m}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                            >
+                              <span>🧩 {m}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveModule(m)}
+                                className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors ml-0.5 text-xs leading-none"
+                                title={`Quitar ${m}`}
+                              >
+                                &times;
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{t('itemModal.codeLabel')}</label>
+                      <input
+                        type="text"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Auto-generado"
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                      />
+                    </div>
                   </div>
                 </div>
 

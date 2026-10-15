@@ -1,7 +1,7 @@
 ---
 id: DEV-273
 title: "Editor de estructura de columnas Kanban horizontal e intuitivo en Settings"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -30,10 +30,18 @@ Esta disposición contradice el modelo mental del usuario: un tablero Kanban se 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
-- [ ] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
-- [ ] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
-- [ ] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
-- [ ] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
-- [ ] #6 `npm test` y validación de guardado de configuración en verde
+- [x] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
+- [x] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
+- [x] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
+- [x] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
+- [x] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
+- [x] #6 `npm test` y validación de guardado de configuración en verde
 <!-- AC:END -->
+
+## Implementation Notes
+
+- Se transformó el contenedor de columnas en `SettingsView.tsx` a un mini-tablero horizontal con clase `flex flex-row overflow-x-auto gap-4 pb-4 items-stretch scrollbar-thin`.
+- Cada columna se representa con una tarjeta estructurada (`w-72 sm:w-80 shrink-0 p-4 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs flex flex-col justify-between gap-3.5`).
+- Los botones de reordenamiento ahora utilizan `ArrowLeft` y `ArrowRight` acordes a sus tooltips espaciales (`moveColLeft` / `moveColRight`).
+- Preservada la edición de títulos, límites WIP, transferencias drag & drop de chips de estados entre columnas y persistencia de configuración.
+

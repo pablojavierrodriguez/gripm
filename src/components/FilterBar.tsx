@@ -24,6 +24,7 @@ export interface ActiveFilterChipOptions {
     estimate?: string;
     type?: string;
     noSprint?: string;
+    allActiveFlow?: string;
     statusLabels?: Record<string, string>;
   };
 }
@@ -61,10 +62,13 @@ export function getActiveFilterChips(
   // Explicit lifecycle status filter (if user selected specific statuses):
   const fAny = filters as any;
   if (fAny.status && fAny.status !== 'all') {
+    const isSpecialActive = fAny.status === 'active' || fAny.status === 'all_active';
     chips.push({
       id: `status-${fAny.status}`,
       dimension: labels?.status || 'Estado',
-      value: labels?.statusLabels?.[fAny.status] || String(fAny.status),
+      value: isSpecialActive
+        ? (labels?.allActiveFlow || 'Estados activos')
+        : (labels?.statusLabels?.[fAny.status] || String(fAny.status)),
       type: 'status',
       rawKey: fAny.status,
     });
@@ -74,7 +78,20 @@ export function getActiveFilterChips(
     (st) => st !== 'ideas' && st !== 'dismissed' && (st as any) !== 'cancelled'
   );
 
-  if (explicitStatuses.length === 1 || explicitStatuses.length === 2) {
+  const ACTIVE_FLOW_STATUSES: ItemStatus[] = ['draft', 'doing', 'review', 'ready'];
+  const isExplicitActiveFlow =
+    explicitStatuses.length === 4 &&
+    ACTIVE_FLOW_STATUSES.every((st) => explicitStatuses.includes(st));
+
+  if (isExplicitActiveFlow) {
+    chips.push({
+      id: 'statuses-multi',
+      dimension: labels?.status || 'Estados',
+      value: labels?.allActiveFlow || 'Estados activos',
+      type: 'status',
+      rawKey: '__all_custom__',
+    });
+  } else if (explicitStatuses.length === 1 || explicitStatuses.length === 2) {
     explicitStatuses.forEach((st) => {
       chips.push({
         id: `status-${st}`,
@@ -309,6 +326,25 @@ export function removeFilterFromState(
   return next;
 }
 
+/**
+ * Soporte para compatibilidad con módulo múltiple (DEV-287):
+ * Al evaluar filters.module, verificar (!filters.module || it.module === filters.module || it.modules?.includes(filters.module))
+ */
+export function itemMatchesModule(
+  it: { module?: string; modules?: string[] },
+  filterModule?: string
+): boolean {
+  return (
+    !filterModule ||
+    filterModule === 'all' ||
+    it.module === filterModule ||
+    Boolean(it.modules?.includes(filterModule))
+  );
+}
+
+export const itemMatchesModuleFilter = itemMatchesModule;
+export const matchesModule = itemMatchesModule;
+
 interface FilterBarProps {
   filters: FilterState;
   onChangeFilters: (newFilters: FilterState) => void;
@@ -436,6 +472,7 @@ export const FilterBar: FC<FilterBarProps> = ({
         estimate: t('filter.estimation') || 'Estimación',
         type: t('itemModal.typeLabel') || 'Tipo',
         noSprint: t('filter.noSprint') || 'Sin Sprint',
+        allActiveFlow: t('filter.allActiveFlow') || 'Estados activos',
         statusLabels: {
           ideas: t('status.ideas'),
           draft: t('status.draft'),
@@ -445,6 +482,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           done: t('status.done'),
           dismissed: t('status.dismissed'),
           cancelled: t('status.cancelled'),
+          active: t('filter.allActiveFlow') || 'Estados activos',
         },
       },
     });

@@ -70,6 +70,7 @@ function printMainHelp() {
   Comandos:
     gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
     gripm playbook sync            Sincroniza materiales de Gripm Playbook en el proyecto actual
+    gripm import --file <ruta>     Importa tareas de Jira, Linear o CSV al backlog local
 
   Opciones de Cockpit:
     --port, -p <puerto>            Puerto para el servidor web (por defecto: 4100)
@@ -145,6 +146,28 @@ function printPlaybookHelp() {
 `);
 }
 
+function printImportHelp() {
+  console.log(`
+  gripm import - Importador universal de backlogs externos (Jira, Linear, CSV)
+
+  Uso:
+    gripm import --file <ruta> [opciones]
+    gripm import -f <ruta> [opciones]
+
+  Descripción:
+    Procesa un archivo de exportación de Jira (JSON o CSV), Linear (CSV o JSON),
+    o un CSV genérico, transformando cada ítem en una tarea Markdown individual
+    en backlog/tasks/ de forma 100% local, con cero llamadas a la nube.
+
+  Opciones:
+    --file, -f <ruta>              Ruta al archivo a importar (JSON, CSV o MD) [Obligatorio]
+    --repo, -r <ruta>              Repositorio de destino (por defecto: directorio actual)
+    --prefix <prefijo>             Prefijo de código para las tareas (ej: DEV, TASK)
+    --dry-run                      Simula la importación mostrando tareas detectadas sin escribir en disco
+    --help, -h                     Muestra esta ayuda
+`);
+}
+
 async function main() {
   const VALUE_FLAGS = new Set([
     '--port', '-p',
@@ -152,7 +175,9 @@ async function main() {
     '--repo', '-r',
     '--language', '--lang',
     '--branch', '-b',
-    '--remote'
+    '--remote',
+    '--file', '-f',
+    '--prefix'
   ]);
 
   const nonFlagArgs = [];
@@ -167,7 +192,7 @@ async function main() {
   }
 
   const command = nonFlagArgs[0];
-  if (command && !['mcp', 'playbook', 'help'].includes(command)) {
+  if (command && !['mcp', 'playbook', 'help', 'import'].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
@@ -182,6 +207,10 @@ async function main() {
     }
     if (sub === 'playbook') {
       printPlaybookHelp();
+      process.exit(0);
+    }
+    if (sub === 'import') {
+      printImportHelp();
       process.exit(0);
     }
     printMainHelp();
@@ -233,6 +262,118 @@ async function main() {
     }
 
     await runPlaybookSync(targetRepo, { branch, remote, dryRun, force });
+    return;
+  }
+
+  // DEV-228: Handle 'import' subcommand
+  if (command === 'import' || (args.includes('import') && command !== 'help')) {
+    if (hasHelpFlag(args)) {
+      printImportHelp();
+      process.exit(0);
+    }
+
+    const fileIdx = args.findIndex(a => a === '--file' || a === '-f');
+    const filePath = fileIdx !== -1 ? args[fileIdx + 1] : undefined;
+    if (!filePath) {
+      console.error('Error: Debes especificar el archivo a importar con --file <ruta> o -f <ruta>.');
+      console.error('Ejecuta "gripm import --help" para ver las opciones disponibles.');
+      process.exitCode = 1;
+      return;
+    }
+
+    const absoluteFilePath = path.resolve(filePath);
+    if (!fs.existsSync(absoluteFilePath)) {
+      console.error(`Error: El archivo "${filePath}" no existe.`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const repoIdx = args.findIndex(a => a === '--repo' || a === '-r');
+    const targetRepo = repoIdx !== -1 && args[repoIdx + 1] ? path.resolve(args[repoIdx + 1]) : process.cwd();
+    const dryRun = args.includes('--dry-run');
+    const prefixIdx = args.findIndex(a => a === '--prefix');
+    const customPrefix = prefixIdx !== -1 ? args[prefixIdx + 1]?.toUpperCase() : undefined;
+
+    const { pathToFileURL } = await import('node:url');
+    const importerPath = path.resolve(PKG_ROOT, 'src/utils/universalImporter.ts');
+    const { parseUniversalExport, formatTaskMarkdown } = await import(pathToFileURL(importerPath).href);
+
+    const fileContent = fs.readFileSync(absoluteFilePath, 'utf8');
+    const result = parseUniversalExport(fileContent);
+
+    if (result.items.length === 0) {
+      console.log(`\n  ${c.yellow('▲')}  No se detectaron tareas para importar en ${path.basename(filePath)} (${result.label}).`);
+      return;
+    }
+
+    console.log(`\n  ${c.cyan('ℹ')}  ${c.bold(result.label)}`);
+
+    const tasksDir = path.join(targetRepo, 'backlog/tasks');
+    if (!dryRun && !fs.existsSync(tasksDir)) {
+      fs.mkdirSync(tasksDir, { recursive: true });
+    }
+
+    // Determine prefix and max numeric ID
+    let prefix = customPrefix;
+    let maxNum = 0;
+
+    if (fs.existsSync(tasksDir)) {
+      const taskFiles = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+      const prefixCounts = {};
+      for (const f of taskFiles) {
+        const m = f.match(/^([A-Za-z0-9_-]+)-(\d+)/);
+        if (m) {
+          const p = m[1].toUpperCase();
+          const n = parseInt(m[2], 10);
+          prefixCounts[p] = (prefixCounts[p] || 0) + 1;
+          if (n > maxNum) maxNum = n;
+        }
+      }
+      if (!prefix) {
+        let bestPrefix = '';
+        let maxCount = 0;
+        for (const [p, count] of Object.entries(prefixCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            bestPrefix = p;
+          }
+        }
+        if (bestPrefix) prefix = bestPrefix;
+      }
+    }
+
+    if (!prefix) {
+      const identity = resolveProjectIdentity(targetRepo);
+      prefix = identity.codePrefix || 'TASK';
+    }
+
+    console.log(`  ${c.dim('Prefijo de tareas:')} ${c.bold(prefix)} (próximo correlativo: ${prefix}-${String(maxNum + 1).padStart(3, '0')})`);
+    if (dryRun) {
+      console.log(`  ${c.yellow('Modo simulación (--dry-run):')} Ningún archivo será modificado.\n`);
+    }
+
+    let importedCount = 0;
+    for (const item of result.items) {
+      maxNum++;
+      const taskId = `${prefix}-${String(maxNum).padStart(3, '0')}`;
+      const cleanTitle = (item.title || 'Sin título').replace(/[/\\?%*:|"<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      const filename = `${taskId} - ${cleanTitle}.md`;
+      const taskContent = formatTaskMarkdown(item, taskId);
+
+      if (dryRun) {
+        console.log(`  [SIMULADO] ${taskId} · ${item.title} (${item.status}, ${item.priority})`);
+      } else {
+        fs.writeFileSync(path.join(tasksDir, filename), taskContent, 'utf8');
+      }
+      importedCount++;
+    }
+
+    if (dryRun) {
+      console.log(`\n  ${c.green('✔')}  Simulación completada: ${importedCount} tareas listas para importar.`);
+    } else {
+      console.log(`\n  ${c.green('✔')}  ${importedCount} tareas importadas con éxito en backlog/tasks/`);
+      console.log(`  ${c.dim('Ejecuta "npm run backlog:sync" para consolidar BACKLOG.md.')}`);
+    }
     return;
   }
 

@@ -1,7 +1,7 @@
 ---
 id: DEV-287
 title: "Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -31,8 +31,14 @@ Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en c
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
-- [ ] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
-- [ ] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
-- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
+- [x] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
+- [x] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
+- [x] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
 <!-- AC:END -->
+
+## Implementation Notes
+
+- Clave `filter.allActiveFlow` actualizada a "Estados activos" (`src/locales/es.json`) y "Active statuses" (`src/locales/en.json`).
+- `src/components/AdvancedFiltersPopover.tsx`: actualizado `isAllActiveFlow` para reconocer tanto el estado sin selección como la selección explícita del conjunto activo (`draft`, `doing`, `review`, `ready`), renderizando la nueva etiqueta.
+- `src/components/FilterBar.tsx`: soporte para rotulación de flujo activo en `getActiveFilterChips` (`labels.allActiveFlow`), `activeChips` `useMemo` y helper exportado `itemMatchesModule` para soporte y compatibilidad con filtro de módulo múltiple (`it.module === filters.module || it.modules?.includes(filters.module)`).

@@ -1,7 +1,7 @@
 ---
 id: DEV-275
 title: "Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -29,11 +29,19 @@ Actualmente, el campo de módulo en las tareas (`module?: string`) es un string 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
-- [ ] #2 Los componentes administrados se persisten en la configuración del proyecto
-- [ ] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
-- [ ] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
-- [ ] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
-- [ ] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
-- [ ] #7 `npm test` y sincronización de backlog con código 0
+- [x] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
+- [x] #2 Los componentes administrados se persisten en la configuración del proyecto
+- [x] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
+- [x] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
+- [x] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
+- [x] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
+- [x] #7 `npm test` y sincronización de backlog con código 0
 <!-- AC:END -->
+
+## Implementation Notes
+
+- Extendido `src/types.ts`: `modulesList?: string[];` en `GripmConfig` y `modules?: string[];` en `BacklogItem`.
+- En `SettingsView.tsx`: agregada sección visual y accesible para administrar la lista oficial de componentes del proyecto (`modulesList`) con agregado, eliminación por chip y persistencia inmediata.
+- En `ItemModal.tsx`: reemplazado el input plano por un selector multi-chip interactivo con sugerencias combinadas de `config.modulesList` y módulos preexistentes, permitiendo crear nuevos o seleccionar existentes. Al guardar persiste tanto `modules: selectedModules` como `module: selectedModules[0] || ''` preservando compatibilidad retroactiva.
+- En `ItemCard.tsx`: renderizado de badges de módulos de forma compacta y legible para múltiples componentes, e inclusión de todos los módulos asignados en la generación del prompt para agentes de IA.
+

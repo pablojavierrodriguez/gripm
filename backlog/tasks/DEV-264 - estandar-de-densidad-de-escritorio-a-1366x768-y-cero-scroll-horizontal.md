@@ -1,9 +1,9 @@
 ---
 id: DEV-264
 title: "Estándar de densidad de escritorio a 1366×768: medición, presupuesto y cero scroll horizontal"
-status: draft
+status: dismissed
 created_date: '2026-10-14'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 labels:
   - "ux"
   - "ui"

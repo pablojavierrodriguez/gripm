@@ -9,12 +9,11 @@ import {
   Upload,
   RotateCcw, 
   FileCode, 
-  ArrowUp, 
-  ArrowDown, 
   Moon, 
   Sun, 
   Monitor,
   ArrowLeft,
+  ArrowRight,
   Save,
   CheckCircle2,
   Database,
@@ -270,6 +269,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [typeFormIcon, setTypeFormIcon] = useState('Sparkles');
   const [typeFormDescription, setTypeFormDescription] = useState('');
 
+  // Modules / Components catalog state (DEV-275)
+  const [modulesList, setModulesList] = useState<string[]>(() => config.modulesList || []);
+  const [newModuleInput, setNewModuleInput] = useState('');
+
   // Raw JSON state
   const [rawJson, setRawJson] = useState<string>('');
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -347,6 +350,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } else {
       setCustomItemTypes([]);
     }
+    setModulesList(config.modulesList || []);
+    setNewModuleInput('');
     setRawJson(JSON.stringify(config, null, 2));
     setJsonError(null);
   }, [config, language, isDarkMode]);
@@ -405,6 +410,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       autoSave,
       rankingEnabled,
       showFilterBarStats: config?.showFilterBarStats !== false,
+      modulesList,
       customItemTypes,
       estimation: {
         enabled: estimationEnabled,
@@ -422,7 +428,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         wipLimits
       }
     };
-  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits, estimationEnabled, estimationMethod, cardMetaState]);
+  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, modulesList, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits, estimationEnabled, estimationMethod, cardMetaState]);
 
   // Helper to normalize config object for reliable dirty-checking (DEV-081)
   const normalizeForComparison = (c: Partial<GripmConfig>) => {
@@ -450,6 +456,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       autoSave: c.autoSave ?? true,
       rankingEnabled: c.rankingEnabled !== false,
       showFilterBarStats: c.showFilterBarStats !== false,
+      modulesList: c.modulesList || [],
       customItemTypes: (c.customItemTypes && c.customItemTypes.length > 0) ? c.customItemTypes : undefined,
       estimation: {
         enabled: c.estimation?.enabled ?? false,
@@ -549,6 +556,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } else {
       setCustomItemTypes([]);
     }
+    setModulesList(config.modulesList || []);
+    setNewModuleInput('');
     setRawJson(JSON.stringify(config, null, 2));
     setJsonError(null);
     setEditingTypeKey(null);
@@ -799,6 +808,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const handleSaveConfig = async (nextConfig: GripmConfig) => {
+    setIsSaving(true);
+    setJsonError(null);
+    try {
+      await onSaveConfig(nextConfig);
+      setHasSavedRecently(true);
+      setTimeout(() => setHasSavedRecently(false), 2500);
+      onShowToast?.(t('settings.toastSaveSuccess'), 'success');
+    } catch (err: any) {
+      onShowToast?.(t('settings.toastSaveError', { error: err.message || err }), 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Modules catalog handlers (DEV-275)
+  const handleAddModule = async () => {
+    const trimmed = newModuleInput.trim();
+    if (!trimmed) return;
+    if (modulesList.some(m => m.toLowerCase() === trimmed.toLowerCase())) {
+      onShowToast?.(language === 'es' ? 'El módulo ya existe' : 'Module already exists', 'info');
+      return;
+    }
+    const updated = [...modulesList, trimmed];
+    setModulesList(updated);
+    setNewModuleInput('');
+    const next = { ...builtConfig, modulesList: updated };
+    await handleSaveConfig(next);
+  };
+
+  const handleRemoveModule = async (modToRemove: string) => {
+    const updated = modulesList.filter(m => m !== modToRemove);
+    setModulesList(updated);
+    const next = { ...builtConfig, modulesList: updated };
+    await handleSaveConfig(next);
+  };
+
   // Keyboard shortcut ⌘S / Ctrl+S to save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -821,8 +867,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleMoveColumn = (index: number, direction: 'up' | 'down') => {
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+  const handleMoveColumn = (index: number, direction: 'left' | 'right' | 'up' | 'down') => {
+    const targetIdx = (direction === 'left' || direction === 'up') ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= activeColumnsList.length) return;
     const updated = [...activeColumnsList];
     const temp = updated[index];
@@ -898,6 +944,84 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       onShowToast?.(t('settings.toastColsResetSimple'), 'info');
     }
   };
+
+  // DEV-275: Centralized module and components catalog section
+  const renderModulesCatalogSection = () => (
+    <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
+      <div className="flex items-center justify-between min-w-0">
+        <div>
+          <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <Boxes className="w-4 h-4 text-indigo-500" />
+            <span>{language === 'es' ? 'Módulos y Componentes del Proyecto' : 'Project Modules & Components'}</span>
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {language === 'es'
+              ? 'Catálogo oficial de módulos y componentes transversales (ej. UI, API, Auth, Database). Se persisten en la configuración del proyecto y se sugieren al categorizar tareas.'
+              : 'Official catalog of modules and transversal components (e.g. UI, API, Auth, Database). Persisted in project configuration and suggested when categorizing tasks.'}
+          </p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.08]">
+          {modulesList.length} {language === 'es' ? 'módulos' : 'modules'}
+        </span>
+      </div>
+
+      {/* Input to add a new module */}
+      <div className="flex items-center gap-2 max-w-md">
+        <input
+          type="text"
+          value={newModuleInput}
+          onChange={(e) => setNewModuleInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAddModule();
+            }
+          }}
+          placeholder={language === 'es' ? 'Nombre del nuevo módulo (ej. UI, API, Auth)...' : 'New module name (e.g. UI, API, Auth)...'}
+          className="flex-1 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+        />
+        <button
+          type="button"
+          onClick={handleAddModule}
+          disabled={!newModuleInput.trim()}
+          title={language === 'es' ? 'Agregar módulo' : 'Add module'}
+          aria-label={language === 'es' ? 'Agregar módulo' : 'Add module'}
+          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-medium flex items-center gap-1 transition-colors shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>{language === 'es' ? 'Agregar' : 'Add'}</span>
+        </button>
+      </div>
+
+      {/* List of existing module chips */}
+      {modulesList.length === 0 ? (
+        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-white/10 text-center text-xs text-slate-400 dark:text-slate-500">
+          {language === 'es'
+            ? 'No hay módulos configurados aún. Agrega un componente arriba para empezar a categorizar tareas.'
+            : 'No modules configured yet. Add a component above to start categorizing tasks.'}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {modulesList.map((mod) => (
+            <span
+              key={mod}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/20 shadow-2xs group transition-all"
+            >
+              <span>🧩 {mod}</span>
+              <button
+                type="button"
+                onClick={() => handleRemoveModule(mod)}
+                title={language === 'es' ? `Eliminar módulo ${mod}` : `Remove module ${mod}`}
+                className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-100 overflow-y-auto">
@@ -1865,6 +1989,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* DEV-275: Catálogo de Módulos y Componentes del Proyecto */}
+              {renderModulesCatalogSection()}
             </div>
           )}
 
@@ -1966,191 +2093,194 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </label>
               </div>
 
-              {/* Column list editor with Interactive Statuses */}
+              {/* Column list editor with Interactive Statuses (DEV-273) */}
               <div className="space-y-4">
                 <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 px-1">
                   {kanbanEditMode === 'ampliada' ? t('settings.expandedModeBtn') : t('settings.simplifiedModeBtn')} ({activeColumnsList.length})
                 </div>
 
-                {activeColumnsList.map((col, index) => {
-                  const currentWip = wipLimits[col.id] || col.wipLimit || 0;
+                {/* Horizontal mini-board flow */}
+                <div className="flex flex-row overflow-x-auto gap-4 pb-4 items-stretch scrollbar-thin">
+                  {activeColumnsList.map((col, index) => {
+                    const currentWip = wipLimits[col.id] || col.wipLimit || 0;
 
-                  return (
-                    <div
-                      key={col.id}
-                      className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs space-y-4 transition-all duration-150 ${
-                        dragOverColId === col.id && draggingStatus?.fromColId !== col.id
-                          ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-300/50 dark:ring-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/[0.04]'
-                          : 'border-slate-200 dark:border-white/[0.08]'
-                      }`}
-                      onDragOver={(e) => { if (draggingStatus) { e.preventDefault(); setDragOverColId(col.id); } }}
-                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverColId(null); }}
-                      onDrop={(e) => { e.preventDefault(); handleMoveStatusToColumn(col.id); }}
-                    >
-                      {/* Header: Dot + Title Input + Subtitle + Reorder Buttons */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className={`w-3.5 h-3.5 rounded-full ${col.dotColor} shrink-0`} />
-                          <div className="flex-1 max-w-sm">
-                            <input
-                              type="text"
-                              value={col.title}
-                              onChange={(e) => handleUpdateColumnField(index, 'title', e.target.value)}
-                              className="text-sm font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:outline-none px-1 text-slate-900 dark:text-white w-full"
-                              title={t('settings.editColTitle')}
-                            />
-                            {col.subtitle && (
-                              <p className="text-[10px] text-slate-400 px-1 font-mono">
-                                {col.subtitle}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Order Buttons */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleMoveColumn(index, 'up')}
-                            disabled={index === 0}
-                            title={t('settings.moveColLeft')}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleMoveColumn(index, 'down')}
-                            disabled={index === activeColumnsList.length - 1}
-                            title={t('settings.moveColRight')}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* WIP Limit & Drop Target Settings */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.wipLimitLabel')}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="50"
-                            value={currentWip || ''}
-                            placeholder={t('settings.wipUnlimited')}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              const next = { ...wipLimits };
-                              if (isNaN(val) || val <= 0) {
-                                delete next[col.id];
-                              } else {
-                                next[col.id] = val;
-                              }
-                              setWipLimits(next);
-                            }}
-                            className="w-24 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
-                          />{/* ux-audit-ignore UX-001: integer WIP counter bounded 0-50, not a monetary amount, so a regional decimal comma cannot occur */}
-                        </div>
-
-                        <div className="flex items-center gap-2 sm:justify-end">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.dropStatusLabel')}</span>
-                          <select
-                            value={col.dropTargetStatus || col.statuses[0] || 'draft'}
-                            onChange={(e) => handleUpdateColumnField(index, 'dropTargetStatus', e.target.value as ItemStatus)}
-                            className="appearance-none px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                          >
-                            {col.statuses.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Interactive Status Remapping */}
-                      <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                            {t('settings.assignedStatuses', { count: col.statuses.length })}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {t('settings.assignedStatusesDesc')}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          {draggingStatus && draggingStatus.fromColId !== col.id && (
-                            <span className="text-[10px] text-indigo-500 dark:text-indigo-400 italic animate-pulse">
-                              {t('settings.dropHereToMove')}
-                            </span>
-                          )}
-                          {col.statuses.map((st) => (
-                            <span
-                              key={st}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.effectAllowed = 'move';
-                                setDraggingStatus({ status: st as ItemStatus, fromColId: col.id });
-                              }}
-                              onDragEnd={() => { setDraggingStatus(null); setDragOverColId(null); }}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border shadow-2xs group/st cursor-grab active:cursor-grabbing select-none transition-opacity ${
-                                draggingStatus?.status === st && draggingStatus?.fromColId === col.id
-                                  ? 'opacity-40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
-                                  : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
-                              }`}
-                            >
-                              <span className="text-indigo-300 dark:text-indigo-600 mr-0.5">⠿</span>
-                              <span>{st}</span>
-                              {col.statuses.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveStatusFromColumn(col.id, st)}
-                                  title={t('settings.removeStatusFromCol', { status: st })}
-                                  className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
+                    return (
+                      <div
+                        key={col.id}
+                        className={`w-72 sm:w-80 shrink-0 p-4 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs flex flex-col justify-between gap-3.5 transition-all duration-150 ${
+                          dragOverColId === col.id && draggingStatus?.fromColId !== col.id
+                            ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-300/50 dark:ring-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/[0.04]'
+                            : 'border-slate-200 dark:border-white/[0.08]'
+                        }`}
+                        onDragOver={(e) => { if (draggingStatus) { e.preventDefault(); setDragOverColId(col.id); } }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverColId(null); }}
+                        onDrop={(e) => { e.preventDefault(); handleMoveStatusToColumn(col.id); }}
+                      >
+                        {/* Header: Dot + Title Input + Subtitle + Reorder Buttons */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            <span className={`w-3.5 h-3.5 rounded-full ${col.dotColor} shrink-0`} />
+                            <div className="flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={col.title}
+                                onChange={(e) => handleUpdateColumnField(index, 'title', e.target.value)}
+                                className="text-sm font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:outline-none px-1 text-slate-900 dark:text-white w-full truncate"
+                                title={t('settings.editColTitle')}
+                              />
+                              {col.subtitle && (
+                                <p className="text-xs text-slate-400 px-1 font-mono truncate">
+                                  {col.subtitle}
+                                </p>
                               )}
-                            </span>
-                          ))}
+                            </div>
+                          </div>
 
-                          {/* Add status selector */}
-                          <div className="relative inline-flex items-center">
-                            <select
-                              value=""
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleAddStatusToColumn(col.id, e.target.value as ItemStatus);
-                                }
-                              }}
-                              className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2.5 pr-6 py-1 cursor-pointer focus:outline-none transition-colors"
+                          {/* Order Buttons (ArrowLeft / ArrowRight) */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveColumn(index, 'left')}
+                              disabled={index === 0}
+                              title={t('settings.moveColLeft')}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
                             >
-                              <option value="" disabled>{t('settings.assignStatusPrompt')}</option>
-                              <optgroup label={t('settings.canonicalStatusesGroup')}>
-                                {ALL_ITEM_STATUSES.filter((s) => !s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
-                                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                                    {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
-                                  </option>
-                                ))}
-                              </optgroup>
-                              <optgroup label={t('settings.legacyStatusesGroup')}>
-                                {ALL_ITEM_STATUSES.filter((s) => s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
-                                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                                    {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
-                                  </option>
-                                ))}
-                              </optgroup>
+                              <ArrowLeft className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveColumn(index, 'right')}
+                              disabled={index === activeColumnsList.length - 1}
+                              title={t('settings.moveColRight')}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* WIP Limit & Drop Target Settings */}
+                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.wipLimitLabel')}</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="50"
+                              value={currentWip || ''}
+                              placeholder={t('settings.wipUnlimited')}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                const next = { ...wipLimits };
+                                if (isNaN(val) || val <= 0) {
+                                  delete next[col.id];
+                                } else {
+                                  next[col.id] = val;
+                                }
+                                setWipLimits(next);
+                              }}
+                              className="w-20 px-2 py-1 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 text-right"
+                            />{/* ux-audit-ignore UX-001: integer WIP counter bounded 0-50, not a monetary amount, so a regional decimal comma cannot occur */}
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{t('settings.dropStatusLabel')}</span>
+                            <select
+                              value={col.dropTargetStatus || col.statuses[0] || 'draft'}
+                              onChange={(e) => handleUpdateColumnField(index, 'dropTargetStatus', e.target.value as ItemStatus)}
+                              className="appearance-none px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] truncate"
+                            >
+                              {col.statuses.map((st) => (
+                                <option key={st} value={st}>
+                                  {st}
+                                </option>
+                              ))}
                             </select>
-                            <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-2" />
+                          </div>
+                        </div>
+
+                        {/* Interactive Status Remapping */}
+                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04] flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              {t('settings.assignedStatuses', { count: col.statuses.length })}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {t('settings.assignedStatusesDesc')}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {draggingStatus && draggingStatus.fromColId !== col.id && (
+                              <span className="text-xs text-indigo-500 dark:text-indigo-400 italic animate-pulse">
+                                {t('settings.dropHereToMove')}
+                              </span>
+                            )}
+                            {col.statuses.map((st) => (
+                              <span
+                                key={st}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.effectAllowed = 'move';
+                                  setDraggingStatus({ status: st as ItemStatus, fromColId: col.id });
+                                }}
+                                onDragEnd={() => { setDraggingStatus(null); setDragOverColId(null); }}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-mono font-medium border shadow-2xs group/st cursor-grab active:cursor-grabbing select-none transition-opacity ${
+                                  draggingStatus?.status === st && draggingStatus?.fromColId === col.id
+                                    ? 'opacity-40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
+                                    : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
+                                }`}
+                              >
+                                <span className="text-indigo-300 dark:text-indigo-600 mr-0.5">⠿</span>
+                                <span>{st}</span>
+                                {col.statuses.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveStatusFromColumn(col.id, st)}
+                                    title={t('settings.removeStatusFromCol', { status: st })}
+                                    className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+
+                            {/* Add status selector */}
+                            <div className="relative inline-flex items-center">
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleAddStatusToColumn(col.id, e.target.value as ItemStatus);
+                                  }
+                                }}
+                                className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2 pr-5 py-0.5 cursor-pointer focus:outline-none transition-colors"
+                              >
+                                <option value="" disabled>{t('settings.assignStatusPrompt')}</option>
+                                <optgroup label={t('settings.canonicalStatusesGroup')}>
+                                  {ALL_ITEM_STATUSES.filter((s) => !s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
+                                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                                      {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                                <optgroup label={t('settings.legacyStatusesGroup')}>
+                                  {ALL_ITEM_STATUSES.filter((s) => s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
+                                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">
+                                      {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              </select>
+                              <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-1.5" />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Sección: Metadatos Visibles en Tarjetas (DEV-203) */}
@@ -2595,6 +2725,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </form>
               </div>
+
+              {/* DEV-275: Catálogo de Módulos y Componentes del Proyecto */}
+              {renderModulesCatalogSection()}
             </div>
           )}
 

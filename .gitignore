@@ -41,3 +41,4 @@ data/*.local.json
 
 .vercel
 .env*
+.playbook-backups/

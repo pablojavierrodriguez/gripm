@@ -135,6 +135,71 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
   }
 ];
 
+const SUB_DROP_THEME: Record<string, {
+  hoverBg: string;
+  hoverBorder: string;
+  hoverText: string;
+  hoverRing: string;
+  dot: string;
+}> = {
+  draft: {
+    hoverBg: 'bg-indigo-500/15 dark:bg-indigo-500/25',
+    hoverBorder: 'border-indigo-500 dark:border-indigo-400',
+    hoverText: 'text-indigo-900 dark:text-indigo-100 font-semibold',
+    hoverRing: 'ring-2 ring-indigo-500/40',
+    dot: 'bg-indigo-500 ring-2 ring-indigo-500/30',
+  },
+  doing: {
+    hoverBg: 'bg-amber-500/15 dark:bg-amber-500/25',
+    hoverBorder: 'border-amber-500 dark:border-amber-400',
+    hoverText: 'text-amber-900 dark:text-amber-100 font-semibold',
+    hoverRing: 'ring-2 ring-amber-500/40',
+    dot: 'bg-amber-500 ring-2 ring-amber-500/30',
+  },
+  review: {
+    hoverBg: 'bg-purple-500/15 dark:bg-purple-500/25',
+    hoverBorder: 'border-purple-500 dark:border-purple-400',
+    hoverText: 'text-purple-900 dark:text-purple-100 font-semibold',
+    hoverRing: 'ring-2 ring-purple-500/40',
+    dot: 'bg-purple-500 ring-2 ring-purple-500/30',
+  },
+  ready: {
+    hoverBg: 'bg-teal-500/15 dark:bg-teal-500/25',
+    hoverBorder: 'border-teal-500 dark:border-teal-400',
+    hoverText: 'text-teal-900 dark:text-teal-100 font-semibold',
+    hoverRing: 'ring-2 ring-teal-500/40',
+    dot: 'bg-teal-500 ring-2 ring-teal-500/30',
+  },
+  done: {
+    hoverBg: 'bg-emerald-500/15 dark:bg-emerald-500/25',
+    hoverBorder: 'border-emerald-500 dark:border-emerald-400',
+    hoverText: 'text-emerald-900 dark:text-emerald-100 font-semibold',
+    hoverRing: 'ring-2 ring-emerald-500/40',
+    dot: 'bg-emerald-500 ring-2 ring-emerald-500/30',
+  },
+  dismissed: {
+    hoverBg: 'bg-slate-500/15 dark:bg-slate-500/25',
+    hoverBorder: 'border-slate-500 dark:border-slate-400',
+    hoverText: 'text-slate-900 dark:text-slate-100 font-semibold',
+    hoverRing: 'ring-2 ring-slate-500/40',
+    dot: 'bg-slate-500 ring-2 ring-slate-500/30',
+  },
+  cancelled: {
+    hoverBg: 'bg-rose-500/15 dark:bg-rose-500/25',
+    hoverBorder: 'border-rose-500 dark:border-rose-400',
+    hoverText: 'text-rose-900 dark:text-rose-100 font-semibold',
+    hoverRing: 'ring-2 ring-rose-500/40',
+    dot: 'bg-rose-500 ring-2 ring-rose-500/30',
+  },
+  ideas: {
+    hoverBg: 'bg-pink-500/15 dark:bg-pink-500/25',
+    hoverBorder: 'border-pink-500 dark:border-pink-400',
+    hoverText: 'text-pink-900 dark:text-pink-100 font-semibold',
+    hoverRing: 'ring-2 ring-pink-500/40',
+    dot: 'bg-pink-500 ring-2 ring-pink-500/30',
+  },
+};
+
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   items,
   allItems,
@@ -807,21 +872,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </button>
           </div>
         )}
-        {/* Dynamic Multi-Status Sub-Drop Zones (DEV-052) */}
+        {/* Dynamic Multi-Status Sub-Drop Zones (DEV-052 & DEV-271) */}
         {isDropActive && draggedItemId && col.statuses.length > 1 && (
-          <div className="mb-2.5 p-2 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-indigo-500/40 dark:border-indigo-400/40 shadow-xs animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between gap-1 mb-1.5 px-0.5">
-              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+          <div className="mb-2.5 p-2 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-indigo-500/40 dark:border-indigo-400/40 shadow-xs animate-in fade-in zoom-in-95 duration-150 shrink-0">
+            <div className="flex items-center justify-between gap-1 mb-2 px-1">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 min-w-0 truncate">
                 Soltar en estado específico:
               </span>
-              <span className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+              <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400 font-medium shrink-0">
                 {col.statuses.length} estados disponibles
               </span>
             </div>
-            <div className="grid gap-1.5 grid-cols-2">
+            <div className="flex flex-col gap-2 w-full">
               {col.statuses.map((st) => {
                 const meta = getStatusMeta(st);
                 const isHovered = activeSubDropTargetStatus?.colId === col.id && activeSubDropTargetStatus?.status === st;
+                const theme = SUB_DROP_THEME[meta.key] || {
+                  hoverBg: meta.bg || 'bg-slate-100 dark:bg-slate-800',
+                  hoverBorder: meta.border || 'border-indigo-500',
+                  hoverText: 'text-slate-900 dark:text-white font-semibold',
+                  hoverRing: 'ring-2 ring-indigo-500/40',
+                  dot: meta.dot || 'bg-slate-500',
+                };
                 return (
                   <div
                     key={st}
@@ -829,6 +901,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       e.preventDefault();
                       e.stopPropagation();
                       e.dataTransfer.dropEffect = 'move';
+                      if (dropTarget !== null) {
+                        setDropTarget(null);
+                      }
                       if (activeSubDropTargetStatus?.colId !== col.id || activeSubDropTargetStatus?.status !== st) {
                         setActiveSubDropTargetStatus({ colId: col.id, status: st as ItemStatus });
                       }
@@ -845,14 +920,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       handleDrop(e, col, undefined, colItems, st as ItemStatus);
                       setActiveSubDropTargetStatus(null);
                     }}
-                    className={`p-2 rounded-lg border text-center transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`w-full py-3 px-4 rounded-xl border-2 border-dashed transition-all duration-150 flex items-center justify-center gap-2.5 cursor-pointer select-none ${
                       isHovered
-                        ? `${meta.bg} ${meta.border} ring-2 ring-indigo-500 text-indigo-900 dark:text-white font-bold scale-[1.02] shadow-sm`
-                        : 'bg-white/90 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:border-indigo-400/60'
+                        ? `${theme.hoverBg} ${theme.hoverBorder} ${theme.hoverRing} ${theme.hoverText} scale-[1.01] shadow-sm`
+                        : 'bg-white/90 dark:bg-white/[0.04] border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-400/60 hover:bg-white dark:hover:bg-white/[0.06]'
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
-                    <span className="text-[11px] font-medium truncate">{meta.label}</span>
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform duration-150 pointer-events-none ${isHovered ? `${theme.dot} scale-125` : meta.dot}`} />
+                    <span className="text-xs font-medium text-inherit pointer-events-none">{meta.label}</span>
                   </div>
                 );
               })}

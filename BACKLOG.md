@@ -85,7 +85,144 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (8)
+### 🚀 Ready for Deploy (16)
+
+#### [DEV-228] Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Extender el sistema de importación para admitir la ingesta de backlogs exportados desde Jira y Linear (archivos CSV y JSON), transformándolos en tareas locales de gripm:
+1. **Adopción con cero fricción:** Eliminar la barrera de entrada para equipos existentes que ya tienen tareas en Jira o Linear, permitiendo importar proyectos enteros con un clic o comando sin tipear nada a mano.
+2. **Soberanía y privacidad de datos:** El procesamiento de los archivos de exportación se ejecuta 100% en local (en el cliente web y/o CLI). Cero llamadas a APIs de terceros, cero tokens y cero filtración de roadmap a la nube.
+3. **Mapeo canónico inteligente:** Normalizar estados, títulos, descripciones y prioridades de Jira/Linear al formato estándar de gripm (`backlog/tasks/*.md` o `.gripm/backlog.json`), extrayendo criterios de aceptación y etiquetas automáticamente.
+
+**Criterios de Aceptación:**
+- [x] #1 Soporte para parsear exports de Jira en formato JSON y CSV mapeando estados, prioridades y descripciones
+- [x] #2 Soporte para parsear exports de Linear en formato CSV y JSON preservando titulos, notas y estimaciones
+- [x] #3 ImportWizardModal permite soltar o seleccionar archivos de export con previsualizacion y conteo de tareas antes de confirmar
+- [x] #4 Comando CLI gripm import --file <path> para importar directamente desde la terminal
+- [x] #5 Cero dependencias de red o llamadas remotas; conversion puramente local
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-229] Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab)
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics` / `analytics`) en la barra de navegación, integrable con el catálogo de add-ons (DEV-220):
+1. **Métricas de flujo continuo (Lean):** Brindar visibilidad del ritmo y cadencia de entrega (throughput semanal de tareas cerradas, cycle time promedio) sin caer en estimaciones burocráticas de horas quemadas.
+2. **Salud y completitud de Criterios de Aceptación:** Panel visual con gráficos locales que muestra el ratio de criterios de aceptación verificados (`- [x]`) versus pendientes por release o sprint.
+3. **Desacoplado y configurable:** Módulo opcional gobernable vía `enabledTabs.metrics` en `.gripm/config.json`. Quien prefiera la experiencia minimalista puede mantenerlo desactivado.
+4. **Cálculo reactivo local-first:** Las métricas se calculan en tiempo real leyendo los propios archivos del proyecto en memoria, sin telemetría externa ni servicios analíticos de terceros.
+
+**Criterios de Aceptación:**
+- [x] #1 Pestaña opcional de métricas en la barra de navegación gobernable vía enabledTabs.metrics en .gripm/config.json
+- [x] #2 Gráficos de throughput y distribución por tipo y estado usando visualización ligera nativa en SVG/Tailwind sin dependencias externas pesadas
+- [x] #3 Panel de salud de criterios de aceptación que resume avance de verificación por release y sprint
+- [x] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
+- [x] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
+- [x] #6 npm test y npx tsc --noEmit pasan con codigo 0
+
+---
+
+#### [DEV-271] Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En columnas Kanban que agrupan más de un estado (por ejemplo, la columna de trabajo en curso que agrupa `doing`, `review`, `testing_qa`), `KanbanBoard.tsx` renderiza las subzonas de soltado específicas dentro de un `grid grid-cols-2` con cajas pequeñas (`p-2 text-[11px] truncate`).
+
+Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente precisa para soltar sobre una de estas mitades estrechas. El texto suele cortarse y el área táctil / de puntero no ofrece la suficiente tolerancia ni claridad de a qué estado exacto se está transicionando la tarea.
+
+### Objetivos:
+1. Reemplazar la grilla compacta de dos columnas por una disposición vertical apilada que ocupe **todo el ancho de la columna** (`flex flex-col gap-2 w-full`).
+2. Incrementar la altura y el padding de cada slot de soltado (`py-3 px-4`) para transformarlo en un drop-target generoso y ergonómico.
+3. Incorporar borde discontinuo visible, dot de color del estado y texto completo sin elipsis (`truncate`) que confirme el destino antes de soltar.
+4. Mantener la animación suave de apertura y cierre de zonas durante el arrastre sin generar saltos de scroll.
+
+**Criterios de Aceptación:**
+- [x] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
+- [x] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
+- [x] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
+- [x] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
+- [x] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
+- [x] #6 `npm test` y validación de interacciones en verde
+
+---
+
+#### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+En `SettingsView.tsx` (sección *Kanban Board > Column Structure & Status Mapping*), las columnas del tablero se configuran dentro de una lista vertical apilada (`space-y-4`).
+
+Esta disposición contradice el modelo mental del usuario: un tablero Kanban se visualiza de izquierda a derecha en columnas horizontales. Actualmente, los botones de reordenamiento tienen flechas hacia arriba y hacia abajo (`ArrowUp` y `ArrowDown`), mientras que sus textos de ayuda indican textualmente `moveColLeft` ("Mover a la izquierda") y `moveColRight` ("Mover a la derecha"). Además, la lista vertical consume una cantidad excesiva de scroll.
+
+### Objetivos:
+1. Reestructurar la sección de mapeo de columnas para que se presente como un **mini-tablero horizontal** (`flex flex-row overflow-x-auto gap-4 pb-4`).
+2. Cada columna en el editor se representa como una tarjeta esbelta con su título editable, límite WIP, dot de color y los chips de los estados asignados.
+3. Los controles de reordenamiento utilizan flechas izquierda y derecha coherentes con la dirección espacial del tablero (`ArrowLeft` / `ArrowRight`).
+4. Se preserva y optimiza la interacción de drag & drop para mover chips de estado entre columnas (DEV-053).
+
+**Criterios de Aceptación:**
+- [x] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
+- [x] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
+- [x] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
+- [x] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
+- [x] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
+- [x] #6 `npm test` y validación de guardado de configuración en verde
+
+---
+
+#### [DEV-275] Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, el campo de módulo en las tareas (`module?: string`) es un string libre con un datalist no gobernado que se alimenta de valores preexistentes en las tarjetas. Esto provoca inconsistencias ortográficas y fragmentación (ej. `"UI"`, `"ui"`, `"Frontend"`, `"Front-end"`). Además, una tarea solo puede apuntar a un único módulo, impidiendo clasificar ítems que atraviesan componentes transversales (ej. un feature que afecta `Frontend` y `API`).
+
+### Objetivos:
+1. **Catálogo de Componentes/Módulos en Settings:** Permitir definir, agregar, renombrar y eliminar una lista oficial de módulos o componentes del proyecto en `.gripm/config.json` (`components: string[]` o `modulesList: string[]`).
+2. **Asignación Múltiple en Tareas:** Extender el modelo de `BacklogItem` para soportar múltiples módulos (`modules?: string[]`), preservando compatibilidad retroactiva con `module: string`.
+3. **Selector ergonómico en ItemModal:** Reemplazar el input simple por un selector multi-chip donde el usuario puede elegir uno o más componentes predefinidos y opcionalmente crear uno nuevo sobre la marcha si cuenta con permisos.
+4. **Filtro unificado:** Actualizar los filtros de la barra superior y del popover para filtrar por cualquiera de los módulos asociados.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
+- [x] #2 Los componentes administrados se persisten en la configuración del proyecto
+- [x] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
+- [x] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
+- [x] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
+- [x] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
+- [x] #7 `npm test` y sincronización de backlog con código 0
+
+---
+
+#### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+En la vista de Backlog y Sprints (`SprintView.tsx`), gestionar múltiples tareas simultáneamente no es posible desde la interfaz web. Los usuarios deben modificar o arrastrar tareas una por una, lo que ralentiza enormemente las ceremonias de Sprint Planning, priorización y ordenamiento de backlog.
+
+Esta tarea implementa **selección múltiple de ítems** y una **barra flotante de acciones masivas (*Bulk Action Bar*)**, incorporando además la capacidad de **mover múltiples ítems seleccionados al tope o al fondo del backlog/sprint en un solo movimiento en lote**.
+
+### Objetivos:
+1. **Mecanismo de Selección Múltiple:**
+   - Checkboxes de selección por fila en la tabla de `SprintView`.
+   - Checkbox "Seleccionar todos" en el encabezado de cada sección (Sprint o Backlog).
+   - Soporte para selección de rango contiguo mediante `Shift + Click`.
+2. **Barra Flotante de Acciones Masivas (Bulk Action Bar):**
+   - Aparece en la parte inferior de la pantalla al seleccionar $\ge 1$ ítem, indicando el contador de tareas seleccionadas y botón de deseleccionar.
+   - **Reposicionamiento en lote:** Botones para *"Mover selección al tope"* (Bulk Top) y *"Mover selección al fondo"* (Bulk Bottom) conservando el orden relativo entre los ítems seleccionados.
+   - **Asignación de Sprint en lote:** Mover todos los ítems seleccionados a un sprint vigente o devolverlos al backlog.
+   - **Asignación de Release en lote:** Vincular la selección a una versión planificada.
+   - **Cambio de Estado y Prioridad en lote:** Modificar estado (ej. pasar todos a `ready` o `draft`) o prioridad (ej. `p1`).
+   - **Mover a Papelera en lote:** Descarte masivo protegido con diálogo de confirmación `ConfirmModal`.
+3. Conectar la ejecución con el motor de mutaciones masivas existente o las rutas de API correspondientes.
+
+**Criterios de Aceptación:**
+- [x] #1 SprintView incluye checkboxes de selección por fila y en la cabecera de cada bloque de sprint/backlog
+- [x] #2 Permite selección rápida de rangos de tareas contiguas manteniendo pulsada la tecla Shift
+- [x] #3 Al seleccionar uno o más ítems se despliega una barra flotante inferior con el contador y las acciones masivas disponibles
+- [x] #4 Acción masiva para mover todos los ítems seleccionados al tope o al fondo del contenedor preservando su orden relativo
+- [x] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
+- [x] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
+- [x] #7 `npm test` y consistencia de datos en disco sin race conditions
+
+---
 
 #### [DEV-281] Épica: Vista interactiva de Timeline y Roadmap con agrupación jerárquica y fechas
 - **Prioridad**: `medium` | **Tipo**: `feature`
@@ -120,6 +257,50 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 - [x] #7 Redimensionamiento temporal directo mediante handles en los extremos de las barras (inicio y fin)
 - [x] #8 Acabado visual de calibre mundial estilo Linear/Jira (cero aspecto de juguete), con indicador de Hoy, tooltips flotantes en vivo y barras de alto contraste
 - [x] #9 Preservación de la Pirámide de Verificación (18/18 tests en verde, 0 errores TypeScript, 0 findings UX-011)
+
+---
+
+#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
+- **Prioridad**: `low` | **Tipo**: `ux`
+
+En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
+
+Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
+
+Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
+1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
+2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
+   - Español: "Estados activos" (o "Todos los estados activos").
+   - Inglés: "Active statuses" (o "All active statuses").
+3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
+
+**Criterios de Aceptación:**
+- [x] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
+- [x] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
+- [x] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
+
+---
+
+#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
+- **Prioridad**: `low` | **Tipo**: `bug`
+
+En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
+`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
+
+En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
+
+### Solución propuesta:
+1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
+2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
+   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
+3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
+
+**Criterios de Aceptación:**
+- [x] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
+- [x] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
+- [x] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
+- [x] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
 
 ---
 
@@ -398,7 +579,7 @@ node bin/gripm.js --repo . mcp
 
 ---
 
-### 📋 Backlog / Draft (28)
+### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -648,43 +829,6 @@ Permitir que múltiples sesiones de agentes (o un agente y el desarrollador) tra
 
 ---
 
-#### [DEV-228] Importador Universal de Backlogs Externos para Migración Local-First (Jira, Linear y CSV)
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Extender el sistema de importación para admitir la ingesta de backlogs exportados desde Jira y Linear (archivos CSV y JSON), transformándolos en tareas locales de gripm:
-1. **Adopción con cero fricción:** Eliminar la barrera de entrada para equipos existentes que ya tienen tareas en Jira o Linear, permitiendo importar proyectos enteros con un clic o comando sin tipear nada a mano.
-2. **Soberanía y privacidad de datos:** El procesamiento de los archivos de exportación se ejecuta 100% en local (en el cliente web y/o CLI). Cero llamadas a APIs de terceros, cero tokens y cero filtración de roadmap a la nube.
-3. **Mapeo canónico inteligente:** Normalizar estados, títulos, descripciones y prioridades de Jira/Linear al formato estándar de gripm (`backlog/tasks/*.md` o `.gripm/backlog.json`), extrayendo criterios de aceptación y etiquetas automáticamente.
-
-**Criterios de Aceptación:**
-- [ ] #1 Soporte para parsear exports de Jira en formato JSON y CSV mapeando estados, prioridades y descripciones
-- [ ] #2 Soporte para parsear exports de Linear en formato CSV y JSON preservando titulos, notas y estimaciones
-- [ ] #3 ImportWizardModal permite soltar o seleccionar archivos de export con previsualizacion y conteo de tareas antes de confirmar
-- [ ] #4 Comando CLI gripm import --file <path> para importar directamente desde la terminal
-- [ ] #5 Cero dependencias de red o llamadas remotas; conversion puramente local
-- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
-
----
-
-#### [DEV-229] Módulo Visual de Métricas de Flujo y Salud de Entregas (Analytics Tab)
-- **Prioridad**: `low` | **Tipo**: `feature`
-
-Diseñar e implementar un módulo opcional de métricas de ingeniería (`metrics` / `analytics`) en la barra de navegación, integrable con el catálogo de add-ons (DEV-220):
-1. **Métricas de flujo continuo (Lean):** Brindar visibilidad del ritmo y cadencia de entrega (throughput semanal de tareas cerradas, cycle time promedio) sin caer en estimaciones burocráticas de horas quemadas.
-2. **Salud y completitud de Criterios de Aceptación:** Panel visual con gráficos locales (vía Recharts) que muestra el ratio de criterios de aceptación verificados (`- [x]`) versus pendientes por release o sprint.
-3. **Desacoplado y configurable:** Módulo opcional gobernable vía `enabledTabs.metrics` en `.gripm/config.json`. Quien prefiera la experiencia minimalista puede mantenerlo desactivado.
-4. **Cálculo reactivo local-first:** Las métricas se calculan en tiempo real leyendo los propios archivos del proyecto en memoria, sin telemetría externa ni servicios analíticos de terceros.
-
-**Criterios de Aceptación:**
-- [ ] #1 Pestaña opcional de metricas en la barra de navegacion gobernable via enabledTabs.metrics en .gripm/config.json
-- [ ] #2 Graficos de throughput y distribucion por tipo y estado usando Recharts en ejecucion local
-- [ ] #3 Panel de salud de criterios de aceptacion que resume avance de verificacion por release y sprint
-- [ ] #4 Computo reactivo en memoria sin consultas a red ni telemetria externa
-- [ ] #5 Textos completamente localizados en espanol e ingles en src/utils/i18n.ts
-- [ ] #6 npm test y npx tsc --noEmit pasan con codigo 0
-
----
-
 #### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
 - **Prioridad**: `high` | **Tipo**: `feature`
 
@@ -748,35 +892,6 @@ menores que sí quedan abiertas. No es urgente.
 
 ---
 
-#### [DEV-264] Estándar de densidad de escritorio a 1366×768: medición, presupuesto y cero scroll horizontal
-- **Prioridad**: `high` | **Tipo**: `ux`
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
-Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
-README dicen que la demo está *"Optimized for desktop"* / *"Optimizada para escritorio"*.
-
-Esa afirmación tiene una parte verdadera y una que no. Es verdad que el tablero **prioriza**
-el escritorio y que mobile no está hecho (DEV-207). Lo que no está respaldado es la
-calidad: **escritorio tampoco está impecable a anchos comunes**, y el README es la única
-fuente de esa promesa. Si alguien la toma literalmente y encuentra el tablero apretado a
-1366, el README queda desmentido por el producto.
-
-El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**, que se
-comunicó como experiencia desktop.
-
-**Criterios de Aceptación:**
-- [ ] #1 Medición documentada a 1366×768 y 1440×900 de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
-- [ ] #2 Presupuesto de densidad declarado y verificable: ancho mínimo por columna del tablero, cuántas son visibles sin scroll en la vista por defecto, ancho máximo de modales y el umbral declarado a partir del cual el scroll horizontal pasa a ser intencional
-- [ ] #3 Inventario de los 45 hallazgos `UX-007` clasificados en "aprieta a escritorio" / "solo móvil", con el criterio escrito y la lista de aceptados dentro de este ítem
-- [ ] #4 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
-- [ ] #5 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
-- [ ] #6 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
-- [ ] #7 La medición, el presupuesto de densidad y la clasificación de `UX-007` quedan escritos en un artefacto versionado bajo `docs/ux/`, y ese artefacto es el estándar contra el que se certifica DEV-265 y se diseña DEV-207
-- [ ] #8 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
-- [ ] #9 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
-
----
-
 #### [DEV-265] Selector de formato dual: inspeccionar una tarea como Markdown y como JSON desde la UI
 - **Prioridad**: `medium` | **Tipo**: `improvement`
 
@@ -795,141 +910,6 @@ naturaleza distinta.
 - [ ] #6 Texto y atajos en ambos idiomas (`es.json` y `en.json`), sin literales sueltos
 - [ ] #7 Cero hallazgos nuevos de `UX-010` o `UX-011`: los botones icon-only llevan nombre accesible y los tamaños usan la escala canónica
 - [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-269] Calidad visual de escritorio: jerarquía, estados, motion y cero CLS a 1366×768
-- **Prioridad**: `high` | **Tipo**: `ux`
-
-<!-- SECTION:DESCRIPTION:BEGIN -->
-Este ítem es **la segunda mitad de DEV-264**, que se dividió porque ampliación de alcance y
-ejecutabilidad son cosas distintas: un ítem de 16 criterios no se puede certificar, y un
-ítem que no se puede certificar no es un estándar, es una lista de deseos.
-
-La división es por **naturaleza del trabajo**, no por tamaño:
-
-- **DEV-264** (núcleo duro, quick win de escritorio) mide el defecto real, declara el
-  presupuesto de densidad, clasifica los 45 `UX-007`, elimina el scroll horizontal de la
-  vista por defecto y desbloquea a DEV-265.
-- **DEV-269** (este) aplica, sobre el presupuesto ya declarado, los criterios de diseño que
-  la skill `worldclass-product-designer` ya define y que hoy **no tienen ninguna auditoría
-  que los vuelva obligatorios**.
-
-**Criterios de Aceptación:**
-- [ ] #1 Escala tipográfica cerrada en las superficies de escritorio: cero `text-[Npx]` arbitrario en `ItemCard`, `ItemModal`, `Header`, barra de filtros y vistas; todo valor nuevo es token o valor de la escala
-- [ ] #2 Cifras tabulares en toda columna numérica y en todo valor que cambia en vivo, sin salto de dígitos al actualizar el tablero
-- [ ] #3 Tokens semánticos en lugar de hex hardcodeado en las superficies tocadas, con el tema cambiando sin editar componentes
-- [ ] #4 Contraste suficiente en **ambos temas** sobre las superficies principales: sin grises muertos ni texto que solo se lea en dark
-- [ ] #5 Tracking fino en mayúsculas pequeñas para etiquetas y ninguna mayúscula en párrafo en las superficies tocadas
-- [ ] #6 Los siete estados (default, hover, active/focus, disabled, loading, empty, error) definidos y resueltos en `ItemCard`, `ItemModal`, `Header`, barra de filtros, `Toast` y vistas
-- [ ] #7 El estado vacío es sereno y ofrece el siguiente paso; **cero** estados vacíos que usen alerta, color de error o el texto "no hay nada"
-- [ ] #8 Focus ring siempre visible para navegación por teclado en toda acción interactiva de escritorio, con `disabled` recordando el motivo
-- [ ] #9 Respuesta en el mismo frame a toda acción interactiva (`active:scale-[0.98]` o cambio de fondo equivalente)
-- [ ] #10 Transiciones de 150–250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
-- [ ] #11 Cero CLS a 1366×768 en las cinco transiciones: carga inicial, cambio de idioma, cambio de filtro, cambio de vista y movimiento de tarjeta entre columnas
-- [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
-- [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`
-- [ ] #14 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-271] Zonas de soltado multi-estado ampliadas y apiladas a ancho completo en KanbanBoard
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En columnas Kanban que agrupan más de un estado (por ejemplo, la columna de trabajo en curso que agrupa `doing`, `review`, `testing_qa`), `KanbanBoard.tsx` renderiza las subzonas de soltado específicas dentro de un `grid grid-cols-2` con cajas pequeñas (`p-2 text-[11px] truncate`).
-
-Al arrastrar una tarjeta, el usuario debe realizar una puntería excesivamente precisa para soltar sobre una de estas mitades estrechas. El texto suele cortarse y el área táctil / de puntero no ofrece la suficiente tolerancia ni claridad de a qué estado exacto se está transicionando la tarea.
-
-### Objetivos:
-1. Reemplazar la grilla compacta de dos columnas por una disposición vertical apilada que ocupe **todo el ancho de la columna** (`flex flex-col gap-2 w-full`).
-2. Incrementar la altura y el padding de cada slot de soltado (`py-3 px-4`) para transformarlo en un drop-target generoso y ergonómico.
-3. Incorporar borde discontinuo visible, dot de color del estado y texto completo sin elipsis (`truncate`) que confirme el destino antes de soltar.
-4. Mantener la animación suave de apertura y cierre de zonas durante el arrastre sin generar saltos de scroll.
-
-**Criterios de Aceptación:**
-- [ ] #1 Al arrastrar una tarjeta sobre una columna con múltiples estados mapeados, las subzonas de soltado se presentan apiladas ocupando todo el ancho de la columna
-- [ ] #2 Cada subzona dispone de altura y padding ergonómico que facilita el soltado con mouse o touch
-- [ ] #3 La etiqueta y el indicador de estado se leen de forma completa sin cortes abruptos por elipsis
-- [ ] #4 El estado de hover / sobre-vuelo resalta intensamente la subzona destino con feedback de color y borde
-- [ ] #5 Soltar la tarjeta en una subzona asigna el estado exacto correspondiente
-- [ ] #6 `npm test` y validación de interacciones en verde
-
----
-
-#### [DEV-273] Editor de estructura de columnas Kanban horizontal e intuitivo en Settings
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-En `SettingsView.tsx` (sección *Kanban Board > Column Structure & Status Mapping*), las columnas del tablero se configuran dentro de una lista vertical apilada (`space-y-4`).
-
-Esta disposición contradice el modelo mental del usuario: un tablero Kanban se visualiza de izquierda a derecha en columnas horizontales. Actualmente, los botones de reordenamiento tienen flechas hacia arriba y hacia abajo (`ArrowUp` y `ArrowDown`), mientras que sus textos de ayuda indican textualmente `moveColLeft` ("Mover a la izquierda") y `moveColRight` ("Mover a la derecha"). Además, la lista vertical consume una cantidad excesiva de scroll.
-
-### Objetivos:
-1. Reestructurar la sección de mapeo de columnas para que se presente como un **mini-tablero horizontal** (`flex flex-row overflow-x-auto gap-4 pb-4`).
-2. Cada columna en el editor se representa como una tarjeta esbelta con su título editable, límite WIP, dot de color y los chips de los estados asignados.
-3. Los controles de reordenamiento utilizan flechas izquierda y derecha coherentes con la dirección espacial del tablero (`ArrowLeft` / `ArrowRight`).
-4. Se preserva y optimiza la interacción de drag & drop para mover chips de estado entre columnas (DEV-053).
-
-**Criterios de Aceptación:**
-- [ ] #1 El editor de columnas en Settings presenta las columnas dispuestas una al lado de la otra en flujo horizontal
-- [ ] #2 Contenedor con scroll horizontal limpio sin desbordar el modal ni la página de configuración
-- [ ] #3 Los botones de reordenar columnas utilizan iconos horizontales de izquierda y derecha alineados con sus tooltips
-- [ ] #4 Se mantiene la edición de títulos, límites WIP y la transferencia de chips de estado entre columnas
-- [ ] #5 La interfaz escala correctamente tanto en modo de columnas Ampliada como Simplificada
-- [ ] #6 `npm test` y validación de guardado de configuración en verde
-
----
-
-#### [DEV-275] Gestión centralizada de módulos y componentes en Settings con asignación múltiple en tareas
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Actualmente, el campo de módulo en las tareas (`module?: string`) es un string libre con un datalist no gobernado que se alimenta de valores preexistentes en las tarjetas. Esto provoca inconsistencias ortográficas y fragmentación (ej. `"UI"`, `"ui"`, `"Frontend"`, `"Front-end"`). Además, una tarea solo puede apuntar a un único módulo, impidiendo clasificar ítems que atraviesan componentes transversales (ej. un feature que afecta `Frontend` y `API`).
-
-### Objetivos:
-1. **Catálogo de Componentes/Módulos en Settings:** Permitir definir, agregar, renombrar y eliminar una lista oficial de módulos o componentes del proyecto en `.gripm/config.json` (`components: string[]` o `modulesList: string[]`).
-2. **Asignación Múltiple en Tareas:** Extender el modelo de `BacklogItem` para soportar múltiples módulos (`modules?: string[]`), preservando compatibilidad retroactiva con `module: string`.
-3. **Selector ergonómico en ItemModal:** Reemplazar el input simple por un selector multi-chip donde el usuario puede elegir uno o más componentes predefinidos y opcionalmente crear uno nuevo sobre la marcha si cuenta con permisos.
-4. **Filtro unificado:** Actualizar los filtros de la barra superior y del popover para filtrar por cualquiera de los módulos asociados.
-
-**Criterios de Aceptación:**
-- [ ] #1 Existe una sección en Settings para administrar la lista canónica de módulos / componentes del proyecto
-- [ ] #2 Los componentes administrados se persisten en la configuración del proyecto
-- [ ] #3 ItemModal permite asignar uno o varios módulos a una tarjeta mediante chips interactivos
-- [ ] #4 Se mantiene la compatibilidad con tareas históricas que tienen un único string en el campo `module`
-- [ ] #5 La tarjeta (ItemCard) renderiza los badges de módulos de forma compacta y legible
-- [ ] #6 El filtro por módulo en FilterBar y AdvancedFiltersPopover soporta búsqueda multi-módulo
-- [ ] #7 `npm test` y sincronización de backlog con código 0
-
----
-
-#### [DEV-277] Selección múltiple en Backlog y barra de acciones masivas con reposicionamiento en lote
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-En la vista de Backlog y Sprints (`SprintView.tsx`), gestionar múltiples tareas simultáneamente no es posible desde la interfaz web. Los usuarios deben modificar o arrastrar tareas una por una, lo que ralentiza enormemente las ceremonias de Sprint Planning, priorización y ordenamiento de backlog.
-
-Esta tarea implementa **selección múltiple de ítems** y una **barra flotante de acciones masivas (*Bulk Action Bar*)**, incorporando además la capacidad de **mover múltiples ítems seleccionados al tope o al fondo del backlog/sprint en un solo movimiento en lote**.
-
-### Objetivos:
-1. **Mecanismo de Selección Múltiple:**
-   - Checkboxes de selección por fila en la tabla de `SprintView`.
-   - Checkbox "Seleccionar todos" en el encabezado de cada sección (Sprint o Backlog).
-   - Soporte para selección de rango contiguo mediante `Shift + Click`.
-2. **Barra Flotante de Acciones Masivas (Bulk Action Bar):**
-   - Aparece en la parte inferior de la pantalla al seleccionar $\ge 1$ ítem, indicando el contador de tareas seleccionadas y botón de deseleccionar.
-   - **Reposicionamiento en lote:** Botones para *"Mover selección al tope"* (Bulk Top) y *"Mover selección al fondo"* (Bulk Bottom) conservando el orden relativo entre los ítems seleccionados.
-   - **Asignación de Sprint en lote:** Mover todos los ítems seleccionados a un sprint vigente o devolverlos al backlog.
-   - **Asignación de Release en lote:** Vincular la selección a una versión planificada.
-   - **Cambio de Estado y Prioridad en lote:** Modificar estado (ej. pasar todos a `ready` o `draft`) o prioridad (ej. `p1`).
-   - **Mover a Papelera en lote:** Descarte masivo protegido con diálogo de confirmación `ConfirmModal`.
-3. Conectar la ejecución con el motor de mutaciones masivas existente o las rutas de API correspondientes.
-
-**Criterios de Aceptación:**
-- [ ] #1 SprintView incluye checkboxes de selección por fila y en la cabecera de cada bloque de sprint/backlog
-- [ ] #2 Permite selección rápida de rangos de tareas contiguas manteniendo pulsada la tecla Shift
-- [ ] #3 Al seleccionar uno o más ítems se despliega una barra flotante inferior con el contador y las acciones masivas disponibles
-- [ ] #4 Acción masiva para mover todos los ítems seleccionados al tope o al fondo del contenedor preservando su orden relativo
-- [ ] #5 Acciones masivas para asignar sprint, asignar release, cambiar estado y cambiar prioridad en un solo paso
-- [ ] #6 Acción para mover masivamente a la papelera con diálogo de confirmación claro y seguro
-- [ ] #7 `npm test` y consistencia de datos en disco sin race conditions
 
 ---
 
@@ -1061,50 +1041,6 @@ Mecanismo de carga progresiva y optimizaciones de renderizado de DOM para column
 
 ---
 
-#### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
-- **Prioridad**: `low` | **Tipo**: `ux`
-
-En la barra de filtros y en el menú desplegable `AdvancedFiltersPopover.tsx`, la selección rápida de los estados activos del flujo de trabajo se rotula actualmente como "Todos los estados" / "All statuses" (`filter.allActiveFlow`).
-
-Esta etiqueta presenta una ambigüedad semántica: el usuario puede inferir razonablemente que incluye también estados terminales como `done` (completados), `cancelled` o `dismissed`. 
-
-Al delimitar explícitamente el alcance como estados "activos" (WIP / flujo en curso):
-1. Se elimina la falsa expectativa de ver tareas completadas o canceladas.
-2. Se adopta la convención estándar de la industria (Linear, Jira) donde los filtros de ciclo vivo se designan canónicamente:
-   - Español: "Estados activos" (o "Todos los estados activos").
-   - Inglés: "Active statuses" (o "All active statuses").
-3. Se preserva la economía visual y el espacio horizontal en el chip de cabecera y en el dropdown de filtros avanzados.
-
-**Criterios de Aceptación:**
-- [ ] #1 Actualizar el catálogo de idioma español (`src/locales/es.json`) en `filter.allActiveFlow` a "Estados activos"
-- [ ] #2 Actualizar el catálogo de idioma inglés (`src/locales/en.json`) en `filter.allActiveFlow` a "Active statuses"
-- [ ] #3 Validar que el chip en FilterBar y la opción en AdvancedFiltersPopover rendericen la nueva etiqueta con economía espacial
-- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y ejecución limpia de la suite de pruebas
-
----
-
-#### [DEV-288] Visibilidad de la versión de la aplicación en el pie del modal de atajos en Modo Sandbox
-- **Prioridad**: `low` | **Tipo**: `bug`
-
-En el pie del modal de ayuda de atajos de teclado (`KeyboardShortcutsModal.tsx`), la marca `gripm` muestra la versión activa de la aplicación mediante la expresión:
-`gripm{updateAvailable?.currentVersion ? ' v' + updateAvailable.currentVersion : ''}`
-
-En entornos locales con el backend daemon activo, `updateAvailable` se resuelve a través del sondeo de `/api/updates`. Sin embargo, en el **Modo Sandbox interactivo** (deploy estático en Vercel sin servidor Node.js), `/api/updates` no responde, por lo que `updateAvailable` permanece como `null` y la versión nunca se visualiza (quedando solo el texto "gripm").
-
-### Solución propuesta:
-1. Inyectar o disponer la versión estática de la aplicación en tiempo de compilación mediante `__APP_VERSION__` (vía `vite.config.ts` `define`) o constante importada del paquete.
-2. Utilizar `__APP_VERSION__` como valor canónico o fallback directo cuando `updateAvailable?.currentVersion` no esté definido:
-   `const displayVersion = updateAvailable?.currentVersion || APP_VERSION;`
-3. Garantizar que tanto en Modo Local como en Modo Sandbox (Vercel) el pie del modal renderice siempre `gripm vX.Y.Z` de forma consistente.
-
-**Criterios de Aceptación:**
-- [ ] #1 Proveer una constante de versión estática (`APP_VERSION` o `__APP_VERSION__`) disponible en el bundle frontend
-- [ ] #2 Renderizar la versión en el pie de `KeyboardShortcutsModal.tsx` tanto con daemon local como en Modo Sandbox
-- [ ] #3 Validar en entorno sandbox que el texto muestre `gripm v<version>` y no solo `gripm`
-- [ ] #4 Verificar tipado estricto (`npx tsc --noEmit`) y suite de pruebas en verde
-
----
-
 #### [DEV-296] Modernización de Testing: Erradicación de test theater y eliminación de dependencia de Python
 - **Prioridad**: `p3` | **Tipo**: `tech_debt`
 
@@ -1132,6 +1068,32 @@ Reemplazo gradual del arnés de pruebas casero (`18 subprocesos de Node en scrip
 - [ ] #3 Se elimina la invocación a Python en `scripts/verify-changes.js`, utilizando un parser nativo de JavaScript para validar YAML
 - [ ] #4 Los tests que crean archivos de prueba operan exclusivamente en directorios temporales (`os.tmpdir()`), sin ensuciar `backlog/tasks/`
 - [ ] #5 La suite completa aprueba en CI sin requerir `setup-python` ni `pip install`
+
+---
+
+#### [DEV-297] Módulo Avanzado de Analytics: Diagrama de Flujo Acumulado (CFD), Histogramas de Ciclo y Predicción
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herramientas predictivas e históricas profundas de ingeniería de software y gestión ágil:
+
+1. **Diagrama de Flujo Acumulado (Cumulative Flow Diagram - CFD):**
+   - Visualización del flujo de tareas en cada estado a lo largo de las semanas.
+   - Detección visual de cuellos de botella (ensanchamiento de bandas de `review` o `doing`).
+2. **Histograma de Cycle Time y Percentiles (P50, P85, P95):**
+   - Gráfico de dispersión de tiempo de entrega por tarea.
+   - Cálculo de percentiles para compromisos de entrega basados en evidencia real y no en estimaciones subjetivas.
+3. **Simulación de Entrega (Forecasting Monte Carlo):**
+   - Proyección de fechas estimadas de finalización de backlog o releases basada en la distribución real del throughput histórico.
+4. **Filtros Temporales Dinámicos y Exportación:**
+   - Selector de rango de fechas personalizado y exportación de reportes ejecutivos en formato Markdown y PDF.
+
+**Criterios de Aceptación:**
+- [ ] #1 Diagrama de Flujo Acumulado (CFD) interactivo con bandas de colores correspondientes a cada estado
+- [ ] #2 Cálculo de percentiles de Cycle Time (P50, P85, P95) con gráfico de dispersión temporal
+- [ ] #3 Módulo de simulación o proyección Monte Carlo para pronóstico de entregas por release
+- [ ] #4 Filtro por rango de fechas flexible (último mes, trimestre, año o personalizado)
+- [ ] #5 Exportación de reportes ejecutivos resumidos en Markdown
+- [ ] #6 npm test y npx tsc --noEmit pasan con código 0
 
 ---
 
@@ -6999,7 +6961,7 @@ En el modal de edición de tareas (`ItemModal.tsx`), la selección del ítem con
 
 ---
 
-### 📦 Archivadas / Descartadas (2)
+### 📦 Archivadas / Descartadas (4)
 
 #### [DEV-119] Reescritura Quirúrgica del Historial Git para Eliminación de Datos Comprometedores
 - **Prioridad**: `urgent` | **Tipo**: `bug`
@@ -7033,5 +6995,69 @@ Se deben normalizar los nombres de los 101 archivos preservando su frontmatter, 
 - [ ] #1 Todos los archivos en `backlog/tasks/` siguen el patrón estricto `DEV-XXX - ...md` (0 archivos con prefijo en minúscula `dev-`)
 - [ ] #2 `npm run backlog:sync` y `npm run backlog:check` finalizan con código 0
 - [ ] #3 `npx tsc --noEmit` y `npm test` verifican que no haya rutas relativas rotas en tests o scripts
+
+---
+
+#### [DEV-264] Estándar de densidad de escritorio a 1366×768: medición, presupuesto y cero scroll horizontal
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Este ítem existe para **respaldar una promesa que el producto ya hace pública**. Los dos
+README dicen que la demo está *"Optimized for desktop"* / *"Optimizada para escritorio"*.
+
+Esa afirmación tiene una parte verdadera y una que no. Es verdad que el tablero **prioriza**
+el escritorio y que mobile no está hecho (DEV-207). Lo que no está respaldado es la
+calidad: **escritorio tampoco está impecable a anchos comunes**, y el README es la única
+fuente de esa promesa. Si alguien la toma literalmente y encuentra el tablero apretado a
+1366, el README queda desmentido por el producto.
+
+El caso de uso real de este ítem es la **demo pública de `gripm.vercel.app`**, que se
+comunicó como experiencia desktop.
+
+**Criterios de Aceptación:**
+- [ ] #1 Medición documentada a 1366×768 y 1440×900 de: scroll horizontal del tablero, columnas cortadas, filtros, contadores y modales anchos
+- [ ] #2 Presupuesto de densidad declarado y verificable: ancho mínimo por columna del tablero, cuántas son visibles sin scroll en la vista por defecto, ancho máximo de modales y el umbral declarado a partir del cual el scroll horizontal pasa a ser intencional
+- [ ] #3 Inventario de los 45 hallazgos `UX-007` clasificados en "aprieta a escritorio" / "solo móvil", con el criterio escrito y la lista de aceptados dentro de este ítem
+- [ ] #4 El tablero no requiere scroll horizontal en su vista por defecto a 1366×768, incluida la columna `Completado`
+- [ ] #5 Los modales anchos (`ItemModal`, `SettingsView`, `ReleaseAssembler`, `CompleteSprintModal`, `PlanGuardModal`) no muestran texto truncado ni solapado a 1366×768
+- [ ] #6 Verificado en ambos idiomas y en ambos temas, sin overflow horizontal accidental
+- [ ] #7 La medición, el presupuesto de densidad y la clasificación de `UX-007` quedan escritos en un artefacto versionado bajo `docs/ux/`, y ese artefacto es el estándar contra el que se certifica DEV-265 y se diseña DEV-207
+- [ ] #8 El README sigue reflejando el estado real: si la experiencia desktop queda buena, el texto se ajusta en el mismo commit con evidencia; si no, se conserva el texto actual y este ítem explica por qué
+- [ ] #9 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
+
+---
+
+#### [DEV-269] Calidad visual de escritorio: jerarquía, estados, motion y cero CLS a 1366×768
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Este ítem es **la segunda mitad de DEV-264**, que se dividió porque ampliación de alcance y
+ejecutabilidad son cosas distintas: un ítem de 16 criterios no se puede certificar, y un
+ítem que no se puede certificar no es un estándar, es una lista de deseos.
+
+La división es por **naturaleza del trabajo**, no por tamaño:
+
+- **DEV-264** (núcleo duro, quick win de escritorio) mide el defecto real, declara el
+  presupuesto de densidad, clasifica los 45 `UX-007`, elimina el scroll horizontal de la
+  vista por defecto y desbloquea a DEV-265.
+- **DEV-269** (este) aplica, sobre el presupuesto ya declarado, los criterios de diseño que
+  la skill `worldclass-product-designer` ya define y que hoy **no tienen ninguna auditoría
+  que los vuelva obligatorios**.
+
+**Criterios de Aceptación:**
+- [ ] #1 Escala tipográfica cerrada en las superficies de escritorio: cero `text-[Npx]` arbitrario en `ItemCard`, `ItemModal`, `Header`, barra de filtros y vistas; todo valor nuevo es token o valor de la escala
+- [ ] #2 Cifras tabulares en toda columna numérica y en todo valor que cambia en vivo, sin salto de dígitos al actualizar el tablero
+- [ ] #3 Tokens semánticos en lugar de hex hardcodeado en las superficies tocadas, con el tema cambiando sin editar componentes
+- [ ] #4 Contraste suficiente en **ambos temas** sobre las superficies principales: sin grises muertos ni texto que solo se lea en dark
+- [ ] #5 Tracking fino en mayúsculas pequeñas para etiquetas y ninguna mayúscula en párrafo en las superficies tocadas
+- [ ] #6 Los siete estados (default, hover, active/focus, disabled, loading, empty, error) definidos y resueltos en `ItemCard`, `ItemModal`, `Header`, barra de filtros, `Toast` y vistas
+- [ ] #7 El estado vacío es sereno y ofrece el siguiente paso; **cero** estados vacíos que usen alerta, color de error o el texto "no hay nada"
+- [ ] #8 Focus ring siempre visible para navegación por teclado en toda acción interactiva de escritorio, con `disabled` recordando el motivo
+- [ ] #9 Respuesta en el mismo frame a toda acción interactiva (`active:scale-[0.98]` o cambio de fondo equivalente)
+- [ ] #10 Transiciones de 150–250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
+- [ ] #11 Cero CLS a 1366×768 en las cinco transiciones: carga inicial, cambio de idioma, cambio de filtro, cambio de vista y movimiento de tarjeta entre columnas
+- [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
+- [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`
+- [ ] #14 `npm run audit:ux` en verde **sin regenerar el baseline a ciegas**, `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
 
 ---

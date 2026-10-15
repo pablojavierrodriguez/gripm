@@ -373,7 +373,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
     let prompt = `# Tarea: [${item.code}] ${item.title}\n\n`;
     prompt += `**Proyecto:** ${item.projectId}\n`;
     prompt += `**Tipo:** ${item.type} | **Prioridad:** ${item.priority.toUpperCase()}\n`;
-    if (item.module) prompt += `**Módulo / Área:** ${item.module}\n`;
+    const itemModules = (item.modules && item.modules.length > 0) ? item.modules : (item.module ? [item.module] : []);
+    if (itemModules.length > 0) prompt += `**Módulo / Área:** ${itemModules.join(', ')}\n`;
     if (item.impactedFile) prompt += `**Archivo Impactado:** ${item.impactedFile}\n`;
     if (item.targetSprint) prompt += `**Sprint:** ${item.targetSprint}\n`;
     prompt += `\n## Descripción del Problema / Requerimiento\n${item.description || item.title}\n\n`;
@@ -763,11 +764,19 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           );
         })()}
 
-        {visibleCardMetadata?.module !== false && item.module && (
-          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.05] text-slate-700 dark:text-slate-300 truncate max-w-[130px]">
-            {item.module}
-          </span>
-        )}
+        {visibleCardMetadata?.module !== false && (() => {
+          const itemModules = (item.modules && item.modules.length > 0) ? item.modules : (item.module ? [item.module] : []);
+          if (itemModules.length === 0) return null;
+          return itemModules.map((mod) => (
+            <span
+              key={mod}
+              title={`Módulo: ${mod}`}
+              className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.05] text-slate-700 dark:text-slate-300 truncate max-w-[130px]"
+            >
+              {mod}
+            </span>
+          ));
+        })()}
 
         {isSprintActive && visibleCardMetadata?.sprint !== false && (item.sprint || item.targetSprint) && (
           <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300/90 border border-indigo-200 dark:border-indigo-500/20 truncate max-w-[120px]">
