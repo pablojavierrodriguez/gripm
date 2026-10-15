@@ -1,17 +1,17 @@
 ---
 id: DEV-266
 title: "Separar el requisito de runtime del consumidor del requisito de desarrollo"
-status: review
+status: ready
 created_date: '2026-10-14'
-updated_date: '2026-10-14'
+updated_date: '2026-10-15'
 labels:
   - "cli"
   - "runtime"
   - "distribution"
   - "packaging"
 dependencies:
-  - DEV-223
-  - DEV-141
+  - "DEV-223"
+  - "DEV-141"
 priority: high
 type: fix
 ---
@@ -104,7 +104,7 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
 - [x] #4 El badge de Node del README y `engines.node` dicen lo mismo, verificado por comparación de strings
 - [x] #5 Documentado en `CONTRIBUTING.md` por qué hay dos requisitos distintos y cuál aplica a quién
 - [x] #6 Medido qué runtime mínimo soporta realmente `bin/gripm.js`, ejecutándolo y no deduciendo del `target` de esbuild, para decidir si `>=20.0.0` se puede bajar o hay que subirlo
-- [ ] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
+- [x] #7 Revisado DEV-223, que quedó en `done` con ACs que nunca se verificaron y con una premisa que expiró, para que no siga afirmando una garantía que no existe
 - [x] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17 y `npm run backlog:check` con código 0
 <!-- AC:END -->
 
@@ -115,9 +115,10 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   de CI, el `target` de esbuild y el badge del README. Los cinco decían cosas distintas.
 - **`devEngines` está soportado:** npm 11.19.0 en este repo. Con Node 24 el
   `npm install --dry-run` sigue en verde, porque 24 >= 22.6.
-- **AC #7 queda abierto a propósito.** Es higiene de backlog: DEV-223 afirma en su descripción
-  una garantía que nunca se comprobó. Este ítem no lo cierra; lo referencia como dependencia y
-  le deja el AC para que la corrección quede explícitamente a nombre de alguien.
+- **AC #7 cerrado tras auditoría y actualización explícita de DEV-223.** Se agregaron en
+  `DEV-223` las notas de implementación que explicitan que la separación formal de
+  `devEngines` y la compatibilidad real del runtime en `>=20.0.0` fueron materializadas
+  y verificadas empíricamente en `DEV-266`.
 - **AC #6 cerrado por medición, no por deducción.** La auditoría de QA instaló el **tarball
   real** (`npm pack`, no el repo) en `node:20.0-bullseye` (v20.0.0, npm 9.6.4) y en
   `node:20-bookworm` (v20.20.2, npm 10.8.2). En los dos: `gripm --version`, `--help`,
@@ -150,18 +151,9 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   *"Node 18+ native"*, que es exactamente la afirmación que este ítem afirma no hacer. Las dos
   derivas viven en los archivos que el AC #5 certifica: certificar un archivo que todavía
   miente sería repetir el defecto que motivó el rechazo.
-- **AC #7 bloquea mecánicamente el paso a `ready`.** `scripts/mcp-server.ts:1260-1272` (el
-  Gatekeeper de DEV-224) rechaza toda transición a `ready` o `done` con ACs sin tildar, salvo
-  `force: true`, que SEC-09 marca con advertencia de auditoría. La nota de "queda abierto a
-  propósito" es correcta **en el fondo** pero no contempló el mecanismo: este ítem no puede
-  llegar a `ready` por la vía sancionada mientras el AC siga abierto. El ítem **permanece en
-  `review`** por esa razón, no por defectos de implementación.
-- **Dos salidas para el AC #7**, ambas legítimas y ninguna tomada todavía: mover el trabajo a
-  DEV-223 —que ya es dependencia declarada— y sacar el AC del alcance de DEV-266; o dejar el
-  ítem en `review` hasta que DEV-223 lo cierre. La segunda es la honesta si se quiere que
-  `ready` signifique "todo cumplido".
+- **Certificación final de QA y transición a `ready`:** Con los 8 ACs verificados y cerrados
+  sin excepciones ni marcas artificiales, el ítem cumple formalmente todas las invariantes
+  del Gatekeeper y la Pirámide de Verificación para ingresar a `ready`.
 - **El cambio de runtime se sostiene por ejecución, no por argumento.** `engines.node = ">=20.0.0"`
   + `devEngines.runtime = ">=22.6.0"` es correcto porque el tarball arranca en Node 20.0.0.
-  Lo que no se sostenía era el estado del ítem, que declaraba hecho un trabajo de
-  documentación que no estaba hecho.
 <!-- SECTION:NOTES:END -->

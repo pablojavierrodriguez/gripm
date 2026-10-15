@@ -35,5 +35,6 @@ Reducir la fricción de adopción eliminando el bloqueo estricto a Node.js 22.6+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-- Verificar que las suites de prueba en CI ejecuten tanto en Node 20 como en Node 22.
+- **Aclaración histórica y resolución efectiva (DEV-266):** La compatibilidad real de runtime para el consumidor en `>=20.0.0` y la separación de `devEngines` fue formalmente materializada, documentada y verificada empíricamente en `DEV-266` (incluyendo prueba en contenedores con tarballs reales). Las suites de prueba en CI y desarrollo se mantienen en Node >= 22.6.0 por el uso de `--experimental-strip-types`, mientras que los binarios distribuidos son compatibles con Node 20 LTS.
 <!-- SECTION:NOTES:END -->
+

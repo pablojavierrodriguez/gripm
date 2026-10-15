@@ -9,7 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -129,15 +129,35 @@ if (isHookMode) {
   }
 }
 
-const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+const stagedTasksList = isHookMode ? getStagedFiles(currentRepoDir).filter(f => f.startsWith('backlog/tasks/') && f.endsWith('.md')) : [];
+
+const taskEntries = isHookMode
+  ? stagedTasksList.map(relPath => {
+      try {
+        return {
+          file: path.basename(relPath),
+          filePath: path.join(currentRepoDir, relPath),
+          content: execFileSync('git', ['show', `:${relPath}`], { cwd: currentRepoDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+        };
+      } catch {
+        return {
+          file: path.basename(relPath),
+          filePath: path.join(currentRepoDir, relPath),
+          content: fs.existsSync(path.join(currentRepoDir, relPath)) ? fs.readFileSync(path.join(currentRepoDir, relPath), 'utf8') : ''
+        };
+      }
+    })
+  : fs.readdirSync(tasksDir).filter(f => f.endsWith('.md')).map(f => ({
+      file: f,
+      filePath: path.join(tasksDir, f),
+      content: fs.readFileSync(path.join(tasksDir, f), 'utf8')
+    }));
+
 let errorsFound = 0;
 let fixedCount = 0;
 const malformedAcFiles = [];
 
-for (const file of files) {
-  const filePath = path.join(tasksDir, file);
-  const content = fs.readFileSync(filePath, 'utf8');
-
+for (const { file, filePath, content } of taskEntries) {
   // REGLA 0 (DEV-132): Detección de marcadores de sección duplicados
   const lines = content.split(/\r?\n/);
   const seenBeginMarkers = new Map();
@@ -287,10 +307,9 @@ if (fs.existsSync(releasesJsonPath)) {
     for (const rel of releases) {
       if (rel.status === 'released' && Array.isArray(rel.itemCodes)) {
         for (const code of rel.itemCodes) {
-          const taskFile = files.find(f => f.toLowerCase().startsWith(code.toLowerCase() + ' ') || f.toLowerCase().startsWith(code.toLowerCase() + '-'));
-          if (taskFile) {
-            const taskContent = fs.readFileSync(path.join(tasksDir, taskFile), 'utf8');
-            const statusMatch = taskContent.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+          const entry = taskEntries.find(e => e.file.toLowerCase().startsWith(code.toLowerCase() + ' ') || e.file.toLowerCase().startsWith(code.toLowerCase() + '-'));
+          if (entry) {
+            const statusMatch = entry.content.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
             const status = (statusMatch ? statusMatch[1] : '').toLowerCase();
             if (status !== 'done') {
               console.error(`❌ [Error de Release] Tarea ${code} pertenece al release publicado v${rel.version}, pero su estado en el archivo es '${status}' (debe ser 'done').`);
@@ -350,6 +369,8 @@ try {
   if (fs.existsSync(exportScript)) {
     if (isFixMode) {
       execSync(`node --experimental-strip-types "${exportScript}" export`, { cwd: currentRepoDir, stdio: 'inherit' });
+    } else if (isHookMode) {
+      execSync(`node --experimental-strip-types "${exportScript}" export --check --staged`, { cwd: currentRepoDir, stdio: 'inherit' });
     } else {
       execSync(`node --experimental-strip-types "${exportScript}" export --check`, { cwd: currentRepoDir, stdio: 'inherit' });
     }

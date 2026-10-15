@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync, execFileSync, spawnSync } from 'node:child_process';
 import { parseBacklogMd, serializeBacklogMd, generateTaskFilename, normalizeStatus, normalizePriority, generateMonolithicBacklogMd } from './backlogMdParser.ts';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
 
@@ -75,11 +76,75 @@ function resolveJsonBacklogPath(p: any): string {
   return path.join(ROOT_DIR, `data/${p.id}-backlog.json`);
 }
 
-function loadTasks(project: any): any[] {
+function loadTasks(project: any, options: { staged?: boolean } = {}): any[] {
   if (!project) return [];
 
   // 1. Storage Markdown
   if (project.storageType === 'markdown' && project.repoPath) {
+    if (options.staged) {
+      try {
+        const out = execSync('git ls-files -s -z backlog/tasks/', {
+          cwd: project.repoPath,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+        const entries: { sha: string; relPath: string; file: string }[] = [];
+        for (const chunk of out.split('\0')) {
+          if (!chunk.endsWith('.md')) continue;
+          const tabIdx = chunk.indexOf('\t');
+          if (tabIdx === -1) continue;
+          const meta = chunk.slice(0, tabIdx).trim().split(/\s+/);
+          const relPath = chunk.slice(tabIdx + 1);
+          entries.push({ sha: meta[1], relPath, file: path.basename(relPath) });
+        }
+        entries.sort((a, b) => a.file.localeCompare(b.file, undefined, { numeric: true }));
+
+        const res = spawnSync('git', ['cat-file', '--batch'], {
+          cwd: project.repoPath,
+          input: entries.map(e => e.sha).join('\n') + '\n',
+          maxBuffer: 50 * 1024 * 1024
+        });
+
+        const buf = res.stdout;
+        let offset = 0;
+        const items: any[] = [];
+
+        for (let i = 0; i < entries.length; i++) {
+          const nlIdx = buf.indexOf(0x0a, offset);
+          if (nlIdx === -1) break;
+          const header = buf.slice(offset, nlIdx).toString('utf8');
+          const size = parseInt(header.split(' ')[2], 10);
+          const contentStart = nlIdx + 1;
+          const contentEnd = contentStart + size;
+          const raw = buf.slice(contentStart, contentEnd).toString('utf8');
+          offset = contentEnd + 1;
+
+          const entry = entries[i];
+          const fallbackId = entry.file.split(' - ')[0] || entry.file.replace(/\.md$/, '');
+          const task = parseBacklogMd(raw, fallbackId);
+          items.push({
+            id: task.id || fallbackId,
+            code: task.id || fallbackId,
+            title: task.title,
+            status: normalizeStatus(task.status),
+            priority: normalizePriority(task.priority),
+            type: task.type,
+            milestone: task.milestone,
+            sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
+            targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint || task.milestone,
+            acceptanceCriteria: task.acceptanceCriteria || [],
+            labels: task.labels || [],
+            _file: entry.file,
+            _relPath: entry.relPath,
+            _raw: task
+          });
+        }
+        return items;
+      } catch {
+        // Fallback a lectura de disco si git falla
+      }
+    }
+
     const tasksDir = path.join(project.repoPath, project.backlogDir || 'backlog', 'tasks');
     if (!fs.existsSync(tasksDir)) return [];
     const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
@@ -194,7 +259,9 @@ async function main() {
 
   // Modo Exportar a BACKLOG.md consolidado
   if (args[0] === 'export' || args.includes('--export')) {
-    const md = generateMonolithicBacklogMd(project.name, tasks.map(t => t._raw || {
+    const isStaged = args.includes('--staged');
+    const tasksToExport = isStaged ? loadTasks(project, { staged: true }) : tasks;
+    const md = generateMonolithicBacklogMd(project.name, tasksToExport.map(t => t._raw || {
       id: t.id || t.code,
       title: t.title,
       status: t.status,
@@ -207,13 +274,51 @@ async function main() {
     const exportPath = path.join(project.repoPath || process.cwd(), 'BACKLOG.md');
     
     if (args.includes('--check')) {
-      const existing = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf8') : '';
+      let existing = '';
+      if (isStaged) {
+        try {
+          existing = execFileSync('git', ['show', ':BACKLOG.md'], {
+            cwd: project.repoPath || process.cwd(),
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+        } catch {
+          console.error('🛑 BACKLOG.md no está presente en el índice de Git (stage).');
+          process.exit(1);
+        }
+      } else {
+        existing = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf8') : '';
+      }
+
       const normalizeLf = (s: string) => s.replace(/\r\n/g, '\n').trim();
-      if (normalizeLf(existing) !== normalizeLf(md)) {
-        console.error('🛑 BACKLOG.md está desactualizado respecto a las tareas en backlog/tasks/. Ejecuta: npm run backlog:sync');
+      const stripDateHeader = (s: string) => s.replace(/^> Consolidado generado el \d{4}-\d{2}-\d{2} por gripm ⚡\n?/m, '');
+      if (stripDateHeader(normalizeLf(existing)) !== stripDateHeader(normalizeLf(md))) {
+        // Detectar tareas específicas cuya versión no coincide con el consolidado
+        const differingFiles: string[] = [];
+        for (const t of tasksToExport) {
+          const taskId = String(t.id || t.code || '');
+          const escapedId = taskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`#### \\[${escapedId}\\][\\s\\S]*?\\n---`);
+          const existingMatch = existing.match(regex);
+          const genMatch = md.match(regex);
+          if (!existingMatch || !genMatch || normalizeLf(existingMatch[0]) !== normalizeLf(genMatch[0])) {
+            differingFiles.push(t._file ? `backlog/tasks/${t._file}` : taskId);
+          }
+        }
+
+        if (differingFiles.length > 0) {
+          console.error(`🛑 BACKLOG.md ${isStaged ? 'en el índice de Git' : ''} no coincide con el estado de las tareas:`);
+          differingFiles.slice(0, 5).forEach(f => console.error(`   - ${f}`));
+          if (differingFiles.length > 5) {
+            console.error(`   ... y ${differingFiles.length - 5} tarea(s) más.`);
+          }
+          console.error(`   👉 Acción requerida: Regenera BACKLOG.md ${isStaged ? 'desde el índice y stagealo' : 'con npm run backlog:sync'}.\n`);
+        } else {
+          console.error(`🛑 BACKLOG.md ${isStaged ? 'en el índice de Git' : ''} está desactualizado respecto a las tareas en backlog/tasks/. Ejecuta: npm run backlog:sync`);
+        }
         process.exit(1);
       }
-      console.log('📄 [Consolidado] BACKLOG.md 100% sincronizado (modo solo lectura).');
+      console.log(`📄 [Consolidado] BACKLOG.md ${isStaged ? '(índice Git) ' : ''}100% sincronizado (modo solo lectura).`);
       return;
     }
 
