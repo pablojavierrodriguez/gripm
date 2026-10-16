@@ -18,6 +18,8 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+        exclude-patterns:
+          - "vite"
       dev-dependencies:
         dependency-type: "development"
         patterns:
