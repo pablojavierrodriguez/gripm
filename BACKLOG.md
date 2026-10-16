@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-15 por gripm
+> Consolidado generado el 2026-10-16 por gripm
 
 ## Resumen de Estados
 
@@ -85,7 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 📋 Backlog / Draft (19)
+### 📋 Backlog / Draft (20)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -600,6 +600,26 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 - [ ] #4 Filtro por rango de fechas flexible (último mes, trimestre, año o personalizado)
 - [ ] #5 Exportación de reportes ejecutivos resumidos en Markdown
 - [ ] #6 npm test y npx tsc --noEmit pasan con código 0
+
+---
+
+#### [DEV-298] Gobernanza de CI/CD: Gate de verificación previa obligatoria en pipeline de publish a npm
+- **Prioridad**: `p2` | **Tipo**: `tech_debt`
+
+Garantizar que el workflow de publicación en npm (`.github/workflows/publish.yml`) no emita ningún paquete al registro público sin que la suite integral de CI (`.github/workflows/ci.yml`, incluyendo la matriz multi-OS y los tests de navegador Playwright) haya finalizado exitosamente sobre el commit del release.
+
+### Diagnóstico del Defecto de Arquitectura:
+Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) corren en paralelo y de forma desacoplada:
+1. Al pushear el commit a `main`, se dispara `ci.yml`.
+2. Al pushear el tag `v*`, se dispara `publish.yml`.
+3. `publish.yml` ejecuta una pirámide local básica antes de publicar, pero **no incluye el smoke test de navegador de Playwright (`test:ui`) ni la matriz multiplataforma**.
+4. En caso de fallas que solo emergen en el smoke test o en runners de Windows/macOS, `publish.yml` publica el paquete a npm antes de que CI termine de detectar el problema, dejando a los usuarios con una versión inmutable defectuosa en npm.
+
+### Solución Técnica Propuesta:
+- **Validación de Check Suites en `publish.yml`:**
+  Antes de ejecutar `npm publish`, agregar un paso que consulte la API de GitHub (`gh api repos/:owner/:repo/commits/:sha/check-runs`) para certificar que todos los jobs de `ci.yml` asociados al commit taggeado estén en estado `completed` con conclusión `success`.
+- **Manejo de Reintentos / Espera:**
+  Si los checks de CI aún están `in_progress`, esperar con timeout configurable o utilizar el evento `workflow_run` para encadenar la publicación únicamente tras el éxito garantizado de CI en `main`.
 
 ---
 
