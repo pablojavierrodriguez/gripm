@@ -1,9 +1,9 @@
 ---
 id: DEV-245
 title: "Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)"
-status: ready
+status: done
 created_date: '2026-10-11'
-updated_date: '2026-10-16 05:28'
+updated_date: '2026-10-16'
 labels:
   - "security"
   - "lan"

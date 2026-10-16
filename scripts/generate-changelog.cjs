@@ -73,7 +73,7 @@ function main() {
 
   const sections = released.map((release) => {
     const body = normalizeMarkdown(release.markdownContent);
-    const fallbackTitle = `## [${release.version}]${release.date ? ` — ${release.date}` : ''}`;
+    const fallbackTitle = `## [${release.version}]${release.date ? ` - ${release.date}` : ''}`;
     return body || `${fallbackTitle}\n\n_${release.summary || 'Sin detalles registrados.'}_`;
   });
 

@@ -1,9 +1,9 @@
 ---
 id: DEV-301
 title: "Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-16 05:05'
+updated_date: '2026-10-16'
 labels:
   - "concurrency"
   - "frontend"
@@ -37,7 +37,7 @@ Rediseño del protocolo de concurrencia optimista y sincronización en tiempo re
 - **Protocolo Mtime Determinista:**
   - `saveBacklogMdItem` y `PUT /api/items/:id` leen y devuelven el valor exacto `Math.round(fs.statSync(filePath).mtimeMs)`.
   - La verificación de conflicto en `api.ts` se vuelve exacta (`existing.mtime > body.expectedMtime`), erradicando la ventana ciega de 1.000 ms.
-  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco — [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
+  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco - [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
 - **Batching Atómico Universal:**
   - Migrar todas las operaciones de reordenamiento (`handleReorderBacklogItem`), finalización de sprint (`handleCompleteSprint`) y acciones masivas en `SprintView` para que utilicen el endpoint ya existente `POST /api/items/bulk` en **una única transacción HTTP**, con un único `setBoardData` funcional y una única notificación SSE.
   - Asegurar que todas las mutaciones pasen por los handlers de `App.tsx` para sincronización inmediata en modo Sandbox y HTTP.

@@ -1,9 +1,9 @@
 ---
 id: DEV-299
 title: "Arquitectura de Persistencia: Motor Unificado de Backlog (BacklogService) y Erradicación de Duplicación"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-16 03:47'
+updated_date: '2026-10-16'
 labels:
   - "architecture"
   - "backend"

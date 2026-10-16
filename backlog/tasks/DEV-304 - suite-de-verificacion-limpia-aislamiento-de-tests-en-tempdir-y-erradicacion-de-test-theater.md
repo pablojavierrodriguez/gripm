@@ -1,9 +1,9 @@
 ---
 id: DEV-304
 title: "Suite de Verificación Limpia: Aislamiento de Tests en Tempdir y Erradicación de Test Theater"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-16 03:29'
+updated_date: '2026-10-16'
 labels:
   - "testing"
   - "ci"

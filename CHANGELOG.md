@@ -13,6 +13,30 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.6.0] - 2026-10-16 🚀 Motor Unificado de Backlog, Parser Determinista, Blindaje de Seguridad y Concurrencia Optimista
+
+### 🎯 Resumen
+*Versión 1.6.0 de Gripm: unificación de la arquitectura de persistencia en BacklogService eliminando duplicación de endpoints (DEV-299), parser de integridad total con tokenizador formal y round-trip idempotente (DEV-300), protocolo de concurrencia optimista real basado en mtime y batching atómico en la API (DEV-301), blindaje integral de seguridad del daemon local con scoping multi-proyecto, IPv6 y Gatekeeper estricto (DEV-302), autenticación por token efímero en escucha LAN 0.0.0.0 (DEV-245), descomposición modular de frontend y desacople de God Components con motor de filtros tipado (DEV-303), suite de verificación limpia con aislamiento de tests en tempdir (DEV-304), saneamiento de estructura reubicando demo-backlog a src/data (DEV-308), y documentación comunitaria bilingüe unificada en un solo archivo con anclajes rápidos (DEV-309).*
+
+### 💾 Persistencia Unificada y Parser Determinista
+- **DEV-299 - Motor Unificado de Backlog (BacklogService):** centralización de lectura, indexación, mutaciones y guardrails de persistencia en un único servicio desacoplado, erradicando duplicaciones entre el daemon REST y el servidor MCP.
+- **DEV-300 - Parser de Integridad Total y Tokenizador Formal:** parser determinista con tokenizador formal para YAML y Markdown, garantizando idempotencia en ciclos de guardado (round-trip), preservación exacta de saltos de línea y formateo sin mutaciones no deseadas.
+
+### 🛡️ Seguridad, Red y Concurrencia
+- **DEV-245 - Autenticación por Token Efímero en Escucha LAN (0.0.0.0):** protección de acceso cuando se expone el servidor en la red local (`--host 0.0.0.0`), requiriendo token de sesión efímero para prevenir accesos no autorizados en redes compartidas.
+- **DEV-301 - Concurrencia y Sincronización Optimista con mtime:** detección real de colisiones basada en marca de modificación (`mtime`) en disco y endpoints de mutación en batch atómicos, impidiendo sobreescrituras ciegas ante ediciones externas o multi-agente.
+- **DEV-302 - Blindaje Integral de Seguridad en Daemon Local:** contención estricta de rutas multi-proyecto, soporte IPv6 seguro, headers defensivos y ejecución blindada en el Gatekeeper de certificación.
+
+### 🧩 Arquitectura Frontend y Limpieza de Estructura
+- **DEV-303 - Descomposición Modular de Frontend:** refactorización y desacople de God Components (`App.tsx`, `FilterBar.tsx`), separando estado de filtros, lógica de modales y renderizado de vistas en módulos autónomos y testeables.
+- **DEV-308 - Saneamiento de Estructura (src/data):** reubicación limpia de `demo-backlog.json` a `src/data/`, resolviendo incompatibilidades con reglas de exclusión de Vercel y eliminando el directorio raíz residual `data/`.
+
+### 🧪 Calidad, Verificación y Documentación
+- **DEV-304 - Suite de Verificación Limpia con Aislamiento en Tempdir:** ejecución hermética de tests en directorios temporales aislados, garantizando cero contaminación del workspace de trabajo y pruebas reproducibles.
+- **DEV-309 - Documentación Comunitaria Bilingüe Unificada:** fusión bilingüe (EN/ES) en archivos únicos con selector de idioma rápido para `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` y `SECURITY.md`.
+
+---
+
 ## [1.5.1] — 2026-10-15 🛠️ Backend Standalone Compilado y Corrección de Smoke Test en CI
 
 ### 🎯 Resumen

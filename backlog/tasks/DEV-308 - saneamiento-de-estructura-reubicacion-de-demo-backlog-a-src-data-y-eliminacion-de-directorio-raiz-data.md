@@ -1,7 +1,7 @@
 ---
 id: DEV-308
 title: "Saneamiento de Estructura: Reubicación de demo-backlog.json a src/data y Eliminación del Directorio data/"
-status: ready
+status: done
 created_date: '2026-10-16'
 updated_date: '2026-10-16'
 labels:

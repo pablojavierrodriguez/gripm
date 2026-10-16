@@ -208,7 +208,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     const tech = selectedItems.filter((i) => i.type === 'tech_debt');
     const ux = selectedItems.filter((i) => i.type === 'ux');
 
-    let md = `## [${versionStr}] — ${todayStr} 🚀 ${titleStr}\n\n`;
+    let md = `## [${versionStr}] - ${todayStr} 🚀 ${titleStr}\n\n`;
     md += `### 🎯 Resumen\n*${summaryStr || 'Notas de versión y mejoras implementadas.'}*\n\n`;
 
     if (features.length > 0) {
@@ -283,7 +283,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
       summary: newSummary.trim() || 'Versión en preparación',
       status: 'unreleased',
       itemCodes: [],
-      markdownContent: `## [${v}] — Unreleased 🛠️ ${newTitle.trim() || 'Versión en desarrollo'}\n\n### 🎯 Resumen\n*${newSummary.trim() || 'En desarrollo.'}*`
+      markdownContent: `## [${v}] - Unreleased 🛠️ ${newTitle.trim() || 'Versión en desarrollo'}\n\n### 🎯 Resumen\n*${newSummary.trim() || 'En desarrollo.'}*`
     };
 
     try {

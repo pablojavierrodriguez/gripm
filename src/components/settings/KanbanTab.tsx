@@ -324,14 +324,14 @@ export const KanbanTab: React.FC<KanbanTabProps> = ({
                         <optgroup label={t('settings.canonicalStatusesGroup')}>
                           {ALL_ITEM_STATUSES.filter((s) => !s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
                             <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                              {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                              {getStatusMeta(s.id).label} ({s.id}) - {s.desc}
                             </option>
                           ))}
                         </optgroup>
                         <optgroup label={t('settings.legacyStatusesGroup')}>
                           {ALL_ITEM_STATUSES.filter((s) => s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
                             <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                              {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
+                              {getStatusMeta(s.id).label} ({s.id}) - {s.desc}
                             </option>
                           ))}
                         </optgroup>

@@ -12,7 +12,7 @@
 # --- Trabajo privado: nunca subir ---
 backlog/
 BACKLOG.md
-data/
+/data/
 .gripm/
 .playbook-lock.json
 .githooks/

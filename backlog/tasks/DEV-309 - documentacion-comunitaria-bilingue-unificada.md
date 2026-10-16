@@ -1,7 +1,7 @@
 ---
 id: DEV-309
 title: "Documentación Comunitaria Bilingüe Unificada: CODE_OF_CONDUCT, CONTRIBUTING y SECURITY"
-status: ready
+status: done
 created_date: '2026-10-16'
 updated_date: '2026-10-16'
 labels:

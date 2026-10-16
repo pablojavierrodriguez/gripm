@@ -85,321 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (9)
-
-#### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
-
-Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN puede conectarse a la IP del host y acceder o mutar el backlog sin restricciones. Para permitir previsualización móvil en redes Wi-Fi sin exponer el backlog a otros participantes de la red:
-1. Al arrancar con `0.0.0.0`, el daemon genera un token criptográfico efímero en memoria (`crypto.randomBytes(16)`).
-2. Se muestra en consola la URL con el token pre-cargado: `http://<ip-lan>:4100/?token=<token>`.
-3. Peticiones que se originen desde interfaces externas requieren el token en query param (`?token=...`) o cabecera `X-Gripm-Token`.
-4. El tráfico local en loopback (`127.0.0.1` / `localhost`) se mantiene transparente sin exigir token para no degradar la ergonomía de desarrollo local.
-
-**Criterios de Aceptación:**
-- [x] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
-- [x] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
-- [x] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
-- [x] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
-- [x] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
-
----
-
-#### [DEV-299] Arquitectura de Persistencia: Motor Unificado de Backlog (BacklogService) y Erradicación de Duplicación
-- **Prioridad**: `urgent` | **Tipo**: `architecture`
-
-Creación de una capa de servicio unificada y canónica (`server/services/backlogService.ts`) que centralice el 100% de la lógica de lectura, mutación, validación de State Machine, Gatekeeper de certificación, filtrado de tareas borradas (`isDeleted`), persistencia atómica y reconciliación de metadatos, erradicando la triplicación divergente actual entre `server/services/storage.ts`, `scripts/mcp-server.ts` y `scripts/gripm-cli.ts`.
-
-### Diagnóstico de la Causa Raíz:
-
-Actualmente, el producto mantiene tres implementaciones desconectadas para operar sobre las tareas:
-1. **`server/services/storage.ts`:** Usado por los endpoints HTTP del cockpit web.
-2. **`scripts/mcp-server.ts`:** Usado por agentes LLM (Cursor, Claude Code, Antigravity) vía protocolo stdio.
-3. **`scripts/gripm-cli.ts`:** Usado por scripts y terminal.
-
-Esta fragmentación es la causa raíz de regresiones sistemáticas en cada release:
-- **Bypass del Gatekeeper:** `gripm_update_task` valida criterios de aceptación antes de pasar a `ready`/`done`, pero `gripm_bulk_update_tasks` y `gripm-cli.ts --update-status` permiten cambiar estados sin validar ACs ni emitir auditoría `SEC-09`.
-- **Divergencia de State Machine:** Cuando `DEV-293` eliminó la auto-promoción ilegítima a `ready` en `verify-backlog-sync.js`, la función `gripm_sync_backlog` en `mcp-server.ts:1533-1538` quedó desincronizada y siguió mutando tareas de `doing` a `ready`.
-- **Efectos secundarios en lecturas `GET`:** `readProjectBacklog()` en `storage.ts:311-325` muta `backlog/sprints.json` y cierra sprints automáticamente al consultar `GET /api/data`, violando la soberanía del PO (`AGENTS.md` §2) y disparando bucles SSE.
-- **Fuga de tareas en papelera:** `mcp-server.ts:394-445`, `gripm-cli.ts:79-194` y `api.ts:820` no filtran `!task.isDeleted`, exponiendo ítems descartados a agentes y ensuciando estadísticas.
-- **Rutas de escritura no atómicas:** A pesar de `DEV-291`, 8 llamadas en `registry.ts`, `api.ts`, `gripm-cli.ts` y `updateChecker.js` siguen usando `fs.writeFileSync` truncante.
-
-### Solución Arquitectónica Profunda:
-
-Diseñar e implementar `server/services/backlogService.ts` como la única interfaz de dominio del sistema:
-- **Operaciones Atómicas Centralizadas:** `getTask(projectId, taskId)`, `listTasks(projectId, filters)`, `createTask(projectId, data)`, `updateTask(projectId, taskId, updates, options)`, `bulkUpdateTasks(projectId, patches, options)`, `deleteTask(projectId, taskId, options)`, `syncBacklog(projectId, options)`.
-- **Gobernanza Unificada:**
-  - El Gatekeeper de certificación de ACs se ejecuta obligatoriamente en `updateTask` y `bulkUpdateTasks` independientemente de si la llamada proviene de HTTP, MCP o CLI.
-  - El filtro `!task.isDeleted` es estricto por defecto en todas las consultas y exportaciones, salvo solicitud explícita (`includeDeleted: true`).
-  - Cero escrituras en operaciones de solo lectura (`getTask`, `listTasks`, `readProjectBacklog`).
-  - El 100% de las escrituras se realizan mediante `atomicWriteFileSync` de `server/services/atomicWrite.ts`.
-  - Reemplazo y delegación de `storage.ts`, `mcp-server.ts` y `gripm-cli.ts` hacia `backlogService`.
-
-**Criterios de Aceptación:**
-- [x] #1 Se implementa `server/services/backlogService.ts` como módulo canónico de dominio que encapsula lectura, escritura atómica, validaciones y reconciliación de tareas y releases
-- [x] #2 `server/services/storage.ts`, `scripts/mcp-server.ts` y `scripts/gripm-cli.ts` delegan su lógica de dominio en `backlogService`, eliminando código duplicado
-- [x] #3 `gripm_bulk_update_tasks` y `gripm-cli.ts --update-status` aplican estrictamente la validación del Gatekeeper (bloqueo a `ready`/`done` con ACs pendientes sin `force: true`) idéntica a `gripm_update_task`
-- [x] #4 `gripm_sync_backlog` en MCP deja de auto-promocionar tareas a `ready`, limitándose a emitir advertencias de calidad y escribiendo `BACKLOG.md` únicamente cuando hay cambios reales o `autoFix: true`
-- [x] #5 `readProjectBacklog` y las consultas de lectura no ejecutan ninguna mutación física en disco ni auto-cierre de sprints
-- [x] #6 Las tareas marcadas con `isDeleted: true` quedan excluidas por defecto de `gripm_list_tasks`, `gripm_get_stats`, listados CLI y exportaciones de `BACKLOG.md`
-- [x] #7 Todas las escrituras residuales identificadas (`registry.ts:212`, `api.ts:787, 1008, 1178, 1286`, `gripm-cli.ts:325, 460, 478`) migran a `atomicWriteFileSync`
-- [x] #8 Una suite de pruebas de integración verifica paridad 1:1 de comportamiento entre llamadas API REST, MCP y CLI
-
----
-
-#### [DEV-300] Parser de Integridad Total: Tokenizador Formal, Idempotencia Round-Trip y Resiliencia Markdown
-- **Prioridad**: `urgent` | **Tipo**: `architecture`
-
-Reingeniería integral del parser y serializador de tareas (`scripts/backlogMdParser.ts`) mediante un scanner determinista de bloques y tokenizador formal de YAML/Markdown que garantice idempotencia total en operaciones de lectura-escritura (round-trip), erradicando definitivamente la mutilación de código, la pérdida de secciones y la corrupción progresiva de caracteres escapados.
-
-### Diagnóstico de la Causa Raíz:
-
-El parser actual se basa en expresiones regulares heurísticas y particiones por líneas (`split`) que fallan ante estructuras sintácticas válidas de Markdown y YAML:
-1. **Pérdida de Secciones por Ausencia de Fallback:**
-   En `parseBacklogMd`, las secciones `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes` y `Final Summary` buscan encabezados `## Header` sobre bloques a los que `extractSectionBlock` ya les removió el encabezado, descartando las secciones si no tienen marcadores HTML `<!-- SECTION:... -->`. Esto provocó en `v1.5.0` la pérdida física de notas de implementación en 5 tareas.
-2. **Corrupción Progresiva de Comillas y Barras (`\"` ➔ `\\\"`):**
-   `serializeBacklogMd` serializa cadenas con `JSON.stringify()`, pero `parseBacklogMd` limpia comillas con `.replace(/^['"]|['"]$/g, '')` en lugar de un unquote simétrico. Títulos o notas con `"` o `\` multiplican barras en cada guardado.
-3. **Inyección en YAML Frontmatter:**
-   Campos como `id`, `type`, `createdDate` o claves dinámicas de `rawExtraFrontmatter` se interpolan sin sanitizar caracteres de salto de línea (`\n`), permitiendo inyectar directivas YAML arbitrarias.
-4. **Falsos Positivos de Encabezados dentro de Código:**
-   Cuando una sección opcional no existe, el fallback a `bodyContent` busca encabezados con regex simple, cayendo en falsos positivos si un ejemplo de código en `## Description` menciona `## Acceptance Criteria` o `## Implementation Notes`.
-5. **Omisión de Estados en el Consolidado:**
-   `generateMonolithicBacklogMd` omite el estado canónico `'cancelled'` en la tabla de exportación a `BACKLOG.md`.
-
-### Solución Arquitectónica Profunda:
-
-- **Scanner Determinista de Secciones:**
-  Implementar un parser de dos fases:
-  1. *Fase Frontmatter:* Extracción y parseo seguro con soporte para BOM (`\uFEFF`), validación de claves contra `/^[a-zA-Z0-9_-]+$/` y función simétrica `unquoteYamlScalar(raw)` que desescape `JSON.parse` y comillas simples limpiamente.
-  2. *Fase Secciones CommonMark:* Escaneo de un solo paso que identifique todos los fences de código cercados (``` o ~~~ respetando indentación y longitudes) y extraiga con límites precisos las secciones `Description`, `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes` y `Final Summary`, tanto si usan marcadores HTML como si usan solo encabezados Markdown estándar.
-- **Idempotencia de Round-Trip:**
-  Garantizar que `serialize(parse(content)) === content` para cualquier archivo canónico sin diffs fantasma ni mutilación de saltos de línea.
-- **Inclusión de `cancelled`:**
-  Asegurar que `generateMonolithicBacklogMd` agrupe y exporte tareas en estado `cancelled`.
-
-**Criterios de Aceptación:**
-- [x] #1 `parseBacklogMd` extrae íntegramente las 5 secciones estándar (`Description`, `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes`, `Final Summary`) independientemente de si poseen o no marcadores HTML `<!-- SECTION:... -->`
-- [x] #2 Ningún encabezado H2 (`## ...`) o marcador HTML ubicado dentro de bloques de código cercados (``` o ~~~) es interpretado como delimitador estructural
-- [x] #3 Se implementa `unquoteYamlScalar` determinista, eliminando la multiplicación de barras invertidas (`\"` ➔ `\\\"`) y preservando comillas y caracteres especiales en títulos y listas
-- [x] #4 Las claves y valores de YAML frontmatter se validan y sanitizan para impedir inyecciones de saltos de línea o directivas no autorizadas
-- [x] #5 `parseBacklogMd` soporta archivos con UTF-8 BOM (`\uFEFF`) y archivos sin salto de línea final tras el cierre `---`
-- [x] #6 `generateMonolithicBacklogMd` incluye las tareas en estado `cancelled` bajo su sección correspondiente en `BACKLOG.md`
-- [x] #7 Una suite de pruebas de ida y vuelta (round-trip) con 50 casos borde de Markdown/YAML complejos verifica 100% de preservación de bytes y fidelidad semántica
-
----
-
-#### [DEV-301] Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Rediseño del protocolo de concurrencia optimista y sincronización en tiempo real entre el servidor y el cliente React: corrección del mecanismo de bloqueo por `mtime` en disco, eliminación de falsos positivos/negativos de colisión `409 Conflict`, y reemplazo de tormentas de peticiones HTTP N+1 por operaciones en lote atómicas (`bulkUpdateItems`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Desactivación Silenciosa del Guard 409 (`App.tsx` vs `ItemModal.tsx`):**
-   Al recibir eventos SSE `backlog_changed`, `App.tsx:337` actualiza `editingItem.mtime` al nuevo timestamp del disco para "evitar errores 409". Sin embargo, `ItemModal` no recarga sus 35 campos de formulario si el modal ya está abierto. Al pulsar "Guardar", envía el `mtime` nuevo pero con los datos viejos en pantalla, sobrescribiendo silenciosamente los cambios que un agente o usuario externo hizo en disco.
-2. **Margen Ciego de 1.000 ms en el Backend:**
-   En `server/routes/api.ts:278`, la verificación `if (existing.mtime > body.expectedMtime + 1000)` ignora deliberadamente colisiones concurrentes dentro de un segundo. Este hack se introdujo porque `api.ts:337` devolvía `updatedItem.mtime = Date.now()` (hora de CPU) en vez de `fs.statSync(targetFilePath).mtimeMs` (hora del sistema de archivos), provocando desfasajes artificiales.
-3. **Tormenta N+1 y Corrupción de Orden en Bulk Actions:**
-   Reordenar una tarea en `App.tsx:660-672` o mover tareas seleccionadas en `SprintView.tsx:680-721` ejecuta bucles con decenas de llamadas individuales `PUT /api/items/:id`. Además, como `onReorderItem` lee `boardData.items` desde un closure obsoleto en cada iteración del bucle, los órdenes se computan con datos viejos y corrompen la secuencia de las tareas anteriores.
-4. **Bypass del Estado en Modo Sandbox:**
-   Componentes como `KanbanBoard` y `SprintView` importan y llaman directamente a `updateItem()` desde `src/api.ts` sin notificar a `App.tsx`. En modo Sandbox (`gripm.vercel.app`), donde SSE es un no-op, la interfaz no se entera del cambio hasta que el usuario recarga la página.
-
-### Solución Arquitectónica Profunda:
-
-- **Protocolo Mtime Determinista:**
-  - `saveBacklogMdItem` y `PUT /api/items/:id` leen y devuelven el valor exacto `Math.round(fs.statSync(filePath).mtimeMs)`.
-  - La verificación de conflicto en `api.ts` se vuelve exacta (`existing.mtime > body.expectedMtime`), erradicando la ventana ciega de 1.000 ms.
-  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco — [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
-- **Batching Atómico Universal:**
-  - Migrar todas las operaciones de reordenamiento (`handleReorderBacklogItem`), finalización de sprint (`handleCompleteSprint`) y acciones masivas en `SprintView` para que utilicen el endpoint ya existente `POST /api/items/bulk` en **una única transacción HTTP**, con un único `setBoardData` funcional y una única notificación SSE.
-  - Asegurar que todas las mutaciones pasen por los handlers de `App.tsx` para sincronización inmediata en modo Sandbox y HTTP.
-
-**Criterios de Aceptación:**
-- [x] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
-- [x] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
-- [x] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
-- [x] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
-- [x] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
-
----
-
-#### [DEV-302] Blindaje Integral de Seguridad: Daemon Local, Scoping Multi-Proyecto, IPv6 y Gatekeeper
-- **Prioridad**: `high` | **Tipo**: `security`
-
-Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la superficie de ataque del daemon local y el servidor MCP: soporte de loopback IPv6, contención estricta de symlinks con resolución de ancestros, aislamiento riguroso entre proyectos para prevenir mutaciones cruzadas por colisión de ID, blindaje del Gatekeeper de ejecución y sanitización de rutas HTTP.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Rechazo de Loopback IPv6 (`[::1]`):**
-   En `server/middleware/security.ts:62`, `(req.headers.host || '').split(':')[0]` convierte `[::1]:4100` en `'['`, fallando la comprobación `isLoopbackHost` y devolviendo `403 Forbidden` a cualquier cliente o navegador configurado con pila dual IPv6 local.
-2. **Evasión de Allowlist en el Gatekeeper de Certificación (`verifyCommand`):**
-   En `scripts/mcp-server.ts:260-384`, `validateVerifyCommand` valida el comando base (`npm test`, `npx vitest`), pero admite cualquier argumento que coincida con caracteres alfanuméricos y símbolos. Flags como `--prefix=/tmp/evil`, `--script-shell=/bin/sh`, `--config=/tmp/malicious.js` o `-c` permiten ejecutar código arbitrario fuera del repositorio.
-3. **Bypass de Contención por Symlinks en Rutas Inexistentes y en MCP:**
-   - En `server/services/fsExplorer.ts:57-62`, si se consulta una ruta que aún no existe físicamente (`/allowed/symlink_a_raiz/archivo_nuevo`), `fs.realpathSync` falla con `ENOENT` y el bloque `catch` realiza una comprobación sintáctica sobre la ruta sin resolver, permitiendo escapar de los límites permitidos.
-   - En `scripts/mcp-server.ts:148`, `isAllowedBrowsePath` evalúa `isPathContained` **antes** de resolver `fs.realpathSync`, permitiendo que enlaces simbólicos dentro de `cwd` sorteen la contención.
-4. **Colisión de IDs entre Proyectos (Mutación Cruzada):**
-   En `server/routes/api.ts:270-420` (`PUT`, `PATCH`, `DELETE`) y en `mcp-server.ts:1050/1160`, las operaciones buscan tareas iterando `registry.projects` desde el índice `0` sin filtrar por `projectId`. En un entorno con varios proyectos registrados, si dos repositorios tienen una tarea `DEV-001`, editar o borrar `DEV-001` en el Proyecto 2 muta o borra la tarea del Proyecto 1.
-5. **Ruteo con `req.url` en lugar de `pathname` y Parámetros no Sanitizados:**
-   Más de 15 endpoints en `api.ts` comparan directamente `req.url` (incluyendo query strings) o usan `url.split('/')[3]` sin `decodeURIComponent`. Además, `POST /api/import` no valida `docsPath` y `POST /api/projects` acepta `backlogDir` con secuencias `../`.
-
-### Solución Arquitectónica Profunda:
-
-- **Middleware de Seguridad Robusto:**
-  - Parseo RFC-compliant de la cabecera `Host` soportando formato IPv6 `[::1]` y validación de `Origin` / `Sec-Fetch-Site` en todos los métodos de mutación (`POST`, `PUT`, `DELETE`, `PATCH`).
-- **Gatekeeper Hardened:**
-  - Rechazar cualquier argumento que comience con `--prefix`, `--config`, `-c`, `--script-shell`, `--eval`, `-e`, `--import`, `--loader` o contenga secuencias relativas `..` o barras absolutas.
-  - Ejecutar verificación mediante argumentos estructurados sin invocación de shell en entornos POSIX.
-- **Contención de Filesystem con Resolución de Ancestros:**
-  - En `isAllowedBrowsePath`, si el archivo objetivo no existe, resolver iterativamente `fs.realpathSync` sobre su directorio padre existente más cercano antes de evaluar la contención. Unificar esta función en un solo módulo.
-- **Scoping Estricto por `projectId`:**
-  - Exigir o resolver prioritariamente el proyecto activo (`body.projectId || query.projectId || activeProjectId`) en todos los endpoints y herramientas MCP, garantizando que ninguna operación sobre `DEV-XXX` afecte a un proyecto ajeno.
-- **Sanitización de Ruteo:**
-  - Extraer `pathname` mediante `new URL(req.url, 'http://localhost')` en todos los manejadores de `server/routes/api.ts`, y validar contención estricta en `docsPath` y `backlogDir`.
-
-**Criterios de Aceptación:**
-- [x] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
-- [x] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
-- [x] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
-- [x] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
-- [x] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
-- [x] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
-- [x] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
-- [x] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
-
----
-
-#### [DEV-303] Descomposición Modular de Frontend: Desacople de God Components y Motor de Filtros
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-Refactorización estructural del cliente React (`src/`): partición modular de los componentes monolíticos gigantes (`SettingsView`, `ItemModal`, `App.tsx`), unificación determinista del motor de filtrado multi-criterio y optimización de renderizado durante interacciones de drag-and-drop.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Monolitos de Responsabilidad Múltiple ("God Components"):**
-   - `src/components/SettingsView.tsx` (3.082 líneas): 8 pestañas completas, 25+ estados locales, dirty-checking manual por serialización JSON en cada keystroke y formularios embebidos en un solo archivo.
-   - `src/components/ItemModal.tsx` (2.507 líneas): Más de 35 hooks `useState` en el mismo componente (`lines 151-218`), preview de Markdown, BDD templates, drag-and-drop de ACs, exportación a calendar `.ics` y autosave.
-   - `src/App.tsx` (1.737 líneas): Orquestador central que retiene todo el estado del dominio, 10 estados de modal, SSE, locales, y más de 25 callbacks pasados por props drilling hasta 3 niveles de profundidad.
-2. **Divergencia de Filtrado ("Split-Brain"):**
-   `FilterBar.tsx` y `AdvancedFiltersPopover.tsx` fueron actualizados para soportar selección múltiple (`filters.sprints`, `filters.releases`, `filters.modules`) y tareas con múltiples módulos (`item.modules` en `DEV-275`). Sin embargo, [`visibleItems` en App.tsx:1250-1266](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx#L1250-L1266) jamás fue actualizado: solo evalúa campos singulares legacy (`filters.sprint`, `filters.release`, `filters.module`), provocando que activar filtros multi-selección en la UI no filtre absolutamente nada en el tablero.
-3. **Tormenta de Re-renders a 60 fps en Drag-and-Drop:**
-   En `KanbanBoard.tsx:512-527` y `SprintView.tsx:1466-1474`, `handleCardDragOver` invoca `setDropTarget` en cada píxel de movimiento del cursor sin validar si la posición o ítem cambió. Dado que `KanbanBoard` pasa 4 funciones flecha inline nuevas a cada `ItemCard` en cada render, `React.memo(ItemCard)` queda totalmente anulado y todas las tarjetas de todas las columnas se re-renderizan 60 veces por segundo durante el arrastre.
-4. **Code-Splitting Incompleto:**
-   Solo `ReleaseAssembler` y `SettingsView` usan `React.lazy()`. Vistas pesadas secundarias (`SprintView` 119 KB, `TimelineView` 54 KB, `MetricsView` 33 KB, `ImportWizardModal` 24 KB) se importan en el bundle inicial de arranque.
-
-### Solución Arquitectónica Profunda:
-
-- **Modularización de Componentes:**
-  - Extraer `src/hooks/useBoardController.ts` de `App.tsx` para aislar la carga de datos, suscripción SSE y mutaciones CRUD en un hook dedicado, reduciendo `App.tsx` a ~350 líneas de maquetado y renderizado condicional.
-  - Dividir `SettingsView.tsx` en submódulos por pestaña en `src/components/settings/` (`GeneralTab`, `KanbanTab`, `ModulesTab`, `TaxonomyTab`, `ComponentsTab`, `VisualTab`, `ToolsTab`, `AdvancedTab`).
-  - Dividir `ItemModal.tsx` en `useItemFormState` y subpaneles (`ItemDescriptionPanel`, `AcceptanceCriteriaPanel`, `ItemRelationsPanel`, `ItemSidebarMetadata`).
-- **Unificación del Motor de Filtros:**
-  - Crear `src/utils/filterItems.ts` con la función pura `itemMatchesFilters(item, filters)`.
-  - Soporte completo para matching multi-selección (`filters.sprints`, `filters.releases`, `filters.modules`) contra campos array (`item.modules`, `item.releases`, `item.sprints`) y campos singulares legacy.
-  - Consumir el mismo predicado en `App.tsx`, `FilterBar.tsx` y vistas de exportación.
-- **Rendimiento de Renderizado y Code-Splitting:**
-  - Proteger `setDropTarget` con guard funcional: `setDropTarget(prev => (prev?.itemId === id && prev?.pos === pos) ? prev : { itemId: id, pos })`.
-  - Estabilizar callbacks de `ItemCard` con `useCallback` parametrizado por `(item, ...)`.
-  - Cargar `SprintView`, `TimelineView`, `MetricsView` e `ImportWizardModal` con `React.lazy()` y `Suspense`.
-
-**Criterios de Aceptación:**
-- [x] #1 Se extrae `src/utils/filterItems.ts` y se unifica la lógica de filtrado; la selección de múltiples sprints, releases o módulos en el popover filtra correctamente las tarjetas en el Kanban y en el Backlog
-- [x] #2 `item.modules` (array multi-módulo) y `config.modulesList` son reconocidos plenamente en la barra de filtros y en el cálculo de `availableModules`
-- [x] #3 `SettingsView.tsx` se divide en subcomponentes por pestaña en `src/components/settings/`, reduciendo su tamaño individual a menos de 500 líneas por módulo
-- [x] #4 `ItemModal.tsx` desacopla su gestión de estado en `useItemFormState` y separa sus paneles de visualización
-- [x] #5 `KanbanBoard` y `SprintView` optimizan `setDropTarget` evitando re-renderizados innecesarios durante eventos de arrastre continuo
-- [x] #6 `ItemCard` recibe callbacks estables que permiten a `React.memo` evitar re-renders de tarjetas inactivas durante el drag-and-drop
-- [x] #7 `SprintView`, `TimelineView`, `MetricsView` e `ImportWizardModal` se cargan bajo demanda con `React.lazy()`, reduciendo el bundle inicial
-- [x] #8 La suite de UI smoke tests (`npm run test:ui`) aprueba sin regresiones funcionales
-
----
-
-#### [DEV-304] Suite de Verificación Limpia: Aislamiento de Tests en Tempdir y Erradicación de Test Theater
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Saneamiento integral de la Pirámide de Verificación y el pipeline de pruebas: aislamiento físico de tests que mutan el sistema de archivos en directorios temporales independientes (`os.tmpdir()`), erradicación de aserciones frágiles basadas en búsqueda superficial de strings ("test theater"), y eliminación de falsos positivos en el auditor estático de UX.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Contaminación del Árbol de Trabajo Real:**
-   En `scripts/verify-mcp-binary.js:12-43` y `scripts/verify-resilience-and-cli.js:6-42`, los tests crean y borran tareas de prueba (`DEV-998`, `DEV-999`, `anomalous-orphan-task-file.md`) directamente dentro del directorio real `backlog/tasks/` del repositorio y mutan `BACKLOG.md`. Si el proceso se interrumpe o corre en paralelo con git hooks, deja archivos huérfanos que provocan fallos en commits subsiguientes.
-2. **Inspección Estática Superficial ("Test Theater"):**
-   Varios pasos de la suite de 18 pruebas (`verify-focus-trap.js`, `test-ui-logic.js`, `verify-kanban-reorder.js`) no ejecutan código ni componentes reales; simplemente hacen `fs.readFileSync('src/...')` y buscan substrings con `.includes()` o regex. Esto produce checks verdes falsos aunque la lógica en runtime esté rota.
-3. **Aserciones Acopladas a Datos Históricos Vivos:**
-   En `scripts/verify-integration.js:159`, el test parsea el directorio real `backlog/tasks/` y comprueba que las tareas de `Sprint 3` coincidan exactamente con un array hardcodeado de 7 IDs (`DEV-047`, `DEV-049`, etc.). Cualquier edición, refinamiento o archivado de tareas históricas hace fallar la suite entera.
-4. **Falsos Positivos de UX-010 y Hack de Constante Fija:**
-   En `scripts/audit-ux-code.cjs`, la función `stripExpressions` elimina todas las llaves JSX `{...}` antes de verificar si un botón tiene texto accesible. Cualquier botón con un icono y una etiqueta internacionalizada `{t('...')}` dispara un falso positivo de `UX-010` (botón sin nombre accesible). Para tapar esto, `scripts/verify-audit-ux-baseline.js:37` hardcodea `const KNOWN_UX010_FALSE_POSITIVES = 12` y afirma `residual.length === 12`. Agregar o corregir un botón con i18n hace fallar los tests.
-5. **Gaps en CI y Pre-Commit:**
-   `.github/workflows/ci.yml` solo se dispara en `branches: [main]` ignorando `dev` donde ocurre el desarrollo activo; y `checkMcpBinarySync` en `verify-changes.js:295` resuelve imports desde el disco y no desde el índice Git, permitiendo falsos positivos/negativos si hay cambios sin stagear.
-
-### Solución Arquitectónica Profunda:
-
-- **Aislamiento en `os.tmpdir()`:**
-  - Migrar `verify-mcp-binary.js` y `verify-resilience-and-cli.js` para que creen un entorno efímero mediante `fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-'))` y pasen `--repo <tmpDir>` al servidor MCP y al CLI, garantizando que el repositorio vivo jamás sea tocado durante los tests.
-- **Pruebas de Comportamiento Real:**
-  - Reemplazar la lectura de strings por invocaciones a funciones reales de dominio, validando entradas, salidas, mutaciones de estado y contratos de error.
-  - Utilizar fixtures sintéticos aislados para `verify-integration.js`.
-- **Detección de Texto Visible con Soporte de i18n:**
-  - Enseñar a `audit-ux-code.cjs` a preservar llamadas de traducción como `t(...)` o `i18n.t(...)` sustituyéndolas por tokens visibles (`"__I18N_LABEL__"`) antes de pelar expresiones complejas.
-  - Eliminar la constante artificial `KNOWN_UX010_FALSE_POSITIVES = 12` de `verify-audit-ux-baseline.js`.
-- **Sincronización de CI:**
-  - Configurar `ci.yml` para ejecutarse en `branches: [main, dev]`.
-  - Conectar `checkMcpBinarySync` con un plugin de esbuild que lea imports relativos con `stagedContent()`.
-
-**Criterios de Aceptación:**
-- [x] #1 Ningún test de la suite de 18 pasos crea, muta o borra archivos dentro del árbol de trabajo del repositorio; todas las operaciones de prueba operan en directorios temporales aislados (`os.tmpdir()`)
-- [x] #2 `scripts/verify-integration.js` opera contra fixtures deterministas sintéticos sin acoplarse al historial vivo de tareas en `backlog/tasks/`
-- [x] #3 `scripts/audit-ux-code.cjs` reconoce expresiones JSX de traducción (`{t('...')}`) como texto accesible legítimo, eliminando falsos positivos en botones icon+label
-- [x] #4 Se elimina la constante hardcodeada `KNOWN_UX010_FALSE_POSITIVES = 12` en `scripts/verify-audit-ux-baseline.js`
-- [x] #5 `scripts/verify-changes.js` en `checkMcpBinarySync` evalúa dependencias transitivas directamente desde el índice Git
-- [x] #6 `.github/workflows/ci.yml` se ejecuta automáticamente tanto en `main` como en `dev`
-- [x] #7 La suite completa unificada (`npm test`) aprueba al 100% con aislamiento garantizado
-
----
-
-#### [DEV-308] Saneamiento de Estructura: Reubicación de demo-backlog.json a src/data y Eliminación del Directorio data/
-- **Prioridad**: `low` | **Tipo**: `tech_debt`
-
-Reubicación del dataset semilla de demostración `data/demo-backlog.json` a `src/data/demo-backlog.json` y erradicación del directorio raíz huérfano `data/`.
-
-### Diagnóstico y Justificación:
-
-1. **Directorio huérfano y residuo histórico:** Originalmente, `data/` albergaba las bases de datos locales del CLI (`projects-registry.json` y `dev-board.json`). Con la migración a XDG en el directorio del usuario (`~/.gripm/registry.json`), `data/demo-backlog.json` quedó como el único archivo superviviente en `data/`.
-2. **Cohesión de módulos:** En el frontend, `src/data/sandbox.ts` consume directamente este fixture para inicializar la sandbox interactiva en Vercel. Ubicarlo en `src/data/demo-backlog.json` consolida los datos y adaptadores en el mismo subárbol de fuentes (`src/data/`).
-3. **Reducción de fragmentación en empaquetado y guards:** Eliminar el directorio `data/` simplifica la raíz del proyecto y unifica las referencias en `package.json:files`, `server/services/registry.ts` y los scripts de verificación (`verify-publish-surface.js`, `verify-sandbox.js`, `verify-json-sprint-persistence.js`).
-
-**Criterios de Aceptación:**
-- [x] #1 `data/demo-backlog.json` es reubicado a `src/data/demo-backlog.json` y el directorio raíz `data/` es eliminado del repositorio
-- [x] #2 `src/data/sandbox.ts` actualiza su importación estática a `./demo-backlog.json`
-- [x] #3 `server/services/registry.ts` actualiza la constante `DEMO_FILE` hacia `src/data/demo-backlog.json`
-- [x] #4 `package.json` actualiza la allowlist en `files` reemplazando `data/demo-backlog.json` por `src/data/demo-backlog.json` (o la ruta canónica empaquetada)
-- [x] #5 `scripts/verify-publish-surface.js`, `scripts/verify-sandbox.js` y `scripts/verify-json-sprint-persistence.js` actualizan sus rutas hacia la nueva ubicación
-- [x] #6 Recompilación de binarios (`bin/server.js` y `bin/gripm-mcp.js`) reflejando la nueva ruta
-- [x] #7 La suite completa de verificación pasa en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`)
-
----
-
-#### [DEV-309] Documentación Comunitaria Bilingüe Unificada: CODE_OF_CONDUCT, CONTRIBUTING y SECURITY
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Unificación bilingüe en un solo archivo (inglés primero, español debajo) para la documentación comunitaria del repositorio: `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` y `SECURITY.md`.
-
-### Diagnóstico y Justificación:
-
-1. **Evitar dispersión de archivos:** En lugar de mantener archivos separados por idioma (`.es.md` y `.md`) propensos a *drift* y desincronización, cada documento consolida ambas versiones en una única fuente de verdad.
-2. **Convención Canónica:** Inglés primero en la mitad superior del documento (visibilidad global / internacional), seguido por la versión completa en español debajo, conectadas por selector de anclajes de navegación rápida en la cabecera.
-3. **Preservación total del contenido:** La versión en español preexistente se preserva en su totalidad sin pérdida de rigor técnico ni detalle contextual.
-
-**Criterios de Aceptación:**
-- [x] #1 `CODE_OF_CONDUCT.md` unifica en un solo archivo la versión canónica de Contributor Covenant 2.1 en inglés arriba y la versión en español adaptada debajo, con selector de anclaje bilingüe.
-- [x] #2 `CONTRIBUTING.md` unifica en un solo archivo la guía de contribución completa en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
-- [x] #3 `SECURITY.md` unifica en un solo archivo la política de seguridad y modelo de amenazas en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
-- [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js`).
-
----
-
-### 📋 Backlog / Draft (22)
+### 📋 Backlog / Draft (23)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1067,7 +753,34 @@ Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos inte
 
 ---
 
-### ✅ Done / Deployed (267)
+#### [DEV-310] Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Garantizar la soberanía, aislamiento y privacidad de proyectos locales configurados en modo mono-proyecto (`mode: "single"` en `.gripm/config.json`), evitando que aparezcan listados en el selector de proyectos (Hub) de otros repositorios que tengan activo el modo multi-proyecto (`mode: "multi"`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Frontera de Visibilidad Incompleta:**
+   Actualmente, el switch de `mode` en `.gripm/config.json` solo condiciona la interfaz cuando `gripm` se inicia directamente dentro de ese repositorio (`projectsToProcess = [activeProject]`). Sin embargo, cuando se inicia `gripm` en otro proyecto que tiene `multi` activo, `server/routes/api.ts:138` procesa incondicionalmente todos los proyectos del registro global (`registry.projects`), exponiendo proyectos que se configuraron explícitamente para operar de forma aislada.
+
+2. **Federación Opt-In Deseada:**
+   Si un proyecto declara `mode: "single"` en su `.gripm/config.json`, no solo expresa la intención de no ver otros proyectos (*inbound*), sino también la de no ser indexado ni accesible desde los Hubs de otros proyectos de la máquina (*outbound*), protegiendo proyectos privados, personales o bajo acuerdos de confidencialidad.
+
+### Solución Técnica:
+
+- En `server/routes/api.ts`, durante la resolución de `projectsToProcess` en modo Hub, filtrar aquellos proyectos registrados cuyo `.gripm/config.json` tenga `mode === 'single'`.
+- Preservar al proyecto activo actual (aunque fuera single) y al proyecto Demo si está habilitado.
+- Añadir pruebas de integración que aseguren que un repositorio marcado como `single` no se fuga en el selector del Hub de otro proyecto `multi`.
+
+**Criterios de Aceptación:**
+- [ ] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
+- [ ] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
+- [ ] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
+- [ ] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
+
+---
+
+### ✅ Done / Deployed (276)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -6268,6 +5981,26 @@ Para mitigar este vector:
 
 ---
 
+#### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
+
+Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN puede conectarse a la IP del host y acceder o mutar el backlog sin restricciones. Para permitir previsualización móvil en redes Wi-Fi sin exponer el backlog a otros participantes de la red:
+1. Al arrancar con `0.0.0.0`, el daemon genera un token criptográfico efímero en memoria (`crypto.randomBytes(16)`).
+2. Se muestra en consola la URL con el token pre-cargado: `http://<ip-lan>:4100/?token=<token>`.
+3. Peticiones que se originen desde interfaces externas requieren el token en query param (`?token=...`) o cabecera `X-Gripm-Token`.
+4. El tráfico local en loopback (`127.0.0.1` / `localhost`) se mantiene transparente sin exigir token para no degradar la ergonomía de desarrollo local.
+
+**Criterios de Aceptación:**
+- [x] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
+- [x] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
+- [x] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
+- [x] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
+- [x] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
+
+---
+
 #### [DEV-246] Endurecimiento de DevSecOps en GitHub Actions (SCA audit, permissions minimos y anti-script-injection en publish)
 - **Prioridad**: `medium` | **Tipo**: `chore`
 
@@ -7436,6 +7169,298 @@ node bin/gripm.js --repo . mcp
 - [x] #3 `readline.createInterface` en `scripts/mcp-server.ts` omite `output: process.stdout` para blindar la pureza del canal JSON-RPC
 - [x] #4 Un check en `scripts/verify-changes.js` compila en memoria `mcp-server.ts` y verifica que `bin/gripm-mcp.js` coincida exactamente, abortando el commit si el binario está desactualizado
 - [x] #5 La suite de pruebas de MCP aprueba limpiamente (`node scripts/verify-mcp-binary.js`)
+
+---
+
+#### [DEV-299] Arquitectura de Persistencia: Motor Unificado de Backlog (BacklogService) y Erradicación de Duplicación
+- **Prioridad**: `urgent` | **Tipo**: `architecture`
+
+Creación de una capa de servicio unificada y canónica (`server/services/backlogService.ts`) que centralice el 100% de la lógica de lectura, mutación, validación de State Machine, Gatekeeper de certificación, filtrado de tareas borradas (`isDeleted`), persistencia atómica y reconciliación de metadatos, erradicando la triplicación divergente actual entre `server/services/storage.ts`, `scripts/mcp-server.ts` y `scripts/gripm-cli.ts`.
+
+### Diagnóstico de la Causa Raíz:
+
+Actualmente, el producto mantiene tres implementaciones desconectadas para operar sobre las tareas:
+1. **`server/services/storage.ts`:** Usado por los endpoints HTTP del cockpit web.
+2. **`scripts/mcp-server.ts`:** Usado por agentes LLM (Cursor, Claude Code, Antigravity) vía protocolo stdio.
+3. **`scripts/gripm-cli.ts`:** Usado por scripts y terminal.
+
+Esta fragmentación es la causa raíz de regresiones sistemáticas en cada release:
+- **Bypass del Gatekeeper:** `gripm_update_task` valida criterios de aceptación antes de pasar a `ready`/`done`, pero `gripm_bulk_update_tasks` y `gripm-cli.ts --update-status` permiten cambiar estados sin validar ACs ni emitir auditoría `SEC-09`.
+- **Divergencia de State Machine:** Cuando `DEV-293` eliminó la auto-promoción ilegítima a `ready` en `verify-backlog-sync.js`, la función `gripm_sync_backlog` en `mcp-server.ts:1533-1538` quedó desincronizada y siguió mutando tareas de `doing` a `ready`.
+- **Efectos secundarios en lecturas `GET`:** `readProjectBacklog()` en `storage.ts:311-325` muta `backlog/sprints.json` y cierra sprints automáticamente al consultar `GET /api/data`, violando la soberanía del PO (`AGENTS.md` §2) y disparando bucles SSE.
+- **Fuga de tareas en papelera:** `mcp-server.ts:394-445`, `gripm-cli.ts:79-194` y `api.ts:820` no filtran `!task.isDeleted`, exponiendo ítems descartados a agentes y ensuciando estadísticas.
+- **Rutas de escritura no atómicas:** A pesar de `DEV-291`, 8 llamadas en `registry.ts`, `api.ts`, `gripm-cli.ts` y `updateChecker.js` siguen usando `fs.writeFileSync` truncante.
+
+### Solución Arquitectónica Profunda:
+
+Diseñar e implementar `server/services/backlogService.ts` como la única interfaz de dominio del sistema:
+- **Operaciones Atómicas Centralizadas:** `getTask(projectId, taskId)`, `listTasks(projectId, filters)`, `createTask(projectId, data)`, `updateTask(projectId, taskId, updates, options)`, `bulkUpdateTasks(projectId, patches, options)`, `deleteTask(projectId, taskId, options)`, `syncBacklog(projectId, options)`.
+- **Gobernanza Unificada:**
+  - El Gatekeeper de certificación de ACs se ejecuta obligatoriamente en `updateTask` y `bulkUpdateTasks` independientemente de si la llamada proviene de HTTP, MCP o CLI.
+  - El filtro `!task.isDeleted` es estricto por defecto en todas las consultas y exportaciones, salvo solicitud explícita (`includeDeleted: true`).
+  - Cero escrituras en operaciones de solo lectura (`getTask`, `listTasks`, `readProjectBacklog`).
+  - El 100% de las escrituras se realizan mediante `atomicWriteFileSync` de `server/services/atomicWrite.ts`.
+  - Reemplazo y delegación de `storage.ts`, `mcp-server.ts` y `gripm-cli.ts` hacia `backlogService`.
+
+**Criterios de Aceptación:**
+- [x] #1 Se implementa `server/services/backlogService.ts` como módulo canónico de dominio que encapsula lectura, escritura atómica, validaciones y reconciliación de tareas y releases
+- [x] #2 `server/services/storage.ts`, `scripts/mcp-server.ts` y `scripts/gripm-cli.ts` delegan su lógica de dominio en `backlogService`, eliminando código duplicado
+- [x] #3 `gripm_bulk_update_tasks` y `gripm-cli.ts --update-status` aplican estrictamente la validación del Gatekeeper (bloqueo a `ready`/`done` con ACs pendientes sin `force: true`) idéntica a `gripm_update_task`
+- [x] #4 `gripm_sync_backlog` en MCP deja de auto-promocionar tareas a `ready`, limitándose a emitir advertencias de calidad y escribiendo `BACKLOG.md` únicamente cuando hay cambios reales o `autoFix: true`
+- [x] #5 `readProjectBacklog` y las consultas de lectura no ejecutan ninguna mutación física en disco ni auto-cierre de sprints
+- [x] #6 Las tareas marcadas con `isDeleted: true` quedan excluidas por defecto de `gripm_list_tasks`, `gripm_get_stats`, listados CLI y exportaciones de `BACKLOG.md`
+- [x] #7 Todas las escrituras residuales identificadas (`registry.ts:212`, `api.ts:787, 1008, 1178, 1286`, `gripm-cli.ts:325, 460, 478`) migran a `atomicWriteFileSync`
+- [x] #8 Una suite de pruebas de integración verifica paridad 1:1 de comportamiento entre llamadas API REST, MCP y CLI
+
+---
+
+#### [DEV-300] Parser de Integridad Total: Tokenizador Formal, Idempotencia Round-Trip y Resiliencia Markdown
+- **Prioridad**: `urgent` | **Tipo**: `architecture`
+
+Reingeniería integral del parser y serializador de tareas (`scripts/backlogMdParser.ts`) mediante un scanner determinista de bloques y tokenizador formal de YAML/Markdown que garantice idempotencia total en operaciones de lectura-escritura (round-trip), erradicando definitivamente la mutilación de código, la pérdida de secciones y la corrupción progresiva de caracteres escapados.
+
+### Diagnóstico de la Causa Raíz:
+
+El parser actual se basa en expresiones regulares heurísticas y particiones por líneas (`split`) que fallan ante estructuras sintácticas válidas de Markdown y YAML:
+1. **Pérdida de Secciones por Ausencia de Fallback:**
+   En `parseBacklogMd`, las secciones `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes` y `Final Summary` buscan encabezados `## Header` sobre bloques a los que `extractSectionBlock` ya les removió el encabezado, descartando las secciones si no tienen marcadores HTML `<!-- SECTION:... -->`. Esto provocó en `v1.5.0` la pérdida física de notas de implementación en 5 tareas.
+2. **Corrupción Progresiva de Comillas y Barras (`\"` ➔ `\\\"`):**
+   `serializeBacklogMd` serializa cadenas con `JSON.stringify()`, pero `parseBacklogMd` limpia comillas con `.replace(/^['"]|['"]$/g, '')` en lugar de un unquote simétrico. Títulos o notas con `"` o `\` multiplican barras en cada guardado.
+3. **Inyección en YAML Frontmatter:**
+   Campos como `id`, `type`, `createdDate` o claves dinámicas de `rawExtraFrontmatter` se interpolan sin sanitizar caracteres de salto de línea (`\n`), permitiendo inyectar directivas YAML arbitrarias.
+4. **Falsos Positivos de Encabezados dentro de Código:**
+   Cuando una sección opcional no existe, el fallback a `bodyContent` busca encabezados con regex simple, cayendo en falsos positivos si un ejemplo de código en `## Description` menciona `## Acceptance Criteria` o `## Implementation Notes`.
+5. **Omisión de Estados en el Consolidado:**
+   `generateMonolithicBacklogMd` omite el estado canónico `'cancelled'` en la tabla de exportación a `BACKLOG.md`.
+
+### Solución Arquitectónica Profunda:
+
+- **Scanner Determinista de Secciones:**
+  Implementar un parser de dos fases:
+  1. *Fase Frontmatter:* Extracción y parseo seguro con soporte para BOM (`\uFEFF`), validación de claves contra `/^[a-zA-Z0-9_-]+$/` y función simétrica `unquoteYamlScalar(raw)` que desescape `JSON.parse` y comillas simples limpiamente.
+  2. *Fase Secciones CommonMark:* Escaneo de un solo paso que identifique todos los fences de código cercados (``` o ~~~ respetando indentación y longitudes) y extraiga con límites precisos las secciones `Description`, `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes` y `Final Summary`, tanto si usan marcadores HTML como si usan solo encabezados Markdown estándar.
+- **Idempotencia de Round-Trip:**
+  Garantizar que `serialize(parse(content)) === content` para cualquier archivo canónico sin diffs fantasma ni mutilación de saltos de línea.
+- **Inclusión de `cancelled`:**
+  Asegurar que `generateMonolithicBacklogMd` agrupe y exporte tareas en estado `cancelled`.
+
+**Criterios de Aceptación:**
+- [x] #1 `parseBacklogMd` extrae íntegramente las 5 secciones estándar (`Description`, `Acceptance Criteria`, `Implementation Plan`, `Implementation Notes`, `Final Summary`) independientemente de si poseen o no marcadores HTML `<!-- SECTION:... -->`
+- [x] #2 Ningún encabezado H2 (`## ...`) o marcador HTML ubicado dentro de bloques de código cercados (``` o ~~~) es interpretado como delimitador estructural
+- [x] #3 Se implementa `unquoteYamlScalar` determinista, eliminando la multiplicación de barras invertidas (`\"` ➔ `\\\"`) y preservando comillas y caracteres especiales en títulos y listas
+- [x] #4 Las claves y valores de YAML frontmatter se validan y sanitizan para impedir inyecciones de saltos de línea o directivas no autorizadas
+- [x] #5 `parseBacklogMd` soporta archivos con UTF-8 BOM (`\uFEFF`) y archivos sin salto de línea final tras el cierre `---`
+- [x] #6 `generateMonolithicBacklogMd` incluye las tareas en estado `cancelled` bajo su sección correspondiente en `BACKLOG.md`
+- [x] #7 Una suite de pruebas de ida y vuelta (round-trip) con 50 casos borde de Markdown/YAML complejos verifica 100% de preservación de bytes y fidelidad semántica
+
+---
+
+#### [DEV-301] Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Rediseño del protocolo de concurrencia optimista y sincronización en tiempo real entre el servidor y el cliente React: corrección del mecanismo de bloqueo por `mtime` en disco, eliminación de falsos positivos/negativos de colisión `409 Conflict`, y reemplazo de tormentas de peticiones HTTP N+1 por operaciones en lote atómicas (`bulkUpdateItems`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Desactivación Silenciosa del Guard 409 (`App.tsx` vs `ItemModal.tsx`):**
+   Al recibir eventos SSE `backlog_changed`, `App.tsx:337` actualiza `editingItem.mtime` al nuevo timestamp del disco para "evitar errores 409". Sin embargo, `ItemModal` no recarga sus 35 campos de formulario si el modal ya está abierto. Al pulsar "Guardar", envía el `mtime` nuevo pero con los datos viejos en pantalla, sobrescribiendo silenciosamente los cambios que un agente o usuario externo hizo en disco.
+2. **Margen Ciego de 1.000 ms en el Backend:**
+   En `server/routes/api.ts:278`, la verificación `if (existing.mtime > body.expectedMtime + 1000)` ignora deliberadamente colisiones concurrentes dentro de un segundo. Este hack se introdujo porque `api.ts:337` devolvía `updatedItem.mtime = Date.now()` (hora de CPU) en vez de `fs.statSync(targetFilePath).mtimeMs` (hora del sistema de archivos), provocando desfasajes artificiales.
+3. **Tormenta N+1 y Corrupción de Orden en Bulk Actions:**
+   Reordenar una tarea en `App.tsx:660-672` o mover tareas seleccionadas en `SprintView.tsx:680-721` ejecuta bucles con decenas de llamadas individuales `PUT /api/items/:id`. Además, como `onReorderItem` lee `boardData.items` desde un closure obsoleto en cada iteración del bucle, los órdenes se computan con datos viejos y corrompen la secuencia de las tareas anteriores.
+4. **Bypass del Estado en Modo Sandbox:**
+   Componentes como `KanbanBoard` y `SprintView` importan y llaman directamente a `updateItem()` desde `src/api.ts` sin notificar a `App.tsx`. En modo Sandbox (`gripm.vercel.app`), donde SSE es un no-op, la interfaz no se entera del cambio hasta que el usuario recarga la página.
+
+### Solución Arquitectónica Profunda:
+
+- **Protocolo Mtime Determinista:**
+  - `saveBacklogMdItem` y `PUT /api/items/:id` leen y devuelven el valor exacto `Math.round(fs.statSync(filePath).mtimeMs)`.
+  - La verificación de conflicto en `api.ts` se vuelve exacta (`existing.mtime > body.expectedMtime`), erradicando la ventana ciega de 1.000 ms.
+  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco - [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
+- **Batching Atómico Universal:**
+  - Migrar todas las operaciones de reordenamiento (`handleReorderBacklogItem`), finalización de sprint (`handleCompleteSprint`) y acciones masivas en `SprintView` para que utilicen el endpoint ya existente `POST /api/items/bulk` en **una única transacción HTTP**, con un único `setBoardData` funcional y una única notificación SSE.
+  - Asegurar que todas las mutaciones pasen por los handlers de `App.tsx` para sincronización inmediata en modo Sandbox y HTTP.
+
+**Criterios de Aceptación:**
+- [x] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
+- [x] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
+- [x] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
+- [x] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
+- [x] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
+
+---
+
+#### [DEV-302] Blindaje Integral de Seguridad: Daemon Local, Scoping Multi-Proyecto, IPv6 y Gatekeeper
+- **Prioridad**: `high` | **Tipo**: `security`
+
+Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la superficie de ataque del daemon local y el servidor MCP: soporte de loopback IPv6, contención estricta de symlinks con resolución de ancestros, aislamiento riguroso entre proyectos para prevenir mutaciones cruzadas por colisión de ID, blindaje del Gatekeeper de ejecución y sanitización de rutas HTTP.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Rechazo de Loopback IPv6 (`[::1]`):**
+   En `server/middleware/security.ts:62`, `(req.headers.host || '').split(':')[0]` convierte `[::1]:4100` en `'['`, fallando la comprobación `isLoopbackHost` y devolviendo `403 Forbidden` a cualquier cliente o navegador configurado con pila dual IPv6 local.
+2. **Evasión de Allowlist en el Gatekeeper de Certificación (`verifyCommand`):**
+   En `scripts/mcp-server.ts:260-384`, `validateVerifyCommand` valida el comando base (`npm test`, `npx vitest`), pero admite cualquier argumento que coincida con caracteres alfanuméricos y símbolos. Flags como `--prefix=/tmp/evil`, `--script-shell=/bin/sh`, `--config=/tmp/malicious.js` o `-c` permiten ejecutar código arbitrario fuera del repositorio.
+3. **Bypass de Contención por Symlinks en Rutas Inexistentes y en MCP:**
+   - En `server/services/fsExplorer.ts:57-62`, si se consulta una ruta que aún no existe físicamente (`/allowed/symlink_a_raiz/archivo_nuevo`), `fs.realpathSync` falla con `ENOENT` y el bloque `catch` realiza una comprobación sintáctica sobre la ruta sin resolver, permitiendo escapar de los límites permitidos.
+   - En `scripts/mcp-server.ts:148`, `isAllowedBrowsePath` evalúa `isPathContained` **antes** de resolver `fs.realpathSync`, permitiendo que enlaces simbólicos dentro de `cwd` sorteen la contención.
+4. **Colisión de IDs entre Proyectos (Mutación Cruzada):**
+   En `server/routes/api.ts:270-420` (`PUT`, `PATCH`, `DELETE`) y en `mcp-server.ts:1050/1160`, las operaciones buscan tareas iterando `registry.projects` desde el índice `0` sin filtrar por `projectId`. En un entorno con varios proyectos registrados, si dos repositorios tienen una tarea `DEV-001`, editar o borrar `DEV-001` en el Proyecto 2 muta o borra la tarea del Proyecto 1.
+5. **Ruteo con `req.url` en lugar de `pathname` y Parámetros no Sanitizados:**
+   Más de 15 endpoints en `api.ts` comparan directamente `req.url` (incluyendo query strings) o usan `url.split('/')[3]` sin `decodeURIComponent`. Además, `POST /api/import` no valida `docsPath` y `POST /api/projects` acepta `backlogDir` con secuencias `../`.
+
+### Solución Arquitectónica Profunda:
+
+- **Middleware de Seguridad Robusto:**
+  - Parseo RFC-compliant de la cabecera `Host` soportando formato IPv6 `[::1]` y validación de `Origin` / `Sec-Fetch-Site` en todos los métodos de mutación (`POST`, `PUT`, `DELETE`, `PATCH`).
+- **Gatekeeper Hardened:**
+  - Rechazar cualquier argumento que comience con `--prefix`, `--config`, `-c`, `--script-shell`, `--eval`, `-e`, `--import`, `--loader` o contenga secuencias relativas `..` o barras absolutas.
+  - Ejecutar verificación mediante argumentos estructurados sin invocación de shell en entornos POSIX.
+- **Contención de Filesystem con Resolución de Ancestros:**
+  - En `isAllowedBrowsePath`, si el archivo objetivo no existe, resolver iterativamente `fs.realpathSync` sobre su directorio padre existente más cercano antes de evaluar la contención. Unificar esta función en un solo módulo.
+- **Scoping Estricto por `projectId`:**
+  - Exigir o resolver prioritariamente el proyecto activo (`body.projectId || query.projectId || activeProjectId`) en todos los endpoints y herramientas MCP, garantizando que ninguna operación sobre `DEV-XXX` afecte a un proyecto ajeno.
+- **Sanitización de Ruteo:**
+  - Extraer `pathname` mediante `new URL(req.url, 'http://localhost')` en todos los manejadores de `server/routes/api.ts`, y validar contención estricta en `docsPath` y `backlogDir`.
+
+**Criterios de Aceptación:**
+- [x] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
+- [x] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
+- [x] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
+- [x] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
+- [x] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
+- [x] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
+- [x] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
+- [x] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
+
+---
+
+#### [DEV-303] Descomposición Modular de Frontend: Desacople de God Components y Motor de Filtros
+- **Prioridad**: `high` | **Tipo**: `refactor`
+
+Refactorización estructural del cliente React (`src/`): partición modular de los componentes monolíticos gigantes (`SettingsView`, `ItemModal`, `App.tsx`), unificación determinista del motor de filtrado multi-criterio y optimización de renderizado durante interacciones de drag-and-drop.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Monolitos de Responsabilidad Múltiple ("God Components"):**
+   - `src/components/SettingsView.tsx` (3.082 líneas): 8 pestañas completas, 25+ estados locales, dirty-checking manual por serialización JSON en cada keystroke y formularios embebidos en un solo archivo.
+   - `src/components/ItemModal.tsx` (2.507 líneas): Más de 35 hooks `useState` en el mismo componente (`lines 151-218`), preview de Markdown, BDD templates, drag-and-drop de ACs, exportación a calendar `.ics` y autosave.
+   - `src/App.tsx` (1.737 líneas): Orquestador central que retiene todo el estado del dominio, 10 estados de modal, SSE, locales, y más de 25 callbacks pasados por props drilling hasta 3 niveles de profundidad.
+2. **Divergencia de Filtrado ("Split-Brain"):**
+   `FilterBar.tsx` y `AdvancedFiltersPopover.tsx` fueron actualizados para soportar selección múltiple (`filters.sprints`, `filters.releases`, `filters.modules`) y tareas con múltiples módulos (`item.modules` en `DEV-275`). Sin embargo, [`visibleItems` en App.tsx:1250-1266](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx#L1250-L1266) jamás fue actualizado: solo evalúa campos singulares legacy (`filters.sprint`, `filters.release`, `filters.module`), provocando que activar filtros multi-selección en la UI no filtre absolutamente nada en el tablero.
+3. **Tormenta de Re-renders a 60 fps en Drag-and-Drop:**
+   En `KanbanBoard.tsx:512-527` y `SprintView.tsx:1466-1474`, `handleCardDragOver` invoca `setDropTarget` en cada píxel de movimiento del cursor sin validar si la posición o ítem cambió. Dado que `KanbanBoard` pasa 4 funciones flecha inline nuevas a cada `ItemCard` en cada render, `React.memo(ItemCard)` queda totalmente anulado y todas las tarjetas de todas las columnas se re-renderizan 60 veces por segundo durante el arrastre.
+4. **Code-Splitting Incompleto:**
+   Solo `ReleaseAssembler` y `SettingsView` usan `React.lazy()`. Vistas pesadas secundarias (`SprintView` 119 KB, `TimelineView` 54 KB, `MetricsView` 33 KB, `ImportWizardModal` 24 KB) se importan en el bundle inicial de arranque.
+
+### Solución Arquitectónica Profunda:
+
+- **Modularización de Componentes:**
+  - Extraer `src/hooks/useBoardController.ts` de `App.tsx` para aislar la carga de datos, suscripción SSE y mutaciones CRUD en un hook dedicado, reduciendo `App.tsx` a ~350 líneas de maquetado y renderizado condicional.
+  - Dividir `SettingsView.tsx` en submódulos por pestaña en `src/components/settings/` (`GeneralTab`, `KanbanTab`, `ModulesTab`, `TaxonomyTab`, `ComponentsTab`, `VisualTab`, `ToolsTab`, `AdvancedTab`).
+  - Dividir `ItemModal.tsx` en `useItemFormState` y subpaneles (`ItemDescriptionPanel`, `AcceptanceCriteriaPanel`, `ItemRelationsPanel`, `ItemSidebarMetadata`).
+- **Unificación del Motor de Filtros:**
+  - Crear `src/utils/filterItems.ts` con la función pura `itemMatchesFilters(item, filters)`.
+  - Soporte completo para matching multi-selección (`filters.sprints`, `filters.releases`, `filters.modules`) contra campos array (`item.modules`, `item.releases`, `item.sprints`) y campos singulares legacy.
+  - Consumir el mismo predicado en `App.tsx`, `FilterBar.tsx` y vistas de exportación.
+- **Rendimiento de Renderizado y Code-Splitting:**
+  - Proteger `setDropTarget` con guard funcional: `setDropTarget(prev => (prev?.itemId === id && prev?.pos === pos) ? prev : { itemId: id, pos })`.
+  - Estabilizar callbacks de `ItemCard` con `useCallback` parametrizado por `(item, ...)`.
+  - Cargar `SprintView`, `TimelineView`, `MetricsView` e `ImportWizardModal` con `React.lazy()` y `Suspense`.
+
+**Criterios de Aceptación:**
+- [x] #1 Se extrae `src/utils/filterItems.ts` y se unifica la lógica de filtrado; la selección de múltiples sprints, releases o módulos en el popover filtra correctamente las tarjetas en el Kanban y en el Backlog
+- [x] #2 `item.modules` (array multi-módulo) y `config.modulesList` son reconocidos plenamente en la barra de filtros y en el cálculo de `availableModules`
+- [x] #3 `SettingsView.tsx` se divide en subcomponentes por pestaña en `src/components/settings/`, reduciendo su tamaño individual a menos de 500 líneas por módulo
+- [x] #4 `ItemModal.tsx` desacopla su gestión de estado en `useItemFormState` y separa sus paneles de visualización
+- [x] #5 `KanbanBoard` y `SprintView` optimizan `setDropTarget` evitando re-renderizados innecesarios durante eventos de arrastre continuo
+- [x] #6 `ItemCard` recibe callbacks estables que permiten a `React.memo` evitar re-renders de tarjetas inactivas durante el drag-and-drop
+- [x] #7 `SprintView`, `TimelineView`, `MetricsView` e `ImportWizardModal` se cargan bajo demanda con `React.lazy()`, reduciendo el bundle inicial
+- [x] #8 La suite de UI smoke tests (`npm run test:ui`) aprueba sin regresiones funcionales
+
+---
+
+#### [DEV-304] Suite de Verificación Limpia: Aislamiento de Tests en Tempdir y Erradicación de Test Theater
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Saneamiento integral de la Pirámide de Verificación y el pipeline de pruebas: aislamiento físico de tests que mutan el sistema de archivos en directorios temporales independientes (`os.tmpdir()`), erradicación de aserciones frágiles basadas en búsqueda superficial de strings ("test theater"), y eliminación de falsos positivos en el auditor estático de UX.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Contaminación del Árbol de Trabajo Real:**
+   En `scripts/verify-mcp-binary.js:12-43` y `scripts/verify-resilience-and-cli.js:6-42`, los tests crean y borran tareas de prueba (`DEV-998`, `DEV-999`, `anomalous-orphan-task-file.md`) directamente dentro del directorio real `backlog/tasks/` del repositorio y mutan `BACKLOG.md`. Si el proceso se interrumpe o corre en paralelo con git hooks, deja archivos huérfanos que provocan fallos en commits subsiguientes.
+2. **Inspección Estática Superficial ("Test Theater"):**
+   Varios pasos de la suite de 18 pruebas (`verify-focus-trap.js`, `test-ui-logic.js`, `verify-kanban-reorder.js`) no ejecutan código ni componentes reales; simplemente hacen `fs.readFileSync('src/...')` y buscan substrings con `.includes()` o regex. Esto produce checks verdes falsos aunque la lógica en runtime esté rota.
+3. **Aserciones Acopladas a Datos Históricos Vivos:**
+   En `scripts/verify-integration.js:159`, el test parsea el directorio real `backlog/tasks/` y comprueba que las tareas de `Sprint 3` coincidan exactamente con un array hardcodeado de 7 IDs (`DEV-047`, `DEV-049`, etc.). Cualquier edición, refinamiento o archivado de tareas históricas hace fallar la suite entera.
+4. **Falsos Positivos de UX-010 y Hack de Constante Fija:**
+   En `scripts/audit-ux-code.cjs`, la función `stripExpressions` elimina todas las llaves JSX `{...}` antes de verificar si un botón tiene texto accesible. Cualquier botón con un icono y una etiqueta internacionalizada `{t('...')}` dispara un falso positivo de `UX-010` (botón sin nombre accesible). Para tapar esto, `scripts/verify-audit-ux-baseline.js:37` hardcodea `const KNOWN_UX010_FALSE_POSITIVES = 12` y afirma `residual.length === 12`. Agregar o corregir un botón con i18n hace fallar los tests.
+5. **Gaps en CI y Pre-Commit:**
+   `.github/workflows/ci.yml` solo se dispara en `branches: [main]` ignorando `dev` donde ocurre el desarrollo activo; y `checkMcpBinarySync` en `verify-changes.js:295` resuelve imports desde el disco y no desde el índice Git, permitiendo falsos positivos/negativos si hay cambios sin stagear.
+
+### Solución Arquitectónica Profunda:
+
+- **Aislamiento en `os.tmpdir()`:**
+  - Migrar `verify-mcp-binary.js` y `verify-resilience-and-cli.js` para que creen un entorno efímero mediante `fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-'))` y pasen `--repo <tmpDir>` al servidor MCP y al CLI, garantizando que el repositorio vivo jamás sea tocado durante los tests.
+- **Pruebas de Comportamiento Real:**
+  - Reemplazar la lectura de strings por invocaciones a funciones reales de dominio, validando entradas, salidas, mutaciones de estado y contratos de error.
+  - Utilizar fixtures sintéticos aislados para `verify-integration.js`.
+- **Detección de Texto Visible con Soporte de i18n:**
+  - Enseñar a `audit-ux-code.cjs` a preservar llamadas de traducción como `t(...)` o `i18n.t(...)` sustituyéndolas por tokens visibles (`"__I18N_LABEL__"`) antes de pelar expresiones complejas.
+  - Eliminar la constante artificial `KNOWN_UX010_FALSE_POSITIVES = 12` de `verify-audit-ux-baseline.js`.
+- **Sincronización de CI:**
+  - Configurar `ci.yml` para ejecutarse en `branches: [main, dev]`.
+  - Conectar `checkMcpBinarySync` con un plugin de esbuild que lea imports relativos con `stagedContent()`.
+
+**Criterios de Aceptación:**
+- [x] #1 Ningún test de la suite de 18 pasos crea, muta o borra archivos dentro del árbol de trabajo del repositorio; todas las operaciones de prueba operan en directorios temporales aislados (`os.tmpdir()`)
+- [x] #2 `scripts/verify-integration.js` opera contra fixtures deterministas sintéticos sin acoplarse al historial vivo de tareas en `backlog/tasks/`
+- [x] #3 `scripts/audit-ux-code.cjs` reconoce expresiones JSX de traducción (`{t('...')}`) como texto accesible legítimo, eliminando falsos positivos en botones icon+label
+- [x] #4 Se elimina la constante hardcodeada `KNOWN_UX010_FALSE_POSITIVES = 12` en `scripts/verify-audit-ux-baseline.js`
+- [x] #5 `scripts/verify-changes.js` en `checkMcpBinarySync` evalúa dependencias transitivas directamente desde el índice Git
+- [x] #6 `.github/workflows/ci.yml` se ejecuta automáticamente tanto en `main` como en `dev`
+- [x] #7 La suite completa unificada (`npm test`) aprueba al 100% con aislamiento garantizado
+
+---
+
+#### [DEV-308] Saneamiento de Estructura: Reubicación de demo-backlog.json a src/data y Eliminación del Directorio data/
+- **Prioridad**: `low` | **Tipo**: `tech_debt`
+
+Reubicación del dataset semilla de demostración `data/demo-backlog.json` a `src/data/demo-backlog.json` y erradicación del directorio raíz huérfano `data/`.
+
+### Diagnóstico y Justificación:
+
+1. **Directorio huérfano y residuo histórico:** Originalmente, `data/` albergaba las bases de datos locales del CLI (`projects-registry.json` y `dev-board.json`). Con la migración a XDG en el directorio del usuario (`~/.gripm/registry.json`), `data/demo-backlog.json` quedó como el único archivo superviviente en `data/`.
+2. **Cohesión de módulos:** En el frontend, `src/data/sandbox.ts` consume directamente este fixture para inicializar la sandbox interactiva en Vercel. Ubicarlo en `src/data/demo-backlog.json` consolida los datos y adaptadores en el mismo subárbol de fuentes (`src/data/`).
+3. **Reducción de fragmentación en empaquetado y guards:** Eliminar el directorio `data/` simplifica la raíz del proyecto y unifica las referencias en `package.json:files`, `server/services/registry.ts` y los scripts de verificación (`verify-publish-surface.js`, `verify-sandbox.js`, `verify-json-sprint-persistence.js`).
+
+**Criterios de Aceptación:**
+- [x] #1 `data/demo-backlog.json` es reubicado a `src/data/demo-backlog.json` y el directorio raíz `data/` es eliminado del repositorio
+- [x] #2 `src/data/sandbox.ts` actualiza su importación estática a `./demo-backlog.json`
+- [x] #3 `server/services/registry.ts` actualiza la constante `DEMO_FILE` hacia `src/data/demo-backlog.json`
+- [x] #4 `package.json` actualiza la allowlist en `files` reemplazando `data/demo-backlog.json` por `src/data/demo-backlog.json` (o la ruta canónica empaquetada)
+- [x] #5 `scripts/verify-publish-surface.js`, `scripts/verify-sandbox.js` y `scripts/verify-json-sprint-persistence.js` actualizan sus rutas hacia la nueva ubicación
+- [x] #6 Recompilación de binarios (`bin/server.js` y `bin/gripm-mcp.js`) reflejando la nueva ruta
+- [x] #7 La suite completa de verificación pasa en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`)
+
+---
+
+#### [DEV-309] Documentación Comunitaria Bilingüe Unificada: CODE_OF_CONDUCT, CONTRIBUTING y SECURITY
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Unificación bilingüe en un solo archivo (inglés primero, español debajo) para la documentación comunitaria del repositorio: `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` y `SECURITY.md`.
+
+### Diagnóstico y Justificación:
+
+1. **Evitar dispersión de archivos:** En lugar de mantener archivos separados por idioma (`.es.md` y `.md`) propensos a *drift* y desincronización, cada documento consolida ambas versiones en una única fuente de verdad.
+2. **Convención Canónica:** Inglés primero en la mitad superior del documento (visibilidad global / internacional), seguido por la versión completa en español debajo, conectadas por selector de anclajes de navegación rápida en la cabecera.
+3. **Preservación total del contenido:** La versión en español preexistente se preserva en su totalidad sin pérdida de rigor técnico ni detalle contextual.
+
+**Criterios de Aceptación:**
+- [x] #1 `CODE_OF_CONDUCT.md` unifica en un solo archivo la versión canónica de Contributor Covenant 2.1 en inglés arriba y la versión en español adaptada debajo, con selector de anclaje bilingüe.
+- [x] #2 `CONTRIBUTING.md` unifica en un solo archivo la guía de contribución completa en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
+- [x] #3 `SECURITY.md` unifica en un solo archivo la política de seguridad y modelo de amenazas en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
+- [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js`).
 
 ---
 

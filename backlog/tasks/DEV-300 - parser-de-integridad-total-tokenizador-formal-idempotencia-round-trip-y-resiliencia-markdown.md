@@ -1,9 +1,9 @@
 ---
 id: DEV-300
 title: "Parser de Integridad Total: Tokenizador Formal, Idempotencia Round-Trip y Resiliencia Markdown"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-16 03:25'
+updated_date: '2026-10-16'
 labels:
   - "parser"
   - "data-integrity"

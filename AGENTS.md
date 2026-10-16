@@ -30,7 +30,7 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 - **Invariante Fundamental:** **No puede haber un ítem en producción que no esté en `done`, ni un ítem en `done` que no esté desplegado en producción**. El paso de `ready` a `done` lo realiza el empaquetado/despliegue del release (Release Assembler).
 - **Despliegue Completo de Producción:** El cierre de una versión no concluye con el push del tag o el tarball de npm. Si el proyecto mantiene una instancia web en producción (Vercel Sandbox `https://gripm.vercel.app`), es **obligatorio ejecutar la promoción de producción**: `npx vercel --prod --yes` y verificar su accesibilidad HTTP antes de dar por cerrado el release.
 - **Desacople Sprint vs. Release:** Sprints y releases no tienen vinculación 1:1. Un release se compone exclusivamente por el **valor entregado** agrupando cualquier ítem disponible en `ready` (sea histórico o del sprint actual), con o sin sprint activo.
-- **Trazabilidad Total:** Todo cambio de código —incluidos micro-refinamientos visuales o de texto— debe tener un criterio de aceptación (AC) o tarea asociada. Incluir el archivo `.md` de la tarea en el mismo commit que el código.
+- **Trazabilidad Total:** Todo cambio de código (incluidos micro-refinamientos visuales o de texto) debe tener un criterio de aceptación (AC) o tarea asociada. Incluir el archivo `.md` de la tarea en el mismo commit que el código.
 - **Sincronización Inmediata:** Al crear o modificar cualquier archivo en `backlog/tasks/`, ejecutar `npm run backlog:sync` en el mismo movimiento para regenerar `BACKLOG.md` y mantener la coherencia del consolidado con el árbol de tareas.
 
 ---
@@ -56,13 +56,13 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 
 Antes de marcar cualquier tarea en `ready` o sellar un release, verificar en orden:
 
-1. ✅ `npx tsc --noEmit` — 0 errores de tipado TypeScript estricto.
-2. ✅ `npm test` — Suite unificada de pruebas (18 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
-3. ✅ `npm run test:linux` — **Obligatorio si el cambio toca runtime, CI, I/O o el sistema de archivos.** Corre la suite completa en un contenedor Linux para validar consistencia de plataforma (DEV-190).
-4. ✅ `npm run backlog:sync` && `npm run backlog:check` — Coherencia de tareas, versiones y releases (código 0).
-5. ✅ `npm run publish:check` — Cero fugas de datos y superficie de distribución limpia.
-6. ✅ `npm run build` — Bundle Vite y binarios standalone en `bin/`.
-7. ✅ `node scripts/verify-changes.js --all` — Defectos estructurales y codificación en todo el árbol (obligatorio antes de merge o release).
+1. ✅ `npx tsc --noEmit` - 0 errores de tipado TypeScript estricto.
+2. ✅ `npm test` - Suite unificada de pruebas (18 pasos secuenciales, código 0). Reporta duración por paso y nombra el paso culpable si algo se cuelga.
+3. ✅ `npm run test:linux` - **Obligatorio si el cambio toca runtime, CI, I/O o el sistema de archivos.** Corre la suite completa en un contenedor Linux para validar consistencia de plataforma (DEV-190).
+4. ✅ `npm run backlog:sync` && `npm run backlog:check` - Coherencia de tareas, versiones y releases (código 0).
+5. ✅ `npm run publish:check` - Cero fugas de datos y superficie de distribución limpia.
+6. ✅ `npm run build` - Bundle Vite y binarios standalone en `bin/`.
+7. ✅ `node scripts/verify-changes.js --all` - Defectos estructurales y codificación en todo el árbol (obligatorio antes de merge o release).
 
 > [!IMPORTANT]
 > **Gate de Calidad Verificable:** Antes de pasar a `ready`, cada criterio de aceptación tildado (`- [x]`) debe estar respaldado por un comando o verificación ejecutable (tests, types, grep). Prohibido tildar ACs por deducción o inspección superficial sin aserción real.
@@ -99,10 +99,10 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 2. **`toggleAcIndex` secuencial:** NUNCA paralelizar llamadas sobre una misma tarea para evitar race conditions al tildar ACs.
 3. **Cero marcadores de sección sin escapar (DEV-132):** NUNCA escribir marcadores HTML literales como `<!-- AC:BEGIN -->` dentro de descripciones o notas; usar texto neutro `[marcador AC:BEGIN]` o la forma escapada `<!\-- AC:BEGIN -->`.
 4. **Slugs de tareas canónicos:** Nombres de archivo bajo el patrón canónico `DEV-XXX - slug-descriptivo.md` (o `dev-xxx - slug-descriptivo.md`). El prefijo numérico debe coincidir de forma unívoca con el `id` declarado en el frontmatter YAML. Prohibido doble guión (`dev--XXX`).
-5. **Cero colisiones de ID:** Antes de crear una tarea, releer el ID máximo **en el momento de crearla** —no al inicio de la sesión: con dos agentes escribiendo en paralelo la ventana de colisión es real— y asignar `max + 1`. Verificar antes de cerrar: `grep -h '^id: DEV-' backlog/tasks/*.md | sort | uniq -d` debe devolver **vacío**.
+5. **Cero colisiones de ID:** Antes de crear una tarea, releer el ID máximo **en el momento de crearla** -no al inicio de la sesión: con dos agentes escribiendo en paralelo la ventana de colisión es real- y asignar `max + 1`. Verificar antes de cerrar: `grep -h '^id: DEV-' backlog/tasks/*.md | sort | uniq -d` debe devolver **vacío**.
 
 ### Ortogonalidad y Modelo de Datos
-6. **Ortogonalidad estricta ("Anti-Label-Smuggling"):** Estado, Sprint, Release, Prioridad y Asignado son dimensiones 100% independientes. Prohibido usar "Backlog" como sprint, o deducir versiones fantasma como `vSprint 5` por pertenecer a un sprint. Si un campo no tiene valor, su valor visual canónico debe ser unívoco: `Sin Sprint`, `Sin Asignar` o `—`.
+6. **Ortogonalidad estricta ("Anti-Label-Smuggling"):** Estado, Sprint, Release, Prioridad y Asignado son dimensiones 100% independientes. Prohibido usar "Backlog" como sprint, o deducir versiones fantasma como `vSprint 5` por pertenecer a un sprint. Si un campo no tiene valor, su valor visual canónico debe ser unívoco: `Sin Sprint`, `Sin Asignar` o `-`.
 7. **Estado `ideas` de primera clase:** NUNCA normalizar o degradar `ideas` a `draft` en parsers o vistas.
 8. **Simetría `sprint` vs `sprints`:** Al desasignar sprint en `ItemModal`, enviar `sprint: ""` y `targetSprint: ""` explícitamente para persistir la limpieza en disco.
 
@@ -123,6 +123,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 22. **Semántica de filtros de estado (Anti-Ambigüedad, DEV-287):** En selectores y chips de filtro, nombrar el conjunto de trabajo en curso como **"Estados activos"** (ES) / **"Active statuses"** (EN). Prohibido usar "Todos los estados" para referirse a estados no terminales, reservando "Todos" únicamente cuando la consulta incluya exhaustivamente `done`, `cancelled` y `dismissed`.
 23. **Visibilidad de versión en entornos Sandbox (DEV-288):** Todo despliegue web/sandbox debe exponer su versión canónica visiblemente (ej. en el modal de atajos de teclado o cabecera) para permitir la certificación inmediata por parte de usuarios y QA sin recurrir a la consola de desarrollo.
 24. **Documentación bilingüe en un único archivo (DEV-309):** Para documentos comunitarios y de gobernanza (`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, etc.), se unifican ambos idiomas en el mismo archivo: versión en inglés arriba, versión en español debajo, con selector de anclajes de navegación rápida en la cabecera (`🌐 [English](#...) | [Español](#...)`). Queda prohibido bifurcar la documentación en archivos paralelos `*.es.md` (exceptuando temporalmente `README.md` / `README.es.md`).
+25. **Cero guiones largos artificiales (Anti-Em-Dash / Anti-IA):** Queda terminantemente prohibido el uso de guiones largos (em-dash `—` o en-dash `–`) en títulos de navegador, interfaces de usuario, opciones de select, nombres de releases, notas de versión, `CHANGELOG.md`, `releases.json`, `BACKLOG.md` y documentación. Utilizar **siempre y exclusivamente** el guión simple estándar `-` con espacios (` - `). El uso de `—` es un cliché estilístico artificial que degrada la identidad y calidad del producto.
 
 ---
 

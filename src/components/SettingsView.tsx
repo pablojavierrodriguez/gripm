@@ -10,6 +10,7 @@ import {
   Tag,
   Boxes,
   RotateCcw,
+  Puzzle,
 } from 'lucide-react';
 import type { GripmConfig, Project, ItemStatus } from '../types';
 import { useTranslation } from '../utils/i18n';
@@ -168,7 +169,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const tabs: { id: SettingsTabId; label: string; desc: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'views', label: t('settings.navViews'), desc: t('settings.navViewsDesc'), icon: Layout },
-    { id: 'modules', label: t('settings.navModules'), desc: t('settings.navModulesDesc'), icon: Boxes },
+    { id: 'modules', label: t('settings.navModules'), desc: t('settings.navModulesDesc'), icon: Puzzle },
     { id: 'kanban', label: t('settings.navKanban'), desc: t('settings.navKanbanDesc'), icon: Sliders },
     { id: 'taxonomy', label: t('settings.navTaxonomy'), desc: t('settings.navTaxonomyDesc'), icon: Tag },
     { id: 'components', label: t('settings.navComponents'), desc: t('settings.navComponentsDesc'), icon: Boxes },
