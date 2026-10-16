@@ -1,7 +1,7 @@
 ---
 id: DEV-308
 title: "Saneamiento de Estructura: Reubicación de demo-backlog.json a src/data y Eliminación del Directorio data/"
-status: doing
+status: ready
 created_date: '2026-10-16'
 updated_date: '2026-10-16'
 labels:
@@ -30,13 +30,13 @@ Reubicación del dataset semilla de demostración `data/demo-backlog.json` a `sr
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `data/demo-backlog.json` es reubicado a `src/data/demo-backlog.json` y el directorio raíz `data/` es eliminado del repositorio
-- [ ] #2 `src/data/sandbox.ts` actualiza su importación estática a `./demo-backlog.json`
-- [ ] #3 `server/services/registry.ts` actualiza la constante `DEMO_FILE` hacia `src/data/demo-backlog.json`
-- [ ] #4 `package.json` actualiza la allowlist en `files` reemplazando `data/demo-backlog.json` por `src/data/demo-backlog.json` (o la ruta canónica empaquetada)
-- [ ] #5 `scripts/verify-publish-surface.js`, `scripts/verify-sandbox.js` y `scripts/verify-json-sprint-persistence.js` actualizan sus rutas hacia la nueva ubicación
-- [ ] #6 Recompilación de binarios (`bin/server.js` y `bin/gripm-mcp.js`) reflejando la nueva ruta
-- [ ] #7 La suite completa de verificación pasa en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`)
+- [x] #1 `data/demo-backlog.json` es reubicado a `src/data/demo-backlog.json` y el directorio raíz `data/` es eliminado del repositorio
+- [x] #2 `src/data/sandbox.ts` actualiza su importación estática a `./demo-backlog.json`
+- [x] #3 `server/services/registry.ts` actualiza la constante `DEMO_FILE` hacia `src/data/demo-backlog.json`
+- [x] #4 `package.json` actualiza la allowlist en `files` reemplazando `data/demo-backlog.json` por `src/data/demo-backlog.json` (o la ruta canónica empaquetada)
+- [x] #5 `scripts/verify-publish-surface.js`, `scripts/verify-sandbox.js` y `scripts/verify-json-sprint-persistence.js` actualizan sus rutas hacia la nueva ubicación
+- [x] #6 Recompilación de binarios (`bin/server.js` y `bin/gripm-mcp.js`) reflejando la nueva ruta
+- [x] #7 La suite completa de verificación pasa en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`)
 <!-- AC:END -->
 
 ## Implementation Plan
