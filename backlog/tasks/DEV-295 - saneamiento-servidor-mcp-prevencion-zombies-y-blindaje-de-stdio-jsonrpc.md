@@ -54,3 +54,23 @@ node bin/gripm.js --repo . mcp
 
 <!-- SECTION:PLAN:BEGIN -->
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- **Blindaje de transporte stdio y prevención de zombies (AC #1 & AC #3):**
+  - En `scripts/mcp-server.ts`, se eliminó `output: process.stdout` de `readline.createInterface` para evitar que secuencias de escape o eco del terminal contaminen el flujo JSON-RPC en stdout.
+  - Se implementó `handleExit` registrando listeners en `process.stdin.on('close')`, `process.stdin.on('end')`, `process.on('SIGINT')` y `process.on('SIGTERM')`. Verificado con apagado inmediato (< 32ms tras cierre de stdin).
+  - Se sustituyeron todas las escrituras directas `fs.writeFileSync` en `scripts/mcp-server.ts` por `atomicWriteFileSync` de `server/services/atomicWrite.ts` para blindar mutaciones del backlog y BACKLOG.md contra truncamientos a 0 bytes.
+  - Se incorporó soporte explícito para `-r` además de `--repo` en la detección CLI de repositorio en `scripts/mcp-server.ts`.
+- **Enrutamiento no posicional en CLI (AC #2):**
+  - En `bin/gripm.js`, la función `main()` ahora filtra los argumentos de valor (`--repo`, `-r`, `--port`, `-p`, `--host`, etc.) y extrae los comandos no-bandera de forma posicional/no-posicional.
+  - La invocación `gripm --repo <ruta> mcp` o `gripm -r <ruta> mcp` enruta de forma inmediata al servidor MCP sin iniciar Vite ni emitir banners a stdout.
+- **Guard pre-commit de paridad de binario empaquetado (AC #4):**
+  - En `scripts/verify-changes.js`, se implementó `checkMcpBinarySync()` que compila en memoria `scripts/mcp-server.ts` con `esbuild.buildSync({ write: false, ... })` y valida que `bin/gripm-mcp.js` (sea stageado o en disco bajo `--all`) coincida byte por byte (normalizando CRLF/LF).
+  - Ante cualquier desincronización, aborta con código 1 indicando ejecutar `npm run build:bin`.
+- **Validación y suite (AC #5):**
+  - Se regeneró `bin/gripm-mcp.js` mediante `npm run build:bin`.
+  - Se validó `node scripts/verify-mcp-binary.js` (17/17 checks aprobados).
+  - Se corrió `npm test` (18/18 pasos en verde), `npx tsc --noEmit` (0 errores) y `node scripts/verify-changes.js --all`.
+<!-- SECTION:NOTES:END -->

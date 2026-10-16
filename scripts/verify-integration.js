@@ -30,15 +30,12 @@ import { runInitWizard } from './initScaffold.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const testRepoDir = path.join(__dirname, '../data/test-repo-backlog-md');
+const testRepoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-repo-backlog-md-'));
 
 console.log('Testing End-to-End Backlog.md Integration...');
 
 // 1. Setup sample Backlog.md folder structure
 const tasksDir = path.join(testRepoDir, 'backlog/tasks');
-if (fs.existsSync(testRepoDir)) {
-  fs.rmSync(testRepoDir, { recursive: true, force: true });
-}
 fs.mkdirSync(tasksDir, { recursive: true });
 
 // 2. Create 3 sample tasks
@@ -142,23 +139,38 @@ assert.ok(monolithicMd.includes('Tokens JWT firmados y cifrados'));
 
 console.log('✅ Monolithic BACKLOG.md generation verified');
 
-// 6. Test DEV-068: Sprint filtering on gripm project
-const backlogTasksDir = path.join(__dirname, '../backlog/tasks');
-if (fs.existsSync(backlogTasksDir)) {
-  const allTaskFiles = fs.readdirSync(backlogTasksDir).filter(f => f.endsWith('.md'));
-  const sprint3Tasks = [];
-  for (const f of allTaskFiles) {
-    const raw = fs.readFileSync(path.join(backlogTasksDir, f), 'utf8');
-    const parsed = parseBacklogMd(raw, f.split(' - ')[0]);
-    const sp = parsed.sprint || parsed.targetSprint || parsed.rawExtraFrontmatter?.sprint || parsed.milestone;
-    if (sp && sp.toLowerCase() === 'sprint 3') {
-      sprint3Tasks.push(parsed.id);
+// 6. Test DEV-068: Sprint filtering with deterministic synthetic fixtures (DEV-304)
+{
+  const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-sprint-filter-'));
+  try {
+    const fixtureTasks = [
+      { id: 'SYNTH-001', title: 'Task in Sprint 3', sprint: 'Sprint 3', status: 'draft' },
+      { id: 'SYNTH-002', title: 'Task in Sprint 4', sprint: 'Sprint 4', status: 'doing' },
+      { id: 'SYNTH-003', title: 'Task with targetSprint Sprint 3', targetSprint: 'Sprint 3', status: 'review' },
+      { id: 'SYNTH-004', title: 'Task with milestone Sprint 3', milestone: 'Sprint 3', status: 'ready' },
+      { id: 'SYNTH-005', title: 'Task without sprint', status: 'draft' }
+    ];
+    for (const t of fixtureTasks) {
+      fs.writeFileSync(path.join(fixtureDir, `${t.id} - ${t.title}.md`), serializeBacklogMd(t), 'utf8');
     }
+
+    const allFiles = fs.readdirSync(fixtureDir).filter(f => f.endsWith('.md'));
+    const sprint3Tasks = [];
+    for (const f of allFiles) {
+      const raw = fs.readFileSync(path.join(fixtureDir, f), 'utf8');
+      const parsed = parseBacklogMd(raw, f.split(' - ')[0]);
+      const sp = parsed.sprint || parsed.targetSprint || parsed.rawExtraFrontmatter?.sprint || parsed.milestone;
+      if (sp && sp.toLowerCase() === 'sprint 3') {
+        sprint3Tasks.push(parsed.id);
+      }
+    }
+    sprint3Tasks.sort();
+    const expectedSprint3 = ['SYNTH-001', 'SYNTH-003', 'SYNTH-004'];
+    assert.deepStrictEqual(sprint3Tasks, expectedSprint3, `Expected Sprint 3 tasks to match: ${expectedSprint3.join(', ')} but got ${sprint3Tasks.join(', ')}`);
+    console.log('✅ DEV-068: Sprint 3 filter returns exactly expected tasks from synthetic fixture: ' + sprint3Tasks.join(', '));
+  } finally {
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
   }
-  sprint3Tasks.sort();
-  const expectedSprint3 = ['DEV-047', 'DEV-049', 'DEV-051', 'DEV-052', 'DEV-053', 'DEV-055', 'DEV-067'];
-  assert.deepStrictEqual(sprint3Tasks, expectedSprint3, `Expected Sprint 3 tasks to match exactly: ${expectedSprint3.join(', ')} but got ${sprint3Tasks.join(', ')}`);
-  console.log('✅ DEV-068: Sprint 3 filter returns exactly expected tasks: ' + sprint3Tasks.join(', '));
 }
 
 // 7. Test DEV-069: Status update via top-level status AND updates.status
@@ -193,11 +205,7 @@ assert.strictEqual(verifiedNested.status, 'ready', 'updates.status should be app
 console.log('✅ DEV-069: Both top-level status and updates.status successfully validated');
 
 // 8. Test DEV-042 & DEV-040: Local scaffolding via --init
-const initTestDir = path.join(__dirname, '../data/test-init-repo');
-if (fs.existsSync(initTestDir)) {
-  fs.rmSync(initTestDir, { recursive: true, force: true });
-}
-fs.mkdirSync(initTestDir, { recursive: true });
+const initTestDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-init-repo-'));
 fs.writeFileSync(path.join(initTestDir, 'package.json'), JSON.stringify({ name: 'test-app', scripts: {} }, null, 2), 'utf8');
 
 // Simulate --init logic
@@ -277,12 +285,10 @@ assert.strictEqual(parsedConfig.customItemTypes[0].label, 'Spike Técnico');
 console.log('✅ DEV-059 & DEV-074: Custom item types taxonomy config persistence verified');
 
 // 11. Test DEV-104: XDG and Home Directory Registry Resolution and Persistence
-const tempHome = path.join(__dirname, '../data/test-temp-home');
-const tempPkg = path.join(__dirname, '../data/test-temp-pkg');
+const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-temp-home-'));
+const tempPkg = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-temp-pkg-'));
 
 try {
-  if (fs.existsSync(tempHome)) fs.rmSync(tempHome, { recursive: true, force: true });
-  if (fs.existsSync(tempPkg)) fs.rmSync(tempPkg, { recursive: true, force: true });
 
   process.env.GRIPM_HOME = tempHome;
   assert.strictEqual(getGripmHomeDir(), tempHome, 'Should resolve GRIPM_HOME when set');
@@ -325,10 +331,9 @@ assert.ok(!banner.includes('git pull'), 'Banner should not include git instructi
 assert.ok(banner.includes('@gripm/board@latest'), 'Banner should include npm instructions');
 
 // Test update cache reading and writing
-const tempCacheDir = path.join(__dirname, '../data/test-temp-cache');
+const tempCacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-temp-cache-'));
 const tempCacheFile = path.join(tempCacheDir, 'update-cache.json');
 try {
-  if (fs.existsSync(tempCacheDir)) fs.rmSync(tempCacheDir, { recursive: true, force: true });
   process.env.GRIPM_UPDATE_CACHE_PATH = tempCacheFile;
 
   assert.strictEqual(readUpdateCache(), null, 'Should return null when cache does not exist');
@@ -369,12 +374,8 @@ fs.writeFileSync(isolatedRegistryPath, JSON.stringify({ activeProjectId: '', pro
 const prevEnvReg = process.env.GRIPM_REGISTRY_PATH;
 process.env.GRIPM_REGISTRY_PATH = isolatedRegistryPath;
 
-const registryPath = path.join(__dirname, '../data/projects-registry.json');
-const originalRegistryContent = fs.existsSync(registryPath) ? fs.readFileSync(registryPath, 'utf8') : null;
-const testInitRepo = path.join(__dirname, '../data/test-repo-init');
+const testInitRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-repo-init-'));
 try {
-  if (fs.existsSync(testInitRepo)) fs.rmSync(testInitRepo, { recursive: true, force: true });
-  fs.mkdirSync(testInitRepo, { recursive: true });
 
   // Create mock package.json
   const mockPkg = { name: 'sample-project', version: '1.0.0', scripts: { test: 'vitest' } };
@@ -495,11 +496,6 @@ try {
   }
   if (fs.existsSync(isolatedRegistryDir)) fs.rmSync(isolatedRegistryDir, { recursive: true, force: true });
   if (fs.existsSync(testInitRepo)) fs.rmSync(testInitRepo, { recursive: true, force: true });
-  if (originalRegistryContent !== null) {
-    fs.writeFileSync(registryPath, originalRegistryContent, 'utf8');
-  } else if (fs.existsSync(registryPath)) {
-    fs.rmSync(registryPath, { force: true });
-  }
 }
 
 // DEV-115: Desacople seguro. La garantia central es que backlog/ nunca se toca,

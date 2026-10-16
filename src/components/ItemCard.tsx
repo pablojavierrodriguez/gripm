@@ -48,7 +48,7 @@ interface ItemCardProps {
   item: BacklogItem;
   allItems?: BacklogItem[];
   isDragging?: boolean;
-  onClick: () => void;
+  onClick: (item: BacklogItem) => void;
   onUpdateStatus: (id: string, newStatus: ItemStatus) => void;
   onDelete: (id: string) => void;
   onDragStart: (e: React.DragEvent, item: BacklogItem) => void;
@@ -71,8 +71,10 @@ interface ItemCardProps {
   canMoveToTop?: boolean;
   canMoveToBottom?: boolean;
   onMoveWithinColumn?: (direction: 'up' | 'down' | 'top' | 'bottom') => void;
+  onMoveItemWithinColumn?: (item: BacklogItem, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   availableSprints?: string[];
   onAssignSprint?: (sprint: string) => void;
+  onAssignItemSprint?: (item: BacklogItem, sprint: string) => void;
 }
 
 export const LUCIDE_ICONS_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -238,8 +240,10 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   canMoveToTop,
   canMoveToBottom,
   onMoveWithinColumn,
+  onMoveItemWithinColumn,
   availableSprints,
-  onAssignSprint
+  onAssignSprint,
+  onAssignItemSprint
 }) => {
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
@@ -366,7 +370,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
       e.stopPropagation();
       return;
     }
-    onClick();
+    onClick(item);
   };
 
   const handleCopyAiPrompt = () => {
@@ -483,7 +487,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    onClick();
+                    onClick(item);
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white text-left"
                 >
@@ -539,8 +543,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                   )}
                 </div>
 
-                {/* Submenú Asignar a Sprint (DEV-276) */}
-                {isSprintActive && onAssignSprint && (
+                {/* Submenú Asignar a Sprint (DEV-276 / DEV-303) */}
+                {isSprintActive && (onAssignSprint || onAssignItemSprint) && (
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -560,7 +564,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                       <div className={`absolute ${menuPos && menuPos.left < 180 ? 'left-full ml-1' : 'right-full mr-1'} top-0 w-48 max-h-56 overflow-y-auto rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-50 text-xs`}>
                         <button
                           onClick={() => {
-                            onAssignSprint('');
+                            onAssignSprint?.('');
+                            onAssignItemSprint?.(item, '');
                             setMenuOpen(false);
                             setSprintMenuOpen(false);
                           }}
@@ -582,7 +587,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                           <button
                             key={sp}
                             onClick={() => {
-                              onAssignSprint(sp);
+                              onAssignSprint?.(sp);
+                              onAssignItemSprint?.(item, sp);
                               setMenuOpen(false);
                               setSprintMenuOpen(false);
                             }}
@@ -606,11 +612,12 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
                 {/* DEV-173 & DEV-276: reordering without a pointer. Disabled at the
                     column edges rather than hidden, so the position in the menu
                     stays stable while arrowing through it. */}
-                {onMoveWithinColumn && (canMoveUp || canMoveDown || canMoveToTop || canMoveToBottom) && (
+                {(onMoveWithinColumn || onMoveItemWithinColumn) && (canMoveUp || canMoveDown || canMoveToTop || canMoveToBottom) && (
                   <>
                     <button
                       onClick={() => {
-                        onMoveWithinColumn('top');
+                        onMoveWithinColumn?.('top');
+                        onMoveItemWithinColumn?.(item, 'top');
                         setMenuOpen(false);
                       }}
                       disabled={canMoveToTop !== undefined ? !canMoveToTop : !canMoveUp}
@@ -622,7 +629,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
                     <button
                       onClick={() => {
-                        onMoveWithinColumn('up');
+                        onMoveWithinColumn?.('up');
+                        onMoveItemWithinColumn?.(item, 'up');
                         setMenuOpen(false);
                       }}
                       disabled={!canMoveUp}
@@ -634,7 +642,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
                     <button
                       onClick={() => {
-                        onMoveWithinColumn('down');
+                        onMoveWithinColumn?.('down');
+                        onMoveItemWithinColumn?.(item, 'down');
                         setMenuOpen(false);
                       }}
                       disabled={!canMoveDown}
@@ -646,7 +655,8 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
                     <button
                       onClick={() => {
-                        onMoveWithinColumn('bottom');
+                        onMoveWithinColumn?.('bottom');
+                        onMoveItemWithinColumn?.(item, 'bottom');
                         setMenuOpen(false);
                       }}
                       disabled={canMoveToBottom !== undefined ? !canMoveToBottom : !canMoveDown}

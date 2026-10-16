@@ -55,7 +55,7 @@
     "scripts",
     "server",
     "src",
-    "data/demo-backlog.json",
+    "src/data/demo-backlog.json",
     "index.html",
     "vite.config.ts",
     "tailwind.config.js",

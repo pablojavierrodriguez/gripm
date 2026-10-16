@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, Lightbulb, AlertTriangle, Layers, Target, CheckCircle2, Clock, ChevronDown, Pencil, History } from 'lucide-react';
 import type { BacklogItem, ItemStatus, ViewMode, ColumnConfig, GripmConfig, ActiveTab, Sprint } from '../types';
 import { isSprintModuleActive } from '../types';
@@ -473,20 +473,20 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return scopedItems.filter(isItemHistoricalDone).length;
   }, [scopedItems, isItemHistoricalDone]);
 
-  const handleDragStart = (e: React.DragEvent, item: BacklogItem) => {
+  const handleDragStart = useCallback((e: React.DragEvent, item: BacklogItem) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', item.id);
     window.setTimeout(() => {
       setDraggedItemId(item.id);
     }, 0);
-  };
+  }, []);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedItemId(null);
     setActiveDropColumn(null);
     setDropTarget(null);
     setActiveSubDropTargetStatus(null);
-  };
+  }, []);
 
   const handleDragEnter = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
@@ -523,11 +523,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const midY = rect.top + rect.height / 2;
     const isAbove = e.clientY < midY;
     const targetIdx = isAbove ? index : index + 1;
-    setDropTarget({ 
-      colId, 
-      index: targetIdx,
-      targetItemId: targetItem?.id,
-      isAbove
+    setDropTarget((prev) => {
+      if (
+        prev?.colId === colId &&
+        prev?.index === targetIdx &&
+        prev?.targetItemId === targetItem?.id &&
+        prev?.isAbove === isAbove
+      ) {
+        return prev;
+      }
+      return { 
+        colId, 
+        index: targetIdx,
+        targetItemId: targetItem?.id,
+        isAbove
+      };
     });
   };
 
@@ -616,7 +626,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return Array.from(set).filter(Boolean).sort();
   }, [availableSprints, sprints]);
 
-  const handleAssignSprint = async (item: BacklogItem, targetSprint: string) => {
+  const handleAssignItemSprint = useCallback(async (item: BacklogItem, targetSprint: string) => {
     const curSprint = item.sprint || item.targetSprint || '';
     if (curSprint === targetSprint) return;
     try {
@@ -633,7 +643,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onShowToast(`Error al asignar sprint: ${err?.message || err}`, 'error');
       }
     }
-  };
+  }, [onShowToast]);
+
+  const handleMoveItemWithinColumn = useCallback((
+    item: BacklogItem,
+    direction: 'up' | 'down' | 'top' | 'bottom'
+  ) => {
+    const col = columns.find((c) => c.statuses.includes(item.status)) || columns[0];
+    const colItems = getKanbanColumnItems(items, col, { showIdeas: Boolean(includeIdeas), viewMode });
+    handleMoveWithinColumn(item, col, colItems, direction);
+  }, [columns, items, includeIdeas, viewMode, onUpdateStatus]);
 
   const handleDrop = (
     e: React.DragEvent, 
@@ -1023,8 +1042,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     item={item}
                     allItems={allItems || items}
                     isDragging={isItemDragged}
-                    onClick={() => onClickItem(item)}
-                    onUpdateStatus={(id, s) => onUpdateStatus(id, s)}
+                    onClick={onClickItem}
+                    onUpdateStatus={onUpdateStatus}
                     onDelete={onDeleteItem}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
@@ -1038,11 +1057,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     canMoveDown={idx < colItems.length - 1}
                     canMoveToTop={idx > 0}
                     canMoveToBottom={idx < colItems.length - 1}
-                    onMoveWithinColumn={(direction) =>
-                      handleMoveWithinColumn(item, col, colItems, direction)
-                    }
+                    onMoveItemWithinColumn={handleMoveItemWithinColumn}
                     availableSprints={activeOrAvailableSprintNames}
-                    onAssignSprint={(newSprint) => handleAssignSprint(item, newSprint)}
+                    onAssignItemSprint={handleAssignItemSprint}
                   />
                 </div>
 

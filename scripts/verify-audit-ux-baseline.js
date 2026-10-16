@@ -26,15 +26,7 @@ const RULES = path.join(ROOT, 'scripts', 'ux-rules.json');
 // Upstream anchors the snapshot at the project root (DEV-188), not next to the script.
 const BASELINE = path.join(ROOT, 'audit-ux-baseline.json');
 
-/**
- * UX-010 residuals that are known to be false positives.
- *
- * `hasVisibleText` upstream only recognises literal text nodes, not JSX expression
- * children. Every label in this project is a `{t('...')}` expression, so the rule
- * cannot see them and reports the button as icon-only. The genuine findings were
- * fixed; what is left is the defect.
- */
-const KNOWN_UX010_FALSE_POSITIVES = 12;
+
 
 /**
  * The auditor resolves the baseline next to itself, so a scratch copy of the
@@ -123,17 +115,13 @@ const isWindows = process.platform === 'win32';
 
   const report = JSON.parse(result.stdout);
 
-  // UX-010 is re-enabled (DEV-188). Its 12 remaining findings are false positives
-  // from a known upstream defect: `hasVisibleText` does not read a JSX expression
-  // child, and every label in this project is a `{t('...')}` expression. They are
-  // deliberately left visible instead of being suppressed, because suppressing
-  // them is what hid the real `role="button"` gap in the first place.
+  // UX-010 is re-enabled (DEV-188) and i18n translation expressions {t('...')}
+  // are recognized as visible text (DEV-304), eradicating false positives on icon+label buttons.
   const residual = report.findings.filter((f) => f.rule === 'UX-010');
   assert.equal(
     residual.length,
-    KNOWN_UX010_FALSE_POSITIVES,
-    `UX-010 residuals changed. Expected ${KNOWN_UX010_FALSE_POSITIVES} known false positives ` +
-      '(upstream hasVisibleText defect); investigate any change before updating this number.',
+    0,
+    `UX-010 residuals detected. Expected 0 unbaselined findings after i18n support, found: ${residual.length}`,
   );
 
   const others = report.findings.filter((f) => f.rule !== 'UX-010');
@@ -142,12 +130,12 @@ const isWindows = process.platform === 'win32';
     // from `path.join` would use backslashes on Windows and fail on the same finding.
     others.map((f) => `${f.rule} ${f.file.split('\\').join('/')}:${f.line}`),
     [],
-    'no finding outside the documented UX-010 false positives may reach the gate',
+    'no finding outside the baseline may reach the gate',
   );
 
   console.log(
     `✅ DEV-166: baseline committed with ${committedTotal} known observations; ` +
-      `gate surfaces only ${residual.length} documented UX-010 false positives`,
+      `gate surfaces 0 unbaselined findings (all i18n button labels recognized)`,
   );
 }
 

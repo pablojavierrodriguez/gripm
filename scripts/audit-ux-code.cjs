@@ -461,7 +461,9 @@ function findTagEnd(text, from) {
  * Removes `{...}` expression containers, respecting nesting and quotes.
  *
  * A JSX expression renders whatever it evaluates to, not its own source, so the
- * source cannot be read as visible text.
+ * source cannot be read as visible text. However, i18n translation calls like
+ * {t('...')} or {i18n.t('...')} produce visible localized text and are preserved
+ * as visible placeholder tokens to avoid false positives on icon+label buttons.
  */
 function stripExpressions(source) {
   let out = '';
@@ -483,9 +485,21 @@ function stripExpressions(source) {
 
     if (ch === '{') {
       let depth = 0;
+      const start = i;
       while (i < source.length) {
-        if (source[i] === '{') depth += 1;
-        else if (source[i] === '}') {
+        const c = source[i];
+        if (c === '"' || c === "'" || c === '`') {
+          const q = c;
+          i += 1;
+          while (i < source.length && source[i] !== q) {
+            if (source[i] === '\\') i += 1;
+            i += 1;
+          }
+          i += 1;
+          continue;
+        }
+        if (c === '{') depth += 1;
+        else if (c === '}') {
           depth -= 1;
           if (depth === 0) {
             i += 1;
@@ -493,6 +507,10 @@ function stripExpressions(source) {
           }
         }
         i += 1;
+      }
+      const expr = source.slice(start, i);
+      if (/\b(?:i18n\.)?t\s*\(/.test(expr)) {
+        out += '__I18N_LABEL__';
       }
       continue;
     }

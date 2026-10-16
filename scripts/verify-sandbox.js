@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 console.log('🧪 Iniciando verificación del adaptador sandbox y detector de entorno (DEV-262)...');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DEMO_FILE = path.join(ROOT, 'data/demo-backlog.json');
+const DEMO_FILE = path.join(ROOT, 'src/data/demo-backlog.json');
 
 // --- Mock de window y localStorage para el entorno Node ---------------------
 const mockStore = new Map();
@@ -446,7 +446,7 @@ try {
   ok('AC #11: paridad 100% de los 31 métodos del contrato GripmApi entre httpAdapter y sandboxAdapter');
 
   // -------------------------------------------------------------------------
-  // AC #12: Validación estructural y de tipos de data/demo-backlog.json
+  // AC #12: Validación estructural y de tipos de src/data/demo-backlog.json
   // -------------------------------------------------------------------------
   const rawDemo = fs.readFileSync(DEMO_FILE, 'utf8');
   const demoData = JSON.parse(rawDemo);
@@ -503,7 +503,7 @@ try {
   // Metadata
   assert(!isNaN(Date.parse(demoData.lastUpdated)), 'AC #12: lastUpdated debe ser fecha ISO válida');
 
-  ok('AC #12: data/demo-backlog.json cumple esquema, cubre las 5 columnas, sprints y ACs');
+  ok('AC #12: src/data/demo-backlog.json cumple esquema, cubre las 5 columnas, sprints y ACs');
 
   console.log(`\n🎉 Todas las verificaciones (${TOTAL_STEPS}/${TOTAL_STEPS}) pasaron exitosamente.`);
   process.exit(0);

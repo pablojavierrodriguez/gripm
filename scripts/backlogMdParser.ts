@@ -195,22 +195,133 @@ export function unescapeSectionMarkers(text: string): string {
   return text.replace(/<!\\--\s*(\/?(?:AC|SECTION:[A-Za-z0-9_-]+):(BEGIN|END))\s*-->/gi, '<!-- $1 -->');
 }
 
+export interface CodeFenceRange {
+  start: number;
+  end: number;
+}
+
 /**
- * DEV-132 / DEV-289: Extrae el bloque de contenido delimitado bajo un encabezado H2 específico (## HeaderName)
+ * DEV-300: Identifica todos los rangos de caracteres [start, end] correspondientes a bloques
+ * de código cercados (fenced code blocks con ``` o ~~~) según la especificación CommonMark.
+ * Respeta indentación de 0 a 3 espacios, carácter delimitador y longitud de cierre >= apertura.
+ */
+export function getCodeFenceRanges(text: string): CodeFenceRange[] {
+  const ranges: CodeFenceRange[] = [];
+  if (!text) return ranges;
+
+  const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+  let match: RegExpExecArray | null;
+
+  let inFence = false;
+  let fenceChar = '';
+  let fenceLength = 0;
+  let fenceStart = -1;
+
+  while ((match = lineRegex.exec(text)) !== null) {
+    const line = match[1];
+    const lineStart = match.index;
+    const lineEnd = match.index + match[0].length;
+
+    if (match[0].length === 0 && lineStart >= text.length) {
+      break;
+    }
+
+    if (!inFence) {
+      const openMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})/);
+      if (openMatch) {
+        const char = openMatch[1][0];
+        const restOfLine = line.slice(openMatch.index! + openMatch[0].length);
+        if (char === '`' && restOfLine.includes('`')) {
+          continue;
+        }
+        inFence = true;
+        fenceChar = char;
+        fenceLength = openMatch[1].length;
+        fenceStart = lineStart;
+      }
+    } else {
+      const closeMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
+        ranges.push({ start: fenceStart, end: lineEnd });
+        inFence = false;
+        fenceChar = '';
+        fenceLength = 0;
+        fenceStart = -1;
+      }
+    }
+  }
+
+  if (inFence && fenceStart !== -1) {
+    ranges.push({ start: fenceStart, end: text.length });
+  }
+
+  return ranges;
+}
+
+/**
+ * DEV-300: Determina si un offset de caracteres se encuentra dentro de alguno de los rangos de bloques de código cercados.
+ */
+export function isOffsetInFence(offset: number, fenceRanges: CodeFenceRange[]): boolean {
+  for (const range of fenceRanges) {
+    if (offset >= range.start && offset < range.end) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * DEV-300: Extrae el contenido delimitado por marcadores HTML (e.g. <!-- AC:BEGIN --> ... <!-- AC:END -->),
+ * ignorando rigurosamente cualquier marcador ubicado dentro de bloques de código cercados.
+ */
+export function extractMarkerContent(text: string, beginMarkerName: string, endMarkerName: string): string | null {
+  if (!text) return null;
+
+  const fenceRanges = getCodeFenceRanges(text);
+  const beginRegex = new RegExp(`<!--\\s*${beginMarkerName}\\s*-->`, 'gi');
+  const endRegex = new RegExp(`<!--\\s*${endMarkerName}\\s*-->`, 'gi');
+
+  let beginMatch: RegExpExecArray | null = null;
+  while ((beginMatch = beginRegex.exec(text)) !== null) {
+    if (!isOffsetInFence(beginMatch.index, fenceRanges)) {
+      break;
+    }
+  }
+
+  if (!beginMatch) {
+    return null;
+  }
+
+  const payloadStart = beginMatch.index + beginMatch[0].length;
+  endRegex.lastIndex = payloadStart;
+
+  let endMatch: RegExpExecArray | null = null;
+  while ((endMatch = endRegex.exec(text)) !== null) {
+    if (!isOffsetInFence(endMatch.index, fenceRanges)) {
+      break;
+    }
+  }
+
+  if (!endMatch) {
+    return text.slice(payloadStart);
+  }
+
+  return text.slice(payloadStart, endMatch.index);
+}
+
+/**
+ * DEV-132 / DEV-289 / DEV-300: Extrae el bloque de contenido delimitado bajo un encabezado H2 específico (## HeaderName)
  * hasta el siguiente encabezado H2 fuera de bloques de código cercados (``` o ~~~) o el fin del documento.
  */
 export function extractSectionBlock(body: string, headerName: string): string {
   if (!body) return '';
 
+  const fenceRanges = getCodeFenceRanges(body);
   const escapedHeader = headerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const targetHeaderRegex = new RegExp(`^##\\s+${escapedHeader}\\b[^\r\n]*`, 'i');
+  const targetHeaderRegex = new RegExp(`^[ ]{0,3}##\\s+${escapedHeader}\\b[^\r\n]*`, 'i');
 
   const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
   let match: RegExpExecArray | null;
-
-  let inCodeFence = false;
-  let fenceChar = '';
-  let fenceLength = 0;
 
   let sectionFound = false;
   let startIndex = -1;
@@ -225,30 +336,18 @@ export function extractSectionBlock(body: string, headerName: string): string {
       break;
     }
 
-    if (!inCodeFence) {
-      const fenceMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})/);
-      if (fenceMatch) {
-        inCodeFence = true;
-        fenceChar = fenceMatch[1][0];
-        fenceLength = fenceMatch[1].length;
-      } else {
-        const isH2 = /^##\s+[^\r\n]*/.test(line);
-        if (isH2) {
-          if (!sectionFound) {
-            if (targetHeaderRegex.test(line)) {
-              sectionFound = true;
-              startIndex = lineEnd;
-            }
-          } else {
-            endIndex = lineStart;
-            break;
+    if (!isOffsetInFence(lineStart, fenceRanges)) {
+      const isH2 = /^[ ]{0,3}##\s+[^\r\n]*/.test(line);
+      if (isH2) {
+        if (!sectionFound) {
+          if (targetHeaderRegex.test(line)) {
+            sectionFound = true;
+            startIndex = lineEnd;
           }
+        } else {
+          endIndex = lineStart;
+          break;
         }
-      }
-    } else {
-      const closeMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})\s*$/);
-      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
-        inCodeFence = false;
       }
     }
   }
@@ -260,12 +359,35 @@ export function extractSectionBlock(body: string, headerName: string): string {
   return body.slice(startIndex, endIndex);
 }
 
-function cleanItem(val: string): string {
-  let s = val.trim();
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    s = s.slice(1, -1);
+/**
+ * DEV-300: Desescapa y desentrecomilla de forma simétrica y determinista un escalar YAML.
+ * Soporta comillas dobles (con escapes JSON/YAML como \" y \\), comillas simples (con escape '')
+ * y escalares planos (unquoted). Elimina la multiplicación de barras invertidas (\" -> \\\").
+ */
+export function unquoteYamlScalar(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed
+        .slice(1, -1)
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t');
+    }
   }
-  return s.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replace(/''/g, "'");
+  }
+  return trimmed;
+}
+
+function cleanItem(val: string): string {
+  return unquoteYamlScalar(val);
 }
 
 /**
@@ -354,13 +476,20 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 
   if (!content) return result;
 
+  // DEV-300: Soportar archivos con UTF-8 BOM (\uFEFF)
+  let cleanContent = content;
+  if (cleanContent.charCodeAt(0) === 0xFEFF) {
+    cleanContent = cleanContent.slice(1);
+  }
+
   // 1. Extraer Frontmatter
-  let bodyContent = content;
-  const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  // DEV-300: Soportar archivos sin salto de línea final tras el cierre ---
+  let bodyContent = cleanContent;
+  const frontmatterMatch = cleanContent.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n([\s\S]*))?$/);
   
   if (frontmatterMatch) {
     const rawFm = frontmatterMatch[1];
-    bodyContent = frontmatterMatch[2];
+    bodyContent = frontmatterMatch[2] || '';
 
     const lines = rawFm.split(/\r?\n/);
     let currentKey = '';
@@ -398,7 +527,7 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 
       if (trimmed.startsWith('- ')) {
         // Elemento de lista
-        const itemVal = trimmed.replace(/^- /, '').trim().replace(/^['"]|['"]$/g, '');
+        const itemVal = unquoteYamlScalar(trimmed.replace(/^- /, ''));
         currentList.push(itemVal);
         continue;
       }
@@ -410,9 +539,14 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 
       const colonIdx = line.indexOf(':');
       if (colonIdx !== -1) {
-        const key = line.slice(0, colonIdx).trim().toLowerCase();
+        const rawKey = line.slice(0, colonIdx).trim();
+        // DEV-300: Validar clave contra /^[a-zA-Z0-9_-]+$/ para impedir inyecciones de saltos de línea o directivas no autorizadas
+        if (!/^[a-zA-Z0-9_-]+$/.test(rawKey)) {
+          continue;
+        }
+        const key = rawKey.toLowerCase();
         const rawVal = line.slice(colonIdx + 1).trim();
-        const cleanVal = rawVal.replace(/^['"]|['"]$/g, '');
+        const cleanVal = unquoteYamlScalar(rawVal);
 
         currentKey = key;
 
@@ -584,7 +718,15 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
           }
           default:
             if (result.rawExtraFrontmatter) {
-              result.rawExtraFrontmatter[key] = cleanVal;
+              if (rawVal === 'true') {
+                result.rawExtraFrontmatter[key] = true;
+              } else if (rawVal === 'false') {
+                result.rawExtraFrontmatter[key] = false;
+              } else if (/^-?\d+(?:\.\d+)?$/.test(rawVal)) {
+                result.rawExtraFrontmatter[key] = Number(rawVal);
+              } else {
+                result.rawExtraFrontmatter[key] = cleanVal;
+              }
             }
             break;
         }
@@ -598,42 +740,49 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
   }
 
   // 2. Extraer Secciones Delimitadas
-  // DEV-132: Aislamos la extracción de cada sección a su propio bloque H2 (## Description, ## Acceptance Criteria, etc.)
-  // para que marcadores de sección literales en la descripción o en bloques de código no capturen secciones ajenas.
+  // DEV-132 / DEV-300: Extracción determinista de las 5 secciones estándar. Se analizan primero los
+  // bloques H2 delimitados fuera de código y luego los marcadores HTML (si existen), ignorando
+  // cualquier marcador o encabezado dentro de bloques de código cercados.
 
   // A. Descripción
   const descBlock = extractSectionBlock(bodyContent, 'Description');
-  const descTarget = descBlock || bodyContent;
-  const descMatch = descTarget.match(/<!--\s*SECTION:DESCRIPTION:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:DESCRIPTION:END\s*-->/i);
-  if (descMatch) {
-    result.description = unescapeSectionMarkers(descMatch[1].trim());
-  } else {
-    const descHeaderMatch = descTarget.match(/## Description\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (descHeaderMatch) {
-      result.description = unescapeSectionMarkers(descHeaderMatch[1].trim());
-    } else if (descBlock) {
-      result.description = unescapeSectionMarkers(descBlock.trim());
-    }
+  const descMarker = extractMarkerContent(descBlock || bodyContent, 'SECTION:DESCRIPTION:BEGIN', 'SECTION:DESCRIPTION:END');
+  if (descMarker !== null) {
+    result.description = unescapeSectionMarkers(descMarker.trim());
+  } else if (descBlock) {
+    result.description = unescapeSectionMarkers(descBlock.trim());
   }
 
   // B. Acceptance Criteria (AC)
   const acBlock = extractSectionBlock(bodyContent, 'Acceptance Criteria');
-  const acTarget = acBlock || bodyContent;
-  const acMatch = acTarget.match(/<!--\s*AC:BEGIN\s*-->([\s\S]*?)<!--\s*AC:END\s*-->/i);
-  const acText = acMatch ? acMatch[1] : (acTarget.match(/## Acceptance Criteria\r?\n([\s\S]*?)(?=\r?\n## |$)/i)?.[1] || '');
-  
+  const acMarker = extractMarkerContent(acBlock || bodyContent, 'AC:BEGIN', 'AC:END');
+  let acText = '';
+  if (acMarker !== null) {
+    acText = acMarker;
+  } else if (acBlock) {
+    acText = acBlock;
+  }
+
   if (acText) {
-    const acLines = acText.split(/\r?\n/);
+    const acFenceRanges = getCodeFenceRanges(acText);
+    const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+    let match: RegExpExecArray | null;
     const parsedAC: ParsedAcceptanceCriteria[] = [];
     let autoIndex = 1;
 
-    for (const line of acLines) {
-      const match = line.match(/^-\s*\[([ xX])\]\s*(?:#(\d+)\s+)?(.*)$/);
-      if (match) {
-        const checked = match[1].toLowerCase() === 'x';
-        const num = match[2] ? parseInt(match[2], 10) : autoIndex++;
-        const text = unescapeSectionMarkers(match[3].trim());
-        parsedAC.push({ index: num, text, checked });
+    while ((match = lineRegex.exec(acText)) !== null) {
+      const line = match[1];
+      const lineStart = match.index;
+      if (match[0].length === 0 && lineStart >= acText.length) break;
+
+      if (!isOffsetInFence(lineStart, acFenceRanges)) {
+        const itemMatch = line.match(/^-\s*\[([ xX])\]\s*(?:#(\d+)\s+)?(.*)$/);
+        if (itemMatch) {
+          const checked = itemMatch[1].toLowerCase() === 'x';
+          const num = itemMatch[2] ? parseInt(itemMatch[2], 10) : autoIndex++;
+          const text = unescapeSectionMarkers(itemMatch[3].trim());
+          parsedAC.push({ index: num, text, checked });
+        }
       }
     }
     result.acceptanceCriteria = parsedAC;
@@ -641,41 +790,29 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 
   // C. Implementation Plan
   const planBlock = extractSectionBlock(bodyContent, 'Implementation Plan');
-  const planTarget = planBlock || bodyContent;
-  const planMatch = planTarget.match(/<!--\s*SECTION:PLAN:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:PLAN:END\s*-->/i);
-  if (planMatch) {
-    result.implementationPlan = unescapeSectionMarkers(planMatch[1].trim());
-  } else {
-    const planHeaderMatch = planTarget.match(/## Implementation Plan\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (planHeaderMatch) {
-      result.implementationPlan = unescapeSectionMarkers(planHeaderMatch[1].trim());
-    }
+  const planMarker = extractMarkerContent(planBlock || bodyContent, 'SECTION:PLAN:BEGIN', 'SECTION:PLAN:END');
+  if (planMarker !== null) {
+    result.implementationPlan = unescapeSectionMarkers(planMarker.trim());
+  } else if (planBlock) {
+    result.implementationPlan = unescapeSectionMarkers(planBlock.trim());
   }
 
   // D. Implementation Notes
   const notesBlock = extractSectionBlock(bodyContent, 'Implementation Notes');
-  const notesTarget = notesBlock || bodyContent;
-  const notesMatch = notesTarget.match(/<!--\s*SECTION:NOTES:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:NOTES:END\s*-->/i);
-  if (notesMatch) {
-    result.implementationNotes = unescapeSectionMarkers(notesMatch[1].trim());
-  } else {
-    const notesHeaderMatch = notesTarget.match(/## Implementation Notes\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (notesHeaderMatch) {
-      result.implementationNotes = unescapeSectionMarkers(notesHeaderMatch[1].trim());
-    }
+  const notesMarker = extractMarkerContent(notesBlock || bodyContent, 'SECTION:NOTES:BEGIN', 'SECTION:NOTES:END');
+  if (notesMarker !== null) {
+    result.implementationNotes = unescapeSectionMarkers(notesMarker.trim());
+  } else if (notesBlock) {
+    result.implementationNotes = unescapeSectionMarkers(notesBlock.trim());
   }
 
   // E. Final Summary
   const summaryBlock = extractSectionBlock(bodyContent, 'Final Summary');
-  const summaryTarget = summaryBlock || bodyContent;
-  const summaryMatch = summaryTarget.match(/<!--\s*SECTION:FINAL_SUMMARY:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:FINAL_SUMMARY:END\s*-->/i);
-  if (summaryMatch) {
-    result.finalSummary = unescapeSectionMarkers(summaryMatch[1].trim());
-  } else {
-    const summaryHeaderMatch = summaryTarget.match(/## Final Summary\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (summaryHeaderMatch) {
-      result.finalSummary = unescapeSectionMarkers(summaryHeaderMatch[1].trim());
-    }
+  const summaryMarker = extractMarkerContent(summaryBlock || bodyContent, 'SECTION:FINAL_SUMMARY:BEGIN', 'SECTION:FINAL_SUMMARY:END');
+  if (summaryMarker !== null) {
+    result.finalSummary = unescapeSectionMarkers(summaryMarker.trim());
+  } else if (summaryBlock) {
+    result.finalSummary = unescapeSectionMarkers(summaryBlock.trim());
   }
 
   return result;
@@ -687,7 +824,9 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
 export function serializeBacklogMd(task: BacklogMdTask): string {
   const frontmatterLines: string[] = ['---'];
 
-  frontmatterLines.push(`id: ${task.id}`);
+  // DEV-300: Sanitizar id y tipo contra inyecciones de saltos de línea (\n)
+  const cleanId = (task.id || '').replace(/[\r\n]+/g, '').trim();
+  frontmatterLines.push(`id: ${cleanId}`);
   frontmatterLines.push(`title: ${JSON.stringify(task.title || 'Sin título')}`);
   frontmatterLines.push(`status: ${formatStatusForMd(task.status)}`);
   
@@ -697,8 +836,10 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
   }
 
   const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
-  frontmatterLines.push(`created_date: '${task.createdDate || nowStr}'`);
-  frontmatterLines.push(`updated_date: '${nowStr}'`);
+  const cleanCreated = (task.createdDate || nowStr).replace(/[\r\n']+/g, '').trim();
+  const cleanUpdated = (task.updatedDate || nowStr).replace(/[\r\n']+/g, '').trim();
+  frontmatterLines.push(`created_date: '${cleanCreated}'`);
+  frontmatterLines.push(`updated_date: '${cleanUpdated}'`);
 
   if (task.labels && task.labels.length > 0) {
     frontmatterLines.push('labels:');
@@ -717,7 +858,12 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
   frontmatterLines.push(`priority: ${formatPriorityForMd(task.priority || 'p2')}`);
 
   if (task.type) {
-    frontmatterLines.push(`type: ${task.type}`);
+    const cleanType = String(task.type).replace(/[\r\n]+/g, '').trim();
+    if (/^[a-zA-Z0-9_-]+$/.test(cleanType)) {
+      frontmatterLines.push(`type: ${cleanType}`);
+    } else {
+      frontmatterLines.push(`type: ${JSON.stringify(cleanType)}`);
+    }
   }
 
   if (task.milestone) {
@@ -798,6 +944,10 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
 
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
+      // DEV-300: Validar clave contra /^[a-zA-Z0-9_-]+$/ para impedir inyecciones de saltos de línea o directivas no autorizadas
+      if (!/^[a-zA-Z0-9_-]+$/.test(k)) {
+        continue;
+      }
       if (!['id', 'title', 'status', 'assignee', 'assignees', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints', 'start_date', 'startdate', 'due_date', 'duedate', 'target_date', 'targetdate'].includes(k.toLowerCase())) {
         if (v === undefined || v === null) {
           continue;
@@ -918,7 +1068,7 @@ export function generateMonolithicBacklogMd(projectName: string, items: BacklogM
     ''
   ];
 
-  const statuses: CanonicalStatus[] = ['ideas', 'doing', 'review', 'ready', 'draft', 'done', 'dismissed'];
+  const statuses: CanonicalStatus[] = ['ideas', 'doing', 'review', 'ready', 'draft', 'done', 'dismissed', 'cancelled'];
   const grouped: Record<CanonicalStatus, BacklogMdTask[]> = {
     ideas: [],
     doing: [],
@@ -947,7 +1097,8 @@ export function generateMonolithicBacklogMd(projectName: string, items: BacklogM
       ready: '🚀 Ready for Deploy',
       draft: '📋 Backlog / Draft',
       done: '✅ Done / Deployed',
-      dismissed: '📦 Archivadas / Descartadas'
+      dismissed: '📦 Archivadas / Descartadas',
+      cancelled: '🚫 Canceladas / Cancelled'
     };
 
     lines.push(`### ${titleMap[s] || s.toUpperCase()} (${list.length})`);

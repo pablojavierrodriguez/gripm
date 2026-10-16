@@ -159,6 +159,81 @@ var init_registryConfig = __esm({
   }
 });
 
+// server/services/atomicWrite.ts
+import fs2 from "node:fs";
+import path2 from "node:path";
+function parseOptions(options) {
+  let encoding = "utf8";
+  let mode = void 0;
+  if (typeof options === "string") {
+    encoding = options;
+  } else if (options && typeof options === "object") {
+    if ("encoding" in options && options.encoding) {
+      encoding = options.encoding;
+    }
+    if ("mode" in options && typeof options.mode === "number") {
+      mode = options.mode;
+    }
+  }
+  return { encoding, mode };
+}
+function atomicWriteFileSync2(filePath, content, options) {
+  const resolvedPath = path2.resolve(filePath);
+  const dir = path2.dirname(resolvedPath);
+  if (!fs2.existsSync(dir)) {
+    fs2.mkdirSync(dir, { recursive: true });
+  }
+  const { encoding, mode } = parseOptions(options);
+  const tempPath = `${resolvedPath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+  let fd;
+  let renamed = false;
+  try {
+    fd = fs2.openSync(tempPath, "w", mode);
+    if (typeof content === "string") {
+      fs2.writeFileSync(fd, content, { encoding });
+    } else {
+      fs2.writeFileSync(fd, content);
+    }
+    fs2.fsyncSync(fd);
+    fs2.closeSync(fd);
+    fd = void 0;
+    let attempts = 0;
+    while (!renamed) {
+      try {
+        fs2.renameSync(tempPath, resolvedPath);
+        renamed = true;
+      } catch (renameErr) {
+        attempts++;
+        if ((renameErr.code === "EPERM" || renameErr.code === "EACCES" || renameErr.code === "EBUSY") && attempts <= 5) {
+          const end = Date.now() + 10;
+          while (Date.now() < end) {
+          }
+          continue;
+        }
+        throw renameErr;
+      }
+    }
+  } finally {
+    if (fd !== void 0) {
+      try {
+        fs2.closeSync(fd);
+      } catch {
+      }
+    }
+    if (!renamed && fs2.existsSync(tempPath)) {
+      try {
+        fs2.unlinkSync(tempPath);
+      } catch {
+      }
+    }
+  }
+}
+var init_atomicWrite = __esm({
+  "server/services/atomicWrite.ts"() {
+    "use strict";
+  }
+});
+
 // server/services/registry.ts
 var registry_exports = {};
 __export(registry_exports, {
@@ -176,23 +251,23 @@ __export(registry_exports, {
   saveRegistry: () => saveRegistry,
   writeProjectConfig: () => writeProjectConfig
 });
-import fs2 from "node:fs";
-import path2 from "node:path";
+import fs3 from "node:fs";
+import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 function detectProjectStorage(repoPath) {
   if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
-  const normalized = path2.normalize(repoPath.trim());
+  const normalized = path3.normalize(repoPath.trim());
   try {
-    if (fs2.existsSync(path2.join(normalized, "backlog", "tasks"))) {
+    if (fs3.existsSync(path3.join(normalized, "backlog", "tasks"))) {
       return { storageType: "markdown", backlogDir: "backlog" };
     }
-    if (fs2.existsSync(path2.join(normalized, ".backlog", "tasks"))) {
+    if (fs3.existsSync(path3.join(normalized, ".backlog", "tasks"))) {
       return { storageType: "markdown", backlogDir: ".backlog" };
     }
-    if (fs2.existsSync(path2.join(normalized, "backlog"))) {
+    if (fs3.existsSync(path3.join(normalized, "backlog"))) {
       return { storageType: "markdown", backlogDir: "backlog" };
     }
-    if (fs2.existsSync(path2.join(normalized, ".backlog"))) {
+    if (fs3.existsSync(path3.join(normalized, ".backlog"))) {
       return { storageType: "markdown", backlogDir: ".backlog" };
     }
   } catch {
@@ -210,17 +285,17 @@ function isBacklogMdProject(project) {
 }
 function getBacklogTasksDir(project) {
   const dir = project.backlogDir || "backlog";
-  return path2.join(project.repoPath || "", dir, "tasks");
+  return path3.join(project.repoPath || "", dir, "tasks");
 }
 function getProjectDocsPath(project) {
-  if (project.docsPath && fs2.existsSync(project.docsPath)) {
+  if (project.docsPath && fs3.existsSync(project.docsPath)) {
     return project.docsPath;
   }
   if (project.repoPath) {
-    const defaultDocs = path2.join(project.repoPath, "docs");
-    if (fs2.existsSync(defaultDocs)) {
+    const defaultDocs = path3.join(project.repoPath, "docs");
+    if (fs3.existsSync(defaultDocs)) {
       try {
-        const files = fs2.readdirSync(defaultDocs);
+        const files = fs3.readdirSync(defaultDocs);
         const hasDocFiles = files.some(
           (f) => ["quality_log.md", "backlog.md", "release_notes.md"].includes(f.toLowerCase()) || f.toLowerCase() === "specs"
         );
@@ -237,10 +312,10 @@ function getRegistry() {
     reg = { activeProjectId: "", projects: [] };
   }
   const cwd = process.cwd();
-  const hasLocalGripm = fs2.existsSync(path2.join(cwd, ".gripm")) || fs2.existsSync(path2.join(cwd, "backlog"));
+  const hasLocalGripm = fs3.existsSync(path3.join(cwd, ".gripm")) || fs3.existsSync(path3.join(cwd, "backlog"));
   if (hasLocalGripm) {
-    const cwdResolved = path2.resolve(cwd);
-    const existingLocal = reg.projects.find((p) => p.repoPath && path2.resolve(p.repoPath) === cwdResolved);
+    const cwdResolved = path3.resolve(cwd);
+    const existingLocal = reg.projects.find((p) => p.repoPath && path3.resolve(p.repoPath) === cwdResolved);
     if (!existingLocal) {
       const detected = detectProjectStorage(cwdResolved);
       const identity = resolveProjectIdentity(cwdResolved);
@@ -271,7 +346,7 @@ function getRegistry() {
   }
   reg.projects = reg.projects.filter((p) => {
     if (p.isDemo || p.id === "demo") return true;
-    if (p.repoPath && !fs2.existsSync(p.repoPath)) return false;
+    if (p.repoPath && !fs3.existsSync(p.repoPath)) return false;
     return true;
   });
   if (reg.projects.length === 0) {
@@ -317,19 +392,19 @@ function getProjectBacklogPath(project) {
     return DEMO_FILE;
   }
   if (project.repoPath) {
-    return path2.join(project.repoPath, ".gripm/backlog.json");
+    return path3.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path2.resolve(PKG_ROOT, `data/${project.id}-backlog.json`);
+  return path3.resolve(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
 function getConfigFilepath(project) {
   const repo = project?.repoPath || process.cwd();
-  return path2.join(repo, ".gripm/config.json");
+  return path3.join(repo, ".gripm/config.json");
 }
 function readProjectConfig(project) {
   const configFile = getConfigFilepath(project);
   try {
-    if (fs2.existsSync(configFile)) {
-      const raw = fs2.readFileSync(configFile, "utf8");
+    if (fs3.existsSync(configFile)) {
+      const raw = fs3.readFileSync(configFile, "utf8");
       const parsed = JSON.parse(raw);
       return { ...DEFAULT_CONFIG, ...parsed, _filepath: configFile };
     }
@@ -340,14 +415,14 @@ function readProjectConfig(project) {
 }
 function writeProjectConfig(config, project) {
   const repo = project?.repoPath || process.cwd();
-  const configFile = path2.join(repo, ".gripm/config.json");
-  const dir = path2.dirname(configFile);
-  if (!fs2.existsSync(dir)) {
-    fs2.mkdirSync(dir, { recursive: true });
+  const configFile = path3.join(repo, ".gripm/config.json");
+  const dir = path3.dirname(configFile);
+  if (!fs3.existsSync(dir)) {
+    fs3.mkdirSync(dir, { recursive: true });
   }
   const toSave = { ...config };
   delete toSave._filepath;
-  fs2.writeFileSync(configFile, JSON.stringify(toSave, null, 2), "utf8");
+  atomicWriteFileSync2(configFile, JSON.stringify(toSave, null, 2), "utf8");
   return configFile;
 }
 var __filename2, __dirname2, PKG_ROOT, DEMO_FILE, DEFAULT_CONFIG;
@@ -355,10 +430,11 @@ var init_registry = __esm({
   "server/services/registry.ts"() {
     "use strict";
     init_registryConfig();
+    init_atomicWrite();
     __filename2 = fileURLToPath2(import.meta.url);
-    __dirname2 = path2.dirname(__filename2);
-    PKG_ROOT = path2.resolve(__dirname2, "../../");
-    DEMO_FILE = path2.resolve(PKG_ROOT, "data/demo-backlog.json");
+    __dirname2 = path3.dirname(__filename2);
+    PKG_ROOT = path3.resolve(__dirname2, "../../");
+    DEMO_FILE = path3.resolve(PKG_ROOT, "src/data/demo-backlog.json");
     DEFAULT_CONFIG = {
       theme: "dark",
       density: "comfortable",
@@ -379,8 +455,8 @@ var init_registry = __esm({
 
 // server/sse/sseManager.ts
 init_registry();
-import fs3 from "node:fs";
-import path3 from "node:path";
+import fs4 from "node:fs";
+import path4 from "node:path";
 var sseClients = /* @__PURE__ */ new Set();
 function broadcastSse(event, data) {
   const msg = `event: ${event}
@@ -413,15 +489,15 @@ function setupProjectWatchers() {
   closeWatchers();
   const registry = getRegistry();
   const dirsToWatch = /* @__PURE__ */ new Set();
-  const dataDir = path3.resolve(PKG_ROOT, "data");
-  if (fs3.existsSync(dataDir)) dirsToWatch.add(dataDir);
+  const dataDir = path4.resolve(PKG_ROOT, "data");
+  if (fs4.existsSync(dataDir)) dirsToWatch.add(dataDir);
   for (const p of registry.projects) {
     try {
-      if (p.repoPath && fs3.existsSync(p.repoPath)) {
-        const backlogDir = path3.join(p.repoPath, p.backlogDir || "backlog");
-        if (fs3.existsSync(backlogDir)) dirsToWatch.add(backlogDir);
-        const gripmDir = path3.join(p.repoPath, ".gripm");
-        if (fs3.existsSync(gripmDir)) dirsToWatch.add(gripmDir);
+      if (p.repoPath && fs4.existsSync(p.repoPath)) {
+        const backlogDir = path4.join(p.repoPath, p.backlogDir || "backlog");
+        if (fs4.existsSync(backlogDir)) dirsToWatch.add(backlogDir);
+        const gripmDir = path4.join(p.repoPath, ".gripm");
+        if (fs4.existsSync(gripmDir)) dirsToWatch.add(gripmDir);
       }
     } catch (err) {
       console.warn(`[gripm Watcher] Error checking repoPath for ${p.id}:`, err.message);
@@ -440,7 +516,7 @@ function setupProjectWatchers() {
   };
   for (const dir of dirsToWatch) {
     try {
-      const watcher = fs3.watch(dir, { recursive: true }, (_eventType, filename) => {
+      const watcher = fs4.watch(dir, { recursive: true }, (_eventType, filename) => {
         if (filename && (filename.endsWith(".log") || filename.endsWith(".tmp") || filename.includes(".git") || filename.startsWith(".") && !filename.includes("gripm") && !filename.includes("backlog"))) {
           return;
         }
@@ -610,9 +686,10 @@ init_registry();
 import fs9 from "node:fs";
 import path9 from "node:path";
 
-// server/services/storage.ts
+// server/services/backlogService.ts
 import fs5 from "node:fs";
 import path5 from "node:path";
+import { execSync } from "node:child_process";
 
 // scripts/backlogMdParser.ts
 function normalizeStatus(raw) {
@@ -717,16 +794,94 @@ function unescapeSectionMarkers(text) {
   if (!text) return text;
   return text.replace(/<!\\--\s*(\/?(?:AC|SECTION:[A-Za-z0-9_-]+):(BEGIN|END))\s*-->/gi, "<!-- $1 -->");
 }
+function getCodeFenceRanges(text) {
+  const ranges = [];
+  if (!text) return ranges;
+  const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+  let match;
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLength = 0;
+  let fenceStart = -1;
+  while ((match = lineRegex.exec(text)) !== null) {
+    const line = match[1];
+    const lineStart = match.index;
+    const lineEnd = match.index + match[0].length;
+    if (match[0].length === 0 && lineStart >= text.length) {
+      break;
+    }
+    if (!inFence) {
+      const openMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})/);
+      if (openMatch) {
+        const char = openMatch[1][0];
+        const restOfLine = line.slice(openMatch.index + openMatch[0].length);
+        if (char === "`" && restOfLine.includes("`")) {
+          continue;
+        }
+        inFence = true;
+        fenceChar = char;
+        fenceLength = openMatch[1].length;
+        fenceStart = lineStart;
+      }
+    } else {
+      const closeMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
+        ranges.push({ start: fenceStart, end: lineEnd });
+        inFence = false;
+        fenceChar = "";
+        fenceLength = 0;
+        fenceStart = -1;
+      }
+    }
+  }
+  if (inFence && fenceStart !== -1) {
+    ranges.push({ start: fenceStart, end: text.length });
+  }
+  return ranges;
+}
+function isOffsetInFence(offset, fenceRanges) {
+  for (const range of fenceRanges) {
+    if (offset >= range.start && offset < range.end) {
+      return true;
+    }
+  }
+  return false;
+}
+function extractMarkerContent(text, beginMarkerName, endMarkerName) {
+  if (!text) return null;
+  const fenceRanges = getCodeFenceRanges(text);
+  const beginRegex = new RegExp(`<!--\\s*${beginMarkerName}\\s*-->`, "gi");
+  const endRegex = new RegExp(`<!--\\s*${endMarkerName}\\s*-->`, "gi");
+  let beginMatch = null;
+  while ((beginMatch = beginRegex.exec(text)) !== null) {
+    if (!isOffsetInFence(beginMatch.index, fenceRanges)) {
+      break;
+    }
+  }
+  if (!beginMatch) {
+    return null;
+  }
+  const payloadStart = beginMatch.index + beginMatch[0].length;
+  endRegex.lastIndex = payloadStart;
+  let endMatch = null;
+  while ((endMatch = endRegex.exec(text)) !== null) {
+    if (!isOffsetInFence(endMatch.index, fenceRanges)) {
+      break;
+    }
+  }
+  if (!endMatch) {
+    return text.slice(payloadStart);
+  }
+  return text.slice(payloadStart, endMatch.index);
+}
 function extractSectionBlock(body, headerName) {
   if (!body) return "";
+  const fenceRanges = getCodeFenceRanges(body);
   const escapedHeader = headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const targetHeaderRegex = new RegExp(`^##\\s+${escapedHeader}\\b[^\r
+  const targetHeaderRegex = new RegExp(`^[ ]{0,3}##\\s+${escapedHeader}\\b[^\r
 ]*`, "i");
   const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
   let match;
-  let inCodeFence = false;
-  let fenceChar = "";
-  let fenceLength = 0;
   let sectionFound = false;
   let startIndex = -1;
   let endIndex = body.length;
@@ -737,30 +892,18 @@ function extractSectionBlock(body, headerName) {
     if (match[0].length === 0 && lineStart >= body.length) {
       break;
     }
-    if (!inCodeFence) {
-      const fenceMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})/);
-      if (fenceMatch) {
-        inCodeFence = true;
-        fenceChar = fenceMatch[1][0];
-        fenceLength = fenceMatch[1].length;
-      } else {
-        const isH2 = /^##\s+[^\r\n]*/.test(line);
-        if (isH2) {
-          if (!sectionFound) {
-            if (targetHeaderRegex.test(line)) {
-              sectionFound = true;
-              startIndex = lineEnd;
-            }
-          } else {
-            endIndex = lineStart;
-            break;
+    if (!isOffsetInFence(lineStart, fenceRanges)) {
+      const isH2 = /^[ ]{0,3}##\s+[^\r\n]*/.test(line);
+      if (isH2) {
+        if (!sectionFound) {
+          if (targetHeaderRegex.test(line)) {
+            sectionFound = true;
+            startIndex = lineEnd;
           }
+        } else {
+          endIndex = lineStart;
+          break;
         }
-      }
-    } else {
-      const closeMatch = line.match(/^[ ]{0,3}(`{3,}|~{3,})\s*$/);
-      if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLength) {
-        inCodeFence = false;
       }
     }
   }
@@ -769,12 +912,23 @@ function extractSectionBlock(body, headerName) {
   }
   return body.slice(startIndex, endIndex);
 }
-function cleanItem(val) {
-  let s = val.trim();
-  if (s.startsWith('"') && s.endsWith('"') || s.startsWith("'") && s.endsWith("'")) {
-    s = s.slice(1, -1);
+function unquoteYamlScalar(raw) {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\").replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\t/g, "	");
+    }
   }
-  return s.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replace(/''/g, "'");
+  }
+  return trimmed;
+}
+function cleanItem(val) {
+  return unquoteYamlScalar(val);
 }
 function parseInlineList(raw) {
   if (!raw) return [];
@@ -841,11 +995,15 @@ function parseBacklogMd(content, defaultId = "") {
     rawExtraFrontmatter: {}
   };
   if (!content) return result;
-  let bodyContent = content;
-  const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  let cleanContent = content;
+  if (cleanContent.charCodeAt(0) === 65279) {
+    cleanContent = cleanContent.slice(1);
+  }
+  let bodyContent = cleanContent;
+  const frontmatterMatch = cleanContent.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n([\s\S]*))?$/);
   if (frontmatterMatch) {
     const rawFm = frontmatterMatch[1];
-    bodyContent = frontmatterMatch[2];
+    bodyContent = frontmatterMatch[2] || "";
     const lines = rawFm.split(/\r?\n/);
     let currentKey = "";
     let currentList = [];
@@ -877,7 +1035,7 @@ function parseBacklogMd(content, defaultId = "") {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
       if (trimmed.startsWith("- ")) {
-        const itemVal = trimmed.replace(/^- /, "").trim().replace(/^['"]|['"]$/g, "");
+        const itemVal = unquoteYamlScalar(trimmed.replace(/^- /, ""));
         currentList.push(itemVal);
         continue;
       }
@@ -886,9 +1044,13 @@ function parseBacklogMd(content, defaultId = "") {
       }
       const colonIdx = line.indexOf(":");
       if (colonIdx !== -1) {
-        const key = line.slice(0, colonIdx).trim().toLowerCase();
+        const rawKey = line.slice(0, colonIdx).trim();
+        if (!/^[a-zA-Z0-9_-]+$/.test(rawKey)) {
+          continue;
+        }
+        const key = rawKey.toLowerCase();
         const rawVal = line.slice(colonIdx + 1).trim();
-        const cleanVal = rawVal.replace(/^['"]|['"]$/g, "");
+        const cleanVal = unquoteYamlScalar(rawVal);
         currentKey = key;
         if (!rawVal) {
           inList = true;
@@ -1053,7 +1215,15 @@ function parseBacklogMd(content, defaultId = "") {
           }
           default:
             if (result.rawExtraFrontmatter) {
-              result.rawExtraFrontmatter[key] = cleanVal;
+              if (rawVal === "true") {
+                result.rawExtraFrontmatter[key] = true;
+              } else if (rawVal === "false") {
+                result.rawExtraFrontmatter[key] = false;
+              } else if (/^-?\d+(?:\.\d+)?$/.test(rawVal)) {
+                result.rawExtraFrontmatter[key] = Number(rawVal);
+              } else {
+                result.rawExtraFrontmatter[key] = cleanVal;
+              }
             }
             break;
         }
@@ -1066,75 +1236,69 @@ function parseBacklogMd(content, defaultId = "") {
     }
   }
   const descBlock = extractSectionBlock(bodyContent, "Description");
-  const descTarget = descBlock || bodyContent;
-  const descMatch = descTarget.match(/<!--\s*SECTION:DESCRIPTION:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:DESCRIPTION:END\s*-->/i);
-  if (descMatch) {
-    result.description = unescapeSectionMarkers(descMatch[1].trim());
-  } else {
-    const descHeaderMatch = descTarget.match(/## Description\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (descHeaderMatch) {
-      result.description = unescapeSectionMarkers(descHeaderMatch[1].trim());
-    } else if (descBlock) {
-      result.description = unescapeSectionMarkers(descBlock.trim());
-    }
+  const descMarker = extractMarkerContent(descBlock || bodyContent, "SECTION:DESCRIPTION:BEGIN", "SECTION:DESCRIPTION:END");
+  if (descMarker !== null) {
+    result.description = unescapeSectionMarkers(descMarker.trim());
+  } else if (descBlock) {
+    result.description = unescapeSectionMarkers(descBlock.trim());
   }
   const acBlock = extractSectionBlock(bodyContent, "Acceptance Criteria");
-  const acTarget = acBlock || bodyContent;
-  const acMatch = acTarget.match(/<!--\s*AC:BEGIN\s*-->([\s\S]*?)<!--\s*AC:END\s*-->/i);
-  const acText = acMatch ? acMatch[1] : acTarget.match(/## Acceptance Criteria\r?\n([\s\S]*?)(?=\r?\n## |$)/i)?.[1] || "";
+  const acMarker = extractMarkerContent(acBlock || bodyContent, "AC:BEGIN", "AC:END");
+  let acText = "";
+  if (acMarker !== null) {
+    acText = acMarker;
+  } else if (acBlock) {
+    acText = acBlock;
+  }
   if (acText) {
-    const acLines = acText.split(/\r?\n/);
+    const acFenceRanges = getCodeFenceRanges(acText);
+    const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+    let match;
     const parsedAC = [];
     let autoIndex = 1;
-    for (const line of acLines) {
-      const match = line.match(/^-\s*\[([ xX])\]\s*(?:#(\d+)\s+)?(.*)$/);
-      if (match) {
-        const checked = match[1].toLowerCase() === "x";
-        const num = match[2] ? parseInt(match[2], 10) : autoIndex++;
-        const text = unescapeSectionMarkers(match[3].trim());
-        parsedAC.push({ index: num, text, checked });
+    while ((match = lineRegex.exec(acText)) !== null) {
+      const line = match[1];
+      const lineStart = match.index;
+      if (match[0].length === 0 && lineStart >= acText.length) break;
+      if (!isOffsetInFence(lineStart, acFenceRanges)) {
+        const itemMatch = line.match(/^-\s*\[([ xX])\]\s*(?:#(\d+)\s+)?(.*)$/);
+        if (itemMatch) {
+          const checked = itemMatch[1].toLowerCase() === "x";
+          const num = itemMatch[2] ? parseInt(itemMatch[2], 10) : autoIndex++;
+          const text = unescapeSectionMarkers(itemMatch[3].trim());
+          parsedAC.push({ index: num, text, checked });
+        }
       }
     }
     result.acceptanceCriteria = parsedAC;
   }
   const planBlock = extractSectionBlock(bodyContent, "Implementation Plan");
-  const planTarget = planBlock || bodyContent;
-  const planMatch = planTarget.match(/<!--\s*SECTION:PLAN:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:PLAN:END\s*-->/i);
-  if (planMatch) {
-    result.implementationPlan = unescapeSectionMarkers(planMatch[1].trim());
-  } else {
-    const planHeaderMatch = planTarget.match(/## Implementation Plan\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (planHeaderMatch) {
-      result.implementationPlan = unescapeSectionMarkers(planHeaderMatch[1].trim());
-    }
+  const planMarker = extractMarkerContent(planBlock || bodyContent, "SECTION:PLAN:BEGIN", "SECTION:PLAN:END");
+  if (planMarker !== null) {
+    result.implementationPlan = unescapeSectionMarkers(planMarker.trim());
+  } else if (planBlock) {
+    result.implementationPlan = unescapeSectionMarkers(planBlock.trim());
   }
   const notesBlock = extractSectionBlock(bodyContent, "Implementation Notes");
-  const notesTarget = notesBlock || bodyContent;
-  const notesMatch = notesTarget.match(/<!--\s*SECTION:NOTES:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:NOTES:END\s*-->/i);
-  if (notesMatch) {
-    result.implementationNotes = unescapeSectionMarkers(notesMatch[1].trim());
-  } else {
-    const notesHeaderMatch = notesTarget.match(/## Implementation Notes\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (notesHeaderMatch) {
-      result.implementationNotes = unescapeSectionMarkers(notesHeaderMatch[1].trim());
-    }
+  const notesMarker = extractMarkerContent(notesBlock || bodyContent, "SECTION:NOTES:BEGIN", "SECTION:NOTES:END");
+  if (notesMarker !== null) {
+    result.implementationNotes = unescapeSectionMarkers(notesMarker.trim());
+  } else if (notesBlock) {
+    result.implementationNotes = unescapeSectionMarkers(notesBlock.trim());
   }
   const summaryBlock = extractSectionBlock(bodyContent, "Final Summary");
-  const summaryTarget = summaryBlock || bodyContent;
-  const summaryMatch = summaryTarget.match(/<!--\s*SECTION:FINAL_SUMMARY:BEGIN\s*-->([\s\S]*?)<!--\s*SECTION:FINAL_SUMMARY:END\s*-->/i);
-  if (summaryMatch) {
-    result.finalSummary = unescapeSectionMarkers(summaryMatch[1].trim());
-  } else {
-    const summaryHeaderMatch = summaryTarget.match(/## Final Summary\r?\n([\s\S]*?)(?=\r?\n## |$)/i);
-    if (summaryHeaderMatch) {
-      result.finalSummary = unescapeSectionMarkers(summaryHeaderMatch[1].trim());
-    }
+  const summaryMarker = extractMarkerContent(summaryBlock || bodyContent, "SECTION:FINAL_SUMMARY:BEGIN", "SECTION:FINAL_SUMMARY:END");
+  if (summaryMarker !== null) {
+    result.finalSummary = unescapeSectionMarkers(summaryMarker.trim());
+  } else if (summaryBlock) {
+    result.finalSummary = unescapeSectionMarkers(summaryBlock.trim());
   }
   return result;
 }
 function serializeBacklogMd(task) {
   const frontmatterLines = ["---"];
-  frontmatterLines.push(`id: ${task.id}`);
+  const cleanId = (task.id || "").replace(/[\r\n]+/g, "").trim();
+  frontmatterLines.push(`id: ${cleanId}`);
   frontmatterLines.push(`title: ${JSON.stringify(task.title || "Sin t\xEDtulo")}`);
   frontmatterLines.push(`status: ${formatStatusForMd(task.status)}`);
   if (task.assignees && task.assignees.length > 0) {
@@ -1142,8 +1306,10 @@ function serializeBacklogMd(task) {
     task.assignees.forEach((a) => frontmatterLines.push(`  - ${JSON.stringify(a)}`));
   }
   const nowStr = (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").slice(0, 16);
-  frontmatterLines.push(`created_date: '${task.createdDate || nowStr}'`);
-  frontmatterLines.push(`updated_date: '${nowStr}'`);
+  const cleanCreated = (task.createdDate || nowStr).replace(/[\r\n']+/g, "").trim();
+  const cleanUpdated = (task.updatedDate || nowStr).replace(/[\r\n']+/g, "").trim();
+  frontmatterLines.push(`created_date: '${cleanCreated}'`);
+  frontmatterLines.push(`updated_date: '${cleanUpdated}'`);
   if (task.labels && task.labels.length > 0) {
     frontmatterLines.push("labels:");
     task.labels.forEach((l) => frontmatterLines.push(`  - ${JSON.stringify(l)}`));
@@ -1158,7 +1324,12 @@ function serializeBacklogMd(task) {
   }
   frontmatterLines.push(`priority: ${formatPriorityForMd(task.priority || "p2")}`);
   if (task.type) {
-    frontmatterLines.push(`type: ${task.type}`);
+    const cleanType = String(task.type).replace(/[\r\n]+/g, "").trim();
+    if (/^[a-zA-Z0-9_-]+$/.test(cleanType)) {
+      frontmatterLines.push(`type: ${cleanType}`);
+    } else {
+      frontmatterLines.push(`type: ${JSON.stringify(cleanType)}`);
+    }
   }
   if (task.milestone) {
     frontmatterLines.push(`milestone: ${JSON.stringify(task.milestone)}`);
@@ -1224,6 +1395,9 @@ function serializeBacklogMd(task) {
   }
   if (task.rawExtraFrontmatter) {
     for (const [k, v] of Object.entries(task.rawExtraFrontmatter)) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(k)) {
+        continue;
+      }
       if (!["id", "title", "status", "assignee", "assignees", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints", "start_date", "startdate", "due_date", "duedate", "target_date", "targetdate"].includes(k.toLowerCase())) {
         if (v === void 0 || v === null) {
           continue;
@@ -1299,7 +1473,7 @@ function generateMonolithicBacklogMd(projectName, items) {
     "## Resumen de Estados",
     ""
   ];
-  const statuses = ["ideas", "doing", "review", "ready", "draft", "done", "dismissed"];
+  const statuses = ["ideas", "doing", "review", "ready", "draft", "done", "dismissed", "cancelled"];
   const grouped = {
     ideas: [],
     doing: [],
@@ -1325,7 +1499,8 @@ function generateMonolithicBacklogMd(projectName, items) {
       ready: "\u{1F680} Ready for Deploy",
       draft: "\u{1F4CB} Backlog / Draft",
       done: "\u2705 Done / Deployed",
-      dismissed: "\u{1F4E6} Archivadas / Descartadas"
+      dismissed: "\u{1F4E6} Archivadas / Descartadas",
+      cancelled: "\u{1F6AB} Canceladas / Cancelled"
     };
     lines.push(`### ${titleMap[s] || s.toUpperCase()} (${list.length})`);
     lines.push("");
@@ -1350,81 +1525,220 @@ ${item.description}
   return lines.join("\n");
 }
 
-// server/services/storage.ts
-init_registryConfig();
+// server/services/backlogService.ts
 init_registry();
-
-// server/services/atomicWrite.ts
-import fs4 from "node:fs";
-import path4 from "node:path";
-function parseOptions(options) {
-  let encoding = "utf8";
-  let mode = void 0;
-  if (typeof options === "string") {
-    encoding = options;
-  } else if (options && typeof options === "object") {
-    if ("encoding" in options && options.encoding) {
-      encoding = options.encoding;
-    }
-    if ("mode" in options && typeof options.mode === "number") {
-      mode = options.mode;
-    }
+init_atomicWrite();
+var DEMO_FILE2 = path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+function resolveJsonBacklogPath(project) {
+  if (project.isDemo) return DEMO_FILE2;
+  if (project.repoPath) {
+    return path5.join(project.repoPath, ".gripm/backlog.json");
   }
-  return { encoding, mode };
+  return path5.join(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
-function atomicWriteFileSync2(filePath, content, options) {
-  const resolvedPath = path4.resolve(filePath);
-  const dir = path4.dirname(resolvedPath);
-  if (!fs4.existsSync(dir)) {
-    fs4.mkdirSync(dir, { recursive: true });
+function getProjectTasksDir(project) {
+  if (!project.repoPath) return "";
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+}
+function getProjectSprintsPath(project) {
+  if (!project.repoPath) return "";
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+}
+function getProjectReleasesPath(project) {
+  if (!project.repoPath) return "";
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+}
+function validateVerifyCommand(cmd, repoPath) {
+  if (!cmd || typeof cmd !== "string") {
+    return { valid: false, reason: "El comando de verificaci\xF3n debe ser un texto no vac\xEDo." };
   }
-  const { encoding, mode } = parseOptions(options);
-  const tempPath = `${resolvedPath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
-  let fd;
-  let renamed = false;
+  const trimmed = cmd.trim();
+  if (!trimmed) {
+    return { valid: false, reason: "El comando de verificaci\xF3n no puede estar vac\xEDo." };
+  }
+  const forbiddenChars = /[|&;`$()<>\n\r'"]/;
+  if (forbiddenChars.test(trimmed)) {
+    return {
+      valid: false,
+      reason: "Contiene metacaracteres o secuencias de encadenamiento de shell no permitidas ('|', '&', ';', '`', '$()', '<', '>', comillas)."
+    };
+  }
+  const tokens = trimmed.split(/\s+/);
+  const runner = tokens[0].toLowerCase();
+  const tokenPattern = /^[a-zA-Z0-9_\-.:/\\=]+$/;
+  for (const token of tokens) {
+    if (!tokenPattern.test(token)) {
+      return {
+        valid: false,
+        reason: `El argumento '${token}' contiene caracteres no permitidos. Solo se permiten caracteres alfanum\xE9ricos y separadores est\xE1ndar (- _ . : / \\ =).`
+      };
+    }
+  }
+  let pkgScripts = {};
+  let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    fd = fs4.openSync(tempPath, "w", mode);
-    if (typeof content === "string") {
-      fs4.writeFileSync(fd, content, { encoding });
-    } else {
-      fs4.writeFileSync(fd, content);
-    }
-    fs4.fsyncSync(fd);
-    fs4.closeSync(fd);
-    fd = void 0;
-    let attempts = 0;
-    while (!renamed) {
-      try {
-        fs4.renameSync(tempPath, resolvedPath);
-        renamed = true;
-      } catch (renameErr) {
-        attempts++;
-        if ((renameErr.code === "EPERM" || renameErr.code === "EACCES" || renameErr.code === "EBUSY") && attempts <= 5) {
-          const end = Date.now() + 10;
-          while (Date.now() < end) {
-          }
-          continue;
-        }
-        throw renameErr;
+    const pkgPath = path5.join(repoPath, "package.json");
+    if (fs5.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs5.readFileSync(pkgPath, "utf8"));
+      if (pkg.scripts && typeof pkg.scripts === "object") {
+        pkgScripts = pkg.scripts;
+      }
+      if (pkg.dependencies && typeof pkg.dependencies === "object") {
+        Object.keys(pkg.dependencies).forEach((d) => pkgDeps.add(d));
+      }
+      if (pkg.devDependencies && typeof pkg.devDependencies === "object") {
+        Object.keys(pkg.devDependencies).forEach((d) => pkgDeps.add(d));
       }
     }
-  } finally {
-    if (fd !== void 0) {
-      try {
-        fs4.closeSync(fd);
-      } catch {
-      }
+  } catch {
+  }
+  if (["npm", "pnpm", "yarn"].includes(runner)) {
+    const subCmd = tokens[1];
+    if (!subCmd) {
+      return {
+        valid: false,
+        reason: `Debe especificar un subcomando para ${runner} (ej: '${runner} test' o '${runner} run <script>').`
+      };
     }
-    if (!renamed && fs4.existsSync(tempPath)) {
+    if (subCmd === "test" || subCmd === "t") {
+      if (!pkgScripts["test"]) {
+        return {
+          valid: false,
+          reason: `El script 'test' no est\xE1 definido en el package.json de '${repoPath}'.`
+        };
+      }
+      return { valid: true, command: trimmed };
+    }
+    if (subCmd === "run") {
+      const scriptName = tokens[2];
+      if (!scriptName) {
+        return {
+          valid: false,
+          reason: `Debe especificar el nombre del script a ejecutar (ej: '${runner} run <script>').`
+        };
+      }
+      if (!pkgScripts[scriptName]) {
+        return {
+          valid: false,
+          reason: `El script '${scriptName}' no est\xE1 definido en los scripts de package.json.`
+        };
+      }
+      return { valid: true, command: trimmed };
+    }
+    if ((runner === "yarn" || runner === "pnpm") && pkgScripts[subCmd]) {
+      return { valid: true, command: trimmed };
+    }
+    return {
+      valid: false,
+      reason: `Subcomando '${subCmd}' no autorizado para ${runner}. Solo se permiten '${runner} test' o '${runner} run <script>'.`
+    };
+  }
+  if (runner === "npx") {
+    const tool = tokens[1];
+    if (!tool) {
+      return {
+        valid: false,
+        reason: "Debe especificar la herramienta a ejecutar con npx (ej: 'npx tsc --noEmit')."
+      };
+    }
+    const safeToolsAllowlist = /* @__PURE__ */ new Set([
+      "tsc",
+      "eslint",
+      "vitest",
+      "jest",
+      "playwright",
+      "prettier",
+      "biome"
+    ]);
+    if (!safeToolsAllowlist.has(tool) && !pkgDeps.has(tool)) {
+      return {
+        valid: false,
+        reason: `La herramienta '${tool}' no est\xE1 permitida para ejecuci\xF3n con npx. Solo se permiten herramientas del stack de calidad (${Array.from(safeToolsAllowlist).join(", ")}) o dependencias declaradas en package.json.`
+      };
+    }
+    return { valid: true, command: trimmed };
+  }
+  return {
+    valid: false,
+    reason: `El ejecutable '${runner}' no est\xE1 permitido en verifyCommand. Solo se permiten scripts de package.json ('npm test', 'npm run <script>') o herramientas de verificaci\xF3n ('npx <herramienta>').`
+  };
+}
+function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
+  const normTarget = normalizeStatus(targetStatus);
+  const isTransitionToTerminal = normTarget === "ready" || normTarget === "done";
+  if (!options?.force && isTransitionToTerminal) {
+    const acs = task.acceptanceCriteriaList || task.acceptanceCriteria || [];
+    const unchecked = acs.filter((ac) => !ac.checked);
+    if (unchecked.length > 0) {
+      const taskId = task.code || task.id || "desconocida";
+      const uncheckedList = unchecked.map((ac) => `  - [ ] #${ac.index} ${ac.text}`).join("\n");
+      throw new Error(
+        `[MCP Gatekeeper] Transici\xF3n rechazada: No se puede mover la tarea '${taskId}' a '${normTarget}' porque tiene ${unchecked.length} criterio(s) de aceptaci\xF3n sin cumplir:
+${uncheckedList}
+
+Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y m\xE1rcalo como completado (- [x]) antes de certificar la tarea como '${normTarget}'.`
+      );
+    }
+    const verifyCmd = options?.verifyCommand;
+    if (verifyCmd && typeof verifyCmd === "string") {
+      const execCwd = repoPath || process.cwd();
+      const validation = validateVerifyCommand(verifyCmd, execCwd);
+      if (!validation.valid) {
+        throw new Error(
+          `[MCP Gatekeeper Security] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' no est\xE1 permitido al intentar mover '${task.code || task.id}' a '${normTarget}':
+${validation.reason}
+
+Acci\xF3n correctiva: Utiliza \xFAnicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
+        );
+      }
       try {
-        fs4.unlinkSync(tempPath);
-      } catch {
+        execSync(validation.command || verifyCmd, {
+          cwd: execCwd,
+          stdio: "pipe",
+          encoding: "utf8",
+          timeout: 15e3
+        });
+      } catch (execErr) {
+        const outMsg = (execErr.stderr || execErr.stdout || execErr.message || "").toString().trim();
+        throw new Error(
+          `[MCP Gatekeeper] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' fall\xF3 al intentar mover '${task.code || task.id}' a '${normTarget}':
+${outMsg}
+
+Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, soluciona los fallos y vuelve a intentar certificar la tarea.`
+        );
       }
     }
   }
 }
-
-// server/services/storage.ts
+function resolveLegibleSprint(project, val) {
+  if (!val) return void 0;
+  const clean = String(val).trim();
+  if (!clean) return void 0;
+  const lower = clean.toLowerCase();
+  if (lower === "backlog-futuro" || lower === "backlog" || lower === "sin sprint" || lower === "sin-sprint" || lower === "none" || lower === "null") {
+    return void 0;
+  }
+  if (!project.repoPath) return clean;
+  const sprintsPath = getProjectSprintsPath(project);
+  if (fs5.existsSync(sprintsPath)) {
+    try {
+      const registeredSprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
+      if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
+        const matched = registeredSprints.find(
+          (s) => s.id && s.id.toLowerCase() === lower || s.name && s.name.trim().toLowerCase() === lower
+        );
+        if (matched) {
+          return matched.name || clean;
+        }
+      }
+    } catch {
+    }
+  }
+  if (lower.startsWith("sprint-") || lower.includes("backlog-futuro")) {
+    return void 0;
+  }
+  return clean;
+}
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
@@ -1493,503 +1807,19 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
     releases.push({
       id: `rel-${version.replace(/\./g, "-")}`,
       version,
-      date: date || (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+      date,
       title,
       summary,
+      status: "released",
       itemCodes: Array.from(itemCodesSet),
-      markdownContent: trimmed,
-      createdAt: date ? `${date}T00:00:00.000Z` : (/* @__PURE__ */ new Date()).toISOString()
+      markdownContent: trimmed
     });
   }
   return releases;
 }
-function readProjectBacklog(project) {
-  if (project.repoPath) {
-    const identity = resolveProjectIdentity(project.repoPath);
-    project = {
-      ...project,
-      id: identity.id || project.id,
-      name: identity.name || project.name,
-      codePrefix: identity.codePrefix || project.codePrefix
-    };
-  }
-  if (isBacklogMdProject(project) && project.repoPath) {
-    const tasksDir = getBacklogTasksDir(project);
-    try {
-      const items = [];
-      const files = fs5.existsSync(tasksDir) ? fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md")) : [];
-      files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
-      let order = 1;
-      for (const filename of files) {
-        const fullPath = path5.join(tasksDir, filename);
-        try {
-          const fileStat = fs5.statSync(fullPath);
-          const raw = fs5.readFileSync(fullPath, "utf8");
-          const fallbackId = filename.split(" - ")[0] || filename.replace(/\.md$/, "");
-          const task = parseBacklogMd(raw, fallbackId);
-          const rawFm = task.rawExtraFrontmatter || {};
-          const sprintVal = task.sprint || task.targetSprint || rawFm.sprint || rawFm.targetSprint || (task.sprints && task.sprints.length > 0 ? task.sprints[task.sprints.length - 1] : void 0);
-          const rawReleaseCandidate = rawFm.release || rawFm.targetRelease || (task.releases && task.releases.length > 0 ? task.releases[task.releases.length - 1] : void 0) || (task.milestone && !task.milestone.toLowerCase().includes("sprint") ? task.milestone : void 0);
-          const releaseVal = rawReleaseCandidate && !rawReleaseCandidate.toLowerCase().includes("sprint") ? rawReleaseCandidate : void 0;
-          const isDeletedRaw = task.isDeleted !== void 0 ? task.isDeleted : rawFm.isdeleted !== void 0 ? rawFm.isdeleted : rawFm.isDeleted;
-          const isDeletedVal = isDeletedRaw === true || isDeletedRaw === "true";
-          const deletedAtVal = task.deletedAt || rawFm.deletedat || rawFm.deletedAt || void 0;
-          const previousStatusVal = task.previousStatus || rawFm.previousstatus || rawFm.previousStatus || void 0;
-          items.push({
-            id: task.id || fallbackId,
-            code: task.id || fallbackId,
-            projectId: project.id,
-            title: task.title,
-            description: task.description || "",
-            type: normalizeType(task.type) || "feature",
-            priority: normalizePriority(task.priority),
-            status: task.status,
-            // normalized: draft, doing, review, ready, done, dismissed
-            sprint: sprintVal,
-            release: releaseVal,
-            targetSprint: sprintVal,
-            targetRelease: releaseVal,
-            milestone: releaseVal,
-            parentId: task.parentId || rawFm.parent || rawFm.parentId || void 0,
-            blocks: task.blocks || (rawFm.blocks ? Array.isArray(rawFm.blocks) ? rawFm.blocks : [rawFm.blocks] : []),
-            blockedBy: task.blockedBy || (rawFm.blocked_by ? Array.isArray(rawFm.blocked_by) ? rawFm.blocked_by : [rawFm.blocked_by] : []),
-            relatedTo: task.relatedTo || (rawFm.related_to ? Array.isArray(rawFm.related_to) ? rawFm.related_to : [rawFm.related_to] : []),
-            dependencies: task.dependencies || [],
-            sprints: task.sprints && task.sprints.length > 0 ? task.sprints : sprintVal ? [sprintVal] : [],
-            releases: task.releases && task.releases.length > 0 ? task.releases.filter((r) => !r.toLowerCase().includes("sprint")) : releaseVal ? [releaseVal] : [],
-            module: task.module || rawFm.module || void 0,
-            epic: task.epic || rawFm.epic || void 0,
-            category: task.category || rawFm.category || void 0,
-            impactedFile: task.impactedFile || rawFm.impactedfile || rawFm.impactedFile || void 0,
-            risk: task.risk || rawFm.risk || void 0,
-            fix: task.fix || rawFm.fix || void 0,
-            acceptanceCriteriaList: task.acceptanceCriteria || [],
-            implementationPlan: task.implementationPlan || "",
-            assignees: task.assignees || [],
-            labels: task.labels || [],
-            estimate: task.estimate !== void 0 ? task.estimate : rawFm.estimate,
-            startDate: task.startDate || rawFm.start_date || rawFm.startDate || void 0,
-            dueDate: task.dueDate || rawFm.due_date || rawFm.dueDate || rawFm.target_date || rawFm.targetDate || void 0,
-            order: rawFm.order !== void 0 ? Number(rawFm.order) : order++,
-            isDeleted: isDeletedVal ? true : void 0,
-            deletedAt: deletedAtVal,
-            previousStatus: previousStatusVal,
-            createdAt: task.createdDate || (/* @__PURE__ */ new Date()).toISOString(),
-            updatedAt: task.updatedDate || (/* @__PURE__ */ new Date()).toISOString(),
-            mtime: Math.round(fileStat.mtimeMs)
-          });
-        } catch (err) {
-          console.warn(`[gripm Backlog.md] Error reading ${filename}:`, err);
-        }
-      }
-      let releases = [];
-      const releasesPath = path5.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
-      if (fs5.existsSync(releasesPath)) {
-        try {
-          releases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
-        } catch {
-        }
-      }
-      if (releases.length === 0 && project.repoPath) {
-        const parsed = parseReleaseNotesMd(project.repoPath, project.codePrefix, items);
-        if (parsed.length > 0) {
-          releases = parsed;
-          try {
-            atomicWriteFileSync2(releasesPath, JSON.stringify(releases, null, 2), "utf8");
-          } catch (writeErr) {
-            console.warn(`[gripm API] Error persisting auto-synced releases:`, writeErr.message);
-          }
-        }
-      }
-      if (releases.length > 0) {
-        for (const rel of releases) {
-          const vClean = (rel.version || "").replace(/^v/i, "");
-          const existingCodes = new Set((rel.itemCodes || []).map((c) => c.toUpperCase()));
-          for (const it of items) {
-            const itRel = (it.release || it.targetRelease || "").replace(/^v/i, "");
-            const inReleases = (it.releases || []).some((r) => r.replace(/^v/i, "") === vClean);
-            if (itRel === vClean || inReleases) {
-              const codeUpper = (it.code || it.id).toUpperCase();
-              if (!existingCodes.has(codeUpper)) {
-                existingCodes.add(codeUpper);
-                if (!rel.itemCodes) rel.itemCodes = [];
-                rel.itemCodes.push(it.code || it.id);
-              }
-            }
-          }
-        }
-        const releaseByCode = /* @__PURE__ */ new Map();
-        for (const rel of releases) {
-          const isReleased = rel.status === "released";
-          for (const code of rel.itemCodes || []) {
-            const key = code.toUpperCase();
-            if (!releaseByCode.has(key) || !releaseByCode.get(key).isReleased && isReleased) {
-              releaseByCode.set(key, { version: rel.version, date: rel.date, isReleased });
-            }
-          }
-        }
-        for (const it of items) {
-          const key = (it.code || it.id).toUpperCase();
-          if (releaseByCode.has(key)) {
-            const rInfo = releaseByCode.get(key);
-            it.targetRelease = it.targetRelease || rInfo.version;
-            it.release = it.release || rInfo.version;
-            if (rInfo.isReleased) {
-              it.releasedAt = it.releasedAt || (rInfo.date ? new Date(rInfo.date).toISOString() : void 0);
-            }
-          }
-        }
-      }
-      let sprints = [];
-      const sprintsPath = path5.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
-      if (fs5.existsSync(sprintsPath)) {
-        try {
-          sprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
-        } catch {
-        }
-      }
-      sprints = (sprints || []).map((s) => ({
-        ...s,
-        projectId: project.id
-      }));
-      if (project.repoPath) {
-        const detectedSprintNames = /* @__PURE__ */ new Set();
-        for (const it of items) {
-          const sp = it.sprint || it.targetSprint;
-          if (sp && typeof sp === "string" && sp.trim() && sp.toLowerCase() !== "backlog" && !sp.toLowerCase().includes("sin sprint") && sp !== "\u2014") {
-            detectedSprintNames.add(sp.trim());
-          }
-        }
-        if (detectedSprintNames.size > 0) {
-          const existingNames = new Set(sprints.map((s) => s.name?.toLowerCase().trim()));
-          let hasMutations = false;
-          for (const name of detectedSprintNames) {
-            if (!existingNames.has(name.toLowerCase())) {
-              const sprintItems = items.filter((it) => (it.sprint || it.targetSprint || "").trim().toLowerCase() === name.toLowerCase());
-              const allDone = sprintItems.length > 0 && sprintItems.every((it) => it.status === "done" || it.status === "ready" || it.status === "finish");
-              const hasDoing = sprintItems.some((it) => it.status === "doing" || it.status === "review");
-              sprints.push({
-                id: `sprint-${name.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`,
-                projectId: project.id,
-                name,
-                goal: "",
-                status: allDone ? "completed" : hasDoing ? "active" : "planned",
-                createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-                completedAt: allDone ? (/* @__PURE__ */ new Date()).toISOString() : void 0
-              });
-              hasMutations = true;
-            }
-          }
-          sprints.forEach((sp) => {
-            const sprintItems = items.filter((it) => (it.sprint || it.targetSprint || "").trim().toLowerCase() === sp.name?.toLowerCase().trim());
-            const allDone = sprintItems.length > 0 && sprintItems.every((it) => it.status === "done" || it.status === "ready" || it.status === "finish");
-            if (allDone && sp.status !== "completed") {
-              sp.status = "completed";
-              sp.completedAt = sp.completedAt || (/* @__PURE__ */ new Date()).toISOString();
-              hasMutations = true;
-            }
-          });
-          if (hasMutations) {
-            try {
-              atomicWriteFileSync2(sprintsPath, JSON.stringify(sprints, null, 2), "utf8");
-            } catch {
-            }
-          }
-        }
-      }
-      return {
-        project: { ...project, storageType: "markdown" },
-        items,
-        releases,
-        sprints,
-        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-      };
-    } catch (err) {
-      console.warn(`[gripm API] Error reading Backlog.md tasks for ${project.id} at ${tasksDir}:`, err.message);
-      return {
-        project: { ...project, storageType: "markdown", error: err.message },
-        items: [],
-        releases: [],
-        sprints: [],
-        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-      };
-    }
-  }
-  const filePath = getProjectBacklogPath(project);
-  try {
-    if (!fs5.existsSync(filePath)) {
-      const initial = {
-        project: { ...project, storageType: "json" },
-        items: [],
-        releases: [],
-        sprints: [],
-        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      try {
-        atomicWriteFileSync2(filePath, JSON.stringify(initial, null, 2), "utf8");
-      } catch (writeErr) {
-        console.error(`[gripm API] Cannot initialize backlog at ${filePath}:`, writeErr.message);
-      }
-      return initial;
-    }
-    const jsonStat = fs5.existsSync(filePath) ? fs5.statSync(filePath) : null;
-    const jsonMtime = jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
-    const raw = fs5.readFileSync(filePath, "utf8");
-    const parsed = JSON.parse(raw);
-    let items = Array.isArray(parsed.items) ? parsed.items : [];
-    items = items.map((it) => ({
-      ...it,
-      projectId: it.projectId || project.id,
-      status: normalizeStatus(it.status),
-      mtime: it.mtime || jsonMtime
-    }));
-    return {
-      project: { ...project, storageType: "json" },
-      items,
-      releases: Array.isArray(parsed.releases) ? parsed.releases : [],
-      sprints: Array.isArray(parsed.sprints) ? parsed.sprints : [],
-      lastUpdated: parsed.lastUpdated || (/* @__PURE__ */ new Date()).toISOString()
-    };
-  } catch (err) {
-    console.error(`[gripm API] Error reading backlog for project ${project.id} from ${filePath}:`, err.message);
-    return { project: { ...project, storageType: "json", error: err.message }, items: [], releases: [], sprints: [], lastUpdated: (/* @__PURE__ */ new Date()).toISOString() };
-  }
-}
-function saveBacklogMdItem(project, item) {
-  if (!project.repoPath) return;
-  const tasksDir = getBacklogTasksDir(project);
-  if (!fs5.existsSync(tasksDir)) {
-    fs5.mkdirSync(tasksDir, { recursive: true });
-  }
-  const cleanId = (item.code || item.id).toLowerCase();
-  const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
-  let existingFile = files.find((f) => {
-    const fLower = f.toLowerCase();
-    return fLower.startsWith(`${cleanId} `) || fLower.startsWith(`${cleanId}-`) || fLower === `${cleanId}.md`;
-  });
-  if (!existingFile) {
-    for (const f of files) {
-      try {
-        const raw = fs5.readFileSync(path5.join(tasksDir, f), "utf8");
-        const fallbackId = f.split(" - ")[0] || f.replace(/\.md$/, "");
-        const parsed = parseBacklogMd(raw, fallbackId);
-        if (parsed.id && parsed.id.toLowerCase() === cleanId) {
-          existingFile = f;
-          break;
-        }
-      } catch {
-      }
-    }
-  }
-  let existingTask = {};
-  if (existingFile) {
-    try {
-      const raw = fs5.readFileSync(path5.join(tasksDir, existingFile), "utf8");
-      existingTask = parseBacklogMd(raw, item.code || item.id);
-    } catch {
-    }
-  }
-  const taskData = {
-    id: item.code || item.id,
-    title: item.title || existingTask.title || "Sin t\xEDtulo",
-    status: normalizeStatus(item.status),
-    type: normalizeType(item.type || existingTask.type) || "feature",
-    priority: item.priority || existingTask.priority || "p2",
-    assignees: item.assignees !== void 0 ? item.assignees : existingTask.assignees || [],
-    labels: item.labels !== void 0 ? item.labels : existingTask.labels || [],
-    dependencies: item.dependencies || existingTask.dependencies || [],
-    parentId: item.parentId !== void 0 ? item.parentId : existingTask.parentId,
-    blocks: item.blocks !== void 0 ? item.blocks : existingTask.blocks,
-    blockedBy: item.blockedBy !== void 0 ? item.blockedBy : existingTask.blockedBy,
-    relatedTo: item.relatedTo !== void 0 ? item.relatedTo : existingTask.relatedTo,
-    sprints: item.sprints !== void 0 ? item.sprints : existingTask.sprints,
-    releases: item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 || item.releases !== void 0 ? (Array.isArray(item.releases) ? item.releases.filter(Boolean) : item.release ? [item.release] : []).filter((r) => !r.toLowerCase().includes("sprint")) : (existingTask.releases || []).filter((r) => !r.toLowerCase().includes("sprint")),
-    milestone: item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 ? (item.release || item.targetRelease || item.milestone || "").toLowerCase().includes("sprint") ? void 0 : item.release || item.targetRelease || item.milestone || void 0 : existingTask.milestone && !existingTask.milestone.toLowerCase().includes("sprint") ? existingTask.milestone : void 0,
-    createdDate: item.createdAt || existingTask.createdDate,
-    updatedDate: item.updatedAt || (/* @__PURE__ */ new Date()).toISOString(),
-    description: item.description !== void 0 ? item.description : existingTask.description || "",
-    acceptanceCriteria: item.acceptanceCriteriaList || existingTask.acceptanceCriteria || [],
-    implementationPlan: item.implementationPlan !== void 0 ? item.implementationPlan : existingTask.implementationPlan || "",
-    implementationNotes: item.fix || item.implementationNotes || existingTask.implementationNotes,
-    finalSummary: item.finalSummary || existingTask.finalSummary,
-    estimate: item.estimate !== void 0 ? item.estimate === "" ? void 0 : item.estimate : existingTask.estimate,
-    startDate: item.startDate !== void 0 ? item.startDate : existingTask.startDate,
-    dueDate: item.dueDate !== void 0 ? item.dueDate : existingTask.dueDate,
-    rawExtraFrontmatter: {
-      ...existingTask.rawExtraFrontmatter || {}
-    }
-  };
-  if (item.isDeleted) {
-    taskData.isDeleted = true;
-    taskData.deletedAt = item.deletedAt || (/* @__PURE__ */ new Date()).toISOString();
-    taskData.previousStatus = item.previousStatus || existingTask.previousStatus || existingTask.status || "draft";
-    if (taskData.rawExtraFrontmatter) {
-      taskData.rawExtraFrontmatter.isDeleted = "true";
-      if (taskData.deletedAt) taskData.rawExtraFrontmatter.deletedAt = taskData.deletedAt;
-      if (taskData.previousStatus) taskData.rawExtraFrontmatter.previousStatus = taskData.previousStatus;
-      delete taskData.rawExtraFrontmatter.isdeleted;
-      delete taskData.rawExtraFrontmatter.deletedat;
-      delete taskData.rawExtraFrontmatter.previousstatus;
-    }
-  } else {
-    taskData.isDeleted = void 0;
-    taskData.deletedAt = void 0;
-    taskData.previousStatus = void 0;
-    if (taskData.rawExtraFrontmatter) {
-      delete taskData.rawExtraFrontmatter.isdeleted;
-      delete taskData.rawExtraFrontmatter.isDeleted;
-      delete taskData.rawExtraFrontmatter.deletedat;
-      delete taskData.rawExtraFrontmatter.deletedAt;
-      delete taskData.rawExtraFrontmatter.previousstatus;
-      delete taskData.rawExtraFrontmatter.previousStatus;
-    }
-  }
-  if (item.estimate !== void 0) {
-    if (item.estimate === "" || item.estimate === null) {
-      taskData.estimate = void 0;
-      if (taskData.rawExtraFrontmatter) delete taskData.rawExtraFrontmatter.estimate;
-    } else {
-      taskData.estimate = item.estimate;
-      if (taskData.rawExtraFrontmatter) taskData.rawExtraFrontmatter.estimate = String(item.estimate);
-    }
-  }
-  if (item.impactedFile !== void 0) taskData.rawExtraFrontmatter.impactedFile = item.impactedFile;
-  if (item.risk !== void 0) taskData.rawExtraFrontmatter.risk = item.risk;
-  if (item.fix !== void 0) taskData.rawExtraFrontmatter.fix = item.fix;
-  if (item.module !== void 0) taskData.rawExtraFrontmatter.module = item.module;
-  if (item.epic !== void 0) taskData.rawExtraFrontmatter.epic = item.epic;
-  if (item.category !== void 0) taskData.rawExtraFrontmatter.category = item.category;
-  let registeredSprints = [];
-  if (project.repoPath) {
-    const sprintsPath = path5.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
-    if (fs5.existsSync(sprintsPath)) {
-      try {
-        registeredSprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
-      } catch {
-      }
-    }
-  }
-  const resolveLegibleSprint = (val) => {
-    if (!val) return void 0;
-    const clean = String(val).trim();
-    if (!clean) return void 0;
-    const lower = clean.toLowerCase();
-    if (lower === "backlog-futuro" || lower === "backlog" || lower === "sin sprint" || lower === "sin-sprint" || lower === "none" || lower === "null") {
-      return void 0;
-    }
-    if (registeredSprints.length > 0) {
-      const matched = registeredSprints.find(
-        (s) => s.id && s.id.toLowerCase() === lower || s.name && s.name.trim().toLowerCase() === lower
-      );
-      if (matched) {
-        return matched.name;
-      }
-    }
-    if (lower.startsWith("sprint-") || lower.includes("backlog-futuro")) {
-      return void 0;
-    }
-    return clean;
-  };
-  const isSprintProvided = item.sprint !== void 0 || item.targetSprint !== void 0 || item.sprints !== void 0;
-  const rawSVal = isSprintProvided ? item.sprint || item.targetSprint || (item.sprints && item.sprints.length > 0 ? item.sprints[item.sprints.length - 1] : "") || "" : existingTask.sprint || existingTask.targetSprint || (existingTask.sprints && existingTask.sprints.length > 0 ? existingTask.sprints[existingTask.sprints.length - 1] : "") || "";
-  const resolvedSprint = resolveLegibleSprint(rawSVal);
-  if (resolvedSprint) {
-    taskData.sprint = resolvedSprint;
-    taskData.targetSprint = resolvedSprint;
-    taskData.sprints = [resolvedSprint];
-    taskData.rawExtraFrontmatter.sprint = resolvedSprint;
-    taskData.rawExtraFrontmatter.targetSprint = resolvedSprint;
-  } else {
-    taskData.sprint = void 0;
-    taskData.targetSprint = void 0;
-    taskData.sprints = [];
-    delete taskData.rawExtraFrontmatter.sprint;
-    delete taskData.rawExtraFrontmatter.targetSprint;
-    if (taskData.milestone && taskData.milestone.toLowerCase().includes("sprint")) {
-      taskData.milestone = void 0;
-    }
-  }
-  const isReleaseProvided = item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 || item.releases !== void 0;
-  if (isReleaseProvided) {
-    const rawRVal = (item.release || item.targetRelease || item.milestone || (item.releases && item.releases.length > 0 ? item.releases[0] : "") || "").trim();
-    const rVal = rawRVal.toLowerCase().includes("sprint") ? "" : rawRVal;
-    const relArray = (Array.isArray(item.releases) ? item.releases.filter(Boolean) : rVal ? [rVal] : []).filter((r) => !r.toLowerCase().includes("sprint"));
-    if (rVal || relArray.length > 0) {
-      taskData.rawExtraFrontmatter.release = rVal || relArray[0];
-      taskData.rawExtraFrontmatter.targetRelease = rVal || relArray[0];
-      taskData.milestone = rVal || relArray[0];
-      taskData.releases = relArray;
-    } else {
-      delete taskData.rawExtraFrontmatter.release;
-      delete taskData.rawExtraFrontmatter.targetRelease;
-      delete taskData.rawExtraFrontmatter.releases;
-      taskData.milestone = void 0;
-      taskData.releases = [];
-    }
-    if (project.repoPath) {
-      const releasesPath = path5.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
-      if (fs5.existsSync(releasesPath)) {
-        try {
-          const relsData = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
-          const taskCode = (taskData.id || "").toUpperCase();
-          let changed = false;
-          const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
-          let versionFound = false;
-          for (const rel of relsData) {
-            const vClean = (rel.version || "").replace(/^v/i, "");
-            if (!rel.itemCodes) rel.itemCodes = [];
-            const idx = rel.itemCodes.findIndex((c) => c.toUpperCase() === taskCode);
-            if (targetVersion && vClean === targetVersion) {
-              versionFound = true;
-              if (idx < 0) {
-                rel.itemCodes.push(taskData.id);
-                changed = true;
-              }
-            } else if (idx >= 0 && !relArray.some((rv) => rv.replace(/^v/i, "") === vClean)) {
-              rel.itemCodes.splice(idx, 1);
-              changed = true;
-            }
-          }
-          if (targetVersion && !versionFound) {
-            const now = /* @__PURE__ */ new Date();
-            const todayStr = now.toISOString().slice(0, 10);
-            const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1e3).toISOString().slice(0, 10);
-            relsData.unshift({
-              id: `rel-${targetVersion.replace(/\./g, "-")}`,
-              projectId: project.id,
-              version: targetVersion,
-              date: todayStr,
-              targetDate,
-              status: "unreleased",
-              title: `v${targetVersion}`,
-              summary: `Versi\xF3n ${targetVersion} creada para planificaci\xF3n.`,
-              itemCodes: [taskData.id],
-              markdownContent: `## [${targetVersion}] \u2014 Unreleased
-
-### \u{1F3AF} Resumen
-*Versi\xF3n ${targetVersion} en planificaci\xF3n.*`,
-              createdAt: now.toISOString()
-            });
-            changed = true;
-          }
-          if (changed) {
-            atomicWriteFileSync2(releasesPath, JSON.stringify(relsData, null, 2), "utf8");
-          }
-        } catch (syncErr) {
-          console.warn("[gripm API] Error sincronizando releases.json al guardar tarea:", syncErr.message);
-        }
-      }
-    }
-  }
-  if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
-  const content = serializeBacklogMd(taskData);
-  const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-  const targetFilePath = path5.join(tasksDir, targetFilename);
-  atomicWriteFileSync2(targetFilePath, content, "utf8");
-}
-function findBacklogMdFile(project, id) {
+function findTaskFile(project, id) {
   if (!project.repoPath) return null;
-  const tasksDir = getBacklogTasksDir(project);
+  const tasksDir = getProjectTasksDir(project);
   if (!fs5.existsSync(tasksDir)) return null;
   const cleanId = id.toLowerCase();
   const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
@@ -2022,101 +1852,1251 @@ function findBacklogMdFile(project, id) {
     return { filePath, filename: found, task: {} };
   }
 }
-function softDeleteBacklogMdItem(project, id) {
-  const found = findBacklogMdFile(project, id);
-  if (!found) return false;
-  const { filePath, task } = found;
-  const currentStatus = (task.status || "").toLowerCase();
-  if (currentStatus === "done") return false;
-  const previousStatus = task.status || "draft";
-  const raw = fs5.readFileSync(filePath, "utf8");
-  let updated = raw;
-  updated = updated.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
-  updated = updated.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
-  updated = updated.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, "");
-  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-  if (/^status:.*$/m.test(updated)) {
-    updated = updated.replace(/^(status:.*$)/m, `$1
+function mapMarkdownTaskToCanonical(task, project, filename, fileStat) {
+  const rawFm = task.rawExtraFrontmatter || {};
+  const isDeletedRaw = task.isDeleted !== void 0 ? task.isDeleted : rawFm.isdeleted !== void 0 ? rawFm.isdeleted : rawFm.isDeleted;
+  const isDeletedVal = isDeletedRaw === true || isDeletedRaw === "true";
+  const deletedAtVal = task.deletedAt || rawFm.deletedat || rawFm.deletedAt || void 0;
+  const previousStatusVal = task.previousStatus || rawFm.previousstatus || rawFm.previousStatus || void 0;
+  const sprintVal = task.sprint || task.targetSprint || rawFm.sprint || rawFm.targetSprint || void 0;
+  const releaseVal = task.milestone || rawFm.release || rawFm.targetRelease || rawFm.releases || void 0;
+  const id = task.id || filename.split(" - ")[0] || filename.replace(/\.md$/, "");
+  const mtime = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
+  const canonical = {
+    id,
+    code: id,
+    projectId: project.id,
+    title: task.title || "Sin t\xEDtulo",
+    description: task.description || "",
+    type: normalizeType(task.type || rawFm.type) || "feature",
+    priority: normalizePriority(task.priority || rawFm.priority) || "p2",
+    status: normalizeStatus(task.status),
+    sprint: sprintVal,
+    release: releaseVal,
+    targetSprint: sprintVal,
+    targetRelease: releaseVal,
+    milestone: releaseVal,
+    parentId: task.parentId || rawFm.parent || rawFm.parentId || void 0,
+    blocks: task.blocks || (rawFm.blocks ? Array.isArray(rawFm.blocks) ? rawFm.blocks : [rawFm.blocks] : []),
+    blockedBy: task.blockedBy || (rawFm.blocked_by ? Array.isArray(rawFm.blocked_by) ? rawFm.blocked_by : [rawFm.blocked_by] : []),
+    relatedTo: task.relatedTo || (rawFm.related_to ? Array.isArray(rawFm.related_to) ? rawFm.related_to : [rawFm.related_to] : []),
+    dependencies: task.dependencies || [],
+    sprints: task.sprints && task.sprints.length > 0 ? task.sprints : sprintVal ? [sprintVal] : [],
+    releases: task.releases && task.releases.length > 0 ? task.releases.filter((r) => !r.toLowerCase().includes("sprint")) : releaseVal ? [releaseVal] : [],
+    module: task.module || rawFm.module || void 0,
+    epic: task.epic || rawFm.epic || void 0,
+    category: task.category || rawFm.category || void 0,
+    impactedFile: task.impactedFile || rawFm.impactedfile || rawFm.impactedFile || void 0,
+    risk: task.risk || rawFm.risk || void 0,
+    fix: task.fix || rawFm.fix || void 0,
+    acceptanceCriteriaList: task.acceptanceCriteria || [],
+    acceptanceCriteria: task.acceptanceCriteria || [],
+    implementationPlan: task.implementationPlan || "",
+    notes: task.implementationNotes || task.fix || void 0,
+    implementationNotes: task.implementationNotes || task.fix || void 0,
+    finalSummary: task.finalSummary || rawFm.finalsummary || rawFm.finalSummary || void 0,
+    assignees: task.assignees || [],
+    labels: task.labels || [],
+    estimate: task.estimate !== void 0 ? task.estimate : rawFm.estimate,
+    startDate: task.startDate || rawFm.start_date || rawFm.startDate || void 0,
+    dueDate: task.dueDate || rawFm.due_date || rawFm.dueDate || rawFm.target_date || rawFm.targetDate || void 0,
+    order: rawFm.order !== void 0 ? Number(rawFm.order) : 0,
+    isDeleted: isDeletedVal ? true : void 0,
+    deletedAt: deletedAtVal,
+    previousStatus: previousStatusVal,
+    createdAt: task.createdDate ? task.createdDate.includes("T") ? task.createdDate : `${task.createdDate}T00:00:00.000Z` : (/* @__PURE__ */ new Date()).toISOString(),
+    updatedAt: task.updatedDate ? task.updatedDate.includes("T") ? task.updatedDate : `${task.updatedDate}T00:00:00.000Z` : (/* @__PURE__ */ new Date()).toISOString(),
+    mtime,
+    _file: filename,
+    _raw: task
+  };
+  return canonical;
+}
+var BacklogService = class _BacklogService {
+  /**
+   * Reads all tasks for a project with optional filters.
+   * By default, soft-deleted tasks (isDeleted: true) are EXCLUDED (AC 6).
+   */
+  static listTasks(project, options) {
+    let items = [];
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const tasksDir = getProjectTasksDir(project);
+      if (fs5.existsSync(tasksDir)) {
+        const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+        files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
+        let orderIdx = 1;
+        for (const file of files) {
+          try {
+            const fullPath = path5.join(tasksDir, file);
+            const raw = fs5.readFileSync(fullPath, "utf8");
+            const fallbackId = file.split(" - ")[0] || file.replace(/\.md$/, "");
+            const parsed = parseBacklogMd(raw, fallbackId);
+            const stat = fs5.statSync(fullPath);
+            const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
+            if (canonical.order === 0) canonical.order = orderIdx++;
+            items.push(canonical);
+          } catch {
+          }
+        }
+      }
+    } else {
+      const jsonPath = resolveJsonBacklogPath(project);
+      if (fs5.existsSync(jsonPath)) {
+        try {
+          const raw = fs5.readFileSync(jsonPath, "utf8");
+          const data = JSON.parse(raw);
+          const jsonStat = fs5.statSync(jsonPath);
+          const jsonMtime = Math.round(jsonStat.mtimeMs);
+          items = (data.items || []).map((it) => ({
+            ...it,
+            code: it.code || it.id,
+            projectId: it.projectId || project.id,
+            status: normalizeStatus(it.status),
+            priority: normalizePriority(it.priority),
+            acceptanceCriteriaList: it.acceptanceCriteriaList || it.acceptanceCriteria || [],
+            acceptanceCriteria: it.acceptanceCriteria || it.acceptanceCriteriaList || [],
+            sprint: it.sprint || it.targetSprint,
+            targetSprint: it.targetSprint || it.sprint,
+            mtime: it.mtime || jsonMtime
+          }));
+        } catch {
+        }
+      }
+    }
+    const includeDeleted = options?.includeDeleted === true;
+    if (!includeDeleted) {
+      items = items.filter((it) => !it.isDeleted && it.isDeleted !== "true");
+    }
+    if (options?.openOnly) {
+      const closed = ["done", "dismissed", "cancelled", "released"];
+      items = items.filter((t) => !closed.includes(normalizeStatus(t.status)));
+    }
+    if (options?.status) {
+      const sNorm = normalizeStatus(options.status);
+      items = items.filter((t) => normalizeStatus(t.status) === sNorm);
+    }
+    if (options?.priority) {
+      const pNorm = normalizePriority(options.priority);
+      items = items.filter((t) => normalizePriority(t.priority) === pNorm);
+    }
+    if (options?.sprint) {
+      const sp = String(options.sprint).toLowerCase();
+      items = items.filter(
+        (t) => t.sprint && String(t.sprint).toLowerCase() === sp || t.targetSprint && String(t.targetSprint).toLowerCase() === sp || Array.isArray(t.sprints) && t.sprints.some((s) => String(s).toLowerCase() === sp)
+      );
+    }
+    if (options?.milestone) {
+      const mLower = String(options.milestone).toLowerCase();
+      items = items.filter(
+        (t) => t.milestone && String(t.milestone).toLowerCase() === mLower || t.targetSprint && String(t.targetSprint).toLowerCase() === mLower || t.release && String(t.release).toLowerCase() === mLower || t.targetRelease && String(t.targetRelease).toLowerCase() === mLower
+      );
+    }
+    if (options?.prefix) {
+      const pfx = String(options.prefix).toLowerCase();
+      items = items.filter(
+        (t) => t.id && t.id.toLowerCase().startsWith(pfx) || t.code && t.code.toLowerCase().startsWith(pfx)
+      );
+    }
+    if (Array.isArray(options?.taskIds) && options.taskIds.length > 0) {
+      const idsSet = new Set(options.taskIds.map((id) => String(id).toLowerCase()));
+      items = items.filter(
+        (t) => t.id && idsSet.has(t.id.toLowerCase()) || t.code && idsSet.has(t.code.toLowerCase())
+      );
+    }
+    if (options?.search) {
+      const q = String(options.search).toLowerCase();
+      items = items.filter(
+        (t) => t.title && t.title.toLowerCase().includes(q) || t.id && t.id.toLowerCase().includes(q) || t.code && t.code.toLowerCase().includes(q) || t.labels && Array.isArray(t.labels) && t.labels.some((l) => l.toLowerCase().includes(q))
+      );
+    }
+    const offset = options?.offset !== void 0 ? options.offset : 0;
+    if (options?.limit !== void 0) {
+      items = items.slice(offset, offset + options.limit);
+    } else if (offset > 0) {
+      items = items.slice(offset);
+    }
+    return items;
+  }
+  /**
+   * Retrieves single task by ID.
+   */
+  static getTask(project, taskId, options) {
+    if (!taskId || typeof taskId !== "string" || !taskId.trim()) {
+      throw new Error(`[Validation] Par\xE1metro 'taskId' requerido y debe ser un string no vac\xEDo.`);
+    }
+    const cleanId = taskId.toLowerCase();
+    const includeDeleted = options?.includeDeleted !== false;
+    if (project) {
+      const tasks = _BacklogService.listTasks(project, { includeDeleted: true });
+      const match = tasks.find(
+        (t) => t.id && t.id.toLowerCase() === cleanId || t.code && t.code.toLowerCase() === cleanId
+      );
+      if (match && (includeDeleted || !match.isDeleted)) {
+        return {
+          found: true,
+          project: { id: project.id, name: project.name, storageType: project.storageType },
+          task: match
+        };
+      }
+    }
+    throw new Error(`Tarea ${taskId} no encontrada.`);
+  }
+  /**
+   * Calculates dashboard / metrics statistics over active tasks (excluding isDeleted).
+   */
+  static getStats(project) {
+    const tasks = _BacklogService.listTasks(project, { includeDeleted: false });
+    const total = tasks.length;
+    const closedStatuses = ["done", "dismissed", "cancelled", "released"];
+    let openCount = 0;
+    let doneCount = 0;
+    const byStatus = {};
+    const byPriority = {};
+    const byPrefix = {};
+    for (const t of tasks) {
+      const s = normalizeStatus(t.status);
+      const p = normalizePriority(t.priority);
+      const isClosed = closedStatuses.includes(s);
+      if (isClosed) doneCount++;
+      else openCount++;
+      byStatus[s] = (byStatus[s] || 0) + 1;
+      byPriority[p] = (byPriority[p] || 0) + 1;
+      const code = String(t.code || t.id || "");
+      const parts = code.split("-");
+      const prefix = parts.length > 2 ? `${parts[0]}-${parts[1]}` : parts[0] || "OTHER";
+      if (!byPrefix[prefix]) {
+        byPrefix[prefix] = { total: 0, open: 0, done: 0 };
+      }
+      byPrefix[prefix].total++;
+      if (isClosed) byPrefix[prefix].done++;
+      else byPrefix[prefix].open++;
+    }
+    const completionRate = `${total > 0 ? Math.round(doneCount / total * 100) : 0}%`;
+    return {
+      total,
+      open: openCount,
+      done: doneCount,
+      completionRate,
+      byStatus,
+      byPriority,
+      byPrefix
+    };
+  }
+  /**
+   * Creates a new task in the project with correlative code generation.
+   */
+  static createTask(project, data) {
+    const cleanPrefix = (project.codePrefix || "DEV").replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "DEV";
+    const allTasks = _BacklogService.listTasks(project, { includeDeleted: true });
+    let maxNum = 0;
+    const regex = new RegExp(`^${cleanPrefix}-(\\d+)`, "i");
+    for (const t of allTasks) {
+      const m = (t.code || t.id || "").match(regex);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    }
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const tasksDir = getProjectTasksDir(project);
+      if (fs5.existsSync(tasksDir)) {
+        const diskFiles = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+        for (const f of diskFiles) {
+          const m = f.match(regex);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (!isNaN(n) && n > maxNum) maxNum = n;
+          }
+        }
+      }
+    }
+    const nextNum = maxNum > 0 ? maxNum + 1 : allTasks.length + 1;
+    const code = `${cleanPrefix}-${String(nextNum).padStart(3, "0")}`;
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    let acList = [];
+    if (Array.isArray(data.acceptanceCriteria)) {
+      acList = data.acceptanceCriteria.map((item, i) => {
+        if (typeof item === "string") {
+          return { index: i + 1, text: item, checked: false };
+        }
+        return { index: item.index || i + 1, text: item.text || "", checked: Boolean(item.checked) };
+      });
+    } else if (Array.isArray(data.acceptanceCriteriaList)) {
+      acList = data.acceptanceCriteriaList.map((item, i) => ({
+        index: item.index || i + 1,
+        text: item.text || "",
+        checked: Boolean(item.checked)
+      }));
+    }
+    let initialEstimate;
+    if (data.estimate !== void 0 && data.estimate !== null && data.estimate !== "") {
+      const num = Number(data.estimate);
+      initialEstimate = !isNaN(num) && typeof data.estimate !== "boolean" && !String(data.estimate).includes(" ") ? num : data.estimate;
+    }
+    const normalizedSt = normalizeStatus(data.status || "draft");
+    const taskData = {
+      id: code,
+      title: data.title || "Sin t\xEDtulo",
+      status: normalizedSt,
+      priority: normalizePriority(data.priority || "medium"),
+      type: data.type || "feature",
+      createdDate: today,
+      updatedDate: today,
+      milestone: data.milestone || data.release || data.targetRelease,
+      estimate: initialEstimate,
+      description: data.description || "",
+      acceptanceCriteria: acList,
+      implementationPlan: data.implementationPlan || "",
+      implementationNotes: data.implementationNotes || data.notes || data.fix,
+      assignees: data.assignees || [],
+      labels: data.labels || [],
+      dependencies: data.dependencies || [],
+      parentId: data.parentId,
+      blocks: data.blocks || [],
+      blockedBy: data.blockedBy || [],
+      relatedTo: data.relatedTo || []
+    };
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const tasksDir = getProjectTasksDir(project);
+      if (!fs5.existsSync(tasksDir)) fs5.mkdirSync(tasksDir, { recursive: true });
+      const filename = generateTaskFilename(code, taskData.title);
+      const filepath = path5.join(tasksDir, filename);
+      const serialized = serializeBacklogMd(taskData);
+      atomicWriteFileSync2(filepath, serialized, "utf8");
+      const canonical = mapMarkdownTaskToCanonical(taskData, project, filename);
+      return { ok: true, task: canonical, savedFile: filepath };
+    }
+    const jsonPath = resolveJsonBacklogPath(project);
+    const newItem = {
+      ...taskData,
+      code,
+      projectId: project.id,
+      acceptanceCriteriaList: acList,
+      order: allTasks.length + 1,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: normalizedSt === "done" ? now : void 0
+    };
+    let existingData = { project: { ...project, storageType: "json" }, items: [], releases: [], sprints: [] };
+    if (fs5.existsSync(jsonPath)) {
+      try {
+        existingData = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+      } catch {
+      }
+    }
+    if (!Array.isArray(existingData.items)) existingData.items = [];
+    existingData.items.push(newItem);
+    existingData.lastUpdated = now;
+    atomicWriteFileSync2(jsonPath, JSON.stringify(existingData, null, 2), "utf8");
+    return { ok: true, task: newItem, savedFile: jsonPath };
+  }
+  /**
+   * Updates an existing task by ID with Gatekeeper validation.
+   */
+  static updateTask(project, taskId, updates, options) {
+    if (!taskId || typeof taskId !== "string" || !taskId.trim()) {
+      throw new Error(`[Validation] Par\xE1metro 'taskId' requerido y debe ser un string no vac\xEDo.`);
+    }
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const fileInfo = findTaskFile(project, taskId);
+      if (!fileInfo) {
+        throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+      }
+      const { filePath, filename, task: current2 } = fileInfo;
+      const effectiveStatus2 = updates.status || updates.updates?.status;
+      const effectiveTitle2 = updates.title || updates.updates?.title;
+      const effectiveDesc2 = updates.description !== void 0 ? updates.description : updates.updates?.description;
+      const effectivePriority2 = updates.priority || updates.updates?.priority;
+      const effectiveType2 = updates.type || updates.updates?.type;
+      const effectivePlan2 = updates.implementationPlan !== void 0 ? updates.implementationPlan : updates.updates?.implementationPlan;
+      const effectiveNotes2 = updates.implementationNotes !== void 0 ? updates.implementationNotes : updates.notes !== void 0 ? updates.notes : updates.fix !== void 0 ? updates.fix : updates.updates?.implementationNotes;
+      const effectiveMilestone2 = updates.milestone !== void 0 ? updates.milestone : updates.updates?.milestone;
+      const effectiveSprint2 = updates.sprint !== void 0 ? updates.sprint : updates.targetSprint !== void 0 ? updates.targetSprint : updates.updates?.sprint;
+      const effectiveCheckAllAcs2 = updates.checkAllAcs !== void 0 ? updates.checkAllAcs : updates.updates?.checkAllAcs;
+      const effectiveEstimate2 = updates.estimate !== void 0 ? updates.estimate : updates.updates?.estimate;
+      const effectiveLabels2 = Array.isArray(updates.labels) ? updates.labels : Array.isArray(updates.updates?.labels) ? updates.updates.labels : void 0;
+      const usedUpdatesObject2 = Boolean(updates.updates && !updates.status && updates.updates.status);
+      if (effectiveStatus2) current2.status = normalizeStatus(effectiveStatus2);
+      if (effectiveTitle2) current2.title = effectiveTitle2;
+      if (effectiveDesc2 !== void 0) current2.description = effectiveDesc2;
+      if (effectivePriority2) current2.priority = normalizePriority(effectivePriority2);
+      if (effectiveType2) current2.type = normalizeType(effectiveType2);
+      if (effectivePlan2 !== void 0) current2.implementationPlan = effectivePlan2;
+      if (effectiveNotes2 !== void 0) {
+        current2.implementationNotes = effectiveNotes2;
+        if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
+        current2.rawExtraFrontmatter.fix = effectiveNotes2;
+      }
+      if (effectiveMilestone2 !== void 0) current2.milestone = effectiveMilestone2;
+      if (effectiveLabels2 !== void 0) current2.labels = effectiveLabels2;
+      if (effectiveSprint2 !== void 0) {
+        const legSprint = resolveLegibleSprint(project, effectiveSprint2);
+        if (legSprint) {
+          current2.sprint = legSprint;
+          current2.targetSprint = legSprint;
+          if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
+          current2.rawExtraFrontmatter.sprint = legSprint;
+          current2.rawExtraFrontmatter.targetSprint = legSprint;
+          current2.sprints = [legSprint];
+        } else {
+          current2.sprint = void 0;
+          current2.targetSprint = void 0;
+          current2.sprints = [];
+          if (current2.rawExtraFrontmatter) {
+            delete current2.rawExtraFrontmatter.sprint;
+            delete current2.rawExtraFrontmatter.targetSprint;
+          }
+        }
+      }
+      if (effectiveEstimate2 !== void 0) {
+        if (effectiveEstimate2 === "" || effectiveEstimate2 === null) {
+          current2.estimate = void 0;
+          if (current2.rawExtraFrontmatter) delete current2.rawExtraFrontmatter.estimate;
+        } else {
+          const num = Number(effectiveEstimate2);
+          current2.estimate = !isNaN(num) && typeof effectiveEstimate2 !== "boolean" && !String(effectiveEstimate2).includes(" ") ? num : effectiveEstimate2;
+          if (current2.rawExtraFrontmatter) current2.rawExtraFrontmatter.estimate = String(effectiveEstimate2);
+        }
+      }
+      current2.updatedDate = today;
+      if (effectiveCheckAllAcs2 !== void 0 && current2.acceptanceCriteria) {
+        current2.acceptanceCriteria = current2.acceptanceCriteria.map((ac) => ({
+          ...ac,
+          checked: Boolean(effectiveCheckAllAcs2)
+        }));
+      } else if (updates.toggleAcIndex !== void 0) {
+        if (typeof updates.toggleAcIndex !== "number" || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
+          throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+        }
+        const acList = current2.acceptanceCriteria || [];
+        const foundAc = acList.find((ac) => ac.index === updates.toggleAcIndex);
+        if (!foundAc) {
+          throw new Error(`[Validation] Criterio de aceptaci\xF3n #${updates.toggleAcIndex} no encontrado en la tarea '${current2.id}'.`);
+        }
+        current2.acceptanceCriteria = acList.map(
+          (ac) => ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+        );
+      }
+      const targetStatus2 = effectiveStatus2 ? normalizeStatus(effectiveStatus2) : current2.status;
+      validateGatekeeperTransition(current2, targetStatus2, options, project.repoPath);
+      if (current2.rawExtraFrontmatter) {
+        delete current2.rawExtraFrontmatter.verifyCommand;
+        delete current2.rawExtraFrontmatter.verify_command;
+        delete current2.rawExtraFrontmatter.verifyCmd;
+      }
+      const serialized = serializeBacklogMd(current2);
+      atomicWriteFileSync2(filePath, serialized, "utf8");
+      const canonical = mapMarkdownTaskToCanonical(current2, project, filename);
+      const resp2 = { ok: true, updatedTask: canonical, filePath };
+      if (usedUpdatesObject2) {
+        resp2.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+      }
+      if (options?.force) {
+        const forceWarning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n de la tarea '${current2.id}', omitiendo las validaciones del Gatekeeper.`;
+        resp2.warning = resp2.warning ? `${resp2.warning} ${forceWarning}` : forceWarning;
+        resp2.audit = {
+          bypassedGatekeeper: true,
+          timestamp: now
+        };
+      }
+      return resp2;
+    }
+    const jsonPath = resolveJsonBacklogPath(project);
+    if (!fs5.existsSync(jsonPath)) {
+      throw new Error(`Archivo de backlog JSON no encontrado en ${jsonPath}.`);
+    }
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+    const cleanId = String(taskId).toLowerCase();
+    const idx = (data.items || []).findIndex(
+      (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
+    );
+    if (idx < 0) {
+      throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+    }
+    const current = data.items[idx];
+    const effectiveStatus = updates.status || updates.updates?.status;
+    const effectiveTitle = updates.title || updates.updates?.title;
+    const effectiveDesc = updates.description !== void 0 ? updates.description : updates.updates?.description;
+    const effectivePriority = updates.priority || updates.updates?.priority;
+    const effectiveType = updates.type || updates.updates?.type;
+    const effectivePlan = updates.implementationPlan !== void 0 ? updates.implementationPlan : updates.updates?.implementationPlan;
+    const effectiveNotes = updates.implementationNotes !== void 0 ? updates.implementationNotes : updates.notes !== void 0 ? updates.notes : updates.fix !== void 0 ? updates.fix : updates.updates?.implementationNotes;
+    const effectiveMilestone = updates.milestone !== void 0 ? updates.milestone : updates.updates?.milestone;
+    const effectiveSprint = updates.sprint !== void 0 ? updates.sprint : updates.targetSprint !== void 0 ? updates.targetSprint : updates.updates?.sprint;
+    const effectiveCheckAllAcs = updates.checkAllAcs !== void 0 ? updates.checkAllAcs : updates.updates?.checkAllAcs;
+    const effectiveEstimate = updates.estimate !== void 0 ? updates.estimate : updates.updates?.estimate;
+    const effectiveLabels = Array.isArray(updates.labels) ? updates.labels : Array.isArray(updates.updates?.labels) ? updates.updates.labels : void 0;
+    const usedUpdatesObject = Boolean(updates.updates && !updates.status && updates.updates.status);
+    if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
+    if (effectiveTitle) current.title = effectiveTitle;
+    if (effectiveDesc !== void 0) current.description = effectiveDesc;
+    if (effectivePriority) current.priority = normalizePriority(effectivePriority);
+    if (effectiveType) current.type = normalizeType(effectiveType);
+    if (effectivePlan !== void 0) current.implementationPlan = effectivePlan;
+    if (effectiveNotes !== void 0) {
+      current.implementationNotes = effectiveNotes;
+      current.fix = effectiveNotes;
+    }
+    if (effectiveMilestone !== void 0) current.milestone = effectiveMilestone;
+    if (effectiveLabels !== void 0) current.labels = effectiveLabels;
+    if (effectiveSprint !== void 0) {
+      const legSprint = resolveLegibleSprint(project, effectiveSprint);
+      current.sprint = legSprint;
+      current.targetSprint = legSprint;
+      current.sprints = legSprint ? [legSprint] : [];
+    }
+    if (effectiveEstimate !== void 0) {
+      current.estimate = effectiveEstimate === "" || effectiveEstimate === null ? void 0 : effectiveEstimate;
+    }
+    current.updatedAt = now;
+    if (effectiveCheckAllAcs !== void 0 && current.acceptanceCriteriaList) {
+      current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac) => ({
+        ...ac,
+        checked: Boolean(effectiveCheckAllAcs)
+      }));
+    } else if (updates.toggleAcIndex !== void 0) {
+      if (typeof updates.toggleAcIndex !== "number" || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
+        throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+      }
+      const acList = current.acceptanceCriteriaList || [];
+      const foundAc = acList.find((ac) => ac.index === updates.toggleAcIndex);
+      if (!foundAc) {
+        throw new Error(`[Validation] Criterio de aceptaci\xF3n #${updates.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+      }
+      current.acceptanceCriteriaList = acList.map(
+        (ac) => ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+      );
+    }
+    const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+    validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
+    delete current.verifyCommand;
+    data.items[idx] = current;
+    data.lastUpdated = now;
+    atomicWriteFileSync2(jsonPath, JSON.stringify(data, null, 2), "utf8");
+    const resp = { ok: true, updatedTask: current, filePath: jsonPath };
+    if (usedUpdatesObject) {
+      resp.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+    }
+    if (options?.force) {
+      const forceWarning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n de la tarea '${current.id || current.code}', omitiendo las validaciones del Gatekeeper.`;
+      resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
+      resp.audit = {
+        bypassedGatekeeper: true,
+        timestamp: now
+      };
+    }
+    return resp;
+  }
+  /**
+   * Bulk updates tasks with Gatekeeper validation applied to ALL matching tasks (AC 3).
+   */
+  static bulkUpdateTasks(project, targetFilter, updates, options) {
+    const cleanIds = Array.isArray(targetFilter.taskIds) ? new Set(targetFilter.taskIds.map((id) => String(id).toLowerCase())) : null;
+    const pfxFilter = targetFilter.filterPrefix ? String(targetFilter.filterPrefix).toLowerCase() : null;
+    const statusFilter = targetFilter.filterStatus ? normalizeStatus(targetFilter.filterStatus) : null;
+    const allTasks = _BacklogService.listTasks(project, { includeDeleted: false });
+    const matchedTasks = allTasks.filter((t) => {
+      const taskId = String(t.id || t.code || "").toLowerCase();
+      if (cleanIds && !cleanIds.has(taskId)) return false;
+      if (pfxFilter && !taskId.startsWith(pfxFilter)) return false;
+      if (statusFilter && normalizeStatus(t.status) !== statusFilter) return false;
+      return true;
+    });
+    if (matchedTasks.length === 0) {
+      return {
+        ok: true,
+        projectId: project.id,
+        storageType: project.storageType || "markdown",
+        updatedCount: 0,
+        updatedIds: []
+      };
+    }
+    const effectiveStatus = updates.status || updates.updates?.status;
+    if (effectiveStatus) {
+      const targetStatus = normalizeStatus(effectiveStatus);
+      for (const t of matchedTasks) {
+        validateGatekeeperTransition(t, targetStatus, options, project.repoPath);
+      }
+    }
+    const updatedIds = [];
+    const failedUpdates = [];
+    let updatedCount = 0;
+    for (const t of matchedTasks) {
+      try {
+        const res = _BacklogService.updateTask(project, t.id || t.code, updates, options);
+        if (res.ok) {
+          updatedCount++;
+          updatedIds.push(t.code || t.id);
+        }
+      } catch (err) {
+        failedUpdates.push({ id: t.id || t.code, error: err.message });
+      }
+    }
+    const resp = {
+      ok: failedUpdates.length === 0,
+      projectId: project.id,
+      storageType: project.storageType || "markdown",
+      updatedCount,
+      updatedIds,
+      ...failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {}
+    };
+    if (options?.force) {
+      resp.warning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+      resp.audit = {
+        bypassedGatekeeper: true,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+    return resp;
+  }
+  /**
+   * Soft deletes or purges a task. Protected done tasks cannot be soft-deleted.
+   */
+  static deleteTask(project, taskId, options) {
+    const isPurge = options?.purge === true;
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const fileInfo = findTaskFile(project, taskId);
+      if (!fileInfo) return { ok: false, id: taskId };
+      const { filePath, filename, task } = fileInfo;
+      const currentStatus = (task.status || "").toLowerCase();
+      if (!isPurge && currentStatus === "done") {
+        throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
+      }
+      if (isPurge) {
+        const archiveDir = path5.join(project.repoPath, project.backlogDir || "backlog", "archive");
+        if (!fs5.existsSync(archiveDir)) fs5.mkdirSync(archiveDir, { recursive: true });
+        fs5.renameSync(filePath, path5.join(archiveDir, filename));
+        return { ok: true, id: taskId, purged: true };
+      }
+      const previousStatus = task.status || "draft";
+      const raw = fs5.readFileSync(filePath, "utf8");
+      let updated = raw;
+      updated = updated.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
+      updated = updated.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
+      updated = updated.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, "");
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      if (/^status:.*$/m.test(updated)) {
+        updated = updated.replace(/^(status:.*$)/m, `$1
 isDeleted: true
 deletedAt: "${nowIso}"
 previousStatus: "${previousStatus}"`);
-  } else {
-    updated = updated.replace(/^---\r?\n/, `---
+      } else {
+        updated = updated.replace(/^---\r?\n/, `---
 isDeleted: true
 deletedAt: "${nowIso}"
 previousStatus: "${previousStatus}"
 `);
+      }
+      atomicWriteFileSync2(filePath, updated, "utf8");
+      return { ok: true, id: taskId, softDeleted: true };
+    }
+    const jsonPath = resolveJsonBacklogPath(project);
+    if (!fs5.existsSync(jsonPath)) return { ok: false, id: taskId };
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+    const cleanId = taskId.toLowerCase();
+    const idx = (data.items || []).findIndex(
+      (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
+    );
+    if (idx < 0) return { ok: false, id: taskId };
+    const item = data.items[idx];
+    if (!isPurge && item.status === "done") {
+      throw new Error("Cannot soft-delete a done item.");
+    }
+    if (isPurge) {
+      data.items.splice(idx, 1);
+    } else {
+      item.previousStatus = item.status;
+      item.isDeleted = true;
+      item.deletedAt = (/* @__PURE__ */ new Date()).toISOString();
+      data.items[idx] = item;
+    }
+    data.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
+    atomicWriteFileSync2(jsonPath, JSON.stringify(data, null, 2), "utf8");
+    return { ok: true, id: taskId, softDeleted: !isPurge, purged: isPurge };
   }
-  atomicWriteFileSync2(filePath, updated, "utf8");
-  return true;
-}
-function restoreBacklogMdItem(project, id) {
-  const found = findBacklogMdFile(project, id);
-  if (!found) return false;
-  const { filePath } = found;
-  let raw = fs5.readFileSync(filePath, "utf8");
-  const prevMatch = raw.match(/^[pP]revious[sS]tatus:\s*"?([^"\r\n]+)"?/m);
-  const restoreStatus = prevMatch ? prevMatch[1].trim() : "draft";
-  if (/^status:.*$/m.test(raw)) {
-    raw = raw.replace(/^status:.*$/m, `status: ${restoreStatus}`);
+  /**
+   * Restores a soft-deleted task to active state.
+   */
+  static restoreTask(project, taskId) {
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const fileInfo = findTaskFile(project, taskId);
+      if (!fileInfo) return false;
+      const { filePath } = fileInfo;
+      let raw = fs5.readFileSync(filePath, "utf8");
+      const prevMatch = raw.match(/^[pP]revious[sS]tatus:\s*"?([^"\r\n]+)"?/m);
+      const restoreStatus2 = prevMatch ? prevMatch[1].trim() : "draft";
+      if (/^status:.*$/m.test(raw)) {
+        raw = raw.replace(/^status:.*$/m, `status: ${restoreStatus2}`);
+      }
+      raw = raw.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
+      raw = raw.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
+      raw = raw.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, "");
+      atomicWriteFileSync2(filePath, raw, "utf8");
+      return true;
+    }
+    const jsonPath = resolveJsonBacklogPath(project);
+    if (!fs5.existsSync(jsonPath)) return false;
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+    const cleanId = taskId.toLowerCase();
+    const item = (data.items || []).find(
+      (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
+    );
+    if (!item) return false;
+    const restoreStatus = item.previousStatus || "draft";
+    item.status = restoreStatus;
+    delete item.isDeleted;
+    delete item.deletedAt;
+    delete item.previousStatus;
+    data.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
+    atomicWriteFileSync2(jsonPath, JSON.stringify(data, null, 2), "utf8");
+    return true;
   }
-  raw = raw.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
-  raw = raw.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
-  raw = raw.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, "");
-  atomicWriteFileSync2(filePath, raw, "utf8");
-  return true;
-}
-function purgeBacklogMdItem(project, id) {
-  if (!project.repoPath) return false;
-  const found = findBacklogMdFile(project, id);
-  if (!found) return false;
-  const archiveDir = path5.join(project.repoPath, project.backlogDir || "backlog", "archive");
-  if (!fs5.existsSync(archiveDir)) fs5.mkdirSync(archiveDir, { recursive: true });
-  fs5.renameSync(found.filePath, path5.join(archiveDir, found.filename));
-  return true;
-}
-function writeProjectBacklog(project, data) {
-  if (isBacklogMdProject(project)) {
+  /**
+   * Exports monolithic BACKLOG.md excluding soft-deleted items (AC 6).
+   */
+  static exportBacklogMd(project, options) {
+    const tasks = _BacklogService.listTasks(project, { includeDeleted: false });
+    const mdTasks = tasks.map((t) => ({
+      id: t.code || t.id,
+      title: t.title,
+      status: normalizeStatus(t.status),
+      type: t.type,
+      priority: t.priority,
+      milestone: t.milestone || t.targetSprint,
+      description: t.description || "",
+      acceptanceCriteria: t.acceptanceCriteriaList || t.acceptanceCriteria || []
+    }));
+    const content = generateMonolithicBacklogMd(project.name, mdTasks);
+    let savedPath;
+    if (options?.save !== false && project.repoPath) {
+      savedPath = path5.join(project.repoPath, "BACKLOG.md");
+      atomicWriteFileSync2(savedPath, content, "utf8");
+    }
+    return {
+      ok: true,
+      content,
+      savedPath,
+      taskCount: tasks.length
+    };
+  }
+  /**
+   * Synchronizes backlog tasks and BACKLOG.md.
+   * DEV-293 / AC 4: Does NOT auto-promote tasks to ready! Only emits quality warnings,
+   * and writes BACKLOG.md strictly when real changes exist or autoFix is true.
+   */
+  static syncBacklog(project, options) {
+    let fixedCount = 0;
+    const errors = [];
+    const warnings = [];
+    const autoFix = options?.autoFix === true;
+    if (isBacklogMdProject(project) && project.repoPath) {
+      const tasksDir = getProjectTasksDir(project);
+      if (fs5.existsSync(tasksDir)) {
+        const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+        for (const file of files) {
+          const filePath = path5.join(tasksDir, file);
+          const content2 = fs5.readFileSync(filePath, "utf8");
+          const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          if (!fmMatch) continue;
+          const fm = fmMatch[1];
+          const statusMatch = fm.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+          const idMatch = fm.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+          const rawStatus = (statusMatch ? statusMatch[1] : "").toLowerCase();
+          const taskId = idMatch ? idMatch[1] : file.split(" - ")[0];
+          const acBlockMatch = content2.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
+          if (!acBlockMatch) continue;
+          const acBlock = acBlockMatch[1];
+          const allAcs = acBlock.match(/^-\s*\[([ xX])\]/gm) || [];
+          const checkedAcs = acBlock.match(/^-\s*\[[xX]\]/gm) || [];
+          const totalAcs = allAcs.length;
+          const totalChecked = checkedAcs.length;
+          if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === "draft" || rawStatus === "doing")) {
+            warnings.push(
+              `${taskId}: Todos los AC completados (${totalChecked}/${totalAcs}) pero status es '${rawStatus}' (aviso de calidad: requiere certificaci\xF3n de QA para pasar a ready)`
+            );
+          }
+          if (rawStatus === "done" && totalAcs > 0 && totalChecked < totalAcs) {
+            errors.push(`${taskId}: Status es 'done' pero solo tiene ${totalChecked}/${totalAcs} ACs marcados`);
+          }
+        }
+      }
+    }
+    const exportRes = _BacklogService.exportBacklogMd(project, { save: false });
+    const content = exportRes.content;
+    let backlogPath = null;
+    let changesWritten = false;
     if (project.repoPath) {
+      backlogPath = path5.join(project.repoPath, "BACKLOG.md");
+      let existingContent = "";
+      if (fs5.existsSync(backlogPath)) {
+        try {
+          existingContent = fs5.readFileSync(backlogPath, "utf8");
+        } catch {
+        }
+      }
+      const normalize = (s) => s.replace(/\r\n/g, "\n").trim();
+      const stripDate = (s) => s.replace(/^> Consolidado generado el \d{4}-\d{2}-\d{2} por gripm( ⚡)?\n?/m, "");
+      const isDifferent = stripDate(normalize(existingContent)) !== stripDate(normalize(content));
+      if (isDifferent || autoFix) {
+        atomicWriteFileSync2(backlogPath, content, "utf8");
+        changesWritten = true;
+      }
+    }
+    return {
+      ok: errors.length === 0,
+      autoFix,
+      fixedCount,
+      errorsFound: errors.length,
+      errors,
+      warnings,
+      taskCount: exportRes.taskCount,
+      backlogPath,
+      changesWritten
+    };
+  }
+  /**
+   * Reads full project backlog (items, releases, sprints) with ZERO disk mutations (AC 5).
+   * Does NOT auto-close sprints, does NOT auto-write releases.json or sprints.json.
+   */
+  static readProjectBacklog(project) {
+    if (isBacklogMdProject(project)) {
+      const tasksDir = getProjectTasksDir(project);
       try {
-        const dir = path5.join(project.repoPath, project.backlogDir || "backlog");
-        if (!fs5.existsSync(dir)) fs5.mkdirSync(dir, { recursive: true });
-        const releasesPath = path5.join(dir, "releases.json");
-        let releasesToWrite = data.releases || [];
+        if (!fs5.existsSync(tasksDir)) {
+          return {
+            project: { ...project, storageType: "markdown" },
+            items: [],
+            releases: [],
+            sprints: [],
+            lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+          };
+        }
+        const items = _BacklogService.listTasks(project, { includeDeleted: true });
+        let releases = [];
+        const releasesPath = getProjectReleasesPath(project);
         if (fs5.existsSync(releasesPath)) {
           try {
-            const diskReleases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
-            if (Array.isArray(diskReleases)) {
-              releasesToWrite = releasesToWrite.map((rel) => {
-                const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
-                if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
-                  if (!rel.itemCodes || rel.itemCodes.length === 0) {
-                    return { ...rel, itemCodes: diskMatch.itemCodes };
-                  }
-                }
-                return rel;
-              });
-            }
+            releases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
           } catch {
           }
         }
-        atomicWriteFileSync2(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
-        if (data.sprints !== void 0) {
-          atomicWriteFileSync2(path5.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+        if (releases.length === 0 && project.repoPath) {
+          const parsed = parseReleaseNotesMd(project.repoPath, project.codePrefix, items);
+          if (parsed.length > 0) {
+            releases = parsed;
+          }
         }
+        if (releases.length > 0) {
+          for (const rel of releases) {
+            const vClean = (rel.version || "").replace(/^v/i, "");
+            const existingCodes = new Set((rel.itemCodes || []).map((c) => c.toUpperCase()));
+            for (const it of items) {
+              const itRel = (it.release || it.targetRelease || "").replace(/^v/i, "");
+              const inReleases = (it.releases || []).some((r) => r.replace(/^v/i, "") === vClean);
+              if (itRel === vClean || inReleases) {
+                const codeUpper = (it.code || it.id).toUpperCase();
+                if (!existingCodes.has(codeUpper)) {
+                  existingCodes.add(codeUpper);
+                  if (!rel.itemCodes) rel.itemCodes = [];
+                  rel.itemCodes.push(it.code || it.id);
+                }
+              }
+            }
+          }
+          const releaseByCode = /* @__PURE__ */ new Map();
+          for (const rel of releases) {
+            const isReleased = rel.status === "released";
+            for (const code of rel.itemCodes || []) {
+              const key = code.toUpperCase();
+              if (!releaseByCode.has(key) || !releaseByCode.get(key).isReleased && isReleased) {
+                releaseByCode.set(key, { version: rel.version, date: rel.date, isReleased });
+              }
+            }
+          }
+          for (const it of items) {
+            const key = (it.code || it.id).toUpperCase();
+            if (releaseByCode.has(key)) {
+              const rInfo = releaseByCode.get(key);
+              it.targetRelease = it.targetRelease || rInfo.version;
+              it.release = it.release || rInfo.version;
+              if (rInfo.isReleased) {
+                it.releasedAt = it.releasedAt || (rInfo.date ? new Date(rInfo.date).toISOString() : void 0);
+              }
+            }
+          }
+        }
+        let sprints = [];
+        const sprintsPath = getProjectSprintsPath(project);
+        if (fs5.existsSync(sprintsPath)) {
+          try {
+            sprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
+          } catch {
+          }
+        }
+        sprints = (sprints || []).map((s) => ({
+          ...s,
+          projectId: project.id
+        }));
+        if (project.repoPath) {
+          const detectedSprintNames = /* @__PURE__ */ new Set();
+          for (const it of items) {
+            const sp = it.sprint || it.targetSprint;
+            if (sp && typeof sp === "string" && sp.trim() && sp.toLowerCase() !== "backlog" && !sp.toLowerCase().includes("sin sprint") && sp !== "\u2014") {
+              detectedSprintNames.add(sp.trim());
+            }
+          }
+          if (detectedSprintNames.size > 0) {
+            const existingNames = new Set(sprints.map((s) => s.name?.toLowerCase().trim()));
+            for (const name of detectedSprintNames) {
+              if (!existingNames.has(name.toLowerCase())) {
+                const sprintItems = items.filter((it) => (it.sprint || it.targetSprint || "").trim().toLowerCase() === name.toLowerCase());
+                const allDone = sprintItems.length > 0 && sprintItems.every((it) => it.status === "done" || it.status === "ready" || it.status === "finish");
+                const hasDoing = sprintItems.some((it) => it.status === "doing" || it.status === "review");
+                sprints.push({
+                  id: `sprint-${name.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`,
+                  projectId: project.id,
+                  name,
+                  goal: "",
+                  status: allDone ? "completed" : hasDoing ? "active" : "planned",
+                  createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+                  completedAt: allDone ? (/* @__PURE__ */ new Date()).toISOString() : void 0
+                });
+              }
+            }
+          }
+        }
+        return {
+          project: { ...project, storageType: "markdown" },
+          items,
+          releases,
+          sprints,
+          lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+        };
       } catch (err) {
-        console.warn(`[gripm API] Warning writing releases/sprints: ${err.message}`);
+        console.warn(`[gripm BacklogService] Error reading Backlog.md tasks for ${project.id}:`, err.message);
+        return {
+          project: { ...project, storageType: "markdown", error: err.message },
+          items: [],
+          releases: [],
+          sprints: [],
+          lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+        };
       }
     }
-    return;
+    const filePath = resolveJsonBacklogPath(project);
+    try {
+      if (!fs5.existsSync(filePath)) {
+        const initial = {
+          project: { ...project, storageType: "json" },
+          items: [],
+          releases: [],
+          sprints: [],
+          lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        try {
+          atomicWriteFileSync2(filePath, JSON.stringify(initial, null, 2), "utf8");
+        } catch (writeErr) {
+          console.error(`[gripm BacklogService] Cannot initialize backlog at ${filePath}:`, writeErr.message);
+        }
+        return initial;
+      }
+      const jsonStat = fs5.statSync(filePath);
+      const jsonMtime = Math.round(jsonStat.mtimeMs);
+      const raw = fs5.readFileSync(filePath, "utf8");
+      const parsed = JSON.parse(raw);
+      let items = Array.isArray(parsed.items) ? parsed.items : [];
+      items = items.map((it) => ({
+        ...it,
+        code: it.code || it.id,
+        projectId: it.projectId || project.id,
+        status: normalizeStatus(it.status),
+        acceptanceCriteriaList: it.acceptanceCriteriaList || it.acceptanceCriteria || [],
+        acceptanceCriteria: it.acceptanceCriteria || it.acceptanceCriteriaList || [],
+        mtime: it.mtime || jsonMtime
+      }));
+      return {
+        project: { ...project, storageType: "json" },
+        items,
+        releases: Array.isArray(parsed.releases) ? parsed.releases : [],
+        sprints: Array.isArray(parsed.sprints) ? parsed.sprints : [],
+        lastUpdated: parsed.lastUpdated || (/* @__PURE__ */ new Date()).toISOString()
+      };
+    } catch (err) {
+      console.error(`[gripm BacklogService] Error reading backlog for project ${project.id}:`, err.message);
+      return {
+        project: { ...project, storageType: "json", error: err.message },
+        items: [],
+        releases: [],
+        sprints: [],
+        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
   }
-  const filePath = getProjectBacklogPath(project);
-  data.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
-  try {
-    atomicWriteFileSync2(filePath, JSON.stringify(data, null, 2), "utf8");
-  } catch (err) {
-    console.error(`[gripm API] Error writing project backlog to ${filePath}:`, err.message);
+  /**
+   * Writes releases and sprints to disk atomically (markdown) or updates backlog.json (JSON).
+   */
+  static writeProjectBacklog(project, data) {
+    if (isBacklogMdProject(project)) {
+      if (project.repoPath) {
+        try {
+          const dir = path5.join(project.repoPath, project.backlogDir || "backlog");
+          if (!fs5.existsSync(dir)) fs5.mkdirSync(dir, { recursive: true });
+          const releasesPath = path5.join(dir, "releases.json");
+          let releasesToWrite = data.releases || [];
+          if (fs5.existsSync(releasesPath)) {
+            try {
+              const diskReleases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
+              if (Array.isArray(diskReleases)) {
+                releasesToWrite = releasesToWrite.map((rel) => {
+                  const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
+                  if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
+                    if (!rel.itemCodes || rel.itemCodes.length === 0) {
+                      return { ...rel, itemCodes: diskMatch.itemCodes };
+                    }
+                  }
+                  return rel;
+                });
+              }
+            } catch {
+            }
+          }
+          atomicWriteFileSync2(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
+          if (data.sprints !== void 0) {
+            atomicWriteFileSync2(path5.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+          }
+        } catch (err) {
+          console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
+        }
+      }
+      return;
+    }
+    const filePath = resolveJsonBacklogPath(project);
+    data.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
+    try {
+      atomicWriteFileSync2(filePath, JSON.stringify(data, null, 2), "utf8");
+    } catch (err) {
+      console.error(`[gripm BacklogService] Error writing project backlog to ${filePath}:`, err.message);
+    }
   }
+  /**
+   * Saves or creates a single task item (used by legacy and HTTP adapters).
+   */
+  static saveTask(project, item) {
+    if (!project.repoPath && isBacklogMdProject(project)) return;
+    if (isBacklogMdProject(project)) {
+      const tasksDir = getProjectTasksDir(project);
+      if (!fs5.existsSync(tasksDir)) fs5.mkdirSync(tasksDir, { recursive: true });
+      const fileInfo = findTaskFile(project, item.code || item.id);
+      let existingFile = fileInfo?.filename;
+      let existingTask = fileInfo?.task || {};
+      const taskData = {
+        id: item.code || item.id,
+        title: item.title || existingTask.title || "Sin t\xEDtulo",
+        status: normalizeStatus(item.status),
+        type: normalizeType(item.type || existingTask.type) || "feature",
+        priority: item.priority || existingTask.priority || "p2",
+        assignees: item.assignees !== void 0 ? item.assignees : existingTask.assignees || [],
+        labels: item.labels !== void 0 ? item.labels : existingTask.labels || [],
+        dependencies: item.dependencies || existingTask.dependencies || [],
+        parentId: item.parentId !== void 0 ? item.parentId : existingTask.parentId,
+        blocks: item.blocks !== void 0 ? item.blocks : existingTask.blocks,
+        blockedBy: item.blockedBy !== void 0 ? item.blockedBy : existingTask.blockedBy,
+        relatedTo: item.relatedTo !== void 0 ? item.relatedTo : existingTask.relatedTo,
+        sprints: item.sprints !== void 0 ? item.sprints : existingTask.sprints,
+        releases: item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 || item.releases !== void 0 ? (Array.isArray(item.releases) ? item.releases.filter(Boolean) : item.release ? [item.release] : []).filter((r) => !r.toLowerCase().includes("sprint")) : (existingTask.releases || []).filter((r) => !r.toLowerCase().includes("sprint")),
+        milestone: item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 ? (item.release || item.targetRelease || item.milestone || "").toLowerCase().includes("sprint") ? void 0 : item.release || item.targetRelease || item.milestone || void 0 : existingTask.milestone && !existingTask.milestone.toLowerCase().includes("sprint") ? existingTask.milestone : void 0,
+        createdDate: item.createdAt || existingTask.createdDate,
+        updatedDate: item.updatedAt || (/* @__PURE__ */ new Date()).toISOString(),
+        description: item.description !== void 0 ? item.description : existingTask.description || "",
+        acceptanceCriteria: item.acceptanceCriteriaList || existingTask.acceptanceCriteria || [],
+        implementationPlan: item.implementationPlan !== void 0 ? item.implementationPlan : existingTask.implementationPlan || "",
+        implementationNotes: item.fix || item.implementationNotes || existingTask.implementationNotes,
+        finalSummary: item.finalSummary || existingTask.finalSummary,
+        estimate: item.estimate !== void 0 ? item.estimate === "" ? void 0 : item.estimate : existingTask.estimate,
+        startDate: item.startDate !== void 0 ? item.startDate : existingTask.startDate,
+        dueDate: item.dueDate !== void 0 ? item.dueDate : existingTask.dueDate,
+        rawExtraFrontmatter: {
+          ...existingTask.rawExtraFrontmatter || {}
+        }
+      };
+      if (item.isDeleted) {
+        taskData.isDeleted = true;
+        taskData.deletedAt = item.deletedAt || (/* @__PURE__ */ new Date()).toISOString();
+        taskData.previousStatus = item.previousStatus || existingTask.previousStatus || existingTask.status || "draft";
+        if (taskData.rawExtraFrontmatter) {
+          taskData.rawExtraFrontmatter.isDeleted = "true";
+          if (taskData.deletedAt) taskData.rawExtraFrontmatter.deletedAt = taskData.deletedAt;
+          if (taskData.previousStatus) taskData.rawExtraFrontmatter.previousStatus = taskData.previousStatus;
+        }
+      } else {
+        taskData.isDeleted = void 0;
+        taskData.deletedAt = void 0;
+        taskData.previousStatus = void 0;
+        if (taskData.rawExtraFrontmatter) {
+          delete taskData.rawExtraFrontmatter.isdeleted;
+          delete taskData.rawExtraFrontmatter.isDeleted;
+          delete taskData.rawExtraFrontmatter.deletedat;
+          delete taskData.rawExtraFrontmatter.deletedAt;
+          delete taskData.rawExtraFrontmatter.previousstatus;
+          delete taskData.rawExtraFrontmatter.previousStatus;
+        }
+      }
+      if (item.estimate !== void 0) {
+        if (item.estimate === "" || item.estimate === null) {
+          taskData.estimate = void 0;
+          if (taskData.rawExtraFrontmatter) delete taskData.rawExtraFrontmatter.estimate;
+        } else {
+          taskData.estimate = item.estimate;
+          if (taskData.rawExtraFrontmatter) taskData.rawExtraFrontmatter.estimate = String(item.estimate);
+        }
+      }
+      if (item.impactedFile !== void 0) taskData.rawExtraFrontmatter.impactedFile = item.impactedFile;
+      if (item.risk !== void 0) taskData.rawExtraFrontmatter.risk = item.risk;
+      if (item.fix !== void 0) taskData.rawExtraFrontmatter.fix = item.fix;
+      if (item.module !== void 0) taskData.rawExtraFrontmatter.module = item.module;
+      if (item.epic !== void 0) taskData.rawExtraFrontmatter.epic = item.epic;
+      if (item.category !== void 0) taskData.rawExtraFrontmatter.category = item.category;
+      const isSprintProvided = item.sprint !== void 0 || item.targetSprint !== void 0 || item.sprints !== void 0;
+      const rawSVal = isSprintProvided ? item.sprint || item.targetSprint || (item.sprints && item.sprints.length > 0 ? item.sprints[item.sprints.length - 1] : "") || "" : existingTask.sprint || existingTask.targetSprint || (existingTask.sprints && existingTask.sprints.length > 0 ? existingTask.sprints[existingTask.sprints.length - 1] : "") || "";
+      const resolvedSprint = resolveLegibleSprint(project, rawSVal);
+      if (resolvedSprint) {
+        taskData.sprint = resolvedSprint;
+        taskData.targetSprint = resolvedSprint;
+        taskData.sprints = [resolvedSprint];
+        taskData.rawExtraFrontmatter.sprint = resolvedSprint;
+        taskData.rawExtraFrontmatter.targetSprint = resolvedSprint;
+      } else {
+        taskData.sprint = void 0;
+        taskData.targetSprint = void 0;
+        taskData.sprints = [];
+        delete taskData.rawExtraFrontmatter.sprint;
+        delete taskData.rawExtraFrontmatter.targetSprint;
+      }
+      const isReleaseProvided = item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 || item.releases !== void 0;
+      if (isReleaseProvided) {
+        const rawRVal = (item.release || item.targetRelease || item.milestone || (item.releases && item.releases.length > 0 ? item.releases[0] : "") || "").trim();
+        const rVal = rawRVal.toLowerCase().includes("sprint") ? "" : rawRVal;
+        const relArray = (Array.isArray(item.releases) ? item.releases.filter(Boolean) : rVal ? [rVal] : []).filter((r) => !r.toLowerCase().includes("sprint"));
+        if (rVal || relArray.length > 0) {
+          taskData.rawExtraFrontmatter.release = rVal || relArray[0];
+          taskData.rawExtraFrontmatter.targetRelease = rVal || relArray[0];
+          taskData.milestone = rVal || relArray[0];
+          taskData.releases = relArray;
+        } else {
+          delete taskData.rawExtraFrontmatter.release;
+          delete taskData.rawExtraFrontmatter.targetRelease;
+          delete taskData.rawExtraFrontmatter.releases;
+          taskData.milestone = void 0;
+          taskData.releases = [];
+        }
+        if (project.repoPath) {
+          const releasesPath = getProjectReleasesPath(project);
+          if (fs5.existsSync(releasesPath)) {
+            try {
+              const relsData = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
+              const taskCode = (taskData.id || "").toUpperCase();
+              let changed = false;
+              const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
+              let versionFound = false;
+              for (const rel of relsData) {
+                const vClean = (rel.version || "").replace(/^v/i, "");
+                if (!rel.itemCodes) rel.itemCodes = [];
+                const idx2 = rel.itemCodes.findIndex((c) => c.toUpperCase() === taskCode);
+                if (targetVersion && vClean === targetVersion) {
+                  versionFound = true;
+                  if (idx2 < 0) {
+                    rel.itemCodes.push(taskData.id);
+                    changed = true;
+                  }
+                } else if (idx2 >= 0 && !relArray.some((rv) => rv.replace(/^v/i, "") === vClean)) {
+                  rel.itemCodes.splice(idx2, 1);
+                  changed = true;
+                }
+              }
+              if (targetVersion && !versionFound) {
+                const now = /* @__PURE__ */ new Date();
+                const todayStr = now.toISOString().slice(0, 10);
+                const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1e3).toISOString().slice(0, 10);
+                relsData.unshift({
+                  id: `rel-${targetVersion.replace(/\./g, "-")}`,
+                  projectId: project.id,
+                  version: targetVersion,
+                  date: todayStr,
+                  targetDate,
+                  status: "unreleased",
+                  title: `v${targetVersion}`,
+                  summary: `Versi\xF3n ${targetVersion} creada para planificaci\xF3n.`,
+                  itemCodes: [taskData.id],
+                  markdownContent: `## [${targetVersion}] \u2014 Unreleased
+
+### \u{1F3AF} Resumen
+*Versi\xF3n ${targetVersion} en planificaci\xF3n.*`,
+                  createdAt: now.toISOString()
+                });
+                changed = true;
+              }
+              if (changed) {
+                atomicWriteFileSync2(releasesPath, JSON.stringify(relsData, null, 2), "utf8");
+              }
+            } catch (syncErr) {
+              console.warn("[gripm BacklogService] Error sincronizando releases.json al guardar tarea:", syncErr.message);
+            }
+          }
+        }
+      }
+      if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
+      const content = serializeBacklogMd(taskData);
+      const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
+      const targetFilePath = path5.join(tasksDir, targetFilename);
+      atomicWriteFileSync2(targetFilePath, content, "utf8");
+      return;
+    }
+    const jsonPath = resolveJsonBacklogPath(project);
+    let currentBacklog = { project, items: [] };
+    if (fs5.existsSync(jsonPath)) {
+      try {
+        currentBacklog = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+      } catch {
+      }
+    }
+    const cleanId = String(item.code || item.id).toLowerCase();
+    const idx = (currentBacklog.items || []).findIndex(
+      (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
+    );
+    if (idx >= 0) {
+      currentBacklog.items[idx] = { ...currentBacklog.items[idx], ...item, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    } else {
+      currentBacklog.items.push({ ...item, createdAt: (/* @__PURE__ */ new Date()).toISOString(), updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    }
+    currentBacklog.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
+    atomicWriteFileSync2(jsonPath, JSON.stringify(currentBacklog, null, 2), "utf8");
+  }
+};
+
+// server/services/storage.ts
+function readProjectBacklog(project) {
+  return BacklogService.readProjectBacklog(project);
+}
+function writeProjectBacklog(project, data) {
+  BacklogService.writeProjectBacklog(project, data);
+}
+function saveBacklogMdItem(project, item) {
+  BacklogService.saveTask(project, item);
+}
+function findBacklogMdFile(project, id) {
+  return findTaskFile(project, id);
+}
+function softDeleteBacklogMdItem(project, id) {
+  return BacklogService.deleteTask(project, id, { purge: false }).softDeleted === true;
+}
+function restoreBacklogMdItem(project, id) {
+  return BacklogService.restoreTask(project, id);
+}
+function purgeBacklogMdItem(project, id) {
+  return BacklogService.deleteTask(project, id, { purge: true }).purged === true;
 }
 
 // server/services/fsExplorer.ts
@@ -2215,6 +3195,9 @@ function getSafeInitialBrowseDir() {
   }
   return path6.resolve(os2.homedir() || process.cwd());
 }
+
+// server/routes/api.ts
+init_atomicWrite();
 
 // scripts/import-docs.js
 import fs7 from "node:fs";
@@ -2700,7 +3683,7 @@ function writeUpdateCache(data) {
     if (!fs8.existsSync(dir)) {
       fs8.mkdirSync(dir, { recursive: true });
     }
-    fs8.writeFileSync(cachePath, JSON.stringify(data, null, 2), "utf8");
+    atomicWriteFileSync(cachePath, JSON.stringify(data, null, 2), "utf8");
   } catch {
   }
 }
@@ -3420,7 +4403,7 @@ async function handleApiRequest(req, res) {
       if (!fs9.existsSync(gripmDir)) {
         fs9.mkdirSync(gripmDir, { recursive: true });
       }
-      fs9.writeFileSync(jsonPath, JSON.stringify(currentBacklog, null, 2), "utf8");
+      atomicWriteFileSync2(jsonPath, JSON.stringify(currentBacklog, null, 2), "utf8");
       project.storageType = "json";
       saveRegistry(registry);
       return sendJson(res, 200, {
@@ -3445,7 +4428,7 @@ async function handleApiRequest(req, res) {
       const project = registry.projects.find((proj) => proj.id === id);
       if (!project) return sendJson(res, 404, { error: "Project not found" });
       const backlog = readProjectBacklog(project);
-      const tasks = backlog.items.map((it) => ({
+      const tasks = backlog.items.filter((it) => !it.isDeleted).map((it) => ({
         id: it.code || it.id,
         title: it.title,
         status: normalizeStatus(it.status),
@@ -3468,7 +4451,7 @@ async function handleApiRequest(req, res) {
       if (!project.repoPath) return sendJson(res, 400, { error: "Project lacks repoPath" });
       await getBody(req, res).catch(() => ({}));
       const backlog = readProjectBacklog(project);
-      const tasks = backlog.items.map((it) => ({
+      const tasks = backlog.items.filter((it) => !it.isDeleted).map((it) => ({
         id: it.code || it.id,
         title: it.title,
         status: normalizeStatus(it.status),
@@ -3602,7 +4585,7 @@ async function handleApiRequest(req, res) {
           const releasesPath = path9.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
           try {
             if (!fs9.existsSync(path9.dirname(releasesPath))) fs9.mkdirSync(path9.dirname(releasesPath), { recursive: true });
-            fs9.writeFileSync(releasesPath, JSON.stringify(backlog.releases, null, 2), "utf8");
+            atomicWriteFileSync2(releasesPath, JSON.stringify(backlog.releases, null, 2), "utf8");
           } catch (err) {
             console.warn(`[gripm API] Error saving synced releases:`, err.message);
           }
@@ -3739,7 +4722,7 @@ ${r.whatToImprove ? r.whatToImprove.trim() : "Flujo eficiente y directo."}
 ## \u{1F4CC} Acciones Concretas (Compromisos y Mejoras)
 ${Array.isArray(r.actions) && r.actions.length > 0 ? r.actions.map((act) => `- [ ] ${act}`).join("\n") : "- [ ] Continuar aplicando las buenas pr\xE1cticas establecidas."}
 `;
-          fs9.writeFileSync(retroFile, md, "utf8");
+          atomicWriteFileSync2(retroFile, md, "utf8");
         } catch (e) {
           console.warn("[Retro Save Error]", e.message);
         }
@@ -3826,7 +4809,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0 ? r.actions.map((act) => `- [
             const releasesPath = path9.join(targetProject2.repoPath, targetProject2.backlogDir || "backlog", "releases.json");
             try {
               if (!fs9.existsSync(path9.dirname(releasesPath))) fs9.mkdirSync(path9.dirname(releasesPath), { recursive: true });
-              fs9.writeFileSync(releasesPath, JSON.stringify(boardData.releases, null, 2), "utf8");
+              atomicWriteFileSync2(releasesPath, JSON.stringify(boardData.releases, null, 2), "utf8");
             } catch (relErr) {
               console.warn("[gripm] Error saving releases during import:", relErr.message);
             }

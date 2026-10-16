@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,20 +9,40 @@ console.log('🧪 Iniciando prueba de bin/gripm-mcp.js y catálogo canónico de 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const binaryPath = path.resolve(__dirname, '../bin/gripm-mcp.js');
-const backlogPath = path.resolve(__dirname, '../BACKLOG.md');
-const originalBacklogContent = fs.existsSync(backlogPath) ? fs.readFileSync(backlogPath, 'utf8') : null;
-const testTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-998 - Gatekeeper Test Task.md');
-const testSecTaskPath = path.resolve(__dirname, '../backlog/tasks/DEV-999 - Sec RCE Test Task.md');
+
+// DEV-304: Isolated ephemeral repository in os.tmpdir() to prevent repo worktree contamination
+const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-mcp-test-'));
+const tmpTasksDir = path.join(tmpRepo, 'backlog/tasks');
+fs.mkdirSync(tmpTasksDir, { recursive: true });
+
+const tmpBacklogPath = path.join(tmpRepo, 'BACKLOG.md');
+fs.writeFileSync(tmpBacklogPath, '# Backlog\n', 'utf8');
+
+// Synthetic package.json with authorized verifyCommand script for Gatekeeper testing
+fs.writeFileSync(
+  path.join(tmpRepo, 'package.json'),
+  JSON.stringify(
+    {
+      name: 'test-mcp-repo',
+      version: '1.0.0',
+      scripts: {
+        'verify:changes': 'node -e "process.exit(0)"',
+      },
+    },
+    null,
+    2
+  ),
+  'utf8'
+);
+
+const testTaskPath = path.join(tmpTasksDir, 'DEV-998 - Gatekeeper Test Task.md');
+const testSecTaskPath = path.join(tmpTasksDir, 'DEV-999 - Sec RCE Test Task.md');
 
 function cleanup() {
-  if (fs.existsSync(testTaskPath)) {
-    try { fs.unlinkSync(testTaskPath); } catch {}
-  }
-  if (fs.existsSync(testSecTaskPath)) {
-    try { fs.unlinkSync(testSecTaskPath); } catch {}
-  }
-  if (originalBacklogContent !== null && fs.existsSync(backlogPath)) {
-    try { fs.writeFileSync(backlogPath, originalBacklogContent, 'utf8'); } catch {}
+  if (fs.existsSync(tmpRepo)) {
+    try {
+      fs.rmSync(tmpRepo, { recursive: true, force: true });
+    } catch {}
   }
 }
 
@@ -42,7 +63,7 @@ fs.writeFileSync(
   'utf8'
 );
 
-const child = spawn(process.execPath, [binaryPath], {
+const child = spawn(process.execPath, [binaryPath, '--repo', tmpRepo], {
   stdio: ['pipe', 'pipe', 'inherit']
 });
 

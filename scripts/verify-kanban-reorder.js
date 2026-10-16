@@ -116,8 +116,8 @@ const sortByOrder = (items) => [...items].sort((a, b) => a.order - b.order);
     board.includes('canMoveDown={idx < colItems.length - 1}'),
     'AC #3: el borde inferior debe deshabilitar "Bajar"',
   );
-  assert.ok(card.includes("onMoveWithinColumn('up')"), 'AC #3: la tarjeta debe ofrecer Subir');
-  assert.ok(card.includes("onMoveWithinColumn('down')"), 'AC #3: la tarjeta debe ofrecer Bajar');
+  assert.ok(/onMoveWithinColumn(?:\?\.)?\(['"]up['"]\)/.test(card), 'AC #3: la tarjeta debe ofrecer Subir');
+  assert.ok(/onMoveWithinColumn(?:\?\.)?\(['"]down['"]\)/.test(card), 'AC #3: la tarjeta debe ofrecer Bajar');
 
   // Both locales must carry the labels, or the menu renders raw keys.
   for (const locale of ['es', 'en']) {

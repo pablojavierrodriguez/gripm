@@ -10,7 +10,7 @@ console.log('🧪 Iniciando prueba de persistencia de sprints en modo JSON (DEV-
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STORAGE_MODULE = pathToFileURL(path.join(ROOT, 'server/services/storage.ts')).href;
-const DEMO_FILE = path.join(ROOT, 'data/demo-backlog.json');
+const DEMO_FILE = path.join(ROOT, 'src/data/demo-backlog.json');
 
 process.env.GRIPM_MODE = 'multi';
 
@@ -230,7 +230,7 @@ process.stdout.write(JSON.stringify((backlog.sprints || []).map((s) => s.id)));
       throw new Error(`Los sprints del demo llegaron mal formados: ${JSON.stringify(demoSprints)}`);
     }
     if (sha256(DEMO_FILE) !== demoHashBefore) {
-      throw new Error('La verificación del proyecto demo modificó data/demo-backlog.json.');
+      throw new Error('La verificación del proyecto demo modificó src/data/demo-backlog.json.');
     }
     steps++; ok(`AC #4 · el proyecto demo expone ${demoSprints.length} sprints (${demoSprints.map((s) => s.name).join(' | ')})`);
   } finally {

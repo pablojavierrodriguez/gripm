@@ -1,4 +1,4 @@
-import seed from '../../data/demo-backlog.json' with { type: 'json' };
+import seed from './demo-backlog.json' with { type: 'json' };
 import type { BacklogItem, BoardData, GripmConfig, Project, Release, Sprint } from '../types';
 import type { GripmApi } from './types';
 import { getStoredJSON, removeStoredItem, setStoredJSON, STORAGE_KEYS } from '../utils/storage.ts';
@@ -11,7 +11,7 @@ import { getStoredJSON, removeStoredItem, setStoredJSON, STORAGE_KEYS } from '..
  * dan 404 siempre. Este adaptador es lo que permite que la app funcione igual:
  * implementa el mismo contrato sobre un `BoardData` en memoria.
  *
- * El dataset semilla es el mismo `data/demo-backlog.json` que consume el daemon
+ * El dataset semilla es el mismo `src/data/demo-backlog.json` que consume el daemon
  * para el proyecto demo, no una copia: un fixture paralelo divergiría en la
  * primera iteración sin que nadie lo note.
  *

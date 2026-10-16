@@ -36,12 +36,12 @@ Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) c
 
 ## Acceptance Criteria
 
-<!-- SECTION:AC:BEGIN -->
+<!-- AC:BEGIN -->
 - [ ] AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
 - [ ] AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
 - [ ] AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
 - [ ] AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
-<!-- SECTION:AC:END -->
+<!-- AC:END -->
 
 ## Notes
 

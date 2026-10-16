@@ -784,7 +784,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         fs.mkdirSync(gripmDir, { recursive: true });
       }
 
-      fs.writeFileSync(jsonPath, JSON.stringify(currentBacklog, null, 2), 'utf8');
+      atomicWriteFileSync(jsonPath, JSON.stringify(currentBacklog, null, 2), 'utf8');
 
       project.storageType = 'json';
       saveRegistry(registry);
@@ -817,7 +817,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       if (!project) return sendJson(res, 404, { error: 'Project not found' });
 
       const backlog = readProjectBacklog(project);
-      const tasks: BacklogMdTask[] = backlog.items.map((it: any) => ({
+      const tasks: BacklogMdTask[] = backlog.items.filter((it: any) => !it.isDeleted).map((it: any) => ({
         id: it.code || it.id,
         title: it.title,
         status: normalizeStatus(it.status),
@@ -846,7 +846,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       await getBody(req, res).catch(() => ({}));
 
       const backlog = readProjectBacklog(project);
-      const tasks: BacklogMdTask[] = backlog.items.map((it: any) => ({
+      const tasks: BacklogMdTask[] = backlog.items.filter((it: any) => !it.isDeleted).map((it: any) => ({
         id: it.code || it.id,
         title: it.title,
         status: normalizeStatus(it.status),
@@ -1005,7 +1005,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           const releasesPath = path.join(project.repoPath, project.backlogDir || 'backlog', 'releases.json');
           try {
             if (!fs.existsSync(path.dirname(releasesPath))) fs.mkdirSync(path.dirname(releasesPath), { recursive: true });
-            fs.writeFileSync(releasesPath, JSON.stringify(backlog.releases, null, 2), 'utf8');
+            atomicWriteFileSync(releasesPath, JSON.stringify(backlog.releases, null, 2), 'utf8');
           } catch (err: any) {
             console.warn(`[gripm API] Error saving synced releases:`, err.message);
           }
@@ -1175,7 +1175,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
   ? r.actions.map((act: string) => `- [ ] ${act}`).join('\n') 
   : '- [ ] Continuar aplicando las buenas prácticas establecidas.'}
 `;
-          fs.writeFileSync(retroFile, md, 'utf8');
+          atomicWriteFileSync(retroFile, md, 'utf8');
         } catch (e: any) {
           console.warn('[Retro Save Error]', e.message);
         }
@@ -1283,7 +1283,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
             const releasesPath = path.join(targetProject.repoPath, targetProject.backlogDir || 'backlog', 'releases.json');
             try {
               if (!fs.existsSync(path.dirname(releasesPath))) fs.mkdirSync(path.dirname(releasesPath), { recursive: true });
-              fs.writeFileSync(releasesPath, JSON.stringify(boardData.releases, null, 2), 'utf8');
+              atomicWriteFileSync(releasesPath, JSON.stringify(boardData.releases, null, 2), 'utf8');
             } catch (relErr: any) {
               console.warn('[gripm] Error saving releases during import:', relErr.message);
             }

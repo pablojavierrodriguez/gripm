@@ -326,22 +326,8 @@ export function removeFilterFromState(
   return next;
 }
 
-/**
- * Soporte para compatibilidad con módulo múltiple (DEV-287):
- * Al evaluar filters.module, verificar (!filters.module || it.module === filters.module || it.modules?.includes(filters.module))
- */
-export function itemMatchesModule(
-  it: { module?: string; modules?: string[] },
-  filterModule?: string
-): boolean {
-  return (
-    !filterModule ||
-    filterModule === 'all' ||
-    it.module === filterModule ||
-    Boolean(it.modules?.includes(filterModule))
-  );
-}
-
+import { itemMatchesModule } from '../utils/filterItems';
+export { itemMatchesModule };
 export const itemMatchesModuleFilter = itemMatchesModule;
 export const matchesModule = itemMatchesModule;
 

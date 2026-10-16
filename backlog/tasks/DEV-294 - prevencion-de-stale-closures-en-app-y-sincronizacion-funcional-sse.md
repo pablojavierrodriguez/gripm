@@ -64,3 +64,17 @@ Corrección de condiciones de carrera y pérdida silenciosa de tareas en el clie
 
 <!-- SECTION:PLAN:BEGIN -->
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- **src/App.tsx:**
+  - Migradas todas las llamadas no-funcionales a `setBoardData` al patrón funcional `setBoardData((prev) => prev ? { ...prev, ... } : null)` en `handleUpdateStatus` (optimistic update y rollback), `handleUpdatePriority`, `handleSaveItem` (actualización y creación), `handleUnlinkChildTask` y `handleCreateProject`.
+  - En `loadData`: incorporada la sincronización funcional de `setEditingItem((prevEditing) => ...)` para refrescar el `expectedMtime` y notificar toast en vivo ante modificaciones externas en disco de la tarea actualmente abierta en edición, erradicando conflictos 409 y desincronizaciones de mtime.
+- **src/components/ItemCard.tsx:**
+  - Optimizado el listener de clic exterior `document.addEventListener('mousedown', handleClickOutside)` agregando un guard temprano `if (!menuOpen && !statusMenuOpen && !sprintMenuOpen) return;` con dependencias `[menuOpen, statusMenuOpen, sprintMenuOpen]`, eliminando listeners redundantes en cada tarjeta inactiva montada.
+- **Verificación:**
+  - `npx tsc --noEmit`: 0 errores de TypeScript estricto.
+  - `npm run test:ui`: Prueba UI smoke aprobada en verde.
+  - `npm test`: Suite completa de 18 pasos aprobada exitosamente.
+<!-- SECTION:NOTES:END -->

@@ -31,6 +31,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STEPS = [
   ['parser', 'scripts/test-parser.js'],
   ['integration', 'scripts/verify-integration.js'],
+  ['backlog-service', 'scripts/test-backlog-service.js'],
   ['api-security', 'scripts/test-api-security.js'],
   ['package-smoke', 'scripts/test-package-smoke.js'],
   ['optimistic-locking', 'scripts/verify-optimistic-locking.js'],

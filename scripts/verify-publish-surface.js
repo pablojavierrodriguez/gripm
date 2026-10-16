@@ -58,7 +58,7 @@ const REQUIRED_ENTRIES = [
   'bin/gripm-mcp.js',
   'dist/index.html',
   'public/logo.png',
-  'data/demo-backlog.json',
+  'src/data/demo-backlog.json',
   'package.json',
   'README.md',
   'LICENSE',

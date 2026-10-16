@@ -9,13 +9,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync, spawnSync } from 'node:child_process';
-import { parseBacklogMd, serializeBacklogMd, generateTaskFilename, normalizeStatus, normalizePriority, generateMonolithicBacklogMd } from './backlogMdParser.ts';
+import { parseBacklogMd, normalizeStatus, normalizePriority, generateMonolithicBacklogMd } from './backlogMdParser.ts';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
+import { BacklogService } from '../server/services/backlogService.ts';
+import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const DEMO_FILE = path.join(ROOT_DIR, 'data/demo-backlog.json');
 
 function getRegistry(): { activeProjectId: string; projects: any[] } {
   const reg = loadRegistryFile(ROOT_DIR);
@@ -66,14 +67,6 @@ function getProject(projectId?: string) {
   }
 
   return registry.projects[0];
-}
-
-function resolveJsonBacklogPath(p: any): string {
-  if (p.isDemo) return DEMO_FILE;
-  if (p.repoPath) {
-    return path.join(p.repoPath, '.gripm/backlog.json');
-  }
-  return path.join(ROOT_DIR, `data/${p.id}-backlog.json`);
 }
 
 function loadTasks(project: any, options: { staged?: boolean } = {}): any[] {
@@ -139,58 +132,15 @@ function loadTasks(project: any, options: { staged?: boolean } = {}): any[] {
             _raw: task
           });
         }
-        return items;
+        return items.filter(t => !t._raw?.isDeleted && t._raw?.isDeleted !== 'true');
       } catch {
         // Fallback a lectura de disco si git falla
       }
     }
-
-    const tasksDir = path.join(project.repoPath, project.backlogDir || 'backlog', 'tasks');
-    if (!fs.existsSync(tasksDir)) return [];
-    const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-    files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-    const items: any[] = [];
-    for (const file of files) {
-      try {
-        const raw = fs.readFileSync(path.join(tasksDir, file), 'utf8');
-        const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
-        const task = parseBacklogMd(raw, fallbackId);
-        items.push({
-          id: task.id || fallbackId,
-          code: task.id || fallbackId,
-          title: task.title,
-          status: normalizeStatus(task.status),
-          priority: normalizePriority(task.priority),
-          type: task.type,
-          milestone: task.milestone,
-          sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
-          targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint || task.milestone,
-          acceptanceCriteria: task.acceptanceCriteria || [],
-          labels: task.labels || [],
-          _file: file,
-          _raw: task
-        });
-      } catch {}
-    }
-    return items;
   }
 
-  // 2. Storage JSON
-  const jsonPath = resolveJsonBacklogPath(project);
-
-  if (fs.existsSync(jsonPath)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      return (data.items || []).map((i: any) => ({
-        ...i,
-        status: normalizeStatus(i.status),
-        priority: normalizePriority(i.priority)
-      }));
-    } catch {}
-  }
-
-  return [];
+  // Delegar lectura estándar al BacklogService unificado excluyendo tareas borradas (AC 2, AC 6)
+  return BacklogService.listTasks(project, { includeDeleted: false });
 }
 
 function printUsage() {
@@ -322,7 +272,7 @@ async function main() {
       return;
     }
 
-    fs.writeFileSync(exportPath, md, 'utf8');
+    atomicWriteFileSync(exportPath, md, 'utf8');
     console.log(`📄 Backlog consolidado exportado exitosamente a: ${exportPath}`);
     return;
   }
@@ -435,51 +385,35 @@ async function main() {
     );
   }
 
-  // Modo Actualización Masiva (CLI Bulk Update DEV-021)
+  // Modo Actualización Masiva (CLI Bulk Update DEV-021 / DEV-299)
   if (updateStatus) {
     const newStatus = normalizeStatus(updateStatus);
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
-    let updatedCount = 0;
 
     if (tasks.length === 0) {
       console.log('⚠️ No hay tareas que coincidan con los filtros para actualizar.');
       return;
     }
 
-    if (project.storageType === 'markdown' && project.repoPath) {
-      const tasksDir = path.join(project.repoPath, project.backlogDir || 'backlog', 'tasks');
-      for (const t of tasks) {
-        if (!t._raw || !t._file) continue;
-        const taskData = t._raw;
-        taskData.status = newStatus;
-        taskData.updatedDate = today;
+    const force = args.includes('--force') || args.includes('-f');
+    const matchedIds = tasks.map(t => t.code || t.id);
 
-        const serialized = serializeBacklogMd(taskData);
-        const targetPath = t._file ? path.join(tasksDir, t._file) : path.join(tasksDir, generateTaskFilename(taskData.id, taskData.title));
-        fs.writeFileSync(targetPath, serialized, 'utf8');
-        updatedCount++;
-      }
-    } else {
-      // JSON storage
-      const jsonPath = resolveJsonBacklogPath(project);
+    try {
+      const res = BacklogService.bulkUpdateTasks(
+        project,
+        { taskIds: matchedIds },
+        { status: newStatus },
+        { force }
+      );
 
-      if (fs.existsSync(jsonPath)) {
-        const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-        const matchedIds = new Set(tasks.map(t => (t.code || t.id).toLowerCase()));
-        for (const it of data.items) {
-          if (matchedIds.has(String(it.id || it.code).toLowerCase())) {
-            it.status = newStatus;
-            it.updatedAt = now;
-            updatedCount++;
-          }
-        }
-        data.lastUpdated = now;
-        fs.writeFileSync(jsonPath, JSON.stringify(data, null, 2), 'utf8');
+      if (res.warning) {
+        console.warn(`\n⚠️  ${res.warning}`);
       }
+
+      console.log(`\n✔ Actualización masiva completada: ${res.updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
+    } catch (err: any) {
+      console.error(`\n❌ Error al actualizar tareas: ${err.message}\n`);
+      process.exit(1);
     }
-
-    console.log(`\n✔ Actualización masiva completada: ${updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
     return;
   }
 

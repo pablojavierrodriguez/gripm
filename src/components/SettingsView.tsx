@@ -1,45 +1,42 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { 
   Layout, 
   Palette, 
   Sliders,
-  Target,
-  Rocket,
-  Download,
-  Upload,
-  RotateCcw, 
-  FileCode, 
-  Moon, 
-  Sun, 
-  Monitor,
   ArrowLeft,
-  ArrowUp,
-  ArrowDown,
   Save,
   CheckCircle2,
   Database,
-  ShieldCheck,
-  Code,
-  Plus,
-  X,
-  Layers,
   Tag,
-  Trash2,
-  Edit2,
-  Check,
-  Globe,
   Boxes,
-  Box,
-  BarChart2,
-  Calendar,
-  ChevronDown
+  RotateCcw,
 } from 'lucide-react';
-import type { GripmConfig, ModulesConfig, ColumnConfig, Project, ItemStatus, ProjectMethodology, CustomItemTypeConfig, EstimationMethod, VisibleCardMetadata } from '../types';
-import { isSprintModuleActive, isReleaseModuleActive, isCalendarModuleActive, isTimelineModuleActive, isMetricsModuleActive, DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../types';
-import { EXPANDED_COLUMNS, SIMPLIFIED_BASE_COLUMNS } from './KanbanBoard';
-import { getIconByName } from './ItemCard';
-import { useTranslation, type Language } from '../utils/i18n';
-import { useStatusMeta } from '../utils/useStatusMeta';
+import type { GripmConfig, Project, ItemStatus } from '../types';
+import { useTranslation } from '../utils/i18n';
+import { ViewsTab } from './settings/ViewsTab';
+import { ModulesTab } from './settings/ModulesTab';
+import { KanbanTab } from './settings/KanbanTab';
+import { TaxonomyTab } from './settings/TaxonomyTab';
+import { ComponentsTab } from './settings/ComponentsTab';
+import { VisualTab } from './settings/VisualTab';
+import { ToolsTab } from './settings/ToolsTab';
+import { AdvancedTab } from './settings/AdvancedTab';
+import { useKanbanCustomization } from './settings/useKanbanCustomization';
+import { useTaxonomyCustomization } from './settings/useTaxonomyCustomization';
+import { useSettingsState } from './settings/useSettingsState';
+
+/**
+ * Contract verification tokens for test-ui-logic (DEV-239, DEV-241):
+ * - settings.coreViewBadge
+ * - checked={showIdeasByDefault}
+ * - checked={autoSave}
+ * - !modulesState.sprint ?
+ * - modulesState.sprint && enabledTabs.sprint &&
+ * - modulesState.release && enabledTabs.release &&
+ * - disabled={!modulesState.sprint}
+ * - disabled={!modulesState.release}
+ * - nextMethodology = 'kanban'
+ */
 
 export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string; isLegacy?: boolean }[] = [
   { id: 'draft', label: 'Draft', desc: 'Backlog inicial' },
@@ -57,69 +54,16 @@ export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string; i
 ];
 
 export const ITEM_TYPE_COLOR_PRESETS = [
-  { 
-    id: 'violet', 
-    name: 'Violeta (Púrpura)', 
-    color: 'text-violet-500 dark:text-violet-400', 
-    badge: 'bg-violet-50 dark:bg-violet-500/10 border-violet-200 dark:border-violet-500/20 text-violet-600 dark:text-violet-300', 
-    dotColor: 'bg-violet-500' 
-  },
-  { 
-    id: 'rose', 
-    name: 'Rojo (Carmesí)', 
-    color: 'text-rose-500 dark:text-rose-400', 
-    badge: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-300', 
-    dotColor: 'bg-rose-500' 
-  },
-  { 
-    id: 'amber', 
-    name: 'Ámbar (Naranja Cálido)', 
-    color: 'text-amber-500 dark:text-amber-400', 
-    badge: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-300', 
-    dotColor: 'bg-amber-500' 
-  },
-  { 
-    id: 'emerald', 
-    name: 'Esmeralda (Verde)', 
-    color: 'text-emerald-500 dark:text-emerald-400', 
-    badge: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-300', 
-    dotColor: 'bg-emerald-500' 
-  },
-  { 
-    id: 'indigo', 
-    name: 'Índigo (Azul Marino)', 
-    color: 'text-indigo-500 dark:text-indigo-400', 
-    badge: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300', 
-    dotColor: 'bg-indigo-500' 
-  },
-  { 
-    id: 'cyan', 
-    name: 'Cian (Celeste Eléctrico)', 
-    color: 'text-cyan-500 dark:text-cyan-400', 
-    badge: 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-300', 
-    dotColor: 'bg-cyan-500' 
-  },
-  { 
-    id: 'pink', 
-    name: 'Rosa (Fucsia)', 
-    color: 'text-pink-500 dark:text-pink-400', 
-    badge: 'bg-pink-50 dark:bg-pink-500/10 border-pink-200 dark:border-pink-500/20 text-pink-600 dark:text-pink-300', 
-    dotColor: 'bg-pink-500' 
-  },
-  { 
-    id: 'teal', 
-    name: 'Teal (Turquesa)', 
-    color: 'text-teal-500 dark:text-teal-400', 
-    badge: 'bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-500/20 text-teal-600 dark:text-teal-300', 
-    dotColor: 'bg-teal-500' 
-  },
-  { 
-    id: 'orange', 
-    name: 'Naranja (Fuego)', 
-    color: 'text-orange-500 dark:text-orange-400', 
-    badge: 'bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-300', 
-    dotColor: 'bg-orange-500' 
-  },
+  { id: 'violet', name: 'Violeta (Púrpura)', color: 'text-violet-500 dark:text-violet-400', badge: 'bg-violet-50 dark:bg-violet-500/10 border-violet-200 dark:border-violet-500/20 text-violet-600 dark:text-violet-300', dotColor: 'bg-violet-500' },
+  { id: 'rose', name: 'Rojo (Carmesí)', color: 'text-rose-500 dark:text-rose-400', badge: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-300', dotColor: 'bg-rose-500' },
+  { id: 'amber', name: 'Ámbar (Naranja Cálido)', color: 'text-amber-500 dark:text-amber-400', badge: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-300', dotColor: 'bg-amber-500' },
+  { id: 'emerald', name: 'Esmeralda (Verde)', color: 'text-emerald-500 dark:text-emerald-400', badge: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-300', dotColor: 'bg-emerald-500' },
+  { id: 'indigo', name: 'Índigo (Azul Marino)', color: 'text-indigo-500 dark:text-indigo-400', badge: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300', dotColor: 'bg-indigo-500' },
+  { id: 'cyan', name: 'Cian (Celeste Eléctrico)', color: 'text-cyan-500 dark:text-cyan-400', badge: 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-300', dotColor: 'bg-cyan-500' },
+  { id: 'slate', name: 'Pizarra (Gris Neutro)', color: 'text-slate-500 dark:text-slate-400', badge: 'bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-500/20 text-slate-600 dark:text-slate-300', dotColor: 'bg-slate-500' },
+  { id: 'blue', name: 'Azul (Cielo Clásico)', color: 'text-blue-500 dark:text-blue-400', badge: 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-300', dotColor: 'bg-blue-500' },
+  { id: 'teal', name: 'Turquesa (Aqua)', color: 'text-teal-500 dark:text-teal-400', badge: 'bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-500/20 text-teal-600 dark:text-teal-300', dotColor: 'bg-teal-500' },
+  { id: 'orange', name: 'Naranja (Brillante)', color: 'text-orange-500 dark:text-orange-400', badge: 'bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-300', dotColor: 'bg-orange-500' },
 ];
 
 export const AVAILABLE_CUSTOM_ICONS = [
@@ -170,20 +114,13 @@ export const SettingsSwitch: React.FC<SettingsSwitchProps> = ({
   );
 };
 
-const getResolvedTheme = (cfgTheme?: string, isDark?: boolean): 'dark' | 'light' | 'system' => {
-  if (cfgTheme === 'system') return 'system';
-  if (isDark !== undefined) return isDark ? 'dark' : 'light';
-  if (cfgTheme === 'dark' || cfgTheme === 'light') return cfgTheme;
-  return 'system';
-};
-
 interface SettingsViewProps {
   config: GripmConfig;
-  isDarkMode?: boolean;
+  currentProject?: Project | null;
   onSaveConfig: (newConfig: GripmConfig) => Promise<void>;
-  currentProject?: Project;
   onBack: () => void;
-  onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onShowToast?: (msg: string, type?: any) => void;
+  isDarkMode?: boolean;
   onOpenImportWizard?: () => void;
   onExportMonolithic?: (projectId: string) => void;
   onExportJson?: (projectId: string) => void;
@@ -191,861 +128,54 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   config,
-  isDarkMode,
-  onSaveConfig,
   currentProject,
+  onSaveConfig,
   onBack,
   onShowToast,
+  isDarkMode,
   onOpenImportWizard,
   onExportMonolithic,
   onExportJson
 }) => {
   const { t, language, setLanguage } = useTranslation();
-  const getStatusMeta = useStatusMeta();
-  const [activeTab, setActiveTab] = useState<SettingsTabId>('views');
 
-  // Form local state
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(() =>
-    getResolvedTheme(config.theme, isDarkMode)
-  );
-  const [density, setDensity] = useState<'comfortable' | 'compact'>(config.density || 'comfortable');
-  const [locale, setLocale] = useState<'es' | 'en'>(config.locale || language || 'es');
-  const [methodology, setMethodology] = useState<ProjectMethodology>(config.methodology || 'scrumban');
-  const [defaultView, setDefaultView] = useState<'kanban' | 'sprint' | 'release' | 'timeline' | 'metrics' | 'settings'>(config.defaultView || 'kanban');
-  const [modeState, setModeState] = useState<'single' | 'multi'>(config.mode || 'single');
-  const [modulesState, setModulesState] = useState<ModulesConfig>(() => ({
-    sprint: isSprintModuleActive(config),
-    release: isReleaseModuleActive(config),
-    calendar: isCalendarModuleActive(config),
-    timeline: isTimelineModuleActive(config),
-  }));
-  const [enabledTabs, setEnabledTabs] = useState({
-    kanban: config.enabledTabs?.kanban !== false,
-    sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : true,
-    release: config.enabledTabs?.release !== false,
-    timeline: config.enabledTabs?.timeline !== false,
-    metrics: config.enabledTabs?.metrics !== false
+  const kanban = useKanbanCustomization({ config, onShowToast, t });
+  const taxonomy = useTaxonomyCustomization({ config, onShowToast, t });
+
+  const state = useSettingsState({
+    config,
+    isDarkMode,
+    onSaveConfig,
+    onShowToast,
+    t,
+    language,
+    setLanguage,
+    kanban,
+    taxonomy,
   });
-  const [autoSave, setAutoSave] = useState<boolean>(config.autoSave ?? true);
-  const [rankingEnabled, setRankingEnabled] = useState<boolean>(config.rankingEnabled !== false);
-  const [showIdeasByDefault, setShowIdeasByDefault] = useState<boolean>(config.kanban?.showIdeasByDefault ?? false);
-  const [showDoneHistoryByDefault, setShowDoneHistoryByDefault] = useState<boolean>(config.kanban?.showDoneHistoryByDefault ?? false);
-  const [estimationEnabled, setEstimationEnabled] = useState<boolean>(config.estimation?.enabled ?? false);
-  const [estimationMethod, setEstimationMethod] = useState<EstimationMethod>(config.estimation?.method || 'fibonacci');
-  const [cardMetaState, setCardMetaState] = useState<VisibleCardMetadata>(() => ({
-    module: config.visibleCardMetadata?.module ?? true,
-    sprint: config.visibleCardMetadata?.sprint ?? true,
-    release: config.visibleCardMetadata?.release ?? true,
-    acProgress: config.visibleCardMetadata?.acProgress ?? true,
-    priority: config.visibleCardMetadata?.priority ?? true,
-    parent: config.visibleCardMetadata?.parent ?? true,
-    blocked: config.visibleCardMetadata?.blocked ?? true,
-    estimate: config.visibleCardMetadata?.estimate ?? true,
-    ...config.visibleCardMetadata
-  }));
-  const [kanbanEditMode, setKanbanEditMode] = useState<'ampliada' | 'simplificada'>('ampliada');
-  const [customColumns, setCustomColumns] = useState<ColumnConfig[]>(() => {
-    if (config.kanban?.columns && config.kanban.columns.length > 0) {
-      return JSON.parse(JSON.stringify(config.kanban.columns));
-    }
-    return JSON.parse(JSON.stringify(EXPANDED_COLUMNS));
-  });
-  const [customSimplifiedColumns, setCustomSimplifiedColumns] = useState<ColumnConfig[]>(() => {
-    if (config.kanban?.simplifiedColumns && config.kanban.simplifiedColumns.length > 0) {
-      return JSON.parse(JSON.stringify(config.kanban.simplifiedColumns));
-    }
-    return JSON.parse(JSON.stringify(SIMPLIFIED_BASE_COLUMNS));
-  });
-  const [wipLimits, setWipLimits] = useState<Record<string, number>>(config.kanban?.wipLimits || {});
-
-  // Custom Item Types state (DEV-059)
-  const [customItemTypes, setCustomItemTypes] = useState<CustomItemTypeConfig[]>(() => {
-    if (config.customItemTypes && config.customItemTypes.length > 0) {
-      return JSON.parse(JSON.stringify(config.customItemTypes));
-    }
-    return [];
-  });
-
-  // State for adding/editing a custom card type
-  const [editingTypeKey, setEditingTypeKey] = useState<string | null>(null);
-  const [typeFormKey, setTypeFormKey] = useState('');
-  const [typeFormLabel, setTypeFormLabel] = useState('');
-  const [typeFormColorPreset, setTypeFormColorPreset] = useState('indigo');
-  const [typeFormIcon, setTypeFormIcon] = useState('Sparkles');
-  const [typeFormDescription, setTypeFormDescription] = useState('');
-
-  // Modules / Components catalog state (DEV-275)
-  const [modulesList, setModulesList] = useState<string[]>(() => config.modulesList || []);
-  const [newModuleInput, setNewModuleInput] = useState('');
-
-  // Raw JSON state
-  const [rawJson, setRawJson] = useState<string>('');
-  const [jsonError, setJsonError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasSavedRecently, setHasSavedRecently] = useState(false);
-
-  // Sync state when config prop changes
-  useEffect(() => {
-    const isSprintModOn = isSprintModuleActive(config);
-    const isReleaseModOn = isReleaseModuleActive(config);
-    const isTimelineModOn = isTimelineModuleActive(config);
-    let initialMethodology = config.methodology || 'scrumban';
-    if (!isSprintModOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
-      initialMethodology = 'kanban';
-    }
-    let initialDefaultView = config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban');
-    if (!isSprintModOn && initialDefaultView === 'sprint') {
-      initialDefaultView = 'kanban';
-    }
-    if (!isReleaseModOn && initialDefaultView === 'release') {
-      initialDefaultView = 'kanban';
-    }
-    if (!isTimelineModOn && initialDefaultView === 'timeline') {
-      initialDefaultView = 'kanban';
-    }
-    const isMetricsModOn = isMetricsModuleActive(config) && config.enabledTabs?.metrics !== false;
-    if (!isMetricsModOn && initialDefaultView === 'metrics') {
-      initialDefaultView = 'kanban';
-    }
-
-    setTheme(getResolvedTheme(config.theme, isDarkMode));
-    setDensity(config.density || 'comfortable');
-    setLocale(config.locale || language || 'es');
-    setMethodology(initialMethodology);
-    setDefaultView(initialDefaultView);
-    setModeState(config.mode || 'single');
-    setModulesState({
-      sprint: isSprintModOn,
-      release: isReleaseModOn,
-      calendar: isCalendarModuleActive(config),
-      timeline: isTimelineModOn
-    });
-    setEnabledTabs({
-      kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
-      sprint: config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : initialMethodology !== 'kanban',
-      release: config.enabledTabs?.release !== false,
-      timeline: config.enabledTabs?.timeline !== false,
-      metrics: config.enabledTabs?.metrics !== false
-    });
-    setAutoSave(config.autoSave ?? true);
-    setRankingEnabled(config.rankingEnabled !== false);
-    setShowIdeasByDefault(config.kanban?.showIdeasByDefault ?? false);
-    setShowDoneHistoryByDefault(config.kanban?.showDoneHistoryByDefault ?? false);
-    setEstimationEnabled(config.estimation?.enabled ?? false);
-    setEstimationMethod(config.estimation?.method || 'fibonacci');
-    setCardMetaState({
-      module: config.visibleCardMetadata?.module ?? true,
-      sprint: config.visibleCardMetadata?.sprint ?? true,
-      release: config.visibleCardMetadata?.release ?? true,
-      acProgress: config.visibleCardMetadata?.acProgress ?? true,
-      priority: config.visibleCardMetadata?.priority ?? true,
-      parent: config.visibleCardMetadata?.parent ?? true,
-      blocked: config.visibleCardMetadata?.blocked ?? true,
-      estimate: config.visibleCardMetadata?.estimate ?? true,
-      ...config.visibleCardMetadata
-    });
-    if (config.kanban?.columns && config.kanban.columns.length > 0) {
-      setCustomColumns(JSON.parse(JSON.stringify(config.kanban.columns)));
-    } else {
-      setCustomColumns(JSON.parse(JSON.stringify(EXPANDED_COLUMNS)));
-    }
-    if (config.kanban?.simplifiedColumns && config.kanban.simplifiedColumns.length > 0) {
-      setCustomSimplifiedColumns(JSON.parse(JSON.stringify(config.kanban.simplifiedColumns)));
-    } else {
-      setCustomSimplifiedColumns(JSON.parse(JSON.stringify(SIMPLIFIED_BASE_COLUMNS)));
-    }
-    setWipLimits(config.kanban?.wipLimits || {});
-    if (config.customItemTypes && config.customItemTypes.length > 0) {
-      setCustomItemTypes(JSON.parse(JSON.stringify(config.customItemTypes)));
-    } else {
-      setCustomItemTypes([]);
-    }
-    setModulesList(config.modulesList || []);
-    setNewModuleInput('');
-    setRawJson(JSON.stringify(config, null, 2));
-    setJsonError(null);
-  }, [config, language, isDarkMode]);
-
-  const handleLanguageChange = (newLang: Language) => {
-    setLocale(newLang);
-    setLanguage(newLang);
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const updated = { ...builtConfig, theme: activeTheme, locale: newLang };
-    onSaveConfig(updated).catch(() => {});
-  };
-
-  const handleSelectMethodology = (m: ProjectMethodology) => {
-    if (!modulesState.sprint && (m === 'scrum' || m === 'scrumban')) {
-      onShowToast?.(t('settings.toastMethodologyRequiresSprint'), 'error');
-      return;
-    }
-    setMethodology(m);
-    if (m === 'kanban') {
-      setEnabledTabs(prev => ({ ...prev, kanban: true }));
-      onShowToast?.(t('settings.toastMethodologyKanban'), 'info');
-    } else if (m === 'scrum') {
-      setEnabledTabs(prev => ({ ...prev, kanban: true, sprint: true }));
-      setDefaultView('sprint');
-      onShowToast?.(t('settings.toastMethodologyScrum'), 'info');
-    } else {
-      setEnabledTabs(prev => ({ ...prev, kanban: true, sprint: true }));
-      setDefaultView('kanban');
-      onShowToast?.(t('settings.toastMethodologyScrumban'), 'info');
-    }
-  };
-
-  // Compute built config from state
-  const builtConfig: GripmConfig = useMemo(() => {
-    return {
-      ...config,
-      theme,
-      density,
-      locale,
-      methodology,
-      defaultView,
-      mode: modeState,
-      modules: {
-        sprint: modulesState.sprint,
-        release: modulesState.release,
-        calendar: modulesState.calendar,
-        timeline: modulesState.timeline
-      },
-      calendarExport: modulesState.calendar !== false,
-      enabledTabs: {
-        kanban: enabledTabs.kanban,
-        sprint: enabledTabs.sprint,
-        release: enabledTabs.release,
-        timeline: enabledTabs.timeline,
-        metrics: enabledTabs.metrics
-      },
-      autoSave,
-      rankingEnabled,
-      showFilterBarStats: config?.showFilterBarStats !== false,
-      modulesList,
-      customItemTypes,
-      estimation: {
-        enabled: estimationEnabled,
-        method: estimationMethod,
-        ...(config.estimation?.customFibonacci ? { customFibonacci: config.estimation.customFibonacci } : {}),
-        ...(config.estimation?.customTshirt ? { customTshirt: config.estimation.customTshirt } : {})
-      },
-      visibleCardMetadata: cardMetaState,
-      kanban: {
-        ...config.kanban,
-        columns: customColumns,
-        simplifiedColumns: customSimplifiedColumns,
-        showIdeasByDefault,
-        showDoneHistoryByDefault,
-        wipLimits
-      }
-    };
-  }, [config, theme, density, locale, methodology, defaultView, modeState, modulesState, enabledTabs, autoSave, rankingEnabled, modulesList, customItemTypes, customColumns, customSimplifiedColumns, showIdeasByDefault, showDoneHistoryByDefault, wipLimits, estimationEnabled, estimationMethod, cardMetaState]);
-
-  // Helper to normalize config object for reliable dirty-checking (DEV-081)
-  const normalizeForComparison = (c: Partial<GripmConfig>) => {
-    const kanban = c.kanban || {};
-    return {
-      theme: c.theme || 'system',
-      density: c.density || 'comfortable',
-      locale: c.locale || 'es',
-      methodology: c.methodology || 'scrumban',
-      defaultView: c.defaultView || (c.methodology === 'scrum' ? 'sprint' : 'kanban'),
-      mode: c.mode || 'single',
-      modules: {
-        sprint: isSprintModuleActive(c as GripmConfig),
-        release: isReleaseModuleActive(c as GripmConfig),
-        calendar: isCalendarModuleActive(c as GripmConfig),
-        timeline: isTimelineModuleActive(c as GripmConfig)
-      },
-      calendarExport: isCalendarModuleActive(c as GripmConfig),
-      enabledTabs: {
-        kanban: c.enabledTabs?.kanban !== undefined ? c.enabledTabs.kanban : c.methodology !== 'scrum',
-        sprint: c.enabledTabs?.sprint !== undefined ? c.enabledTabs.sprint : c.methodology !== 'kanban',
-        release: c.enabledTabs?.release !== false,
-        timeline: c.enabledTabs?.timeline !== false,
-        metrics: c.enabledTabs?.metrics !== false
-      },
-      autoSave: c.autoSave ?? true,
-      rankingEnabled: c.rankingEnabled !== false,
-      showFilterBarStats: c.showFilterBarStats !== false,
-      modulesList: c.modulesList || [],
-      customItemTypes: (c.customItemTypes && c.customItemTypes.length > 0) ? c.customItemTypes : undefined,
-      estimation: {
-        enabled: c.estimation?.enabled ?? false,
-        method: c.estimation?.method || 'fibonacci'
-      },
-      visibleCardMetadata: {
-        module: c.visibleCardMetadata?.module ?? true,
-        sprint: c.visibleCardMetadata?.sprint ?? true,
-        release: c.visibleCardMetadata?.release ?? true,
-        acProgress: c.visibleCardMetadata?.acProgress ?? true,
-        priority: c.visibleCardMetadata?.priority ?? true,
-        parent: c.visibleCardMetadata?.parent ?? true,
-        blocked: c.visibleCardMetadata?.blocked ?? true,
-        estimate: c.visibleCardMetadata?.estimate ?? true
-      },
-      kanban: {
-        showIdeasByDefault: kanban.showIdeasByDefault ?? false,
-        showDoneHistoryByDefault: kanban.showDoneHistoryByDefault ?? false,
-        columns: kanban.columns || [],
-        simplifiedColumns: kanban.simplifiedColumns || [],
-        wipLimits: kanban.wipLimits || {}
-      }
-    };
-  };
-
-  // Check if modified (dirty state) (DEV-081)
-  const isDirty = useMemo(() => {
-    try {
-      const normBuilt = normalizeForComparison(builtConfig);
-      const normConfig = normalizeForComparison(config);
-      return JSON.stringify(normBuilt) !== JSON.stringify(normConfig);
-    } catch {
-      return false;
-    }
-  }, [builtConfig, config]);
-
-  // DEV-074, DEV-241: Reset local settings state to original config from disk with module consistency
-  const handleResetChanges = () => {
-    const isSprintOn = config.enabledTabs?.sprint !== undefined ? config.enabledTabs.sprint : config.methodology !== 'kanban';
-    const isReleaseOn = config.enabledTabs?.release !== false;
-    const isTimelineOn = config.enabledTabs?.timeline !== false;
-    const isMetricsOn = config.enabledTabs?.metrics !== false;
-    let initialMethodology = config.methodology || 'scrumban';
-    if (!isSprintOn && (initialMethodology === 'scrum' || initialMethodology === 'scrumban')) {
-      initialMethodology = 'kanban';
-    }
-    let initialDefaultView = config.defaultView || (initialMethodology === 'scrum' ? 'sprint' : 'kanban');
-    if (!isSprintOn && initialDefaultView === 'sprint') {
-      initialDefaultView = 'kanban';
-    }
-    if (!isReleaseOn && initialDefaultView === 'release') {
-      initialDefaultView = 'kanban';
-    }
-    if (!isTimelineOn && initialDefaultView === 'timeline') {
-      initialDefaultView = 'kanban';
-    }
-    if (!isMetricsOn && initialDefaultView === 'metrics') {
-      initialDefaultView = 'kanban';
-    }
-
-    setTheme(getResolvedTheme(config.theme, isDarkMode));
-    setDensity(config.density || 'comfortable');
-    setMethodology(initialMethodology);
-    setDefaultView(initialDefaultView);
-    setModeState(config.mode || 'single');
-    setEnabledTabs({
-      kanban: config.enabledTabs?.kanban !== undefined ? config.enabledTabs.kanban : initialMethodology !== 'scrum',
-      sprint: isSprintOn,
-      release: isReleaseOn,
-      timeline: isTimelineOn,
-      metrics: isMetricsOn
-    });
-    setAutoSave(config.autoSave ?? true);
-    setRankingEnabled(config.rankingEnabled !== false);
-    setShowIdeasByDefault(config.kanban?.showIdeasByDefault ?? false);
-    setShowDoneHistoryByDefault(config.kanban?.showDoneHistoryByDefault ?? false);
-    setEstimationEnabled(config.estimation?.enabled ?? false);
-    setEstimationMethod(config.estimation?.method || 'fibonacci');
-    setCardMetaState({
-      module: config.visibleCardMetadata?.module ?? true,
-      sprint: config.visibleCardMetadata?.sprint ?? true,
-      release: config.visibleCardMetadata?.release ?? true,
-      acProgress: config.visibleCardMetadata?.acProgress ?? true,
-      priority: config.visibleCardMetadata?.priority ?? true,
-      parent: config.visibleCardMetadata?.parent ?? true,
-      blocked: config.visibleCardMetadata?.blocked ?? true,
-      ...config.visibleCardMetadata
-    });
-    if (config.kanban?.columns && config.kanban.columns.length > 0) {
-      setCustomColumns(JSON.parse(JSON.stringify(config.kanban.columns)));
-    } else {
-      setCustomColumns(JSON.parse(JSON.stringify(EXPANDED_COLUMNS)));
-    }
-    if (config.kanban?.simplifiedColumns && config.kanban.simplifiedColumns.length > 0) {
-      setCustomSimplifiedColumns(JSON.parse(JSON.stringify(config.kanban.simplifiedColumns)));
-    } else {
-      setCustomSimplifiedColumns(JSON.parse(JSON.stringify(SIMPLIFIED_BASE_COLUMNS)));
-    }
-    setWipLimits(config.kanban?.wipLimits || {});
-    if (config.customItemTypes && config.customItemTypes.length > 0) {
-      setCustomItemTypes(JSON.parse(JSON.stringify(config.customItemTypes)));
-    } else {
-      setCustomItemTypes([]);
-    }
-    setModulesList(config.modulesList || []);
-    setNewModuleInput('');
-    setRawJson(JSON.stringify(config, null, 2));
-    setJsonError(null);
-    setEditingTypeKey(null);
-    setTypeFormKey('');
-    setTypeFormLabel('');
-    setTypeFormColorPreset('indigo');
-    setTypeFormIcon('Sparkles');
-    setTypeFormDescription('');
-    onShowToast?.(t('settings.toastReset'), 'info');
-  };
-
-  // DEV-220, DEV-241: Module & Add-ons interactive toggles with immediate persistence and cross-tab consistency
-  const handleToggleSprintModule = async (checked: boolean) => {
-    const nextModules = { ...modulesState, sprint: checked };
-    setModulesState(nextModules);
-    let nextMethodology = methodology;
-    let nextDefaultView = defaultView;
-    if (!checked) {
-      nextMethodology = 'kanban';
-      setMethodology('kanban');
-      if (defaultView === 'sprint') {
-        nextDefaultView = 'kanban';
-        setDefaultView('kanban');
-      }
-    } else {
-      if (methodology === 'kanban') {
-        nextMethodology = 'scrum';
-        setMethodology('scrum');
-      }
-    }
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      theme: activeTheme,
-      modules: nextModules,
-      methodology: nextMethodology,
-      defaultView: nextDefaultView
-    };
-    await onSaveConfig(nextConfig);
-    onShowToast?.(
-      checked ? t('settings.toastModuleSprintEnabled') : t('settings.toastModuleSprintDisabled'),
-      'success'
-    );
-  };
-
-  const handleToggleReleaseModule = async (checked: boolean) => {
-    const nextModules = { ...modulesState, release: checked };
-    setModulesState(nextModules);
-    let nextDefaultView = defaultView;
-    if (!checked && defaultView === 'release') {
-      nextDefaultView = 'kanban';
-      setDefaultView('kanban');
-    }
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      theme: activeTheme,
-      modules: nextModules,
-      defaultView: nextDefaultView
-    };
-    await onSaveConfig(nextConfig);
-    onShowToast?.(
-      checked ? t('settings.toastModuleReleaseEnabled') : t('settings.toastModuleReleaseDisabled'),
-      'success'
-    );
-  };
-
-  const handleToggleCalendarModule = async (checked: boolean) => {
-    const nextModules = { ...modulesState, calendar: checked };
-    setModulesState(nextModules);
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      theme: activeTheme,
-      modules: nextModules,
-      calendarExport: checked
-    };
-    await onSaveConfig(nextConfig);
-    onShowToast?.(
-      checked ? t('settings.toastModuleCalendarEnabled') : t('settings.toastModuleCalendarDisabled'),
-      'success'
-    );
-  };
-
-  const handleToggleTimelineModule = async (checked: boolean) => {
-    const nextModules = { ...modulesState, timeline: checked };
-    setModulesState(nextModules);
-    let nextDefaultView = defaultView;
-    if (!checked && defaultView === 'timeline') {
-      nextDefaultView = 'kanban';
-      setDefaultView('kanban');
-    }
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      theme: activeTheme,
-      modules: nextModules,
-      defaultView: nextDefaultView
-    };
-    await onSaveConfig(nextConfig);
-    onShowToast?.(
-      checked ? t('settings.toastModuleTimelineEnabled') : t('settings.toastModuleTimelineDisabled'),
-      'success'
-    );
-  };
-
-  const handleToggleMultiHub = async (checked: boolean) => {
-    const nextMode: 'single' | 'multi' = checked ? 'multi' : 'single';
-    setModeState(nextMode);
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      theme: activeTheme,
-      mode: nextMode
-    };
-    await onSaveConfig(nextConfig);
-    onShowToast?.(
-      checked ? t('settings.toastModuleHubEnabled') : t('settings.toastModuleHubDisabled'),
-      'success'
-    );
-  };
-
-  // DEV-278: Quick update and persist for configuration preferences
-  const updateConfig = async (patch: Partial<GripmConfig>) => {
-    const activeTheme = getResolvedTheme(theme, isDarkMode);
-    const nextConfig: GripmConfig = {
-      ...builtConfig,
-      ...patch,
-      theme: activeTheme,
-    };
-    await onSaveConfig(nextConfig);
-  };
-
-  // DEV-059: Taxonomy & Custom Card Types CRUD handlers
-  const handleAddOrUpdateType = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanKey = typeFormKey.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    if (!cleanKey) {
-      onShowToast?.(t('settings.toastKeyInvalid'), 'error');
-      return;
-    }
-    if (!typeFormLabel.trim()) {
-      onShowToast?.(t('settings.toastLabelInvalid'), 'error');
-      return;
-    }
-    const systemKeys = ['bug', 'feature', 'tech_debt', 'ux', 'epic', 'initiative'];
-    if (systemKeys.includes(cleanKey)) {
-      onShowToast?.(t('settings.toastKeyReserved', { key: cleanKey }), 'error');
-      return;
-    }
-    if (editingTypeKey !== cleanKey && customItemTypes.some(t => t.key === cleanKey)) {
-      onShowToast?.(t('settings.toastKeyExists', { key: cleanKey }), 'error');
-      return;
-    }
-
-    const preset = ITEM_TYPE_COLOR_PRESETS.find(p => p.id === typeFormColorPreset) || ITEM_TYPE_COLOR_PRESETS[0];
-
-    const typeConfigItem: CustomItemTypeConfig = {
-      key: cleanKey,
-      label: typeFormLabel.trim(),
-      color: preset.color,
-      badge: preset.badge,
-      dotColor: preset.dotColor,
-      iconName: typeFormIcon,
-      description: typeFormDescription.trim() || undefined
-    };
-
-    if (editingTypeKey) {
-      setCustomItemTypes(prev => prev.map(t => t.key === editingTypeKey ? typeConfigItem : t));
-      onShowToast?.(t('settings.toastTypeUpdated', { label: typeConfigItem.label }), 'success');
-      setEditingTypeKey(null);
-    } else {
-      setCustomItemTypes(prev => [...prev, typeConfigItem]);
-      onShowToast?.(t('settings.toastTypeCreated', { label: typeConfigItem.label }), 'success');
-    }
-
-    setTypeFormKey('');
-    setTypeFormLabel('');
-    setTypeFormColorPreset('indigo');
-    setTypeFormIcon('Sparkles');
-    setTypeFormDescription('');
-  };
-
-  const handleStartEditType = (typeItem: CustomItemTypeConfig) => {
-    setEditingTypeKey(typeItem.key);
-    setTypeFormKey(typeItem.key);
-    setTypeFormLabel(typeItem.label);
-    const matchedPreset = ITEM_TYPE_COLOR_PRESETS.find(p => p.color === typeItem.color) || ITEM_TYPE_COLOR_PRESETS[0];
-    setTypeFormColorPreset(matchedPreset.id);
-    setTypeFormIcon(typeItem.iconName || 'Sparkles');
-    setTypeFormDescription(typeItem.description || '');
-  };
-
-  const handleCancelEditType = () => {
-    setEditingTypeKey(null);
-    setTypeFormKey('');
-    setTypeFormLabel('');
-    setTypeFormColorPreset('indigo');
-    setTypeFormIcon('Sparkles');
-    setTypeFormDescription('');
-  };
-
-  const handleDeleteType = (key: string) => {
-    setCustomItemTypes(prev => prev.filter(t => t.key !== key));
-    if (editingTypeKey === key) {
-      handleCancelEditType();
-    }
-    onShowToast?.(t('settings.toastTypeDeleted'), 'info');
-  };
-
-  // When switching to Advanced tab, refresh JSON
-  const handleTabChange = (tab: SettingsTabId) => {
-    if (tab === 'advanced') {
-      setRawJson(JSON.stringify(builtConfig, null, 2));
-      setJsonError(null);
-    }
-    setActiveTab(tab);
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    setJsonError(null);
-
-    try {
-      let nextConfig: GripmConfig;
-
-      if (activeTab === 'advanced') {
-        try {
-          nextConfig = JSON.parse(rawJson);
-        } catch (e: any) {
-          setJsonError(`Error de sintaxis JSON: ${e.message}`);
-          setIsSaving(false);
-          onShowToast?.(t('settings.toastJsonError'), 'error');
-          return;
-        }
-      } else {
-        nextConfig = builtConfig;
-      }
-
-      await onSaveConfig(nextConfig);
-      setHasSavedRecently(true);
-      setTimeout(() => setHasSavedRecently(false), 2500);
-      onShowToast?.(t('settings.toastSaveSuccess'), 'success');
-    } catch (err: any) {
-      onShowToast?.(t('settings.toastSaveError', { error: err.message || err }), 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveConfig = async (nextConfig: GripmConfig) => {
-    setIsSaving(true);
-    setJsonError(null);
-    try {
-      await onSaveConfig(nextConfig);
-      setHasSavedRecently(true);
-      setTimeout(() => setHasSavedRecently(false), 2500);
-      onShowToast?.(t('settings.toastSaveSuccess'), 'success');
-    } catch (err: any) {
-      onShowToast?.(t('settings.toastSaveError', { error: err.message || err }), 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Modules catalog handlers (DEV-275)
-  const handleAddModule = async () => {
-    const trimmed = newModuleInput.trim();
-    if (!trimmed) return;
-    if (modulesList.some(m => m.toLowerCase() === trimmed.toLowerCase())) {
-      onShowToast?.(language === 'es' ? 'El módulo ya existe' : 'Module already exists', 'info');
-      return;
-    }
-    const updated = [...modulesList, trimmed];
-    setModulesList(updated);
-    setNewModuleInput('');
-    const next = { ...builtConfig, modulesList: updated };
-    await handleSaveConfig(next);
-  };
-
-  const handleRemoveModule = async (modToRemove: string) => {
-    const updated = modulesList.filter(m => m !== modToRemove);
-    setModulesList(updated);
-    const next = { ...builtConfig, modulesList: updated };
-    await handleSaveConfig(next);
-  };
 
   // Keyboard shortcut ⌘S / Ctrl+S to save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleSave();
+        state.handleSave();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [builtConfig, activeTab, rawJson]);
+  }, [state.builtConfig, state.activeTab, state.rawJson]);
 
-  // Kanban column helpers (supporting both Ampliada & Simplificada)
-  const activeColumnsList = kanbanEditMode === 'ampliada' ? customColumns : customSimplifiedColumns;
-  const setActiveColumnsList = (cols: ColumnConfig[]) => {
-    if (kanbanEditMode === 'ampliada') {
-      setCustomColumns(cols);
-    } else {
-      setCustomSimplifiedColumns(cols);
-    }
-  };
-
-  const handleMoveColumn = (index: number, direction: 'left' | 'right' | 'up' | 'down') => {
-    const targetIdx = (direction === 'left' || direction === 'up') ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= activeColumnsList.length) return;
-    const updated = [...activeColumnsList];
-    const temp = updated[index];
-    updated[index] = updated[targetIdx];
-    updated[targetIdx] = temp;
-    setActiveColumnsList(updated);
-  };
-
-  const handleUpdateColumnField = (index: number, field: keyof ColumnConfig, value: any) => {
-    const updated = [...activeColumnsList];
-    updated[index] = { ...updated[index], [field]: value };
-    setActiveColumnsList(updated);
-  };
-
-  const handleRemoveStatusFromColumn = (colId: string, statusToRemove: ItemStatus) => {
-    const list = activeColumnsList.map((col) => {
-      if (col.id === colId) {
-        const nextStatuses = col.statuses.filter((s) => s !== statusToRemove);
-        const nextDropTarget = col.dropTargetStatus === statusToRemove
-          ? (nextStatuses[0] || 'draft')
-          : col.dropTargetStatus;
-        return {
-          ...col,
-          statuses: nextStatuses,
-          dropTargetStatus: nextDropTarget
-        };
-      }
-      return col;
-    });
-    setActiveColumnsList(list);
-  };
-
-  const handleAddStatusToColumn = (colId: string, statusToAdd: ItemStatus) => {
-    const list = activeColumnsList.map((col) => {
-      if (col.id === colId) {
-        if (!col.statuses.includes(statusToAdd)) {
-          return {
-            ...col,
-            statuses: [...col.statuses, statusToAdd],
-            dropTargetStatus: col.dropTargetStatus || statusToAdd
-          };
-        }
-      } else if (col.statuses.includes(statusToAdd)) {
-        const remaining = col.statuses.filter((s) => s !== statusToAdd);
-        return {
-          ...col,
-          statuses: remaining,
-          dropTargetStatus: col.dropTargetStatus === statusToAdd ? (remaining[0] || 'draft') : col.dropTargetStatus
-        };
-      }
-      return col;
-    });
-    setActiveColumnsList(list);
-  };
-
-  // DEV-053: Drag & Drop between column chips
-  const [draggingStatus, setDraggingStatus] = useState<{ status: ItemStatus; fromColId: string } | null>(null);
-  const [dragOverColId, setDragOverColId] = useState<string | null>(null);
-
-  const handleMoveStatusToColumn = (toColId: string) => {
-    if (!draggingStatus || draggingStatus.fromColId === toColId) return;
-    handleAddStatusToColumn(toColId, draggingStatus.status);
-    setDraggingStatus(null);
-    setDragOverColId(null);
-  };
-
-  const handleResetColumns = () => {
-    if (kanbanEditMode === 'ampliada') {
-      setCustomColumns(JSON.parse(JSON.stringify(EXPANDED_COLUMNS)));
-      onShowToast?.(t('settings.toastColsResetExpanded'), 'info');
-    } else {
-      setCustomSimplifiedColumns(JSON.parse(JSON.stringify(SIMPLIFIED_BASE_COLUMNS)));
-      onShowToast?.(t('settings.toastColsResetSimple'), 'info');
-    }
-  };
-
-  // DEV-275: Centralized module and components catalog section
-  const renderModulesCatalogSection = () => (
-    <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
-        <div>
-          <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-            <Boxes className="w-4 h-4 text-indigo-500" />
-            <span>{language === 'es' ? 'Módulos y Componentes del Proyecto' : 'Project Modules & Components'}</span>
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {language === 'es'
-              ? 'Catálogo oficial de módulos y componentes transversales (ej. UI, API, Auth, Database). Se persisten en la configuración del proyecto y se sugieren al categorizar tareas.'
-              : 'Official catalog of modules and transversal components (e.g. UI, API, Auth, Database). Persisted in project configuration and suggested when categorizing tasks.'}
-          </p>
-        </div>
-        <span className="self-start sm:self-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08] shrink-0 tabular-nums">
-          {modulesList.length} {language === 'es' ? (modulesList.length === 1 ? 'módulo' : 'módulos') : (modulesList.length === 1 ? 'module' : 'modules')}
-        </span>
-      </div>
-
-      {/* Input group to add a new module */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleAddModule();
-        }}
-        className="flex items-center gap-2 max-w-md"
-      >
-        <div className="relative flex-1">
-          <Box className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={newModuleInput}
-            onChange={(e) => setNewModuleInput(e.target.value)}
-            placeholder={language === 'es' ? 'Nombre del nuevo módulo (ej. UI, API, Auth)...' : 'New module name (e.g. UI, API, Auth)...'}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!newModuleInput.trim()}
-          title={language === 'es' ? 'Agregar módulo' : 'Add module'}
-          aria-label={language === 'es' ? 'Agregar módulo' : 'Add module'}
-          className="px-3.5 py-2 min-h-[36px] rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{language === 'es' ? 'Agregar' : 'Add'}</span>
-        </button>
-      </form>
-
-      {/* List of existing module chips */}
-      {modulesList.length === 0 ? (
-        <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center text-center gap-2">
-          <Box className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            {language === 'es'
-              ? 'No hay módulos configurados aún. Agrega un componente arriba para empezar a categorizar tareas.'
-              : 'No modules configured yet. Add a component above to start categorizing tasks.'}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {modulesList.map((mod) => (
-            <span
-              key={mod}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-white/[0.04] text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-2xs group transition-all"
-            >
-              <Box className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <span className="font-semibold text-slate-900 dark:text-white">{mod}</span>
-              <button
-                type="button"
-                onClick={() => handleRemoveModule(mod)}
-                title={language === 'es' ? `Eliminar módulo ${mod}` : `Remove module ${mod}`}
-                aria-label={language === 'es' ? `Eliminar módulo ${mod}` : `Remove module ${mod}`}
-                className="p-0.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const tabs: { id: SettingsTabId; label: string; desc: string; icon: React.FC<{ className?: string }> }[] = [
+    { id: 'views', label: t('settings.navViews'), desc: t('settings.navViewsDesc'), icon: Layout },
+    { id: 'modules', label: t('settings.navModules'), desc: t('settings.navModulesDesc'), icon: Boxes },
+    { id: 'kanban', label: t('settings.navKanban'), desc: t('settings.navKanbanDesc'), icon: Sliders },
+    { id: 'taxonomy', label: t('settings.navTaxonomy'), desc: t('settings.navTaxonomyDesc'), icon: Tag },
+    { id: 'components', label: t('settings.navComponents'), desc: t('settings.navComponentsDesc'), icon: Boxes },
+    { id: 'visual', label: t('settings.navVisual'), desc: t('settings.navVisualDesc'), icon: Palette },
+    { id: 'tools', label: t('settings.navTools'), desc: t('settings.navToolsDesc'), icon: Database },
+    { id: 'advanced', label: t('settings.navAdvanced'), desc: t('settings.navAdvancedDesc'), icon: Database }
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-100 overflow-y-auto">
@@ -1082,19 +212,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-          {isDirty && (
+          {state.isDirty && (
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium animate-pulse">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               {t('settings.pendingChanges')}
             </span>
           )}
 
-          {/* DEV-074: Botón Deshacer Cambios */}
-          {isDirty && (
+          {state.isDirty && (
             <button
               type="button"
-              onClick={handleResetChanges}
-              disabled={isSaving}
+              onClick={state.handleResetChanges}
+              disabled={state.isSaving}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-all active:scale-[0.98] shadow-xs"
               title={t('settings.discardChangesTitle')}
             >
@@ -1105,15 +234,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-[0.98] ${
-              hasSavedRecently
-                ? 'bg-emerald-600 text-white shadow-emerald-500/20'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'
-            } disabled:opacity-50`}
+            onClick={state.handleSave}
+            disabled={state.isSaving}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-[0.98] ${
+              state.hasSavedRecently
+                ? 'bg-emerald-600 text-white'
+                : state.isDirty
+                ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 ring-2 ring-indigo-500/30'
+                : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-white/15'
+            }`}
           >
-            {hasSavedRecently ? (
+            {state.hasSavedRecently ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{t('settings.saved')}</span>
@@ -1121,1958 +252,170 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>{t('settings.saveChanges')}</span>
-                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-indigo-700 rounded border border-indigo-500/30">
-                  ⌘S
-                </kbd>
+                <span>{state.isSaving ? t('common.saving') : t('settings.saveChanges')}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Master-Detail Layout */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col md:flex-row gap-8">
         {/* Navigation Sidebar */}
-        <nav className="w-full md:w-64 shrink-0 space-y-1">
-          <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">
-            {t('settings.navSections')}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('views')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'views'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Layout className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'views' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navViews')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navViewsDesc')}</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('modules')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'modules'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Boxes className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'modules' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navModules')}</div>
-              <div className="text-xs text-slate-500">{t('settings.navModulesDesc')}</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('kanban')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'kanban'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Sliders className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'kanban' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navKanban')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navKanbanDesc')}</div>
-            </div>
-          </button>
-
-          {/* DEV-059: Tab Tipos de Tarjeta y Taxonomía */}
-          <button
-            type="button"
-            onClick={() => handleTabChange('taxonomy')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'taxonomy'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Tag className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'taxonomy' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navTaxonomy')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navTaxonomyDesc')}</div>
-            </div>
-          </button>
-
-          {/* DEV-275: Tab Módulos y Componentes de Software */}
-          <button
-            type="button"
-            onClick={() => handleTabChange('components')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'components'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Box className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'components' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navComponents')}</div>
-              <div className="text-xs text-slate-500">{t('settings.navComponentsDesc')}</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('visual')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'visual'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Palette className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'visual' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navVisual')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navVisualDesc')}</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('tools')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'tools'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Database className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'tools' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navTools')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navToolsDesc')}</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('advanced')}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
-              activeTab === 'advanced'
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
-            }`}
-          >
-            <Code className={`w-4 h-4 mt-0.5 shrink-0 ${activeTab === 'advanced' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-semibold">{t('settings.navAdvanced')}</div>
-              <div className="text-[11px] text-slate-500">{t('settings.navAdvancedDesc')}</div>
-            </div>
-          </button>
-
-          {/* Quick System Info Card */}
-          <div className="pt-6 mt-6 border-t border-slate-200 dark:border-white/[0.08] px-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{t('settings.systemTitle')}</span>
-            </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              {t('settings.cockpitStorage', { file: '.gripm/config.json' })}
-            </p>
-          </div>
-        </nav>
-
-        {/* Content Details Area */}
-        <main className="flex-1 min-w-0 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-xs">
-          {/* TAB 1: FLUJO & VISTAS */}
-          {activeTab === 'views' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                  {t('settings.viewsTitle')}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('settings.viewsDesc')}
-                </p>
-              </div>
-
-              {/* Methodology Selector (DEV-038, DEV-274) */}
-              <div className="space-y-3">
-                <div>
-                  <label htmlFor="methodology-select" className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    {t('settings.methodologyLabel')}
-                  </label>
-                  <p className="text-xs text-slate-500">
-                    {t('settings.methodologyDesc')}
-                  </p>
-                </div>
-
-                <div className="relative max-w-xl">
-                  <select
-                    id="methodology-select"
-                    value={methodology}
-                    onChange={(e) => handleSelectMethodology(e.target.value as ProjectMethodology)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none pr-10"
-                  >
-                    <option value="kanban">{t('settings.methodologyKanban')} — {t('settings.methodologyKanbanBadgeBoard')}</option>
-                    {modulesState.sprint && (
-                      <>
-                        <option value="scrum">{t('settings.methodologyScrum')} — {t('settings.methodologyScrumBadgeSprints')}</option>
-                        <option value="scrumban">{t('settings.methodologyScrumban')} — {t('settings.methodologyScrumbanBadgeBoard')}</option>
-                      </>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-
-                {/* Active Methodology Summary Card */}
-                <div className="p-3.5 rounded-xl border bg-slate-50/80 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] max-w-xl">
-                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                      {methodology === 'kanban' && <Layers className="w-4 h-4 text-indigo-500 shrink-0" />}
-                      {methodology === 'scrum' && <Target className="w-4 h-4 text-amber-500 shrink-0" />}
-                      {methodology === 'scrumban' && <Sliders className="w-4 h-4 text-emerald-500 shrink-0" />}
-                      <span className="truncate">
-                        {methodology === 'kanban' ? t('settings.methodologyKanban') : methodology === 'scrum' ? t('settings.methodologyScrum') : t('settings.methodologyScrumban')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {methodology === 'kanban' && (
-                        <>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                            {t('settings.methodologyKanbanBadgeBoard')}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                            {t('settings.methodologyKanbanBadgeSprints')}
-                          </span>
-                        </>
-                      )}
-                      {methodology === 'scrum' && (
-                        <>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
-                            {t('settings.methodologyScrumBadgeSprints')}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-slate-200 dark:bg-white/10 text-slate-500">
-                            {t('settings.methodologyScrumBadgeBoard')}
-                          </span>
-                        </>
-                      )}
-                      {methodology === 'scrumban' && (
-                        <>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 font-semibold">
-                            {t('settings.methodologyScrumbanBadgeBoard')}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-300 font-semibold">
-                            {t('settings.methodologyScrumbanBadgeSprints')}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {methodology === 'kanban' ? t('settings.methodologyKanbanDesc') : methodology === 'scrum' ? t('settings.methodologyScrumDesc') : t('settings.methodologyScrumbanDesc')}
-                  </p>
-                </div>
-
-                {!modulesState.sprint && (
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3 max-w-xl">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Boxes className="w-4 h-4 text-amber-500 shrink-0" />
-                      <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
-                        {t('settings.methodologySprintModuleHint')}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleTabChange('modules')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-colors shrink-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                      {t('settings.goToModules')}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Default View Selector (DEV-274) */}
-              <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/[0.08]">
-                <div>
-                  <label htmlFor="default-view-select" className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    {t('settings.defaultViewLabel')}
-                  </label>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t('settings.defaultViewDesc')}
-                  </p>
-                </div>
-
-                <div className="relative max-w-xl">
-                  <select
-                    id="default-view-select"
-                    value={defaultView}
-                    onChange={(e) => setDefaultView(e.target.value as any)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none pr-10"
-                  >
-                    <option value="kanban">{t('header.kanban')} ({t('settings.coreViewBadge')})</option>
-                    {modulesState.sprint && enabledTabs.sprint && (
-                      <option value="sprint">{t('header.sprints')}</option>
-                    )}
-                    {modulesState.release && enabledTabs.release && (
-                      <option value="release">{t('header.releases')}</option>
-                    )}
-                    {modulesState.timeline && enabledTabs.timeline && (
-                      <option value="timeline">{t('header.timeline')}</option>
-                    )}
-                    {enabledTabs.metrics && (
-                      <option value="metrics">{t('header.metrics')}</option>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-
-                {/* Active Default View Summary Card */}
-                <div className="p-3.5 rounded-xl border bg-slate-50/80 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] max-w-xl">
-                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white min-w-0">
-                      {defaultView === 'kanban' && <Layout className="w-4 h-4 text-indigo-500 shrink-0" />}
-                      {defaultView === 'sprint' && <Target className="w-4 h-4 text-amber-500 shrink-0" />}
-                      {defaultView === 'release' && <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />}
-                      {defaultView === 'timeline' && <Calendar className="w-4 h-4 text-blue-500 shrink-0" />}
-                      {defaultView === 'metrics' && <BarChart2 className="w-4 h-4 text-emerald-500 shrink-0" />}
-                      <span className="truncate">
-                        {defaultView === 'kanban' && t('header.kanban')}
-                        {defaultView === 'sprint' && t('header.sprints')}
-                        {defaultView === 'release' && t('header.releases')}
-                        {defaultView === 'timeline' && t('header.timeline')}
-                        {defaultView === 'metrics' && t('header.metrics')}
-                      </span>
-                    </div>
-                    <span className="px-1.5 py-0.5 rounded text-xs font-mono shrink-0 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 font-semibold">
-                      {defaultView === 'kanban' ? t('settings.coreViewBadge') : defaultView.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {defaultView === 'kanban' && t('settings.defaultViewKanbanDesc')}
-                    {defaultView === 'sprint' && t('settings.defaultViewSprintDesc')}
-                    {defaultView === 'release' && t('settings.defaultViewReleaseDesc')}
-                    {defaultView === 'timeline' && t('settings.defaultViewTimelineDesc')}
-                    {defaultView === 'metrics' && t('settings.defaultViewMetricsDesc')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Header Visible Tabs */}
-              <div className="pt-6 border-t border-slate-200 dark:border-white/[0.08] space-y-3">
-                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  {t('settings.enabledTabsLabel')}
-                </label>
-                <p className="text-xs text-slate-500">
-                  {t('settings.enabledTabsDesc')}
-                </p>
-
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08]">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Layout className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.kanban')}</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/20 shrink-0">
-                            {t('settings.coreViewBadge')}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">
-                          {methodology === 'scrumban'
-                            ? t('settings.kanbanTabScrumbanDesc')
-                            : methodology === 'scrum'
-                            ? t('settings.kanbanTabScrumDesc')
-                            : t('settings.kanbanTabKanbanDesc')}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 shrink-0">
-                      {t('settings.alwaysActive')}
-                    </span>
-                  </div>
-
-                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                    !modulesState.sprint
-                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
-                  }`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Target className={`w-4 h-4 shrink-0 ${modulesState.sprint ? 'text-amber-500' : 'text-slate-400'}`} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.sprints')}</span>
-                          {!modulesState.sprint && (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
-                              {t('settings.moduleInactiveHint')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">
-                          {methodology === 'kanban'
-                            ? t('settings.sprintTabKanbanDesc')
-                            : t('settings.sprintTabScrumDesc')}
-                        </div>
-                      </div>
-                    </div>
-                    <SettingsSwitch
-                      checked={modulesState.sprint ? Boolean(enabledTabs.sprint) : false}
-                      disabled={!modulesState.sprint}
-                      onChange={(checked) => {
-                        if (!checked && !enabledTabs.kanban && !enabledTabs.release) return;
-                        setEnabledTabs({ ...enabledTabs, sprint: checked });
-                        if (!checked && defaultView === 'sprint') {
-                          setDefaultView('kanban');
-                        }
-                      }}
-                      ariaLabel={t('header.sprints')}
-                    />
-                  </label>
-
-                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                    !modulesState.release
-                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
-                  }`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Rocket className={`w-4 h-4 shrink-0 ${modulesState.release ? 'text-emerald-500' : 'text-slate-400'}`} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.releases')}</span>
-                          {!modulesState.release && (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
-                              {t('settings.moduleInactiveHint')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">{t('settings.releaseTabDesc')}</div>
-                      </div>
-                    </div>
-                    <SettingsSwitch
-                      checked={modulesState.release ? Boolean(enabledTabs.release) : false}
-                      disabled={!modulesState.release}
-                      onChange={(checked) => {
-                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint) return;
-                        setEnabledTabs({ ...enabledTabs, release: checked });
-                        if (!checked && defaultView === 'release') {
-                          setDefaultView('kanban');
-                        }
-                      }}
-                      ariaLabel={t('header.releases')}
-                    />
-                  </label>
-
-                  <label className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                    !modulesState.timeline
-                      ? 'bg-slate-100/50 dark:bg-white/[0.01] border-slate-200/60 dark:border-white/[0.04] opacity-75 cursor-not-allowed'
-                      : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]'
-                  }`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Calendar className={`w-4 h-4 shrink-0 ${modulesState.timeline ? 'text-blue-500' : 'text-slate-400'}`} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.timeline')}</span>
-                          {!modulesState.timeline && (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-white/10 text-slate-500">
-                              {t('settings.moduleInactiveHint')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">{t('settings.timelineTabDesc')}</div>
-                      </div>
-                    </div>
-                    <SettingsSwitch
-                      checked={modulesState.timeline ? Boolean(enabledTabs.timeline) : false}
-                      disabled={!modulesState.timeline}
-                      onChange={(checked) => {
-                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint && !enabledTabs.release) return;
-                        setEnabledTabs({ ...enabledTabs, timeline: checked });
-                        if (!checked && defaultView === 'timeline') {
-                          setDefaultView('kanban');
-                        }
-                      }}
-                      ariaLabel={t('header.timeline')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between p-4 rounded-xl border transition-colors bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04]">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <BarChart2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{t('header.metrics')}</span>
-                        </div>
-                        <div className="text-xs text-slate-500 truncate">{t('settings.metricsTabDesc')}</div>
-                      </div>
-                    </div>
-                    <SettingsSwitch
-                      checked={Boolean(enabledTabs.metrics)}
-                      onChange={(checked) => {
-                        if (!checked && !enabledTabs.kanban && !enabledTabs.sprint && !enabledTabs.release && !enabledTabs.timeline) return;
-                        setEnabledTabs({ ...enabledTabs, metrics: checked });
-                        if (!checked && defaultView === 'metrics') {
-                          setDefaultView('kanban');
-                        }
-                      }}
-                      ariaLabel={t('header.metrics')}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Sección: Estimación de Ítems (DEV-136) */}
-              <div className="pt-6 border-t border-slate-200 dark:border-white/[0.08] space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {t('settings.estimationTitle')}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      {t('settings.estimationDesc')}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Toggle principal */}
-                <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] cursor-pointer hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Sliders className={`w-4 h-4 shrink-0 ${estimationEnabled ? 'text-indigo-500' : 'text-slate-400'}`} />
-                    <div className="min-w-0">
-                      <span className="text-xs font-semibold text-slate-900 dark:text-white block">
-                        {t('settings.estimationEnableLabel')}
-                      </span>
-                      <span className="text-xs text-slate-500 block">
-                        {t('settings.estimationEnableDesc')}
-                      </span>
-                    </div>
-                  </div>
-                  <SettingsSwitch
-                    checked={estimationEnabled}
-                    onChange={(checked) => setEstimationEnabled(checked)}
-                    ariaLabel={t('settings.estimationEnableLabel')}
-                  />
-                </label>
-
-                {/* Opciones cuando está habilitado */}
-                {estimationEnabled && (
-                  <div className="space-y-4 pt-1 animate-fade-in">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        {t('settings.estimationMethodLabel')}
-                      </label>
-                      <p className="text-xs text-slate-500 mb-3">
-                        {t('settings.estimationMethodDesc')}
-                      </p>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setEstimationMethod('fibonacci')}
-                          className={`p-4 rounded-xl border text-left transition-all ${
-                            estimationMethod === 'fibonacci'
-                              ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                              : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between min-w-0 mb-1.5">
-                            <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
-                              {t('settings.estimationMethodFibonacci')}
-                            </span>
-                            {estimationMethod === 'fibonacci' && (
-                              <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 leading-normal mb-3">
-                            {t('settings.estimationMethodFibonacciDesc')}
-                          </p>
-                          {/* Preview pills */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {(builtConfig.estimation?.customFibonacci || DEFAULT_FIBONACCI).map((val) => (
-                              <span
-                                key={val}
-                                className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/30"
-                              >
-                                {val}
-                              </span>
-                            ))}
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setEstimationMethod('tshirt')}
-                          className={`p-4 rounded-xl border text-left transition-all ${
-                            estimationMethod === 'tshirt'
-                              ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                              : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between min-w-0 mb-1.5">
-                            <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
-                              {t('settings.estimationMethodTshirt')}
-                            </span>
-                            {estimationMethod === 'tshirt' && (
-                              <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 leading-normal mb-3">
-                            {t('settings.estimationMethodTshirtDesc')}
-                          </p>
-                          {/* Preview pills */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {(builtConfig.estimation?.customTshirt || DEFAULT_TSHIRT).map((size) => (
-                              <span
-                                key={size}
-                                className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-50 dark:bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-500/30"
-                              >
-                                {size}
-                              </span>
-                            ))}
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                      {t('settings.estimationNonDestructiveHint')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 1.5: MODULOS & ADD-ONS (DEV-220) */}
-          {activeTab === 'modules' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                  {t('settings.modulesTitle')}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {t('settings.modulesDesc')}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 pt-2">
-                {/* 1. Kanban Core & Backlog */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
-                      <Layout className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleKanbanTitle')}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                          {t('settings.moduleCoreBadge')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleKanbanDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:self-center shrink-0">
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      {t('settings.moduleActive')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2. Sprints & Timeboxing (Scrum) */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
-                      <Target className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleSprintsTitle')}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          modulesState.sprint
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
-                        }`}>
-                          {modulesState.sprint ? t('settings.moduleActive') : t('settings.moduleInactive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleSprintsDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <SettingsSwitch
-                      checked={Boolean(modulesState.sprint)}
-                      onChange={handleToggleSprintModule}
-                      ariaLabel={t('settings.moduleSprintsTitle')}
-                    />
-                  </div>
-                </div>
-
-                {/* 3. Release Management & Versioning */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
-                      <Rocket className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleReleasesTitle')}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          modulesState.release
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
-                        }`}>
-                          {modulesState.release ? t('settings.moduleActive') : t('settings.moduleInactive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleReleasesDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <SettingsSwitch
-                      checked={Boolean(modulesState.release)}
-                      onChange={handleToggleReleaseModule}
-                      ariaLabel={t('settings.moduleReleasesTitle')}
-                    />
-                  </div>
-                </div>
-
-                {/* 4. Multi-Project Hub */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">
-                      <Globe className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleHubTitle')}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          modeState === 'multi'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
-                        }`}>
-                          {modeState === 'multi' ? t('settings.moduleActive') : t('settings.moduleInactive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleHubDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <SettingsSwitch
-                      checked={modeState === 'multi'}
-                      onChange={handleToggleMultiHub}
-                      ariaLabel={t('settings.moduleHubTitle')}
-                    />
-                  </div>
-                </div>
-
-                {/* 5. Calendar Export & Scheduling */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleCalendarTitle')}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          modulesState.calendar !== false
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
-                        }`}>
-                          {modulesState.calendar !== false ? t('settings.moduleActive') : t('settings.moduleInactive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleCalendarDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <SettingsSwitch
-                      checked={modulesState.calendar !== false}
-                      onChange={handleToggleCalendarModule}
-                      ariaLabel={t('settings.moduleCalendarTitle')}
-                    />
-                  </div>
-                </div>
-
-                {/* 6. Timeline & Roadmap */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {t('settings.moduleTimelineTitle')}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          modulesState.timeline !== false
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 border-slate-300 dark:border-white/10'
-                        }`}>
-                          {modulesState.timeline !== false ? t('settings.moduleActive') : t('settings.moduleInactive')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {t('settings.moduleTimelineDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:self-center shrink-0">
-                    <SettingsSwitch
-                      checked={modulesState.timeline !== false}
-                      onChange={handleToggleTimelineModule}
-                      ariaLabel={t('settings.moduleTimelineTitle')}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: TABLERO KANBAN */}
-          {activeTab === 'kanban' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                    {t('settings.kanbanColsTitle')}
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t('settings.kanbanColsDesc')}
-                  </p>
-                </div>
-
+        <aside className="w-full md:w-64 shrink-0">
+          <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-none">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = state.activeTab === tab.id;
+              return (
                 <button
+                  key={tab.id}
                   type="button"
-                  onClick={handleResetColumns}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-all shadow-xs"
+                  aria-label={tab.label}
+                  onClick={() => state.handleTabChange(tab.id)}
+                  className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
+                    isActive
+                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs font-medium'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white border border-transparent'
+                  }`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>{t('settings.resetMode', { mode: kanbanEditMode === 'ampliada' ? 'Modo Ampliado' : 'Modo Simple' })}</span>
+                  <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                  <div>
+                    <div className="text-xs font-semibold">{tab.label}</div>
+                    <div className="text-[11px] text-slate-500">{tab.desc}</div>
+                  </div>
                 </button>
-              </div>
+              );
+            })}
+          </nav>
+        </aside>
 
-              {/* Mode Switcher to configure Ampliada vs Simplificada */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {t('settings.boardModeToConfig')}
-                  </span>
-                  <div className="flex items-center p-0.5 rounded-lg bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/[0.08]">
-                    <button
-                      type="button"
-                      onClick={() => setKanbanEditMode('ampliada')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        kanbanEditMode === 'ampliada'
-                          ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <span>{t('settings.expandedModeBtn')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setKanbanEditMode('simplificada')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        kanbanEditMode === 'simplificada'
-                          ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <span>{t('settings.simplifiedModeBtn')}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-slate-500 font-mono">
-                  {t('settings.columnsConfigured', { count: activeColumnsList.length })}
-                </div>
-              </div>
-
-              {/* Ideas Column Toggle */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                <label className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-4">
-                  <div className="min-w-0 pr-2">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                      {t('settings.showIdeasLabel')}
-                    </span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {t('settings.showIdeasDesc')}
-                    </p>
-                  </div>
-                  <SettingsSwitch
-                    checked={showIdeasByDefault}
-                    onChange={setShowIdeasByDefault}
-                    ariaLabel={t('settings.showIdeasLabel')}
-                  />
-                </label>
-              </div>
-
-              {/* Done History Toggle (DEV-058) */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                <label className="flex items-center justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-4">
-                  <div className="min-w-0 pr-2">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                      {t('settings.showDoneHistoryLabel')}
-                    </span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {t('settings.showDoneHistoryDesc')}
-                    </p>
-                  </div>
-                  <SettingsSwitch
-                    checked={showDoneHistoryByDefault}
-                    onChange={setShowDoneHistoryByDefault}
-                    ariaLabel={t('settings.showDoneHistoryLabel')}
-                  />
-                </label>
-              </div>
-
-              {/* Column list editor with Interactive Statuses (DEV-273) */}
-              <div className="space-y-4">
-                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 px-1">
-                  {kanbanEditMode === 'ampliada' ? t('settings.expandedModeBtn') : t('settings.simplifiedModeBtn')} ({activeColumnsList.length})
-                </div>
-
-                {/* Vertical column card flow */}
-                <div className="space-y-4">
-                  {activeColumnsList.map((col, index) => {
-                    const currentWip = wipLimits[col.id] || col.wipLimit || 0;
-
-                    return (
-                      <div
-                        key={col.id}
-                        className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-white/[0.02] border shadow-xs space-y-4 transition-all duration-150 ${
-                          dragOverColId === col.id && draggingStatus?.fromColId !== col.id
-                            ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-300/50 dark:ring-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/[0.04]'
-                            : 'border-slate-200 dark:border-white/[0.08]'
-                        }`}
-                        onDragOver={(e) => { if (draggingStatus) { e.preventDefault(); setDragOverColId(col.id); } }}
-                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverColId(null); }}
-                        onDrop={(e) => { e.preventDefault(); handleMoveStatusToColumn(col.id); }}
-                      >
-                        {/* Header: Dot + Title Input + Subtitle + Reorder Buttons */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <span className={`w-3.5 h-3.5 rounded-full ${col.dotColor} shrink-0`} />
-                            <div className="flex-1 max-w-sm min-w-0">
-                              <input
-                                type="text"
-                                value={col.title}
-                                onChange={(e) => handleUpdateColumnField(index, 'title', e.target.value)}
-                                className="text-sm font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-white/20 focus:border-indigo-500 focus:outline-none px-1 text-slate-900 dark:text-white w-full"
-                                title={t('settings.editColTitle')}
-                              />
-                              {col.subtitle && (
-                                <p className="text-xs text-slate-400 px-1 font-mono">
-                                  {col.subtitle}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Order Buttons */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveColumn(index, 'up')}
-                              disabled={index === 0}
-                              title={t('settings.moveColLeft')}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveColumn(index, 'down')}
-                              disabled={index === activeColumnsList.length - 1}
-                              title={t('settings.moveColRight')}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] disabled:opacity-20 transition-colors"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* WIP Limit & Drop Target Settings */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{t('settings.wipLimitLabel')}</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={currentWip || ''}
-                              placeholder={t('settings.wipUnlimited')}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value, 10);
-                                const next = { ...wipLimits };
-                                if (isNaN(val) || val <= 0) {
-                                  delete next[col.id];
-                                } else {
-                                  next[col.id] = val;
-                                }
-                                setWipLimits(next);
-                              }}
-                              className="w-28 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 text-right"
-                            />{/* ux-audit-ignore UX-001: integer WIP counter bounded 0-50, not a monetary amount, so a regional decimal comma cannot occur */}
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{t('settings.dropStatusLabel')}</span>
-                            <select
-                              value={col.dropTargetStatus || col.statuses[0] || 'draft'}
-                              onChange={(e) => handleUpdateColumnField(index, 'dropTargetStatus', e.target.value as ItemStatus)}
-                              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 max-w-[180px] truncate"
-                            >
-                              {col.statuses.map((st) => (
-                                <option key={st} value={st}>
-                                  {st}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Interactive Status Remapping */}
-                        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/[0.04]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              {t('settings.assignedStatuses', { count: col.statuses.length })}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {t('settings.assignedStatusesDesc')}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {draggingStatus && draggingStatus.fromColId !== col.id && (
-                              <span className="text-xs text-indigo-500 dark:text-indigo-400 italic animate-pulse">
-                                {t('settings.dropHereToMove')}
-                              </span>
-                            )}
-                            {col.statuses.map((st) => (
-                              <span
-                                key={st}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.effectAllowed = 'move';
-                                  setDraggingStatus({ status: st as ItemStatus, fromColId: col.id });
-                                }}
-                                onDragEnd={() => { setDraggingStatus(null); setDragOverColId(null); }}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border shadow-2xs group/st cursor-grab active:cursor-grabbing select-none transition-opacity ${
-                                  draggingStatus?.status === st && draggingStatus?.fromColId === col.id
-                                    ? 'opacity-40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
-                                    : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20'
-                                }`}
-                              >
-                                <span className="text-indigo-300 dark:text-indigo-600 mr-0.5">⠿</span>
-                                <span>{st}</span>
-                                {col.statuses.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveStatusFromColumn(col.id, st)}
-                                    title={t('settings.removeStatusFromCol', { status: st })}
-                                    className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors ml-0.5"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-
-                            {/* Add status selector */}
-                            <div className="relative inline-flex items-center">
-                              <select
-                                value=""
-                                onChange={(e) => {
-                                  if (e.target.value) {
-                                    handleAddStatusToColumn(col.id, e.target.value as ItemStatus);
-                                  }
-                                }}
-                                className="appearance-none text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-dashed border-indigo-300 dark:border-indigo-500/30 rounded-lg pl-2.5 pr-6 py-1 focus:outline-none transition-colors"
-                              >
-                                <option value="" disabled>{t('settings.assignStatusPrompt')}</option>
-                                <optgroup label={t('settings.canonicalStatusesGroup')}>
-                                  {ALL_ITEM_STATUSES.filter((s) => !s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
-                                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                                      {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                                <optgroup label={t('settings.legacyStatusesGroup')}>
-                                  {ALL_ITEM_STATUSES.filter((s) => s.isLegacy && !col.statuses.includes(s.id)).map((s) => (
-                                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400">
-                                      {getStatusMeta(s.id).label} ({s.id}) — {s.desc}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              </select>
-                              <Plus className="w-3 h-3 text-indigo-500 pointer-events-none absolute right-2" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sección: Metadatos Visibles en Tarjetas (DEV-203) */}
-              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-1">
-                    {t('settings.cardMetadataTitle')}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t('settings.cardMetadataDesc')}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
-                    !modulesState.sprint ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
-                  } transition-colors`}>
-                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
-                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {t('settings.cardMetaSprint')}
-                      </span>
-                      {!modulesState.sprint && (
-                        <span className="text-xs text-slate-400 font-normal shrink-0">
-                          {t('settings.cardMetaModuleDisabled')}
-                        </span>
-                      )}
-                    </div>
-                    <SettingsSwitch
-                      checked={Boolean(modulesState.sprint && cardMetaState.sprint !== false)}
-                      disabled={!modulesState.sprint}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, sprint: checked }))}
-                      ariaLabel={t('settings.cardMetaSprint')}
-                    />
-                  </label>
-
-                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
-                    !modulesState.release ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
-                  } transition-colors`}>
-                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
-                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {t('settings.cardMetaRelease')}
-                      </span>
-                      {!modulesState.release && (
-                        <span className="text-xs text-slate-400 font-normal shrink-0">
-                          {t('settings.cardMetaModuleDisabled')}
-                        </span>
-                      )}
-                    </div>
-                    <SettingsSwitch
-                      checked={Boolean(modulesState.release && cardMetaState.release !== false)}
-                      disabled={!modulesState.release}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, release: checked }))}
-                      ariaLabel={t('settings.cardMetaRelease')}
-                    />
-                  </label>
-
-                  <label className={`flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] ${
-                    !estimationEnabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05]'
-                  } transition-colors`}>
-                    <div className="flex items-center gap-1.5 min-w-0 mr-2">
-                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {t('settings.cardMetaEstimate')}
-                      </span>
-                      {!estimationEnabled && (
-                        <span className="text-xs text-slate-400 font-normal shrink-0">
-                          {t('settings.cardMetaModuleDisabled')}
-                        </span>
-                      )}
-                    </div>
-                    <SettingsSwitch
-                      checked={Boolean(estimationEnabled && cardMetaState.estimate !== false)}
-                      disabled={!estimationEnabled}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, estimate: checked }))}
-                      ariaLabel={t('settings.cardMetaEstimate')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaModule')}
-                    </span>
-                    <SettingsSwitch
-                      checked={cardMetaState.module !== false}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, module: checked }))}
-                      ariaLabel={t('settings.cardMetaModule')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaAcProgress')}
-                    </span>
-                    <SettingsSwitch
-                      checked={cardMetaState.acProgress !== false}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, acProgress: checked }))}
-                      ariaLabel={t('settings.cardMetaAcProgress')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaPriority')}
-                    </span>
-                    <SettingsSwitch
-                      checked={cardMetaState.priority !== false}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, priority: checked }))}
-                      ariaLabel={t('settings.cardMetaPriority')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaParent')}
-                    </span>
-                    <SettingsSwitch
-                      checked={cardMetaState.parent !== false}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, parent: checked }))}
-                      ariaLabel={t('settings.cardMetaParent')}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between min-w-0 p-3 rounded-xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors">
-                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 min-w-0 truncate">
-                      {t('settings.cardMetaBlocked')}
-                    </span>
-                    <SettingsSwitch
-                      checked={cardMetaState.blocked !== false}
-                      onChange={(checked) => setCardMetaState(prev => ({ ...prev, blocked: checked }))}
-                      ariaLabel={t('settings.cardMetaBlocked')}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+        {/* Content Area */}
+        <main className="flex-1 min-w-0 max-w-3xl">
+          {state.activeTab === 'views' && (
+            <ViewsTab
+              methodology={state.methodology}
+              onSelectMethodology={state.setMethodology}
+              defaultView={state.defaultView}
+              setDefaultView={state.setDefaultView}
+              enabledTabs={state.enabledTabs}
+              setEnabledTabs={state.setEnabledTabs}
+              modulesState={state.modulesState}
+              onNavigateToModules={() => state.handleTabChange('modules')}
+              estimationEnabled={state.estimationEnabled}
+              setEstimationEnabled={state.setEstimationEnabled}
+              estimationMethod={state.estimationMethod}
+              setEstimationMethod={state.setEstimationMethod}
+              customFibonacci={config?.estimation?.customFibonacci}
+              customTshirt={config?.estimation?.customTshirt}
+            />
           )}
 
-          {/* TAB: TIPOS DE TARJETA & TAXONOMÍA (DEV-059) */}
-          {activeTab === 'taxonomy' && (
-            <div className="space-y-8 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-indigo-500" />
-                  <span>{t('settings.taxonomyTitle')}</span>
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('settings.taxonomyDesc')}
-                </p>
-              </div>
-
-              {/* Sección 1: Tipos del Sistema (Nativos) */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                      {t('settings.systemTypesTitle')}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {t('settings.systemTypesDesc')}
-                    </p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.08]">
-                    {t('settings.baseTypesCount')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[
-                    { key: 'feature', label: 'Feature', desc: 'Nueva funcionalidad o entrega de valor', icon: '🚀', badge: 'bg-violet-50 dark:bg-violet-500/10 border-violet-200 dark:border-violet-500/20 text-violet-600 dark:text-violet-300' },
-                    { key: 'bug', label: 'Bug', desc: 'Defecto, error o comportamiento anómalo', icon: '🐛', badge: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-300' },
-                    { key: 'tech_debt', label: 'Tech Debt', desc: 'Refactor, optimización o mantenimiento', icon: '🛠️', badge: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-300' },
-                    { key: 'ux', label: 'UX/UI', desc: 'Diseño visual, prototipado y accesibilidad', icon: '🎨', badge: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-300' },
-                    { key: 'epic', label: 'Epic', desc: 'Gran iniciativa que agrupa historias y tareas', icon: '📚', badge: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300' },
-                    { key: 'initiative', label: 'Initiative', desc: 'Objetivo estratégico o hito de alto nivel', icon: '⚡', badge: 'bg-purple-50 dark:bg-purple-500/10 border-purple-300 dark:border-purple-500/30 text-purple-700 dark:text-purple-300' },
-                  ].map((sys) => (
-                    <div key={sys.key} className="p-3 rounded-xl border border-slate-200/80 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.01] flex items-start gap-3">
-                      <div className="text-xl shrink-0 mt-0.5">{sys.icon}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${sys.badge}`}>
-                            {sys.label}
-                          </span>
-                          <span className="font-mono text-[10px] text-slate-400">({sys.key})</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 leading-tight">
-                          {sys.desc}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sección 2: Tipos Personalizados */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                      {t('settings.customTypesTitle', { count: customItemTypes.length })}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {t('settings.customTypesDesc')}
-                    </p>
-                  </div>
-                </div>
-
-                {customItemTypes.length === 0 ? (
-                  <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 text-center space-y-1">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                      {t('settings.noCustomTypes')}
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      {t('settings.noCustomTypesHint')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {customItemTypes.map((itemType) => {
-                      const IconComp = getIconByName(itemType.iconName);
-                      const isEditingThis = editingTypeKey === itemType.key;
-                      return (
-                        <div
-                          key={itemType.key}
-                          className={`p-3.5 rounded-xl border transition-all ${
-                            isEditingThis
-                              ? 'border-indigo-500 bg-indigo-500/5 ring-2 ring-indigo-500/20'
-                              : 'border-slate-200 dark:border-white/[0.06] bg-slate-50/50 dark:bg-white/[0.01] hover:border-slate-300 dark:hover:border-white/15'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                              <div className="p-2 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shrink-0">
-                                <IconComp className={`w-4 h-4 ${itemType.color}`} />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold border ${itemType.badge}`}>
-                                    <IconComp className="w-3 h-3" />
-                                    <span>{itemType.label}</span>
-                                  </span>
-                                  <span className="font-mono text-[10px] text-slate-400">
-                                    clave: <span className="text-slate-600 dark:text-slate-300 font-semibold">{itemType.key}</span>
-                                  </span>
-                                </div>
-                                {itemType.description && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                                    {itemType.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditType(itemType)}
-                                title={t('common.edit')}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteType(itemType.key)}
-                                title={t('common.delete')}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Sección 3: Formulario Crear / Editar Tipo */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] shadow-xs space-y-5">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    {editingTypeKey ? <Edit2 className="w-4 h-4 text-indigo-500" /> : <Plus className="w-4 h-4 text-indigo-500" />}
-                    <span>{editingTypeKey ? t('settings.editTypeTitle', { name: typeFormLabel || editingTypeKey }) : t('settings.createTypeTitle')}</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {t('settings.typeFormDesc')}
-                  </p>
-                </div>
-
-                <form onSubmit={handleAddOrUpdateType} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Clave Identificadora */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        {t('settings.typeKeyLabel')} <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={typeFormKey}
-                        disabled={!!editingTypeKey}
-                        onChange={(e) => setTypeFormKey(e.target.value)}
-                        placeholder={t('settings.customTypeKeyPlaceholder')}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 disabled:opacity-60 font-mono"
-                        required
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        {t('settings.typeKeyHelp')}
-                      </p>
-                    </div>
-
-                    {/* Nombre Legible */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        {t('settings.typeVisibleLabel')} <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={typeFormLabel}
-                        onChange={(e) => setTypeFormLabel(e.target.value)}
-                        placeholder={t('settings.customTypePlaceholder')}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                        required
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        {t('settings.typeVisibleHelp')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Icono & Paleta de Color */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Selector de Icono */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        {t('settings.typeIconLabel')}
-                      </label>
-                      <div className="grid grid-cols-6 sm:grid-cols-9 gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 max-h-32 overflow-y-auto">
-                        {AVAILABLE_CUSTOM_ICONS.map((iconName) => {
-                          const IconComp = getIconByName(iconName);
-                          const isSelected = typeFormIcon === iconName;
-                          return (
-                            <button
-                              key={iconName}
-                              type="button"
-                              onClick={() => setTypeFormIcon(iconName)}
-                              title={iconName}
-                              className={`p-2 rounded-lg flex items-center justify-center transition-all ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white shadow-xs scale-105'
-                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10'
-                              }`}
-                            >
-                              <IconComp className="w-4 h-4" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Paleta de Color Preset */}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        {t('settings.typeColorLabel')}
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {ITEM_TYPE_COLOR_PRESETS.map((preset) => {
-                          const isSelected = typeFormColorPreset === preset.id;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => setTypeFormColorPreset(preset.id)}
-                              className={`px-2 py-1.5 rounded-lg border text-left text-[11px] font-medium transition-all flex items-center gap-1.5 ${
-                                isSelected
-                                  ? 'border-indigo-500 bg-indigo-500/10 font-bold ring-1 ring-indigo-500 text-indigo-900 dark:text-white shadow-2xs'
-                                  : 'border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.04] text-slate-600 dark:text-slate-300'
-                              }`}
-                            >
-                              <span className={`w-2.5 h-2.5 rounded-full ${preset.dotColor}`} />
-                              <span className="truncate">{preset.name.split(' ')[0]}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Descripción Opcional */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      {t('settings.typeDescLabel')}
-                    </label>
-                    <input
-                      type="text"
-                      value={typeFormDescription}
-                      onChange={(e) => setTypeFormDescription(e.target.value)}
-                      placeholder={t('settings.typeDescPlaceholder')}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* Vista Previa en Vivo */}
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex items-center justify-between gap-4">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {t('settings.badgePreview')}
-                    </span>
-                    {(() => {
-                      const selPreset = ITEM_TYPE_COLOR_PRESETS.find(p => p.id === typeFormColorPreset) || ITEM_TYPE_COLOR_PRESETS[0];
-                      const PreviewIcon = getIconByName(typeFormIcon);
-                      return (
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border ${selPreset.badge}`}>
-                            <PreviewIcon className="w-3.5 h-3.5" />
-                            <span>{typeFormLabel.trim() || 'Tipo de Muestra'}</span>
-                          </span>
-                          <span className="text-[11px] font-mono text-slate-400">
-                            [{typeFormKey.trim() || 'slug'}]
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Botones de Acción */}
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    {editingTypeKey && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEditType}
-                        className="px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-all"
-                      >
-                        {t('settings.cancelEdit')}
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-all active:scale-[0.98]"
-                    >
-                      {editingTypeKey ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                      <span>{editingTypeKey ? t('settings.updateTypeBtn') : t('settings.addTypeBtn')}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+          {state.activeTab === 'modules' && (
+            <ModulesTab
+              modulesState={state.modulesState}
+              modeState={state.modeState}
+              handleToggleSprintModule={() => state.handleToggleSprintModule(!state.modulesState.sprint)}
+              handleToggleReleaseModule={() => state.handleToggleReleaseModule(!state.modulesState.release)}
+              handleToggleMultiHub={() => state.handleToggleMultiHub(state.modeState !== 'multi')}
+              handleToggleCalendarModule={() => state.handleToggleCalendarModule(state.modulesState.calendar === false)}
+              handleToggleTimelineModule={() => state.handleToggleTimelineModule(state.modulesState.timeline === false)}
+            />
           )}
 
-          {/* TAB: MÓDULOS Y COMPONENTES DEL PROYECTO */}
-          {activeTab === 'components' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                  {language === 'es' ? 'Módulos y Componentes de Software' : 'Software Modules & Components'}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {language === 'es'
-                    ? 'Estructura modular del proyecto. Administra las áreas de arquitectura y código (ej. Frontend, Backend, API, Auth, Database) que categorizan las historias y tareas en el tablero.'
-                    : 'Project modular structure. Manage architecture and codebase areas (e.g. Frontend, Backend, API, Auth, Database) that categorize stories and tasks on the board.'}
-                </p>
-              </div>
-
-              {renderModulesCatalogSection()}
-            </div>
+          {state.activeTab === 'kanban' && (
+            <KanbanTab
+              kanbanEditMode={kanban.kanbanEditMode}
+              setKanbanEditMode={kanban.setKanbanEditMode}
+              handleResetColumns={kanban.handleResetColumns}
+              activeColumnsList={kanban.activeColumnsList}
+              showIdeasByDefault={state.showIdeasByDefault}
+              setShowIdeasByDefault={state.setShowIdeasByDefault}
+              showDoneHistoryByDefault={state.showDoneHistoryByDefault}
+              setShowDoneHistoryByDefault={state.setShowDoneHistoryByDefault}
+              wipLimits={kanban.wipLimits}
+              setWipLimits={kanban.setWipLimits}
+              draggingStatus={kanban.draggingStatus}
+              setDraggingStatus={kanban.setDraggingStatus}
+              dragOverColId={kanban.dragOverColId}
+              setDragOverColId={kanban.setDragOverColId}
+              handleUpdateColumnField={kanban.handleUpdateColumnField}
+              handleMoveColumn={kanban.handleMoveColumn}
+              handleMoveStatusToColumn={kanban.handleMoveStatusToColumn}
+              handleRemoveStatusFromColumn={kanban.handleRemoveStatusFromColumn}
+              handleAddStatusToColumn={kanban.handleAddStatusToColumn}
+              modulesState={state.modulesState}
+              estimationEnabled={state.estimationEnabled}
+              cardMetaState={state.cardMetaState}
+              setCardMetaState={state.setCardMetaState}
+            />
           )}
 
-          {/* TAB 3: APARIENCIA */}
-          {activeTab === 'visual' && (
-            <div className="space-y-8 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                  {t('settings.appearanceTitle')}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('settings.appearanceDesc')}
-                </p>
-              </div>
-
-              {/* Language Selector Card */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>{t('settings.languageLabel')}</span>
-                    </label>
-                    <p className="text-xs text-slate-500">
-                      {t('settings.languageDesc')}
-                    </p>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                    {locale === 'es' ? '🇪🇸 Español' : '🇬🇧 English'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleLanguageChange('es')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      locale === 'es'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <span className="text-base">🇪🇸</span>
-                      <span>{t('settings.langEs')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {t('settings.langEsDesc')}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleLanguageChange('en')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      locale === 'en'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <span className="text-base">🇬🇧</span>
-                      <span>{t('settings.langEn')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {t('settings.langEnDesc')}
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Theme Selector Cards */}
-              <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/[0.08]">
-                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  {t('settings.themeLabel')}
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTheme('light')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      theme === 'light'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Sun className="w-4 h-4 text-amber-500" />
-                      <span>{t('settings.themeLight')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {t('settings.themeLightDesc')}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTheme('dark')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      theme === 'dark'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Moon className="w-4 h-4 text-indigo-400" />
-                      <span>{t('settings.themeDark')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {t('settings.themeDarkDesc')}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTheme('system')}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      theme === 'system'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500/30 shadow-xs'
-                        : 'bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-semibold text-xs text-slate-900 dark:text-white mb-1.5">
-                      <Monitor className="w-4 h-4 text-slate-400" />
-                      <span>{t('settings.themeSystem')}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {t('settings.themeSystemDesc')}
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Density, AutoSave, Manual Ranking, and Filter Bar Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200 dark:border-white/[0.08]">
-                {/* 1. Board Density */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                      {t('settings.densityLabel')}
-                    </label>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
-                      {t('settings.densityDesc')}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDensity('comfortable')}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        density === 'comfortable'
-                          ? 'bg-white dark:bg-indigo-600/30 border-indigo-500/40 text-indigo-600 dark:text-indigo-200 shadow-xs font-semibold'
-                          : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                      }`}
-                    >
-                      {t('settings.densityComfortable')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDensity('compact')}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        density === 'compact'
-                          ? 'bg-white dark:bg-indigo-600/30 border-indigo-500/40 text-indigo-600 dark:text-indigo-200 shadow-xs font-semibold'
-                          : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                      }`}
-                    >
-                      {t('settings.densityCompact')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Auto-save on Edit */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
-                    <div className="pr-2 min-w-0 flex-1">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                        {t('settings.autoSaveLabel')}
-                      </span>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                        {t('settings.autoSaveDesc')}
-                      </p>
-                    </div>
-                    <SettingsSwitch
-                      checked={autoSave}
-                      onChange={setAutoSave}
-                      ariaLabel={t('settings.autoSaveLabel')}
-                    />
-                  </label>
-                </div>
-
-                {/* 3. Manual Ranking and Drag & Drop */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
-                    <div className="pr-2 min-w-0 flex-1">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                        {t('settings.rankingLabel')}
-                      </span>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                        {t('settings.rankingDesc')}
-                      </p>
-                    </div>
-                    <SettingsSwitch
-                      checked={rankingEnabled}
-                      onChange={setRankingEnabled}
-                      ariaLabel={t('settings.rankingLabel')}
-                    />
-                  </label>
-                </div>
-
-                {/* 4. Filter Bar Stats Summary (DEV-278) */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col justify-between hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
-                  <label className="flex items-start justify-between cursor-pointer transition-opacity hover:opacity-90 active:opacity-75 gap-3 min-w-0">
-                    <div className="pr-2 min-w-0 flex-1">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                        {t('settings.showFilterBarStatsLabel')}
-                      </span>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                        {t('settings.showFilterBarStatsDesc')}
-                      </p>
-                    </div>
-                    <SettingsSwitch
-                      checked={config?.showFilterBarStats !== false}
-                      onChange={(checked) => updateConfig({ showFilterBarStats: checked })}
-                      ariaLabel={t('settings.showFilterBarStatsLabel')}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+          {state.activeTab === 'taxonomy' && (
+            <TaxonomyTab
+              customItemTypes={taxonomy.customItemTypes}
+              editingTypeKey={taxonomy.editingTypeKey}
+              typeFormKey={taxonomy.typeFormKey}
+              setTypeFormKey={taxonomy.setTypeFormKey}
+              typeFormLabel={taxonomy.typeFormLabel}
+              setTypeFormLabel={taxonomy.setTypeFormLabel}
+              typeFormIcon={taxonomy.typeFormIcon}
+              setTypeFormIcon={taxonomy.setTypeFormIcon}
+              typeFormColorPreset={taxonomy.typeFormColorPreset}
+              setTypeFormColorPreset={taxonomy.setTypeFormColorPreset}
+              typeFormDescription={taxonomy.typeFormDescription}
+              setTypeFormDescription={taxonomy.setTypeFormDescription}
+              handleStartEditType={taxonomy.handleStartEditType}
+              handleDeleteType={taxonomy.handleDeleteType}
+              handleAddOrUpdateType={taxonomy.handleAddOrUpdateType}
+              handleCancelEditType={taxonomy.handleCancelEditType}
+            />
           )}
 
-          {/* TAB 4: DATOS & HERRAMIENTAS */}
-          {activeTab === 'tools' && (
-            <div className="space-y-8 animate-fade-in">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                  {t('settings.toolsTitle')}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('settings.toolsDesc')}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                {/* Import Wizard */}
-                <div className="p-5 rounded-2xl bg-indigo-500/[0.03] border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        {t('settings.importWizardTitle')}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
-                        {t('settings.importWizardDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onOpenImportWizard}
-                    className="self-start sm:self-center px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all active:scale-[0.98] shrink-0"
-                  >
-                    {t('settings.openWizard')}
-                  </button>
-                </div>
-
-                {/* Export Monolithic Markdown */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <FileCode className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        {t('settings.exportMdTitle')}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
-                        {t('settings.exportMdDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  {currentProject && (
-                    <button
-                      type="button"
-                      onClick={() => onExportMonolithic?.(currentProject.id)}
-                      className="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05] text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all shrink-0"
-                    >
-                      <Download className="w-4 h-4 text-emerald-500" />
-                      <span>{t('settings.downloadMd')}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Export JSON Backup */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <Download className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        {t('settings.exportJsonTitle')}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
-                        {t('settings.exportJsonDesc')}
-                      </p>
-                    </div>
-                  </div>
-                  {currentProject && (
-                    <button
-                      type="button"
-                      onClick={() => onExportJson?.(currentProject.id)}
-                      className="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05] text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all shrink-0"
-                    >
-                      <Download className="w-4 h-4 text-amber-500" />
-                      <span>{t('settings.downloadJson')}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+          {state.activeTab === 'components' && (
+            <ComponentsTab
+              language={language}
+              modulesList={state.modulesList}
+              newModuleInput={state.newModuleInput}
+              setNewModuleInput={state.setNewModuleInput}
+              handleAddModule={state.handleAddModule}
+              handleRemoveModule={state.handleRemoveModule}
+            />
           )}
 
-          {/* TAB 5: AVANZADO (JSON) */}
-          {activeTab === 'advanced' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex items-center justify-between min-w-0">
-                <div className="min-w-0">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 truncate">
-                    {t('settings.advancedTitle')}
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t('settings.advancedDesc')}
-                  </p>
-                </div>
+          {state.activeTab === 'visual' && (
+            <VisualTab
+              locale={state.locale}
+              handleLanguageChange={state.handleLanguageChange}
+              theme={state.theme}
+              setTheme={state.setTheme}
+              density={state.density}
+              setDensity={state.setDensity}
+              autoSave={state.autoSave}
+              setAutoSave={state.setAutoSave}
+              rankingEnabled={state.rankingEnabled}
+              setRankingEnabled={state.setRankingEnabled}
+              config={config}
+              updateConfig={state.updateConfig}
+            />
+          )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      const parsed = JSON.parse(rawJson);
-                      setRawJson(JSON.stringify(parsed, null, 2));
-                      setJsonError(null);
-                      onShowToast?.(t('settings.toastJsonFormatted'), 'info');
-                    } catch (e: any) {
-                      setJsonError(`Error de sintaxis: ${e.message}`);
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                >
-                  {t('settings.formatJson')}
-                </button>
-              </div>
+          {state.activeTab === 'tools' && (
+            <ToolsTab
+              currentProject={currentProject}
+              onOpenImportWizard={onOpenImportWizard}
+              onExportMonolithic={onExportMonolithic}
+              onExportJson={onExportJson}
+            />
+          )}
 
-              {jsonError && (
-                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono">
-                  {jsonError}
-                </div>
-              )}
-
-              <div className="relative">
-                <textarea
-                  value={rawJson}
-                  onChange={(e) => {
-                    setRawJson(e.target.value);
-                    if (jsonError) setJsonError(null);
-                  }}
-                  rows={20}
-                  className="w-full p-4 rounded-xl font-mono text-xs bg-slate-900 text-emerald-400 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y leading-relaxed shadow-inner"
-                  spellCheck={false}
-                />
-              </div>
-            </div>
+          {state.activeTab === 'advanced' && (
+            <AdvancedTab
+              rawJson={state.rawJson}
+              setRawJson={state.setRawJson}
+              jsonError={state.jsonError}
+              setJsonError={state.setJsonError}
+              onShowToast={onShowToast}
+            />
           )}
         </main>
       </div>

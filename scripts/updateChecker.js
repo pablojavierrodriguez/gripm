@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getGripmHomeDir } from './registryConfig.js';
+import { getGripmHomeDir, atomicWriteFileSync } from './registryConfig.js';
 
 const CACHE_FILE_NAME = 'update-cache.json';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -56,7 +56,7 @@ export function writeUpdateCache(data) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(cachePath, JSON.stringify(data, null, 2), 'utf8');
+    atomicWriteFileSync(cachePath, JSON.stringify(data, null, 2), 'utf8');
   } catch {
     // Ignore cache write errors
   }

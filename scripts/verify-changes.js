@@ -240,7 +240,7 @@ function checkScriptRefs() {
 // Verify that bin/gripm-mcp.js stays in sync with scripts/mcp-server.ts and its dependencies.
 // Compiles scripts/mcp-server.ts in-memory and asserts exact match with bin/gripm-mcp.js.
 
-function checkMcpBinarySync(filesList, isAllMode) {
+async function checkMcpBinarySync(filesList, isAllMode) {
   const mcpSourcePatterns = [
     'scripts/mcp-server.ts',
     'bin/gripm-mcp.js',
@@ -292,7 +292,26 @@ function checkMcpBinarySync(filesList, isAllMode) {
       return;
     }
 
-    const res = esbuild.buildSync({
+    const gitIndexPlugin = {
+      name: 'git-index-loader',
+      setup(build) {
+        build.onLoad({ filter: /.*/ }, (args) => {
+          const relPath = path.relative(ROOT, args.path).replace(/\\/g, '/');
+          if (relPath.startsWith('..') || relPath.includes('node_modules/')) {
+            return null;
+          }
+          const content = stagedContent(relPath);
+          if (content !== null) {
+            const ext = path.extname(args.path).toLowerCase();
+            const loader = ext === '.ts' ? 'ts' : ext === '.tsx' ? 'tsx' : ext === '.json' ? 'json' : 'js';
+            return { contents: content, loader };
+          }
+          return null;
+        });
+      }
+    };
+
+    const res = await esbuild.build({
       stdin: {
         contents: mcpServerContent,
         resolveDir: path.join(ROOT, 'scripts'),
@@ -304,7 +323,8 @@ function checkMcpBinarySync(filesList, isAllMode) {
       target: 'node18',
       format: 'esm',
       write: false,
-      external: ['fsevents']
+      external: ['fsevents'],
+      plugins: isAllMode ? [] : [gitIndexPlugin]
     });
 
     const compiledText = res.outputFiles[0].text;
@@ -353,7 +373,7 @@ for (const file of files) {
 }
 
 checkScriptRefs();
-checkMcpBinarySync(files, isAll);
+await checkMcpBinarySync(files, isAll);
 
 for (const s of skipped) console.log(`   ℹ️  ${s}`);
 

@@ -1077,7 +1077,7 @@ export const SprintView: FC<SprintViewProps> = ({
               onDragOver={(e) => {
                 if (groupBy === 'sprint' && onUpdateSprint) {
                   e.preventDefault();
-                  setActiveDropGroup(group.key);
+                  setActiveDropGroup((prev) => (prev === group.key ? prev : group.key));
                 }
               }}
               onDragLeave={() => {
@@ -1469,7 +1469,8 @@ export const SprintView: FC<SprintViewProps> = ({
                                 if (draggedItemId && draggedItemId !== item.id) {
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   const isUpper = e.clientY < rect.top + rect.height / 2;
-                                  setDropTargetRow({ itemId: item.id, position: isUpper ? 'before' : 'after' });
+                                  const nextPos: 'before' | 'after' = isUpper ? 'before' : 'after';
+                                  setDropTargetRow((prev) => (prev?.itemId === item.id && prev?.position === nextPos ? prev : { itemId: item.id, position: nextPos }));
                                 }
                               }}
                               onDragLeave={(e) => {

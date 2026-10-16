@@ -1,4 +1,118 @@
+# Security Policy
+
+🌐 **[English](#security-policy)** | **[Español](#política-de-seguridad)**
+
+## Supported Versions
+
+| Version | Supported |
+|---|---|
+| 1.x | ✅ |
+| < 1.0.0 | ❌ |
+
+gripm is in stable version 1.x. Security patches are applied to the most recent release branch. Backports to older versions are not provided: if you encounter an issue on an earlier version, please update to the latest release.
+
+## Reporting a Vulnerability
+
+**Do not open a public issue.**
+
+gripm manages backlogs directly as Markdown files within the user's repository, exposes an MCP server that writes to disk, and executes binaries under the user's OS privileges. A public report could expose third parties before a fix is available.
+
+Please use the repository's private security reporting channel:
+
+1. Navigate to the **Security** tab of the repository on GitHub.
+2. Select **Report a vulnerability**.
+3. Describe the vulnerability and provide step-by-step reproduction instructions.
+
+This channel is private by design: only maintainers with explicit permissions can view it.
+
+### What to Include
+
+- gripm version and Node.js version.
+- Operating system and platform architecture.
+- Clear reproduction steps, ideally with a minimal reproduction repository.
+- Expected impact: what an attacker could achieve or compromise.
+
+### What NOT to Include
+
+- Personal identifiable information (PII) of third parties.
+- Real credentials, API keys, or secret tokens.
+- Proprietary contents of third-party repositories without authorization.
+
+## Response Expectations
+
+| Stage | Target Timeframe |
+|---|---|
+| Acknowledgment of receipt | 3 business days |
+| Severity assessment | 7 business days |
+| Published mitigation plan | 14 business days |
+| Patch / fix release | Dependent on severity |
+
+These are operational targets rather than contractual obligations, but they represent our commitment for well-formed security reports.
+
+## Scope
+
+**In Scope:**
+
+- The MCP server (`gripm-mcp`) and its protocol handling.
+- The CLI (`gripm`, `board`), including `--init` and the scaffolding written to the user's repository.
+- The Markdown persistence layer: serialization, schema migrations, and project registry migrations.
+- File path resolution at runtime. Any bundle resolving relative paths against the current working directory instead of the package directory could touch unintended files.
+- Git hooks installed by the project.
+
+**Out of Scope:**
+
+- Vulnerabilities in the Node.js runtime or web browser (report upstream).
+- Dependency vulnerabilities without a practical exploit vector within the context of gripm.
+- Lack of isolation between projects that the user has explicitly registered. The board displays and manages projects that the user chooses to register.
+
+## Severity Criteria
+
+| Severity | Description | Example |
+|---|---|---|
+| **Critical** | Arbitrary code execution (RCE) or unauthorized file access outside the user's project | An MCP parameter permits arbitrary file writing outside `backlogDir`. |
+| **High** | Silent corruption or data loss in the backlog | The serializer overwrites a `.md` file with content belonging to another task. |
+| **Medium** | Information disclosure between registered projects | A project reads tasks from another project due to insufficient ID validation. |
+| **Low** | Local Denial of Service (DoS) or non-sensitive information leakage | A malformed `.md` file crashes server startup. |
+
+## Threat Model and Risk Surface
+
+### 1. Absence of HTTP Authentication (Single-User Local Daemon, SEC-10)
+gripm is designed as a local developer cockpit tool running on a single machine. The HTTP API does not implement authentication layers, user sessions, or access tokens. The trust boundary is the developer's local machine and the operating system user executing the process.
+
+### 2. Local Network Exposure via `--host 0.0.0.0` (SEC-06)
+Starting gripm with `--host 0.0.0.0` (or `GRIPM_HOST=0.0.0.0`) binds the server to all network interfaces on the host. Any device connected to the same local area network (LAN) can query and mutate the backlog without credentials. This capability is a documented trade-off intended for ergonomic mobile device previewing on trusted local networks; **it must never be used on public Wi-Fi networks, shared hosts, or internet-exposed servers**.
+
+### 3. Folder Browser Scope and Home Directory Traversal (SEC-07)
+The `/api/fs/browse` endpoint allows navigating the filesystem starting from authorized roots (`os.homedir()`, `process.cwd()`, registered projects, and paths configured in `GRIPM_ALLOWED_PATHS`). Every query strictly validates path containment via `path.relative` and symbolic link resolution (`fs.realpathSync`), blocking any attempt to escape or traverse outside authorized roots.
+
+### 4. MCP Server Security Boundary (stdio, SEC-03, SEC-05)
+The MCP server (`bin/gripm-mcp.js` / `scripts/mcp-server.ts`) communicates exclusively over standard `stdin`/`stdout` streams. It does not open TCP network ports or remote endpoints. Its trust boundary is the parent process invoking it (the user's IDE or AI client). All arguments are validated strictly against their `inputSchema` (rejecting invalid types, negative offsets, or nonexistent AC indexes), and the `--repo` argument is validated for existence and containment.
+
+### 5. Gatekeeper and Verification Command Execution (SEC-01)
+When certifying tasks towards terminal states (`ready` or `done`), the Gatekeeper may execute a verification command (`verifyCommand`). To prevent Remote Code Execution (RCE) originating from external repositories or shared files:
+- **The command is executed ONLY if explicitly provided as an argument in the MCP call.**
+- **Code or scripts located in the YAML frontmatter of Markdown files on disk are NEVER read or executed.**
+- **The MCP server never persists executable scripts or commands into the task file or its frontmatter.**
+- Execution is strictly bounded by a 15-second timeout (`timeout: 15000`) to prevent server deadlocks.
+
+### 6. Bypass Audit Trail with `force: true` (SEC-09)
+The `force: true` flag mechanically bypasses Gatekeeper checks for exceptional manual interventions. Any usage of `force: true` outputs an explicit warning in the response and logs an audited timestamped trail (`audit: { bypassedGatekeeper: true }`).
+
+## Disclosure
+
+We appreciate responsible security research. If you discover a vulnerability:
+
+- **Do not** disclose it publicly until a patch has been released.
+- Do not access third-party data to demonstrate severity.
+- We will gladly credit you in release notes and advisories upon request.
+
+Once a fix is released, we publicly acknowledge the report unless you prefer anonymity.
+
+---
+
 # Política de Seguridad
+
+🌐 **[English](#security-policy)** | **[Español](#política-de-seguridad)**
 
 ## Versiones soportadas
 

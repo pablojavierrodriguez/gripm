@@ -3,12 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ProjectMeta } from '../types.ts';
 import { loadRegistryFile, saveRegistryFile, resolveProjectIdentity } from '../../scripts/registryConfig.js';
+import { atomicWriteFileSync } from './atomicWrite.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const PKG_ROOT = path.resolve(__dirname, '../../');
 
-export const DEMO_FILE = path.resolve(PKG_ROOT, 'data/demo-backlog.json');
+export const DEMO_FILE = path.resolve(PKG_ROOT, 'src/data/demo-backlog.json');
 
 export function detectProjectStorage(repoPath?: string): { storageType: 'json' | 'markdown'; backlogDir: string } {
   if (!repoPath) return { storageType: 'json', backlogDir: 'backlog' };
@@ -209,6 +210,6 @@ export function writeProjectConfig(config: any, project?: ProjectMeta): string {
   }
   const toSave = { ...config };
   delete toSave._filepath;
-  fs.writeFileSync(configFile, JSON.stringify(toSave, null, 2), 'utf8');
+  atomicWriteFileSync(configFile, JSON.stringify(toSave, null, 2), 'utf8');
   return configFile;
 }

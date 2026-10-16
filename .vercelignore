@@ -12,7 +12,7 @@
 # --- Trabajo privado: nunca subir ---
 backlog/
 BACKLOG.md
-data/projects-registry.json
+data/
 .gripm/
 .playbook-lock.json
 .githooks/
@@ -47,6 +47,4 @@ LICENSE
 audit-ux-baseline.json
 .uxaudit.json
 
-# IMPORTANTE: `data/demo-backlog.json` **no** se excluye a propósito.
-# `src/data/sandbox.ts` lo importa como módulo, así que es el dataset semilla de la
-# demo y tiene que estar presente para que `vite build` lo empaquete.
+# Dataset semilla demo: reside en src/data/demo-backlog.json y viaja con src/ para Vite.

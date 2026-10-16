@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { X, RotateCcw, Check, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { X, RotateCcw, Check, SlidersHorizontal } from 'lucide-react';
 import {
   type FilterState,
   type ItemType,
@@ -186,6 +186,75 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   const isAllActiveFlow =
     selectedFlowStatuses.length === 0 ||
     (selectedFlowStatuses.length === 4 && ACTIVE_FLOW_STATUSES.every((st) => selectedFlowStatuses.includes(st)));
+
+  const selectedSprints = new Set(
+    filters.sprints && filters.sprints.length > 0
+      ? filters.sprints
+      : filters.sprint && filters.sprint !== 'all'
+      ? [filters.sprint]
+      : []
+  );
+
+  const toggleSprint = (s: string) => {
+    const current = new Set(selectedSprints);
+    if (current.has(s)) {
+      current.delete(s);
+    } else {
+      current.add(s);
+    }
+    const arr = Array.from(current);
+    onChangeFilters({
+      ...filters,
+      sprints: arr,
+      sprint: arr.length === 1 ? arr[0] : (arr.length === 0 ? 'all' : filters.sprint || 'all'),
+    });
+  };
+
+  const selectedReleases = new Set(
+    filters.releases && filters.releases.length > 0
+      ? filters.releases
+      : filters.release && filters.release !== 'all'
+      ? [filters.release]
+      : []
+  );
+
+  const toggleRelease = (r: string) => {
+    const current = new Set(selectedReleases);
+    if (current.has(r)) {
+      current.delete(r);
+    } else {
+      current.add(r);
+    }
+    const arr = Array.from(current);
+    onChangeFilters({
+      ...filters,
+      releases: arr,
+      release: arr.length === 1 ? arr[0] : (arr.length === 0 ? 'all' : filters.release || 'all'),
+    });
+  };
+
+  const selectedModules = new Set(
+    filters.modules && filters.modules.length > 0
+      ? filters.modules
+      : filters.module && filters.module !== 'all'
+      ? [filters.module]
+      : []
+  );
+
+  const toggleModule = (m: string) => {
+    const current = new Set(selectedModules);
+    if (current.has(m)) {
+      current.delete(m);
+    } else {
+      current.add(m);
+    }
+    const arr = Array.from(current);
+    onChangeFilters({
+      ...filters,
+      modules: arr,
+      module: arr.length === 1 ? arr[0] : (arr.length === 0 ? 'all' : filters.module || 'all'),
+    });
+  };
 
   return (
     <div
@@ -392,75 +461,128 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
       </div>
 
       {/* Section 4: Sprint & Release */}
-      <div className={`grid ${showSprint ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06]`}>
-        {/* Sprint */}
-        {showSprint && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              {t('itemModal.sprintLabel')}
-            </label>
-            <div className="relative">
-              <select
-                value={filters.sprint || 'all'}
-                onChange={(e) => onChangeFilters({ ...filters, sprint: e.target.value })}
-                className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
-              >
-                <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allSprints')}</option>
-                {availableSprints.map((s) => (
-                  <option key={s} value={s} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
-                    {s}
-                  </option>
-                ))}
-                <option value="backlog" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.noSprint')}</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+      {(showSprint || availableReleases.length > 0) && (
+        <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+          {/* Sprint */}
+          {showSprint && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {t('itemModal.sprintLabel')}
+                </span>
+                {selectedSprints.size > 0 && (
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                    {t('filter.selectedCount', { count: selectedSprints.size })}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {availableSprints.map((s) => {
+                  const isSelected = selectedSprints.has(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSprint(s)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                        isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                          : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{s}</span>
+                      {isSelected && <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => toggleSprint('backlog')}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    selectedSprints.has('backlog') || selectedSprints.has('no_sprint')
+                      ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                      : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>{t('filter.noSprint')}</span>
+                  {(selectedSprints.has('backlog') || selectedSprints.has('no_sprint')) && (
+                    <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Release */}
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            {t('filter.targetRelease')}
-          </label>
-          <div className="relative">
-            <select
-              value={filters.release || 'all'}
-              onChange={(e) => onChangeFilters({ ...filters, release: e.target.value })}
-              className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
-            >
-              <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allReleases')}</option>
-              {availableReleases.map((r) => (
-                <option key={r} value={r} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
-                  v{r}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
-          </div>
+          {/* Release */}
+          {availableReleases.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {t('filter.targetRelease')}
+                </span>
+                {selectedReleases.size > 0 && (
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                    {t('filter.selectedCount', { count: selectedReleases.size })}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {availableReleases.map((r) => {
+                  const isSelected = selectedReleases.has(r);
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => toggleRelease(r)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                        isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                          : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <span>v{r}</span>
+                      {isSelected && <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Section 5: Módulo / Área */}
       {availableModules.length > 0 && (
-        <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            {t('filter.moduleArea')}
-          </label>
-          <div className="relative">
-            <select
-              value={filters.module || 'all'}
-              onChange={(e) => onChangeFilters({ ...filters, module: e.target.value })}
-              className="appearance-none w-full px-2.5 py-1.5 pr-7 rounded-lg bg-slate-100 dark:bg-[#131c2f] border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500/50 dark:[color-scheme:dark]"
-            >
-              <option value="all" className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">{t('filter.allAreas')}</option>
-              {availableModules.map((m) => (
-                <option key={m} value={m} className="bg-white dark:bg-[#131c2f] text-slate-800 dark:text-slate-100">
-                  {m}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+        <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+          <div className="flex items-center justify-between min-w-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {t('filter.moduleArea')}
+            </span>
+            {selectedModules.size > 0 && (
+              <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                {t('filter.selectedCount', { count: selectedModules.size })}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+            {availableModules.map((m) => {
+              const isSelected = selectedModules.has(m);
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => toggleModule(m)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    isSelected
+                      ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                      : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>{m}</span>
+                  {isSelected && <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

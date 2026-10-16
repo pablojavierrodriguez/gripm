@@ -9,25 +9,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import os from 'node:os';
-import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import {
-  parseBacklogMd,
-  serializeBacklogMd,
-  normalizeStatus,
-  normalizePriority,
-  generateTaskFilename,
-  generateMonolithicBacklogMd,
-  type BacklogMdTask
-} from './backlogMdParser.ts';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
 import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from './updateChecker.js';
 import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
+import { BacklogService } from '../server/services/backlogService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const DEMO_FILE = path.join(ROOT_DIR, 'data/demo-backlog.json');
 
 let currentVersion = '0.5.0';
 try {
@@ -215,233 +205,8 @@ function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
   return reg;
 }
 
-function getTasksDir(project: ProjectMeta): string {
-  const dir = project.backlogDir || 'backlog';
-  return path.join(project.repoPath || ROOT_DIR, dir, 'tasks');
-}
-
-function resolveLegibleSprint(project: ProjectMeta, val: string | undefined | null): string | undefined {
-  if (!val) return undefined;
-  const clean = String(val).trim();
-  if (!clean) return undefined;
-  const lower = clean.toLowerCase();
-  if (['backlog-futuro', 'sin-sprint', 'sin sprint', 'backlog', 'none', 'null'].includes(lower)) {
-    return undefined;
-  }
-  if (!project.repoPath) return clean;
-  const sprintsPath = path.join(project.repoPath, project.backlogDir || 'backlog', 'sprints.json');
-  if (fs.existsSync(sprintsPath)) {
-    try {
-      const registeredSprints = JSON.parse(fs.readFileSync(sprintsPath, 'utf8'));
-      if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
-        const matched = registeredSprints.find((s: any) =>
-          (s.id && s.id.toLowerCase() === lower) ||
-          (s.name && s.name.trim().toLowerCase() === lower)
-        );
-        if (matched) {
-          return matched.name || clean;
-        }
-      }
-    } catch {}
-  }
-  if (lower.startsWith('sprint-') || lower.includes('backlog-futuro')) {
-    return undefined;
-  }
-  return clean;
-}
-
-interface VerifyCommandValidation {
-  valid: boolean;
-  reason?: string;
-  command?: string;
-}
-
-// DEV-244: Endurecimiento de verifyCommand contra Prompt Injection
-function validateVerifyCommand(cmd: string, repoPath: string): VerifyCommandValidation {
-  if (!cmd || typeof cmd !== 'string') {
-    return { valid: false, reason: 'El comando de verificación debe ser un texto no vacío.' };
-  }
-
-  const trimmed = cmd.trim();
-  if (!trimmed) {
-    return { valid: false, reason: 'El comando de verificación no puede estar vacío.' };
-  }
-
-  // 1. Prohibir metacaracteres shell, subshells, comillas, tuberías y redirecciones
-  const forbiddenChars = /[|&;`$()<>\n\r'"]/;
-  if (forbiddenChars.test(trimmed)) {
-    return {
-      valid: false,
-      reason: "Contiene metacaracteres o secuencias de encadenamiento de shell no permitidas ('|', '&', ';', '`', '$()', '<', '>', comillas)."
-    };
-  }
-
-  // 2. Tokenizar argumentos respetando espacios simples
-  const tokens = trimmed.split(/\s+/);
-  const runner = tokens[0].toLowerCase();
-
-  // Validar tokens individuales contra inyecciones
-  const tokenPattern = /^[a-zA-Z0-9_\-.:/\\=]+$/;
-  for (const token of tokens) {
-    if (!tokenPattern.test(token)) {
-      return {
-        valid: false,
-        reason: `El argumento '${token}' contiene caracteres no permitidos. Solo se permiten caracteres alfanuméricos y separadores estándar (- _ . : / \\ =).`
-      };
-    }
-  }
-
-  // Leer package.json del repositorio
-  let pkgScripts: Record<string, string> = {};
-  let pkgDeps: Set<string> = new Set();
-  try {
-    const pkgPath = path.join(repoPath, 'package.json');
-    if (fs.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-      if (pkg.scripts && typeof pkg.scripts === 'object') {
-        pkgScripts = pkg.scripts;
-      }
-      if (pkg.dependencies && typeof pkg.dependencies === 'object') {
-        Object.keys(pkg.dependencies).forEach(d => pkgDeps.add(d));
-      }
-      if (pkg.devDependencies && typeof pkg.devDependencies === 'object') {
-        Object.keys(pkg.devDependencies).forEach(d => pkgDeps.add(d));
-      }
-    }
-  } catch {}
-
-  // 3. Evaluar runner permitido
-  if (['npm', 'pnpm', 'yarn'].includes(runner)) {
-    const subCmd = tokens[1];
-    if (!subCmd) {
-      return {
-        valid: false,
-        reason: `Debe especificar un subcomando para ${runner} (ej: '${runner} test' o '${runner} run <script>').`
-      };
-    }
-
-    if (subCmd === 'test' || subCmd === 't') {
-      if (!pkgScripts['test']) {
-        return {
-          valid: false,
-          reason: `El script 'test' no está definido en el package.json de '${repoPath}'.`
-        };
-      }
-      return { valid: true, command: trimmed };
-    }
-
-    if (subCmd === 'run') {
-      const scriptName = tokens[2];
-      if (!scriptName) {
-        return {
-          valid: false,
-          reason: `Debe especificar el nombre del script a ejecutar (ej: '${runner} run <script>').`
-        };
-      }
-      if (!pkgScripts[scriptName]) {
-        return {
-          valid: false,
-          reason: `El script '${scriptName}' no está definido en los scripts de package.json.`
-        };
-      }
-      return { valid: true, command: trimmed };
-    }
-
-    if ((runner === 'yarn' || runner === 'pnpm') && pkgScripts[subCmd]) {
-      return { valid: true, command: trimmed };
-    }
-
-    return {
-      valid: false,
-      reason: `Subcomando '${subCmd}' no autorizado para ${runner}. Solo se permiten '${runner} test' o '${runner} run <script>'.`
-    };
-  }
-
-  if (runner === 'npx') {
-    const tool = tokens[1];
-    if (!tool) {
-      return {
-        valid: false,
-        reason: "Debe especificar la herramienta a ejecutar con npx (ej: 'npx tsc --noEmit')."
-      };
-    }
-    const safeToolsAllowlist = new Set([
-      'tsc', 'eslint', 'vitest', 'jest', 'playwright', 'prettier', 'biome'
-    ]);
-    if (!safeToolsAllowlist.has(tool) && !pkgDeps.has(tool)) {
-      return {
-        valid: false,
-        reason: `La herramienta '${tool}' no está permitida para ejecución con npx. Solo se permiten herramientas del stack de calidad (${Array.from(safeToolsAllowlist).join(', ')}) o dependencias declaradas en package.json.`
-      };
-    }
-    return { valid: true, command: trimmed };
-  }
-
-  return {
-    valid: false,
-    reason: `El ejecutable '${runner}' no está permitido en verifyCommand. Solo se permiten scripts de package.json ('npm test', 'npm run <script>') o herramientas de verificación ('npx <herramienta>').`
-  };
-}
-
-function getProjectJsonBacklogPath(project: ProjectMeta): string {
-  if (project.isDemo) return DEMO_FILE;
-  if (project.repoPath) {
-    return path.join(project.repoPath, '.gripm/backlog.json');
-  }
-  return path.join(ROOT_DIR, `data/${project.id}-backlog.json`);
-}
-
 function readTasksForProject(project: ProjectMeta): any[] {
-  if (project.storageType === 'markdown' && project.repoPath) {
-    const tasksDir = getTasksDir(project);
-    if (!fs.existsSync(tasksDir)) return [];
-    const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-    files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-    const items: any[] = [];
-    for (const file of files) {
-      try {
-        const raw = fs.readFileSync(path.join(tasksDir, file), 'utf8');
-        const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
-        const task = parseBacklogMd(raw, fallbackId);
-        items.push({
-          id: task.id,
-          code: task.id,
-          projectId: project.id,
-          title: task.title,
-          status: task.status,
-          type: task.type || 'feature',
-          priority: task.priority,
-          assignees: task.assignees || [],
-          labels: task.labels || [],
-          description: task.description,
-          implementationPlan: task.implementationPlan,
-          notes: task.implementationNotes,
-          acceptanceCriteriaList: task.acceptanceCriteria,
-          sprint: task.sprint || task.targetSprint || task.rawExtraFrontmatter?.sprint,
-          targetSprint: task.targetSprint || task.sprint || task.rawExtraFrontmatter?.sprint,
-          milestone: task.milestone,
-          estimate: task.estimate,
-          createdAt: task.createdDate ? `${task.createdDate}T00:00:00.000Z` : undefined,
-          updatedAt: task.updatedDate ? `${task.updatedDate}T00:00:00.000Z` : undefined
-        });
-      } catch (err) {
-        // Skip unparseable files
-      }
-    }
-    return items;
-  }
-
-  // JSON storage fallback
-  const filePath = getProjectJsonBacklogPath(project);
-  
-  if (fs.existsSync(filePath)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      return data.items || [];
-    } catch {}
-  }
-  return [];
+  return BacklogService.listTasks(project as any, { includeDeleted: true });
 }
 
 // Tool definitions for MCP tools/list
@@ -708,55 +473,6 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
-    let tasks = readTasksForProject(targetProject);
-
-    if (args.openOnly) {
-      const closedStatuses = ['done', 'dismissed', 'cancelled', 'released'];
-      tasks = tasks.filter(t => !closedStatuses.includes(normalizeStatus(t.status)));
-    }
-
-    if (args.status) {
-      const norm = normalizeStatus(args.status);
-      tasks = tasks.filter(t => normalizeStatus(t.status) === norm);
-    }
-    if (args.priority) {
-      const normP = normalizePriority(args.priority);
-      tasks = tasks.filter(t => normalizePriority(t.priority) === normP);
-    }
-    if (args.sprint) {
-      const sp = String(args.sprint).toLowerCase();
-      tasks = tasks.filter(t => 
-        (t.sprint && String(t.sprint).toLowerCase() === sp) ||
-        (t.targetSprint && String(t.targetSprint).toLowerCase() === sp) ||
-        (Array.isArray(t.sprints) && t.sprints.some((s: string) => String(s).toLowerCase() === sp))
-      );
-    }
-    if (args.milestone) {
-      tasks = tasks.filter(t => t.milestone === args.milestone || t.targetSprint === args.milestone);
-    }
-    if (args.prefix) {
-      const pfx = String(args.prefix).toLowerCase();
-      tasks = tasks.filter(t => 
-        (t.id && t.id.toLowerCase().startsWith(pfx)) || 
-        (t.code && t.code.toLowerCase().startsWith(pfx))
-      );
-    }
-    if (Array.isArray(args.taskIds) && args.taskIds.length > 0) {
-      const idsLower = new Set(args.taskIds.map((id: string) => String(id).toLowerCase()));
-      tasks = tasks.filter(t => 
-        (t.id && idsLower.has(t.id.toLowerCase())) || 
-        (t.code && idsLower.has(t.code.toLowerCase()))
-      );
-    }
-    if (args.search) {
-      const q = String(args.search).toLowerCase();
-      tasks = tasks.filter(t => 
-        (t.title && t.title.toLowerCase().includes(q)) || 
-        (t.id && t.id.toLowerCase().includes(q)) ||
-        (t.labels && Array.isArray(t.labels) && t.labels.some((l: string) => l.toLowerCase().includes(q)))
-      );
-    }
-
     if (args.limit !== undefined) {
       if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit <= 0) {
         throw new Error(`[MCP Validation] Parámetro 'limit' inválido: debe ser un entero positivo, recibido '${args.limit}'.`);
@@ -768,8 +484,21 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       }
     }
 
-    const totalFiltered = tasks.length;
+    const allFiltered = BacklogService.listTasks(targetProject as any, {
+      openOnly: args.openOnly,
+      status: args.status,
+      priority: args.priority,
+      sprint: args.sprint,
+      milestone: args.milestone,
+      prefix: args.prefix,
+      taskIds: args.taskIds,
+      search: args.search,
+      includeDeleted: false
+    });
+
+    const totalFiltered = allFiltered.length;
     const offset = args.offset !== undefined ? args.offset : 0;
+    let tasks = allFiltered;
     if (args.limit !== undefined) {
       tasks = tasks.slice(offset, offset + args.limit);
     } else if (offset > 0) {
@@ -785,8 +514,9 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
         showing: tasks.length,
         offset,
         items: tasks.map(t => {
-          const acInfo = t.acceptanceCriteriaList 
-            ? `${t.acceptanceCriteriaList.filter((ac: any) => ac.checked).length}/${t.acceptanceCriteriaList.length} AC` 
+          const acList = t.acceptanceCriteriaList || t.acceptanceCriteria || [];
+          const acInfo = acList.length > 0 
+            ? `${acList.filter((ac: any) => ac.checked).length}/${acList.length} AC` 
             : '0/0 AC';
           const m = t.milestone || t.targetSprint ? ` [${t.milestone || t.targetSprint}]` : '';
           return `[${t.code || t.id}] (${t.status}/${t.priority}) ${t.title}${m} (${acInfo})`;
@@ -801,17 +531,20 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       total: totalFiltered,
       showing: tasks.length,
       offset,
-      tasks: tasks.map(t => ({
-        id: t.code || t.id,
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        type: t.type,
-        milestone: t.milestone || t.targetSprint,
-        acProgress: t.acceptanceCriteriaList 
-          ? `${t.acceptanceCriteriaList.filter((ac: any) => ac.checked).length}/${t.acceptanceCriteriaList.length} AC` 
-          : '0/0 AC'
-      }))
+      tasks: tasks.map(t => {
+        const acList = t.acceptanceCriteriaList || t.acceptanceCriteria || [];
+        return {
+          id: t.code || t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          type: t.type,
+          milestone: t.milestone || t.targetSprint,
+          acProgress: acList.length > 0 
+            ? `${acList.filter((ac: any) => ac.checked).length}/${acList.length} AC` 
+            : '0/0 AC'
+        };
+      })
     };
   }
 
@@ -822,50 +555,18 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
-    const tasks = readTasksForProject(targetProject);
-    const total = tasks.length;
-    const closedStatuses = ['done', 'dismissed', 'cancelled', 'released'];
-    let openCount = 0;
-    let doneCount = 0;
-    const byStatus: Record<string, number> = {};
-    const byPriority: Record<string, number> = {};
-    const byPrefix: Record<string, { total: number; open: number; done: number }> = {};
-
-    for (const t of tasks) {
-      const s = normalizeStatus(t.status);
-      const p = normalizePriority(t.priority);
-      const isClosed = closedStatuses.includes(s);
-      if (isClosed) doneCount++; else openCount++;
-
-      byStatus[s] = (byStatus[s] || 0) + 1;
-      byPriority[p] = (byPriority[p] || 0) + 1;
-
-      const code = String(t.code || t.id || '');
-      const parts = code.split('-');
-      const prefix = parts.length > 2 ? `${parts[0]}-${parts[1]}` : (parts[0] || 'OTHER');
-
-      if (!byPrefix[prefix]) {
-        byPrefix[prefix] = { total: 0, open: 0, done: 0 };
-      }
-      byPrefix[prefix].total++;
-      if (isClosed) byPrefix[prefix].done++; else byPrefix[prefix].open++;
-    }
-
-    const completionRate = total > 0 ? Math.round((doneCount / total) * 100) : 0;
-
+    const stats = BacklogService.getStats(targetProject as any);
     return {
       projectId: targetProject.id,
       projectName: targetProject.name,
       storageType: targetProject.storageType,
       summary: {
-        total,
-        open: openCount,
-        done: doneCount,
-        completionRate: `${completionRate}%`
+        total: stats.total,
+        open: stats.open,
+        done: stats.done,
+        completionRate: stats.completionRate
       },
-      byStatus,
-      byPriority,
-      byPrefix
+      ...stats
     };
   }
 
@@ -877,169 +578,16 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
     if (!targetProject) throw new Error('No hay proyectos registrados en gripm.');
 
     const updates = args.updates || {};
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
-    const cleanIds = Array.isArray(args.taskIds) ? new Set(args.taskIds.map((id: string) => String(id).toLowerCase())) : null;
-    const pfxFilter = args.filterPrefix ? String(args.filterPrefix).toLowerCase() : null;
-    const statusFilter = args.filterStatus ? normalizeStatus(args.filterStatus) : null;
-
-    let updatedCount = 0;
-    const updatedIds: string[] = [];
-    const failedUpdates: { id: string; file: string; error: string }[] = [];
-
-    // Markdown storage
-    if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
-      const tasksDir = getTasksDir(targetProject);
-      if (!fs.existsSync(tasksDir)) throw new Error('Carpeta de tareas no encontrada.');
-      const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-
-      for (const file of files) {
-        try {
-          const fullPath = path.join(tasksDir, file);
-          const raw = fs.readFileSync(fullPath, 'utf8');
-          const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
-          const current = parseBacklogMd(raw, fallbackId);
-          const taskId = String(current.id || fallbackId).toLowerCase();
-
-          // Match criteria
-          let match = false;
-          if (cleanIds) {
-            match = cleanIds.has(taskId);
-          } else if (pfxFilter) {
-            match = taskId.startsWith(pfxFilter);
-          } else {
-            match = true;
-          }
-
-          if (statusFilter && normalizeStatus(current.status) !== statusFilter) {
-            match = false;
-          }
-
-          if (match) {
-            if (updates.status) current.status = normalizeStatus(updates.status);
-            if (updates.priority) current.priority = normalizePriority(updates.priority);
-            if (updates.milestone !== undefined) current.milestone = updates.milestone;
-            if (updates.sprint !== undefined) {
-              const legSprint = resolveLegibleSprint(targetProject, updates.sprint);
-              if (legSprint) {
-                current.sprint = legSprint;
-                current.targetSprint = legSprint;
-                if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
-                current.rawExtraFrontmatter.sprint = legSprint;
-                current.rawExtraFrontmatter.targetSprint = legSprint;
-                current.sprints = [legSprint];
-              } else {
-                current.sprint = undefined;
-                current.targetSprint = undefined;
-                current.sprints = [];
-                if (current.rawExtraFrontmatter) {
-                  delete current.rawExtraFrontmatter.sprint;
-                  delete current.rawExtraFrontmatter.targetSprint;
-                }
-              }
-            }
-            if (updates.implementationNotes !== undefined) current.implementationNotes = updates.implementationNotes;
-            if (Array.isArray(updates.labels)) current.labels = updates.labels;
-            if (updates.estimate !== undefined) {
-              if (updates.estimate === '' || updates.estimate === null) {
-                current.estimate = undefined;
-                if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
-              } else {
-                const num = Number(updates.estimate);
-                current.estimate = (!isNaN(num) && typeof updates.estimate !== 'boolean' && !String(updates.estimate).includes(' ')) ? num : updates.estimate;
-                if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(updates.estimate);
-              }
-            }
-            current.updatedDate = today;
-
-            const serialized = serializeBacklogMd(current);
-            // Sobreescritura in-place del archivo existente sin renombrar ni generar slugs innecesarios
-            atomicWriteFileSync(fullPath, serialized, 'utf8');
-            updatedCount++;
-            updatedIds.push(current.id);
-          }
-        } catch (err: any) {
-          failedUpdates.push({ id: file, file, error: err?.message || String(err) });
-        }
-      }
-
-      return {
-        ok: failedUpdates.length === 0,
-        projectId: targetProject.id,
-        storageType: 'markdown',
-        updatedCount,
-        updatedIds,
-        ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {})
-      };
-    }
-
-    // JSON storage
-    const filePath = getProjectJsonBacklogPath(targetProject);
-
-    if (fs.existsSync(filePath)) {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const items = data.items || [];
-
-      for (let i = 0; i < items.length; i++) {
-        const current = items[i];
-        const taskId = String(current.id || current.code || '').toLowerCase();
-
-        let match = false;
-        if (cleanIds) {
-          match = cleanIds.has(taskId);
-        } else if (pfxFilter) {
-          match = taskId.startsWith(pfxFilter);
-        } else {
-          match = true;
-        }
-
-        if (statusFilter && normalizeStatus(current.status) !== statusFilter) {
-          match = false;
-        }
-
-        if (match) {
-          if (updates.status) current.status = normalizeStatus(updates.status);
-          if (updates.priority) current.priority = normalizePriority(updates.priority);
-          if (updates.milestone !== undefined) {
-            current.milestone = updates.milestone;
-            current.targetSprint = updates.milestone;
-          }
-          if (updates.sprint !== undefined) {
-            const legSprint = resolveLegibleSprint(targetProject, updates.sprint);
-            current.sprint = legSprint;
-            current.targetSprint = legSprint;
-            current.sprints = legSprint ? [legSprint] : [];
-          }
-          if (updates.implementationNotes !== undefined) {
-            current.implementationNotes = updates.implementationNotes;
-            current.fix = updates.implementationNotes;
-          }
-          if (Array.isArray(updates.labels)) current.labels = updates.labels;
-          if (updates.estimate !== undefined) {
-            current.estimate = (updates.estimate === '' || updates.estimate === null) ? undefined : updates.estimate;
-          }
-          current.updatedAt = now;
-
-          items[i] = current;
-          updatedCount++;
-          updatedIds.push(current.code || current.id);
-        }
-      }
-
-      data.items = items;
-      data.lastUpdated = now;
-      atomicWriteFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-
-      return {
-        ok: true,
-        projectId: targetProject.id,
-        storageType: 'json',
-        updatedCount,
-        updatedIds
-      };
-    }
-
-    throw new Error('No se pudo encontrar el archivo de almacenamiento del proyecto.');
+    return BacklogService.bulkUpdateTasks(
+      targetProject as any,
+      {
+        taskIds: args.taskIds,
+        filterPrefix: args.filterPrefix,
+        filterStatus: args.filterStatus
+      },
+      updates,
+      { force: args.force, verifyCommand: args.verifyCommand }
+    );
   }
 
   if (name === 'gripm_get_task') {
@@ -1049,18 +597,10 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
     const cleanId = String(args.taskId).toLowerCase();
     for (const p of registry.projects) {
       if (args.projectId && p.id !== args.projectId) continue;
-      const tasks = readTasksForProject(p);
-      const match = tasks.find(t => 
-        (t.id && t.id.toLowerCase() === cleanId) || 
-        (t.code && t.code.toLowerCase() === cleanId)
-      );
-      if (match) {
-        return {
-          found: true,
-          project: { id: p.id, name: p.name, storageType: p.storageType },
-          task: match
-        };
-      }
+      try {
+        const res = BacklogService.getTask(p as any, cleanId);
+        if (res.found) return res;
+      } catch {}
     }
     throw new Error(`Tarea ${args.taskId} no encontrada.`);
   }
@@ -1071,78 +611,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects[0];
     if (!project) throw new Error('Proyecto no encontrado.');
 
-    const cleanPrefix = (project.codePrefix || 'DEV').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'DEV';
-    const tasks = readTasksForProject(project);
-
-    let maxNum = 0;
-    const regex = new RegExp(`^${cleanPrefix}-(\\d+)`, 'i');
-    for (const t of tasks) {
-      const m = (t.code || t.id || '').match(regex);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        if (n > maxNum) maxNum = n;
-      }
-    }
-    const nextNum = maxNum > 0 ? maxNum + 1 : tasks.length + 1;
-    const code = `${cleanPrefix}-${String(nextNum).padStart(3, '0')}`;
-    const today = new Date().toISOString().split('T')[0];
-
-    const acList = (args.acceptanceCriteria || []).map((text: string, i: number) => ({
-      index: i + 1,
-      text,
-      checked: false
-    }));
-
-    let initialEstimate: string | number | undefined;
-    if (args.estimate !== undefined && args.estimate !== null && args.estimate !== '') {
-      const num = Number(args.estimate);
-      initialEstimate = (!isNaN(num) && typeof args.estimate !== 'boolean' && !String(args.estimate).includes(' ')) ? num : args.estimate;
-    }
-
-    const taskData: BacklogMdTask = {
-      id: code,
-      title: args.title,
-      status: normalizeStatus(args.status || 'draft'),
-      priority: normalizePriority(args.priority || 'medium'),
-      type: args.type || 'feature',
-      createdDate: today,
-      updatedDate: today,
-      milestone: args.milestone,
-      estimate: initialEstimate,
-      description: args.description || '',
-      acceptanceCriteria: acList,
-      implementationPlan: args.implementationPlan || ''
-    };
-
-    if (project.storageType === 'markdown' && project.repoPath) {
-      const tasksDir = getTasksDir(project);
-      if (!fs.existsSync(tasksDir)) fs.mkdirSync(tasksDir, { recursive: true });
-      const filename = generateTaskFilename(code, args.title);
-      const filepath = path.join(tasksDir, filename);
-      atomicWriteFileSync(filepath, serializeBacklogMd(taskData), 'utf8');
-      return { ok: true, task: taskData, savedFile: filepath };
-    }
-
-    // JSON fallback
-    const filePath = getProjectJsonBacklogPath(project);
-    
-    const now = new Date().toISOString();
-    const newItem = {
-      ...taskData,
-      code,
-      projectId: project.id,
-      acceptanceCriteriaList: acList,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    let existingData = { project, items: [] as any[], releases: [] };
-    if (fs.existsSync(filePath)) {
-      existingData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-    existingData.items.push(newItem);
-    atomicWriteFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf8');
-    return { ok: true, task: newItem, savedFile: filePath };
+    return BacklogService.createTask(project as any, args);
   }
 
   if (name === 'gripm_update_task') {
@@ -1154,308 +623,23 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
         throw new Error(`[MCP Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${args.toggleAcIndex}'.`);
       }
     }
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
 
     for (const project of registry.projects) {
       if (args.projectId && project.id !== args.projectId) continue;
-
-      if (project.storageType === 'markdown' && project.repoPath) {
-        const tasksDir = getTasksDir(project);
-        if (!fs.existsSync(tasksDir)) continue;
-        const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-        const cleanId = String(args.taskId).toLowerCase();
-
-        // 1. Coincidencia por convención de nombre de archivo (case-insensitive)
-        let resolvedFile = files.find(f => {
-          const fLower = f.toLowerCase();
-          return fLower.startsWith(`${cleanId} `) || fLower === `${cleanId}.md` || fLower.startsWith(`${cleanId}-`);
+      try {
+        const res = BacklogService.updateTask(project as any, args.taskId, args, {
+          force: args.force,
+          verifyCommand: args.verifyCommand
         });
-
-        // 2. Reconciliación por frontmatter YAML si el archivo fue renombrado (DEV-019)
-        if (!resolvedFile) {
-          for (const f of files) {
-            try {
-              const raw = fs.readFileSync(path.join(tasksDir, f), 'utf8');
-              const fallbackId = f.split(' - ')[0] || f.replace(/\.md$/, '');
-              const task = parseBacklogMd(raw, fallbackId);
-              if (task.id && task.id.toLowerCase() === cleanId) {
-                resolvedFile = f;
-                break;
-              }
-            } catch {}
-          }
+        if (res.ok) return res;
+      } catch (err: any) {
+        if (err.message && err.message.includes('[MCP Gatekeeper')) {
+          throw err;
         }
-
-        if (resolvedFile) {
-          const fullPath = path.join(tasksDir, resolvedFile);
-          const raw = fs.readFileSync(fullPath, 'utf8');
-          const current = parseBacklogMd(raw, args.taskId);
-
-          const effectiveStatus = args.status || args.updates?.status;
-          const effectiveTitle = args.title || args.updates?.title;
-          const effectiveDesc = args.description !== undefined ? args.description : args.updates?.description;
-          const effectivePriority = args.priority || args.updates?.priority;
-          const effectivePlan = args.implementationPlan !== undefined ? args.implementationPlan : args.updates?.implementationPlan;
-          const effectiveMilestone = args.milestone !== undefined ? args.milestone : args.updates?.milestone;
-          const effectiveSprint = args.sprint !== undefined ? args.sprint : args.updates?.sprint;
-          const effectiveCheckAllAcs = args.checkAllAcs !== undefined ? args.checkAllAcs : args.updates?.checkAllAcs;
-          const usedUpdatesObject = Boolean(args.updates && !args.status && args.updates.status);
-
-          if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
-          if (effectiveTitle) current.title = effectiveTitle;
-          if (effectiveDesc !== undefined) current.description = effectiveDesc;
-          if (effectivePriority) current.priority = normalizePriority(effectivePriority);
-          if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
-          if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
-          if (effectiveSprint !== undefined) {
-            const legSprint = resolveLegibleSprint(project, effectiveSprint);
-            if (legSprint) {
-              current.sprint = legSprint;
-              current.targetSprint = legSprint;
-              if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
-              current.rawExtraFrontmatter.sprint = legSprint;
-              current.rawExtraFrontmatter.targetSprint = legSprint;
-              current.sprints = [legSprint];
-            } else {
-              current.sprint = undefined;
-              current.targetSprint = undefined;
-              current.sprints = [];
-              if (current.rawExtraFrontmatter) {
-                delete current.rawExtraFrontmatter.sprint;
-                delete current.rawExtraFrontmatter.targetSprint;
-              }
-            }
-          }
-          const effectiveEstimate = args.estimate !== undefined ? args.estimate : args.updates?.estimate;
-          if (effectiveEstimate !== undefined) {
-            if (effectiveEstimate === '' || effectiveEstimate === null) {
-              current.estimate = undefined;
-              if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
-            } else {
-              const num = Number(effectiveEstimate);
-              current.estimate = (!isNaN(num) && typeof effectiveEstimate !== 'boolean' && !String(effectiveEstimate).includes(' ')) ? num : effectiveEstimate;
-              if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(effectiveEstimate);
-            }
-          }
-          current.updatedDate = today;
-
-          if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteria) {
-            current.acceptanceCriteria = current.acceptanceCriteria.map(ac => ({
-              ...ac,
-              checked: Boolean(effectiveCheckAllAcs)
-            }));
-          } else if (args.toggleAcIndex !== undefined) {
-            const acList = current.acceptanceCriteria || [];
-            const foundAc = acList.find(ac => ac.index === args.toggleAcIndex);
-            if (!foundAc) {
-              throw new Error(`[MCP Validation] Criterio de aceptación #${args.toggleAcIndex} no encontrado en la tarea '${current.id}'.`);
-            }
-            current.acceptanceCriteria = acList.map(ac => 
-              ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
-            );
-          }
-
-          // DEV-224: Execution Gatekeeper for terminal/certification status transitions
-          const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
-          const isTransitionToTerminal = targetStatus === 'ready' || targetStatus === 'done';
-
-          if (!args.force && isTransitionToTerminal) {
-            const acs = current.acceptanceCriteria || [];
-            const unchecked = acs.filter(ac => !ac.checked);
-            if (unchecked.length > 0) {
-              const uncheckedList = unchecked.map(ac => `  - [ ] #${ac.index} ${ac.text}`).join('\n');
-              throw new Error(
-                `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${current.id}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
-                `${uncheckedList}\n\n` +
-                `Acción correctiva: Completa la implementación de cada criterio pendiente y márcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
-              );
-            }
-
-            // SEC-01 & DEV-244: verifyCommand is ONLY accepted if passed explicitly in args
-            // and must pass strict validation against prompt injection and subshell execution.
-            const verifyCmd = args.verifyCommand;
-
-            if (verifyCmd && typeof verifyCmd === 'string') {
-              const execCwd = project.repoPath || process.cwd();
-              const validation = validateVerifyCommand(verifyCmd, execCwd);
-              if (!validation.valid) {
-                throw new Error(
-                  `[MCP Gatekeeper Security] Transición rechazada: El comando de verificación '${verifyCmd}' no está permitido al intentar mover '${current.id}' a '${targetStatus}':\n` +
-                  `${validation.reason}\n\n` +
-                  `Acción correctiva: Utiliza únicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
-                );
-              }
-
-              try {
-                execSync(validation.command || verifyCmd, {
-                  cwd: execCwd,
-                  stdio: 'pipe',
-                  encoding: 'utf8',
-                  timeout: 15000
-                });
-              } catch (execErr: any) {
-                const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
-                throw new Error(
-                  `[MCP Gatekeeper] Transición rechazada: El comando de verificación '${verifyCmd}' falló al intentar mover '${current.id}' a '${targetStatus}':\n` +
-                  `${outMsg}\n\n` +
-                  `Acción correctiva: Revisa los errores del script de verificación, soluciona los fallos y vuelve a intentar certificar la tarea.`
-                );
-              }
-            }
-          }
-
-          // SEC-01: Eradicate persistence of verifyCommand in Markdown frontmatter
-          if (current.rawExtraFrontmatter) {
-            delete current.rawExtraFrontmatter.verifyCommand;
-            delete current.rawExtraFrontmatter.verify_command;
-            delete current.rawExtraFrontmatter.verifyCmd;
-          }
-
-          const serialized = serializeBacklogMd(current);
-          // Sobreescritura in-place del archivo existente (fullPath) sin borrar ni generar slugs innecesarios
-          atomicWriteFileSync(fullPath, serialized, 'utf8');
-          const resp: any = { ok: true, updatedTask: current, filePath: fullPath };
-          if (usedUpdatesObject) {
-            resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
-          }
-          // SEC-09: Audit logging when force: true bypasses the Gatekeeper
-          if (args.force) {
-            const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id}', omitiendo las validaciones del Gatekeeper.`;
-            resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
-            resp.audit = {
-              bypassedGatekeeper: true,
-              timestamp: now
-            };
-          }
-          return resp;
+        if (err.message && err.message.includes('no encontrada')) {
+          continue;
         }
-      } else {
-        // JSON storage update
-        const filePath = getProjectJsonBacklogPath(project);
-        
-        if (fs.existsSync(filePath)) {
-          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-          const cleanId = String(args.taskId).toLowerCase();
-          const idx = data.items.findIndex((i: any) => 
-            (i.id && String(i.id).toLowerCase() === cleanId) || 
-            (i.code && String(i.code).toLowerCase() === cleanId)
-          );
-          if (idx >= 0) {
-            const current = data.items[idx];
-            const effectiveStatus = args.status || args.updates?.status;
-            const effectiveTitle = args.title || args.updates?.title;
-            const effectiveDesc = args.description !== undefined ? args.description : args.updates?.description;
-            const effectivePriority = args.priority || args.updates?.priority;
-            const effectivePlan = args.implementationPlan !== undefined ? args.implementationPlan : args.updates?.implementationPlan;
-            const effectiveMilestone = args.milestone !== undefined ? args.milestone : args.updates?.milestone;
-            const effectiveSprint = args.sprint !== undefined ? args.sprint : args.updates?.sprint;
-            const effectiveCheckAllAcs = args.checkAllAcs !== undefined ? args.checkAllAcs : args.updates?.checkAllAcs;
-            const usedUpdatesObject = Boolean(args.updates && !args.status && args.updates.status);
-
-            if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
-            if (effectiveTitle) current.title = effectiveTitle;
-            if (effectiveDesc !== undefined) current.description = effectiveDesc;
-            if (effectivePriority) current.priority = normalizePriority(effectivePriority);
-            if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
-            if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
-            if (effectiveSprint !== undefined) {
-              const legSprint = resolveLegibleSprint(project, effectiveSprint);
-              current.sprint = legSprint;
-              current.targetSprint = legSprint;
-              current.sprints = legSprint ? [legSprint] : [];
-            }
-            const effectiveEstimate = args.estimate !== undefined ? args.estimate : args.updates?.estimate;
-            if (effectiveEstimate !== undefined) {
-              current.estimate = (effectiveEstimate === '' || effectiveEstimate === null) ? undefined : effectiveEstimate;
-            }
-            current.updatedAt = now;
-
-            if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteriaList) {
-              current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) => ({
-                ...ac,
-                checked: Boolean(effectiveCheckAllAcs)
-              }));
-            } else if (args.toggleAcIndex !== undefined) {
-              const acList = current.acceptanceCriteriaList || [];
-              const foundAc = acList.find((ac: any) => ac.index === args.toggleAcIndex);
-              if (!foundAc) {
-                throw new Error(`[MCP Validation] Criterio de aceptación #${args.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
-              }
-              current.acceptanceCriteriaList = acList.map((ac: any) =>
-                ac.index === args.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
-              );
-            }
-
-            // DEV-224: Execution Gatekeeper for terminal/certification status transitions
-            const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
-            const isTransitionToTerminal = targetStatus === 'ready' || targetStatus === 'done';
-
-            if (!args.force && isTransitionToTerminal) {
-              const acs = current.acceptanceCriteriaList || [];
-              const unchecked = acs.filter((ac: any) => !ac.checked);
-              if (unchecked.length > 0) {
-                const uncheckedList = unchecked.map((ac: any) => `  - [ ] #${ac.index} ${ac.text}`).join('\n');
-                throw new Error(
-                  `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${current.id || current.code}' a '${targetStatus}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
-                  `${uncheckedList}\n\n` +
-                  `Acción correctiva: Completa la implementación de cada criterio pendiente y márcalo como completado (- [x]) antes de certificar la tarea como '${targetStatus}'.`
-                );
-              }
-
-              // SEC-01 & DEV-244: verifyCommand is ONLY accepted if passed explicitly in args
-              // and must pass strict validation against prompt injection and subshell execution.
-              const verifyCmd = args.verifyCommand;
-              if (verifyCmd && typeof verifyCmd === 'string') {
-                const execCwd = project.repoPath || process.cwd();
-                const validation = validateVerifyCommand(verifyCmd, execCwd);
-                if (!validation.valid) {
-                  throw new Error(
-                    `[MCP Gatekeeper Security] Transición rechazada: El comando de verificación '${verifyCmd}' no está permitido al intentar mover '${current.id || current.code}' a '${targetStatus}':\n` +
-                    `${validation.reason}\n\n` +
-                    `Acción correctiva: Utiliza únicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
-                  );
-                }
-
-                try {
-                  execSync(validation.command || verifyCmd, {
-                    cwd: execCwd,
-                    stdio: 'pipe',
-                    encoding: 'utf8',
-                    timeout: 15000
-                  });
-                } catch (execErr: any) {
-                  const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
-                  throw new Error(
-                    `[MCP Gatekeeper] Transición rechazada: El comando de verificación '${verifyCmd}' falló al intentar mover '${current.id || current.code}' a '${targetStatus}':\n` +
-                    `${outMsg}\n\n` +
-                    `Acción correctiva: Revisa los errores del script de verificación, soluciona los fallos y vuelve a intentar certificar la tarea.`
-                  );
-                }
-              }
-            }
-
-            // SEC-01: Eradicate persistence of verifyCommand in JSON tasks
-            delete current.verifyCommand;
-
-            data.items[idx] = current;
-            atomicWriteFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-            const resp: any = { ok: true, updatedTask: current, filePath };
-            if (usedUpdatesObject) {
-              resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
-            }
-            // SEC-09: Audit logging when force: true bypasses the Gatekeeper
-            if (args.force) {
-              const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id || current.code}', omitiendo las validaciones del Gatekeeper.`;
-              resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
-              resp.audit = {
-                bypassedGatekeeper: true,
-                timestamp: now
-              };
-            }
-            return resp;
-          }
-        }
+        throw err;
       }
     }
     throw new Error(`Tarea ${args.taskId} no encontrada para actualizar.`);
@@ -1467,29 +651,11 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects[0];
     if (!project) throw new Error('Proyecto no encontrado.');
 
-    const tasks = readTasksForProject(project);
-    const mdTasks: BacklogMdTask[] = tasks.map(t => ({
-      id: t.code || t.id,
-      title: t.title,
-      status: normalizeStatus(t.status),
-      type: t.type,
-      priority: t.priority,
-      milestone: t.milestone,
-      description: t.description,
-      acceptanceCriteria: t.acceptanceCriteriaList || []
-    }));
-
-    const content = generateMonolithicBacklogMd(project.name, mdTasks);
-    let savedPath = null;
-    if (project.repoPath) {
-      savedPath = path.join(project.repoPath, 'BACKLOG.md');
-      atomicWriteFileSync(savedPath, content, 'utf8');
-    }
-
+    const res = BacklogService.exportBacklogMd(project as any, { save: true });
     return {
       ok: true,
-      savedPath,
-      taskCount: tasks.length
+      savedPath: res.savedPath || null,
+      taskCount: res.taskCount
     };
   }
 
@@ -1499,84 +665,16 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       || registry.projects[0];
     if (!targetProject) throw new Error('Proyecto no encontrado.');
 
-    let fixedCount = 0;
-    const errors: string[] = [];
-    // SEC-02: Default false (safe audit mode). Mutations require explicit opt-in autoFix: true.
-    const autoFix = args.autoFix === true;
-
-    if (targetProject.storageType === 'markdown' && targetProject.repoPath) {
-      const tasksDir = getTasksDir(targetProject);
-      if (fs.existsSync(tasksDir)) {
-        const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-        for (const file of files) {
-          const filePath = path.join(tasksDir, file);
-          const content = fs.readFileSync(filePath, 'utf8');
-          const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-          if (!fmMatch) continue;
-
-          const fm = fmMatch[1];
-          const statusMatch = fm.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
-          const idMatch = fm.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
-          const rawStatus = (statusMatch ? statusMatch[1] : '').toLowerCase();
-          const taskId = idMatch ? idMatch[1] : file.split(' - ')[0];
-
-          const acBlockMatch = content.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
-          if (!acBlockMatch) continue;
-
-          const acBlock = acBlockMatch[1];
-          const allAcs = acBlock.match(/^-\s*\[([ xX])\]/gm) || [];
-          const checkedAcs = acBlock.match(/^-\s*\[[xX]\]/gm) || [];
-          const totalAcs = allAcs.length;
-          const totalChecked = checkedAcs.length;
-
-          // Regla 1: Si todos los AC están marcados, promocionar a ready (DEV-235 / GATE-17)
-          if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === 'draft' || rawStatus === 'doing')) {
-            if (autoFix) {
-              const updatedFm = fm.replace(/^status:\s*.*$/m, 'status: ready');
-              const updatedContent = content.replace(fmMatch[0], `---\n${updatedFm}\n---`);
-              atomicWriteFileSync(filePath, updatedContent, 'utf8');
-              fixedCount++;
-            } else {
-              errors.push(`${taskId}: Todos los AC completados (${totalChecked}/${totalAcs}) pero status es '${rawStatus}'`);
-            }
-          }
-
-          // Regla 2 (SEC-02): Nunca tildar automáticamente ACs en tareas 'done' (prohibido fabricar evidencia).
-          if (rawStatus === 'done' && totalAcs > 0 && totalChecked < totalAcs) {
-            errors.push(`${taskId}: Status es 'done' pero solo tiene ${totalChecked}/${totalAcs} ACs marcados`);
-          }
-        }
-      }
-    }
-
-    // Regenerar BACKLOG.md
-    const allTasks = readTasksForProject(targetProject);
-    const mdTasks: BacklogMdTask[] = allTasks.map(t => ({
-      id: t.code || t.id,
-      title: t.title,
-      status: normalizeStatus(t.status),
-      type: t.type,
-      priority: t.priority,
-      milestone: t.milestone,
-      description: t.description,
-      acceptanceCriteria: t.acceptanceCriteriaList || []
-    }));
-
-    const content = generateMonolithicBacklogMd(targetProject.name, mdTasks);
-    let backlogPath = null;
-    if (targetProject.repoPath) {
-      backlogPath = path.join(targetProject.repoPath, 'BACKLOG.md');
-      atomicWriteFileSync(backlogPath, content, 'utf8');
-    }
-
+    const res = BacklogService.syncBacklog(targetProject as any, { autoFix: args.autoFix });
     return {
-      ok: true,
-      autoFix,
-      fixedCount,
-      errorsFound: errors.length,
-      errors,
-      taskCount: allTasks.length,
-      backlogPath
+      ok: res.ok,
+      autoFix: res.autoFix,
+      fixedCount: res.fixedCount,
+      errorsFound: res.errorsFound,
+      errors: res.errors,
+      warnings: res.warnings,
+      taskCount: res.taskCount,
+      backlogPath: res.backlogPath
     };
   }
 

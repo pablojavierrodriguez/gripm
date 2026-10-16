@@ -1,9 +1,14 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { serializeBacklogMd } from './backlogMdParser.ts';
 
-const TASKS_DIR = path.resolve(process.cwd(), 'backlog/tasks');
+const ROOT = process.cwd();
+const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-cli-resilience-'));
+const TASKS_DIR = path.join(tmpRepo, 'backlog/tasks');
+fs.mkdirSync(TASKS_DIR, { recursive: true });
+
 const TEST_ID = 'DEV-999';
 const ANOMALOUS_FILENAME = 'anomalous-orphan-task-file.md';
 const ANOMALOUS_PATH = path.join(TASKS_DIR, ANOMALOUS_FILENAME);
@@ -11,12 +16,8 @@ const ANOMALOUS_PATH = path.join(TASKS_DIR, ANOMALOUS_FILENAME);
 console.log('🧪 Iniciando pruebas de DEV-019 (Resiliencia) y DEV-020 (CLI y token efficiency)...');
 
 function cleanup() {
-  if (fs.existsSync(ANOMALOUS_PATH)) {
-    try { fs.unlinkSync(ANOMALOUS_PATH); } catch {}
-  }
-  const canonicalPath = path.join(TASKS_DIR, 'DEV-999 - Tarea de prueba huérfana para resiliencia.md');
-  if (fs.existsSync(canonicalPath)) {
-    try { fs.unlinkSync(canonicalPath); } catch {}
+  if (fs.existsSync(tmpRepo)) {
+    try { fs.rmSync(tmpRepo, { recursive: true, force: true }); } catch {}
   }
 }
 
@@ -41,7 +42,9 @@ try {
   fs.writeFileSync(ANOMALOUS_PATH, serializeBacklogMd(testTask), 'utf8');
   console.log('✅ Creado archivo anómalo:', ANOMALOUS_FILENAME);
   // 2. Verificar que gripm-cli la lista correctamente reconociendo el ID de frontmatter
-  const cliOutput = execSync('node --experimental-strip-types scripts/gripm-cli.ts list --open --search "huérfana"', {
+  const cliPath = path.resolve(ROOT, 'scripts/gripm-cli.ts');
+  const cliOutput = execSync(`node --experimental-strip-types "${cliPath}" list --open --search "huérfana"`, {
+    cwd: tmpRepo,
     encoding: 'utf8'
   });
   console.log('Salida CLI:\n', cliOutput);
@@ -51,7 +54,8 @@ try {
   console.log('✅ DEV-019: CLI reconoció la tarea huérfana por frontmatter YAML');
 
   // 3. Verificar gripm-cli con --json
-  const jsonOutput = execSync('node --experimental-strip-types scripts/gripm-cli.ts list --open --search "DEV-999" --json', {
+  const jsonOutput = execSync(`node --experimental-strip-types "${cliPath}" list --open --search "DEV-999" --json`, {
+    cwd: tmpRepo,
     encoding: 'utf8'
   });
   const parsed = JSON.parse(jsonOutput);
@@ -61,7 +65,7 @@ try {
   console.log('✅ DEV-020: Salida JSON estructurada validada');
 
   // 4. Verificar comando npm run tasks
-  const npmTasksOutput = execSync('npm run tasks -- --limit 5', { encoding: 'utf8' });
+  const npmTasksOutput = execSync('npm run tasks -- --limit 5', { cwd: ROOT, encoding: 'utf8' });
   if (!npmTasksOutput.includes('Backlog:') || !npmTasksOutput.includes('DEV-')) {
     throw new Error('npm run tasks no funcionó como se esperaba.');
   }
@@ -130,10 +134,9 @@ try {
   console.log('✅ DEV-215: Tolerancia de variantes de flags (--h, -help) y limpieza de ayuda verificadas con éxito');
 
   // 7. DEV-216: Cero creación preventiva de backlog/tasks en carpetas no inicializadas
-  const tempNoBacklog = path.join(process.cwd(), 'data/test-no-backlog-' + Date.now());
-  fs.mkdirSync(tempNoBacklog, { recursive: true });
+  const tempNoBacklog = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-no-backlog-'));
   try {
-    execSync(`node bin/gripm.js --repo "${tempNoBacklog}" --help`, { encoding: 'utf8' });
+    execSync(`node "${path.resolve(ROOT, 'bin/gripm.js')}" --repo "${tempNoBacklog}" --help`, { cwd: ROOT, encoding: 'utf8' });
     const tasksCreated = fs.existsSync(path.join(tempNoBacklog, 'backlog/tasks'));
     if (tasksCreated) {
       throw new Error('DEV-216 FAILED: bin/gripm.js creó preventivamente backlog/tasks en el repositorio sin --init');
@@ -147,19 +150,19 @@ try {
 
   // 8. DEV-240: Verificación de precedencia de flags CLI --single vs --hub e interoperabilidad
   {
-    const binSource = fs.readFileSync(path.join(process.cwd(), 'bin/gripm.js'), 'utf8');
+    const binSource = fs.readFileSync(path.join(ROOT, 'bin/gripm.js'), 'utf8');
     if (!binSource.includes("process.env.GRIPM_MODE = 'multi'") || !binSource.includes("process.env.GRIPM_MODE = 'single'") || !binSource.includes("delete process.env.GRIPM_MODE")) {
       throw new Error('DEV-240 FAILED: bin/gripm.js no maneja flags --single / --hub con precedencia limpia');
     }
 
-    const appSource = fs.readFileSync(path.join(process.cwd(), 'src/App.tsx'), 'utf8');
+    const appSource = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8');
     if (!appSource.includes('singleProject={boardData ? Boolean(boardData.singleProject) :')) {
       throw new Error('DEV-240 FAILED: src/App.tsx no prioriza boardData.singleProject para el selector');
     }
 
-    const registrySource = fs.existsSync(path.join(process.cwd(), 'server/services/registry.ts'))
-      ? fs.readFileSync(path.join(process.cwd(), 'server/services/registry.ts'), 'utf8')
-      : fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
+    const registrySource = fs.existsSync(path.join(ROOT, 'server/services/registry.ts'))
+      ? fs.readFileSync(path.join(ROOT, 'server/services/registry.ts'), 'utf8')
+      : fs.readFileSync(path.join(ROOT, 'vite.config.ts'), 'utf8');
     if (!registrySource.includes('if (!reg.activeProjectId) {') || !registrySource.includes('reg.activeProjectId = existingLocal.id;')) {
       throw new Error('DEV-240 FAILED: server/services/registry.ts no preserva activeProjectId al descubrir repo local');
     }
@@ -169,10 +172,9 @@ try {
 
   // 9. DEV-250: Inicialización limpia por defecto (cero archivos de Playbook en --init)
   {
-    const tempInitClean = path.join(process.cwd(), 'data/test-init-clean-' + Date.now());
-    fs.mkdirSync(tempInitClean, { recursive: true });
+    const tempInitClean = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-init-clean-'));
     try {
-      execSync(`node bin/gripm.js --repo "${tempInitClean}" --init --minimal -y`, { encoding: 'utf8' });
+      execSync(`node "${path.resolve(ROOT, 'bin/gripm.js')}" --repo "${tempInitClean}" --init --minimal -y`, { cwd: ROOT, encoding: 'utf8' });
       const hasTeamPlaybook = fs.existsSync(path.join(tempInitClean, '.agents/TEAM_PLAYBOOK.md'));
       const hasStateMachine = fs.existsSync(path.join(tempInitClean, '.agents/STATE_MACHINE.md'));
       const hasAuditScript = fs.existsSync(path.join(tempInitClean, 'scripts/audit-ux-code.cjs'));
@@ -195,15 +197,7 @@ try {
 
 
 } finally {
-  // Limpieza
-  if (fs.existsSync(ANOMALOUS_PATH)) {
-    fs.unlinkSync(ANOMALOUS_PATH);
-  }
-  // Limpiar si se renombró canónicamente
-  const canonicalPath = path.join(TASKS_DIR, 'DEV-999 - Tarea de prueba huérfana para resiliencia.md');
-  if (fs.existsSync(canonicalPath)) {
-    fs.unlinkSync(canonicalPath);
-  }
+  cleanup();
   console.log('🧹 Limpieza de archivos de prueba completada');
 }
 

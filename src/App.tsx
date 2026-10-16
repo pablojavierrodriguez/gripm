@@ -45,22 +45,23 @@ import {
 import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
-import { SprintView } from './components/SprintView';
-import { TimelineView } from './components/TimelineView';
 import { ItemModal } from './components/ItemModal';
 import { ProjectModal } from './components/ProjectModal';
 import { PlanGuardModal } from './components/PlanGuardModal';
-import { ImportWizardModal } from './components/ImportWizardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { TrashView } from './components/TrashView';
-import { MetricsView } from './components/MetricsView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
+import { filterItems, getAvailableModules } from './utils/filterItems';
 
 type AppActiveTab = ActiveTab;
 
+const SprintView = lazy(() => import('./components/SprintView').then(m => ({ default: m.SprintView })));
+const TimelineView = lazy(() => import('./components/TimelineView').then(m => ({ default: m.TimelineView })));
+const MetricsView = lazy(() => import('./components/MetricsView').then(m => ({ default: m.MetricsView })));
+const ImportWizardModal = lazy(() => import('./components/ImportWizardModal').then(m => ({ default: m.ImportWizardModal })));
 const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
 
@@ -1101,14 +1102,10 @@ export function App() {
     return boardData.items.filter((i) => i.projectId === selectedProjectId);
   }, [boardData, selectedProjectId]);
 
-  // Unique modules for filtering dropdown
+  // Unique modules for filtering dropdown (DEV-303, AC #2)
   const availableModules = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of allProjectItems) {
-      if (it.module) set.add(it.module);
-    }
-    return Array.from(set).sort();
-  }, [allProjectItems]);
+    return getAvailableModules(allProjectItems, config?.modulesList);
+  }, [allProjectItems, config?.modulesList]);
 
   // Sprints pertenecientes al proyecto seleccionado (o todos si selectedProjectId === 'all' o singleProject)
   const projectSprints = useMemo(() => {
@@ -1190,91 +1187,10 @@ export function App() {
   }, [allProjectItems]);
 
   // Visible items after search/type/priority/module/status filters
+  // Visible items after search/type/priority/module/status filters (DEV-303, AC #1)
   const visibleItems = useMemo(() => {
-    return allProjectItems.filter((item) => {
-      if (item.isDeleted) return false;
-      const isDismissedOrCancelled = item.status === 'dismissed' || item.status === 'cancelled';
-
-      // Canonical status normalization
-      const canonicalStatus: ItemStatus =
-        item.status === 'ideas' ? 'ideas'
-        : (item.status === 'draft' || item.status === 'backlog') ? 'draft'
-        : (item.status === 'doing' || item.status === 'in_progress') ? 'doing'
-        : (item.status === 'review' || item.status === 'testing_qa') ? 'review'
-        : (item.status === 'ready' || item.status === 'finish') ? 'ready'
-        : (item.status === 'done') ? 'done'
-        : (item.status === 'dismissed' || item.status === 'cancelled') ? 'dismissed'
-        : item.status;
-
-      // In non-archive tabs, verify if item's status is selected
-      if (canonicalStatus === 'ideas') {
-        if (!filters.includeIdeas && !filters.statuses?.includes('ideas')) {
-          return false;
-        }
-      } else if (filters.statuses && filters.statuses.length > 0) {
-        if (!filters.statuses.includes(canonicalStatus) && !filters.statuses.includes(item.status)) {
-          return false;
-        }
-      } else {
-        // If statuses list is somehow empty, exclude dismissed by default
-        if (isDismissedOrCancelled && !filters.includeDismissedCancelled) {
-          return false;
-        }
-      }
-
-      // Search
-      if (filters.search && filters.search.trim()) {
-        const q = filters.search.toLowerCase();
-        const matchTitle = item.title.toLowerCase().includes(q);
-        const matchCode = item.code.toLowerCase().includes(q);
-        const matchModule = item.module ? item.module.toLowerCase().includes(q) : false;
-        const matchDesc = item.description ? item.description.toLowerCase().includes(q) : false;
-        if (!matchTitle && !matchCode && !matchModule && !matchDesc) return false;
-      }
-
-      // Types (multiselect)
-      if (filters.types && filters.types.length > 0) {
-        if (!filters.types.includes(item.type)) return false;
-      } else if (filters.type !== 'all' && item.type !== filters.type) {
-        return false;
-      }
-
-      // Priorities (multiselect)
-      if (filters.priorities && filters.priorities.length > 0) {
-        if (!filters.priorities.includes(item.priority)) return false;
-      } else if (filters.priority !== 'all' && item.priority !== filters.priority) {
-        return false;
-      }
-
-      // Sprints
-      if (filters.sprint && filters.sprint !== 'all') {
-        if (filters.sprint === 'no_sprint' || filters.sprint === 'backlog') {
-          if (item.sprint || item.targetSprint) return false;
-        } else {
-          if (item.sprint !== filters.sprint && item.targetSprint !== filters.sprint) return false;
-        }
-      }
-
-      // Releases
-      if (filters.release && filters.release !== 'all') {
-        if (item.release !== filters.release && item.targetRelease !== filters.release && item.milestone !== filters.release) {
-          return false;
-        }
-      }
-
-      // Module
-      if (filters.module !== 'all' && item.module !== filters.module) return false;
-
-      // Estimation
-      if (filters.estimates && filters.estimates.length > 0) {
-        if (item.estimate === undefined || !filters.estimates.includes(item.estimate)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [allProjectItems, activeTab, filters]);
+    return filterItems(allProjectItems, filters);
+  }, [allProjectItems, filters]);
 
   if (loading && !boardData) {
     return (
@@ -1457,51 +1373,53 @@ export function App() {
         )}
 
         {activeTab === 'sprint' && (
-          <SprintView
-            config={config}
-            projectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
-            items={visibleItems}
-            allItems={allProjectItems}
-            sprints={projectSprints}
-            onClickItem={(item) => {
-              setEditingItem(item);
-              setItemModalOpen(true);
-            }}
-            onUpdateStatus={(id, s) => handleUpdateStatus(id, s)}
-            onUpdatePriority={handleUpdatePriority}
-            onReorderItem={handleReorderBacklogItem}
-            onUpdateSprint={async (id, newSprint) => {
-              const existing = boardData?.items.find((it) => it.id === id);
-              const curSprint = existing ? (existing.sprint || existing.targetSprint || '') : '';
-              if (curSprint === newSprint) return;
-              try {
-                const updated = await updateItem(id, { 
-                  sprint: newSprint, 
-                  targetSprint: newSprint,
-                  sprints: newSprint ? [newSprint] : []
-                });
-                setBoardData((prev) => {
-                  if (!prev) return prev;
-                  return {
-                    ...prev,
-                    items: prev.items.map((it) => (it.id === id ? { ...it, ...updated } : it))
-                  };
-                });
-                showToast(t('app.taskAssignedToSprint', { code: updated.code, sprint: newSprint || t('filter.noSprint') }), 'info');
-              } catch (err: any) {
-                showToast(t('app.taskFromRetroError', { error: err.message }), 'error');
-              }
-            }}
-            onCreateSprint={handleCreateSprint}
-            onUpdateSprintMeta={handleUpdateSprintMeta}
-            onStartSprint={handleStartSprint}
-            onCompleteSprint={handleCompleteSprint}
-            onCreateTaskFromAction={handleCreateTaskFromAction}
-            onDeleteSprint={handleDeleteSprint}
-            onDeleteItem={handleDeleteItem}
-            availableSprints={availableSprints}
-            rankingEnabled={config.rankingEnabled !== false}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <SprintView
+              config={config}
+              projectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
+              items={visibleItems}
+              allItems={allProjectItems}
+              sprints={projectSprints}
+              onClickItem={(item) => {
+                setEditingItem(item);
+                setItemModalOpen(true);
+              }}
+              onUpdateStatus={(id, s) => handleUpdateStatus(id, s)}
+              onUpdatePriority={handleUpdatePriority}
+              onReorderItem={handleReorderBacklogItem}
+              onUpdateSprint={async (id, newSprint) => {
+                const existing = boardData?.items.find((it) => it.id === id);
+                const curSprint = existing ? (existing.sprint || existing.targetSprint || '') : '';
+                if (curSprint === newSprint) return;
+                try {
+                  const updated = await updateItem(id, { 
+                    sprint: newSprint, 
+                    targetSprint: newSprint,
+                    sprints: newSprint ? [newSprint] : []
+                  });
+                  setBoardData((prev) => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      items: prev.items.map((it) => (it.id === id ? { ...it, ...updated } : it))
+                    };
+                  });
+                  showToast(t('app.taskAssignedToSprint', { code: updated.code, sprint: newSprint || t('filter.noSprint') }), 'info');
+                } catch (err: any) {
+                  showToast(t('app.taskFromRetroError', { error: err.message }), 'error');
+                }
+              }}
+              onCreateSprint={handleCreateSprint}
+              onUpdateSprintMeta={handleUpdateSprintMeta}
+              onStartSprint={handleStartSprint}
+              onCompleteSprint={handleCompleteSprint}
+              onCreateTaskFromAction={handleCreateTaskFromAction}
+              onDeleteSprint={handleDeleteSprint}
+              onDeleteItem={handleDeleteItem}
+              availableSprints={availableSprints}
+              rankingEnabled={config.rankingEnabled !== false}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'release' && (
@@ -1533,9 +1451,9 @@ export function App() {
               config={config}
               isDarkMode={isDarkMode}
               onSaveConfig={handleSaveConfig}
-              currentProject={projects.find(p => p.id === selectedProjectId)}
+              currentProject={projects.find(p => p.id === selectedProjectId) || null}
               onBack={() => setActiveTab(config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban'))}
-              onShowToast={showToast}
+              onShowToast={(msg, type) => showToast(msg, type === 'warning' ? 'info' : type)}
               onOpenImportWizard={() => setImportWizardOpen(true)}
               onExportMonolithic={handleExportMonolithic}
               onExportJson={handleExportJson}
@@ -1544,27 +1462,31 @@ export function App() {
         )}
 
         {activeTab === 'timeline' && (
-          <TimelineView
-            items={visibleItems}
-            allItems={allProjectItems}
-            sprints={projectSprints}
-            releases={projectReleases}
-            onClickItem={(item) => {
-              setEditingItem(item);
-              setItemModalOpen(true);
-            }}
-            onUpdateItem={handleSaveItem}
-            config={config}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <TimelineView
+              items={visibleItems}
+              allItems={allProjectItems}
+              sprints={projectSprints}
+              releases={projectReleases}
+              onClickItem={(item) => {
+                setEditingItem(item);
+                setItemModalOpen(true);
+              }}
+              onUpdateItem={handleSaveItem}
+              config={config}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'metrics' && (
-          <MetricsView
-            items={allProjectItems}
-            sprints={projectSprints}
-            releases={projectReleases}
-            config={config}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <MetricsView
+              items={allProjectItems}
+              sprints={projectSprints}
+              releases={projectReleases}
+              config={config}
+            />
+          </Suspense>
         )}
       </main>
 
@@ -1612,17 +1534,21 @@ export function App() {
         onShowToast={showToast}
       />
 
-      {/* Import Wizard Modal (DEV-018: Legacy Markdown Import) */}
-      <ImportWizardModal
-        isOpen={importWizardOpen}
-        onClose={() => setImportWizardOpen(false)}
-        projects={boardData?.projects || []}
-        activeProjectId={selectedProjectId === 'all' ? (boardData?.projects[0]?.id || '') : selectedProjectId}
-        onImportComplete={() => {
-          loadData(true);
-          showToast(t('app.itemsImportedSuccess'), 'success');
-        }}
-      />
+      {/* Import Wizard Modal (DEV-018: Legacy Markdown Import / DEV-303: Code-splitting) */}
+      {importWizardOpen && (
+        <Suspense fallback={null}>
+          <ImportWizardModal
+            isOpen={importWizardOpen}
+            onClose={() => setImportWizardOpen(false)}
+            projects={boardData?.projects || []}
+            activeProjectId={selectedProjectId === 'all' ? (boardData?.projects[0]?.id || '') : selectedProjectId}
+            onImportComplete={() => {
+              loadData(true);
+              showToast(t('app.itemsImportedSuccess'), 'success');
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Keyboard Shortcuts Modal (DEV-254) */}
       <KeyboardShortcutsModal
