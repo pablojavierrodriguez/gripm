@@ -55,7 +55,7 @@ Actualización y sincronización exhaustiva de la documentación técnica de arq
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
+- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
 - [ ] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
 - [ ] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
 - [ ] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`

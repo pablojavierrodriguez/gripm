@@ -1004,7 +1004,7 @@ Actualización y sincronización exhaustiva de la documentación técnica de arq
 - **Normalización de Tareas:** Estandarizar los 101 nombres de archivo a mayúsculas canónicas `DEV-XXX`.
 
 **Criterios de Aceptación:**
-- [ ] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
+- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
 - [ ] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
 - [ ] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
 - [ ] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
@@ -5859,7 +5859,7 @@ Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codi
 proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
 reconstruccion de la cadena de incidentes de CI.
 
-**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
+**El informe completo vive fuera del backlog, en `docs/archive/auditoria-2026-10-10.md`.**
 Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
 proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
 backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
@@ -5915,7 +5915,7 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 > Tildar un AC sin esa asercion es exactamente el fallo que esta auditoria documenta.
 
 **Criterios de Aceptación:**
-- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [x] #1 El informe `docs/archive/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
 - [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
 - [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
 - [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
@@ -6181,7 +6181,7 @@ Garantizar coherencia total en la vista de configuración (`SettingsView`):
 #### [DEV-242] Remediacion integral de seguridad Fase 2: erradicacion de RCE en frontmatter y auditoria MCP (SEC-01 a SEC-10)
 - **Prioridad**: `high` | **Tipo**: `bug`
 
-Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/auditoria-2026-10-10.md` §4 y §11.2):
+Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/archive/auditoria-2026-10-10.md` §4 y §11.2):
 
 1. **SEC-01 · Ejecución ciega de comandos persistidos en frontmatter:**
    El Gatekeeper de `scripts/mcp-server.ts` leía `verifyCommand` desde `rawExtraFrontmatter` del archivo Markdown en disco y lo persistía tras cada transición. Cualquier tarea con comandos shell maliciosos en su frontmatter lograba ejecución de código (RCE) en la máquina del próximo agente o usuario al transicionar a `ready` o `done`. Se erradica la lectura ciega desde disco y la persistencia de scripts en los archivos Markdown.

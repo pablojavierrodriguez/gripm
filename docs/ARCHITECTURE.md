@@ -1,181 +1,280 @@
 # Arquitectura del Sistema gripm
 
-Este documento describe la topología, capas, flujo de datos y mapa de componentes de **gripm**. Está diseñado como referencia rápida y canónica tanto para desarrolladores humanos como para agentes de IA (Antigravity, Cursor, Claude Code) con el fin de agilizar la navegación del código y el análisis de impacto.
+Este documento describe la topología, capas, flujo de datos, concurrencia y mapa de componentes de **gripm**. Constituye la referencia técnica canónica tanto para desarrolladores humanos como para agentes autónomos de IA (Antigravity, Cursor, Claude Code) con el fin de agilizar la navegación del código, el entendimiento del flujo de estados y el análisis de impacto.
 
 ---
 
 ## 1. Visión General del Sistema
 
-gripm es un tablero ágil de gestión de producto e ingeniería *embedded-first* y orientado a la colaboración entre desarrolladores humanos y agentes de IA:
-- **Local-first & Zero-cloud**: Todos los datos residen en el repositorio local en formato Markdown (`backlog/tasks/*.md`) o JSON.
-- **Dogfooding estricto**: Cada cambio de código se asocia y sincroniza con tareas vivas del backlog.
-- **Doble Interfaz**:
-  1. **UI Web Visual**: Desarrollada en React 18 + Vite + TailwindCSS.
-  2. **Agente / Protocolo MCP**: Expuesta a través de `gripm-mcp` para interacción programática por IA.
-  3. **CLI Binario**: Soporte para ejecución local y global vía `gripm`.
+gripm es un tablero ágil de gestión de producto e ingeniería *embedded-first* diseñado para la colaboración fluida entre desarrolladores humanos y agentes de IA:
+
+- **Local-first & Zero-cloud**: Todos los datos residen en el repositorio local en formato Markdown nativo (`backlog/tasks/*.md`) con frontmatter YAML o en base JSON local.
+- **Dogfooding estricto**: Cada cambio de código se asocia y sincroniza con tareas vivas del backlog bajo la metodología de Gripm Playbook.
+- **Triple Interfaz Unificada**:
+  1. **UI Web Visual**: Aplicación web desarrollada en React 18 + Vite + TailwindCSS.
+  2. **Agente / Protocolo MCP**: Servidor stdio (`gripm-mcp`) que expone herramientas semánticas (`gripm_list_tasks`, `gripm_update_task`, etc.) para agentes autónomos.
+  3. **CLI de Terminal**: Binario ejecutable local y global (`gripm`) para gestión rápida y headless.
+- **Dual Runtime**:
+  - **Modo Daemon Local**: Backend Node.js embebido con persistencia real en disco.
+  - **Modo Sandbox Web (Vercel)**: Adaptador en memoria y `localStorage` con paridad 100% de contrato de API (`src/data/sandbox.ts`).
 
 ---
 
-## 2. Mapa de Capas y Componentes
+## 2. Topología General y Flujo de Datos
 
+```mermaid
+flowchart TD
+    subgraph CLIENTS["1. Capa de Clientes e Interfaces"]
+        UI["UI Web (React 18 + TailwindCSS)"]
+        AI["Agentes IA (Antigravity / Cursor / Claude)"]
+        CLI["CLI de Terminal (bin/gripm.js)"]
+    end
+
+    subgraph GATEWAY["2. Capa de Transporte y Gateway"]
+        SRV["Daemon Local Standalone (bin/server.js / Vite Dev)"]
+        MCP["Servidor MCP stdio (bin/gripm-mcp.js)"]
+        SSE["Canal SSE (/api/events)"]
+        SEC["Security Guards (Loopback IPv4/IPv6, realpathSync)"]
+    end
+
+    subgraph DOMAIN["3. Núcleo Unificado de Dominio"]
+        BS["BacklogService (server/services/backlogService.ts)"]
+        GK["Gatekeeper (Validación verifyCommand y allowlist)"]
+        CONC["Mtime Guard (Protocolo de Concurrencia Optimista)"]
+        MEM["Caché de Tareas y Bloqueo Secuencial Atómico"]
+    end
+
+    subgraph STORAGE["4. Capa de Persistencia y Sistema de Archivos"]
+        PARSER["backlogMdParser.ts (Scanner CommonMark Determinista)"]
+        TASKS["Tareas Markdown (backlog/tasks/*.md)"]
+        SPRINTS["Sprints JSON (backlog/sprints.json)"]
+        RELEASES["Releases JSON (backlog/releases.json)"]
+        CONSOLIDATED["Backlog Monolítico (BACKLOG.md)"]
+        REGISTRY["Registro Multi-Proyecto (~/.gripm/registry.json)"]
+        SANDBOX["Sandbox Adapter (localStorage / Dataset Semilla)"]
+    end
+
+    UI -->|"HTTP REST /api/*"| SEC
+    AI -->|"stdio JSON-RPC"| MCP
+    CLI -->|"Llamadas directas / CLI args"| BS
+    SEC --> SRV
+    SRV -->|"Router REST (server/routes/api.ts)"| BS
+    MCP --> BS
+    BS --> GK
+    BS --> CONC
+    BS --> MEM
+    MEM --> PARSER
+    PARSER --> TASKS
+    BS --> SPRINTS
+    BS --> RELEASES
+    BS --> CONSOLIDATED
+    BS --> REGISTRY
+    BS -->|"Notificación reactiva de mutaciones"| SSE
+    SSE -.->|"EventSource live updates"| UI
+    UI -.->|"Fallback en despliegue estático web"| SANDBOX
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          PRESENTACIÓN (React UI)                       │
-│                                                                        │
-│  src/App.tsx ── (Orquestador principal, estado global y routing)       │
-│    ├── src/components/Header.tsx (Selector proyecto, filtros, vistas)  │
-│    ├── src/components/KanbanBoard.tsx (Tablero interactivo D&D)        │
-│    ├── src/components/SprintView.tsx (Gestión de Sprints y métricas)   │
-│    ├── src/components/ReleaseAssembler.tsx (Releases y Changelogs)     │
-│    ├── src/components/TrashView.tsx (Papelera y soft-delete directo)   │
-│    ├── src/components/SettingsView.tsx (Configuración y MCP)           │
-│    ├── src/components/FilterBar.tsx + AdvancedFiltersPopover.tsx       │
-│    └── Modales: ItemModal, ProjectModal, ConfirmModal, etc.            │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ llamadas tipadas
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                          CLIENTE API & TIPOS                           │
-│                                                                        │
-│  src/api.ts (Endpoints cliente /api/*)                                 │
-│  src/types.ts (Interfaces de dominio: Task, Release, Sprint, Project)  │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTP / Vite Dev Server
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                    BACKEND EMBEBIDO & MIDDLEWARE                       │
-│                                                                        │
-│  vite.config.ts (Middleware de endpoints API /api/data, /api/items)    │
-│  scripts/backlogMdParser.ts (Parser y serializador Markdown/YAML)      │
-│  scripts/verify-backlog-sync.js (Guard de sincronización viva)         │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ I/O Archivos
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                    PERSISTENCIA & SISTEMA DE ARCHIVOS                  │
-│  backlog/tasks/*.md (Tareas individuales con YAML frontmatter)         │
-│  backlog/releases.json (Registro histórico y versiones activas)        │
-│  backlog/sprints.json (Ciclo de vida y balance de sprints)             │
-│  backlog/retros/*.md (Retrospectivas de sprint)                        │
-│  BACKLOG.md (Backlog monolítico compilado)                             │
-│  ~/.gripm/registry.json (Registro global XDG Multi-Proyecto)           │
-│  .gripm/config.json (Configuración local de proyecto)                  │
-└────────────────────────────────────────────────────────────────────────┘
+
+---
+
+## 3. Flujo de Mutación Atómica y Concurrencia Optimista
+
+Para evitar colisiones cuando un agente de IA y un usuario interactúan simultáneamente en la interfaz web, el sistema implementa un protocolo de concurrencia optimista basado en `expectedMtime` con persistencia atómica en disco y difusión en tiempo real vía SSE.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Usuario (UI Web)
+    actor Agent as Agente IA (MCP)
+    participant API as Router API / MCP Server
+    participant BS as BacklogService
+    participant GK as Gatekeeper
+    participant FS as Sistema de Archivos (.md / .json)
+    participant SSE as SSE Event Stream (/api/events)
+
+    User->>API: PUT /api/items/DEV-100 { status: "doing", expectedMtime: 1729000 }
+    API->>BS: updateTask("DEV-100", updates)
+    BS->>BS: Verificar mtime en disco vs expectedMtime
+    alt Mtime no coincide (Conflicto de Edición)
+        BS-->>API: Error HTTP 409 Conflict (Archivo modificado por otro proceso)
+        API-->>User: Alerta de colisión y recarga limpia sin sobreescritura
+    else Mtime coincide (Operación Válida)
+        BS->>GK: Validar comando si transiciona a 'ready'
+        GK-->>BS: Validación exitosa (Comando en allowlist sin subshell)
+        BS->>FS: Escritura atómica vía archivo temporal (.tmp -> rename)
+        FS-->>BS: Confirmación de I/O exitoso en disco
+        BS->>SSE: Emitir evento "backlog_updated" { taskId: "DEV-100" }
+        BS-->>API: Item actualizado { mtime: nuevo_timestamp }
+        API-->>User: Respuesta 200 OK
+        SSE-->>User: Actualización funcional del estado en memoria
+        Note over Agent: El agente lee en disco o vía MCP la tarea consistente
+    end
 ```
 
 ---
 
-## 3. Catálogo de Archivos Clave
+## 4. Máquina de Estados del Flujo Ágil
 
-### Frontend (`src/`)
+El ciclo de vida de los ítems en gripm sigue la máquina de estados formal normada en el framework Playbook, con estricta separación entre desarrollo, certificación y despliegue:
 
-| Archivo | Responsabilidad Principal |
-| :--- | :--- |
-| [src/App.tsx](src/App.tsx) | Punto de entrada UI. Mantiene estado del proyecto activo, tareas, vistas activas (`kanban`, `sprint`, `releases`, `trash`, `settings`), handlers de modales y atajos de teclado. |
-| [src/components/Header.tsx](src/components/Header.tsx) | Barra superior con switcher de proyecto, selector de vista principal, triggers de búsqueda, badges de sincronización y estado. |
-| [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx) | Tablero visual Kanban con columnas por estado (`draft`, `doing`, `review`, `ready`, `done`), drag & drop, agrupación y colapso de columnas. |
-| [src/components/SprintView.tsx](src/components/SprintView.tsx) | Vista de planificación de sprints, cálculo de velocidad, métricas de avance y burndown. |
-| [src/components/ReleaseAssembler.tsx](src/components/ReleaseAssembler.tsx) | Ensamblador de versiones (`unreleased` y `released`), generación de changelogs y vinculación con tags Git. |
-| [src/components/TrashView.tsx](src/components/TrashView.tsx) | Vista directa de Papelera. Gestiona el ciclo de vida de tareas en borrado lógico (`isDeleted: true`), restauración al estado previo y purga definitiva. |
-| [src/components/SettingsView.tsx](src/components/SettingsView.tsx) | Panel de configuración del proyecto, opciones de almacenamiento (Markdown vs JSON), rutas de repositorio y estado de MCP. |
-| [src/components/FilterBar.tsx](src/components/FilterBar.tsx) | Barra de filtrado unificada con chips interactivos para búsqueda rápida, tipos, prioridades y asignados. |
-| [src/components/AdvancedFiltersPopover.tsx](src/components/AdvancedFiltersPopover.tsx) | Popover con filtros avanzados combinados. |
-| [src/components/ItemModal.tsx](src/components/ItemModal.tsx) | Modal de detalle, creación y edición de tareas. Incluye el editor dinámico de Criterios de Aceptación (AC) y plan técnico. |
-| [src/api.ts](src/api.ts) | Capa de abstracción cliente con llamadas `fetch` tipadas a los endpoints del servidor embebido. |
-| [src/types.ts](src/types.ts) | Definiciones de tipos TypeScript: `Project`, `Item` / `Task`, `AcceptanceCriterion`, `Release`, `Sprint`, `FilterState`. |
+```mermaid
+stateDiagram-v2
+    [*] --> ideas : Descubrimiento
+    ideas --> draft : Refinamiento y estimación inicial
+    [*] --> draft : Creación formal en Backlog
 
-### Backend Embebido, Scripts & CLI (`vite.config.ts`, `scripts/`, `bin/`)
+    draft --> doing : Inicio de desarrollo (Dev toma tarea)
+    doing --> review : Desarrollo completado (ACs tildados - [x])
+    review --> ready : Certificación formal exclusiva de QA
+    review --> doing : Rechazo en auditoría de QA
 
-| Archivo | Responsabilidad Principal |
-| :--- | :--- |
-| [bin/gripm.js](bin/gripm.js) | CLI binario principal (`gripm`). Inicializa servidor Vite embebido con opciones `--single`, `--hub`, `--port`, `--init`, comprobación de actualizaciones y resolución absoluta de rutas. |
-| [bin/gripm-mcp.js](bin/gripm-mcp.js) | Servidor MCP que expone las 12 herramientas de gripm (`gripm_list_tasks`, `gripm_sync_backlog`, `gripm_create_retro`, etc.) a agentes de IA. |
-| [vite.config.ts](vite.config.ts) | Configuración de Vite y plugin de middleware que implementa los endpoints `/api/*` para lectura/escritura de tareas, proyectos y sincronización. |
-| [scripts/backlogMdParser.ts](scripts/backlogMdParser.ts) | Motor de parsing y serialización bidireccional entre archivos Markdown individuales (`backlog/tasks/*.md`), `BACKLOG.md` y objetos JSON en memoria. |
-| [scripts/initScaffold.js](scripts/initScaffold.js) | Asistente interactivo de inicialización y onboarding (`gripm --init`), con soporte de modo silencioso `-y` y scaffolding no destructivo. |
-| [scripts/registryConfig.js](scripts/registryConfig.js) | Manejo canónico del registro de proyectos multi-repositorio bajo el estándar XDG en `~/.gripm/registry.json`. |
-| [scripts/updateChecker.js](scripts/updateChecker.js) | Verificador no bloqueante de actualizaciones contra GitHub Releases con caché de 24 horas y notificaciones en CLI y UI. |
-| [scripts/verify-backlog-sync.js](scripts/verify-backlog-sync.js) | Auditor de coherencia entre criterios de aceptación, estados de tareas y código fuente. Se ejecuta en `.githooks/pre-commit`. |
+    ready --> done : Empaquetado y Deploy de Release en Producción
+    
+    draft --> cancelled : Descarte técnico o de alcance
+    doing --> cancelled : Cancelación explícita del PO
+    ideas --> dismissed : Idea descartada en descubrimiento
 
----
+    state "Papelera (Soft Delete)" as Trash {
+        draft --> isDeleted : Borrado lógico
+        doing --> isDeleted : Borrado lógico
+        review --> isDeleted : Borrado lógico
+        ready --> isDeleted : Borrado lógico
+        isDeleted --> Restaurado : Restaurar al estado previo
+    }
 
-## 4. Ecosistema de Herramientas Semánticas (CodeGraph)
+    done --> [*]
+    cancelled --> [*]
+    dismissed --> [*]
+```
 
-Para evitar la sobrecarga de lectura en archivos de gran volumen:
-
-1. **Codegraph Studio (Extensión de Editor)**:
-   - Permite al desarrollador abrir cualquier componente en un canvas interactivo para visualizar el árbol de llamadas, ramas de render y referencias.
-2. **CodeGraph MCP (`http://localhost:6010/mcp`)**:
-   - Conectado a la Language Feature API (TypeScript LSP) del editor.
-   - Permite a los agentes de IA consultar definiciones de símbolos y mapeo de referencias de forma instantánea y token-efficient.
+> [!IMPORTANT]
+> **Invariantes del Flujo de Estados:**
+> 1. **La línea de llegada del agente/desarrollador es `ready`**. Un desarrollador o agente jamás marca `done`.
+> 2. **El paso a `done` es exclusivo de Release Management**: Ninguna tarea pasa a `done` sin estar empaquetada y desplegada formalmente en una versión.
+> 3. **Soft-delete reversible**: Cualquier ítem enviado a la Papelera conserva su `previousStatus` para garantizar una restauración 100% limpia.
 
 ---
 
-## 5. Tabla de Impacto Rápido
+## 5. Catálogo de Archivos Clave y Descomposición Modular
+
+### Frontend Modular (`src/`)
+
+Para garantizar modularidad y mantenibilidad, los componentes monolíticos históricos fueron descompuestos en submódulos especializados (< 500 líneas):
+
+| Archivo / Directorio | Responsabilidad Principal |
+| :--- | :--- |
+| [src/App.tsx](src/App.tsx) | Orquestador principal de la UI. Mantiene estado de proyecto, vistas activas, routing, atajos de teclado y suscripción a eventos SSE. |
+| [src/components/Header.tsx](src/components/Header.tsx) | Barra superior con selector de proyecto multi-repo, switcher de vistas, búsqueda global y notificaciones de versión. |
+| [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx) | Tablero visual Kanban con columnas por estado, drag & drop, agrupación y renderizado optimizado a 60 FPS. |
+| [src/components/SprintView.tsx](src/components/SprintView.tsx) | Vista de planificación de sprints, velocidad, burndown y balance de carga. |
+| [src/components/ReleaseAssembler.tsx](src/components/ReleaseAssembler.tsx) | Ensamblador de versiones (`unreleased` / `released`), generador de changelogs y vinculación de tags Git. |
+| [src/components/TrashView.tsx](src/components/TrashView.tsx) | Panel de Papelera con soporte para soft-delete, restauración segura al estado previo y purga definitiva. |
+| [src/components/FilterBar.tsx](src/components/FilterBar.tsx) | Barra de filtrado rápido con chips interactivos para búsqueda, tipos, prioridades y asignados. |
+| [src/components/AdvancedFiltersPopover.tsx](src/components/AdvancedFiltersPopover.tsx) | Popover con filtros avanzados combinados y multi-selección de sprints, releases y módulos. |
+| [src/utils/filterItems.ts](src/utils/filterItems.ts) | Motor de filtrado unificado y tipado para Kanban, Sprint y Backlog con soporte para campos multi-valor. |
+| [src/components/ItemModal.tsx](src/components/ItemModal.tsx) | Orquestador de detalle de tarea. Delega su renderizado en submódulos de `src/components/item-modal/`. |
+| [src/components/item-modal/](src/components/item-modal/) | Submódulos del modal de tareas: `AcceptanceCriteriaPanel`, `ItemRelationsPanel`, `ItemDescriptionPanel`, `ItemSidebarAttributes`, `ItemSidebarSchedule`, `ItemSidebarStatusType`, etc. |
+| [src/components/SettingsView.tsx](src/components/SettingsView.tsx) | Orquestador de configuración general. Delega su renderizado en las pestañas de `src/components/settings/`. |
+| [src/components/settings/](src/components/settings/) | Pestañas modulares: `KanbanTab`, `TaxonomyTab`, `ViewsTab`, `ModulesTab`, `ComponentsTab`, `ToolsTab`, `AdvancedTab`, `VisualTab`. |
+| [src/data/sandbox.ts](src/data/sandbox.ts) | Adaptador interactivo de demostración para despliegues estáticos web (Vercel) con paridad total del contrato `GripmApi`. |
+
+### Backend Embebido, Servicios & Herramientas (`server/`, `scripts/`, `bin/`)
+
+| Archivo / Directorio | Responsabilidad Principal |
+| :--- | :--- |
+| [server/services/backlogService.ts](server/services/backlogService.ts) | **Motor canónico y único de persistencia y dominio.** Centraliza la lectura, mutación, cálculo de métricas, validaciones de Gatekeeper y bloqueo atómico. |
+| [server/routes/api.ts](server/routes/api.ts) | Router REST de endpoints locales (`/api/data`, `/api/items`, `/api/projects`, `/api/events`, etc.). |
+| [server/services/security.ts](server/services/security.ts) | Guardrails de aislamiento local: validación de loopback estricto (`127.0.0.1` y `[::1]`) y sanitización de encabezados. |
+| [server/services/fsExplorer.ts](server/services/fsExplorer.ts) | Explorador de carpetas seguro con contención estricta mediante `realpathSync` contra ataques de symlink traversal. |
+| [bin/server.js](bin/server.js) | Servidor standalone empaquetado para producción (Node.js nativo sin dependencias de Vite en runtime). |
+| [bin/gripm.js](bin/gripm.js) | CLI binario unificado (`gripm`). Inicializa daemon o ejecuta comandos headless con flags `--single`, `--hub`, `--port`, etc. |
+| [bin/gripm-mcp.js](bin/gripm-mcp.js) | Servidor MCP ejecutable que expone el catálogo `gripm_*` a agentes de IA mediante `stdio` JSON-RPC. |
+| [scripts/backlogMdParser.ts](scripts/backlogMdParser.ts) | Tokenizador determinista CommonMark bidireccional entre archivos Markdown (`backlog/tasks/*.md`), `BACKLOG.md` y memoria. |
+| [scripts/build-binaries.js](scripts/build-binaries.js) | Script de empaquetado con `esbuild` que compila los ejecutables standalone en `bin/`. |
+| [scripts/verify-backlog-sync.js](scripts/verify-backlog-sync.js) | Guard de verificación viva pre-commit que audita coherencia de tareas, ACs y regenera `BACKLOG.md`. |
+
+---
+
+## 6. Seguridad y Superficie de Riesgo
+
+El sistema implementa defensas en profundidad auditadas bajo los lineamientos `SEC-01` a `SEC-10`:
+
+1. **Aislamiento en Loopback:** El daemon local se vincula por defecto exclusivamente a `127.0.0.1` y `::1`. Las peticiones externas o con host headers no autorizados son rechazadas.
+2. **Gatekeeper Seguro (SEC-01):** La ejecución de comandos en el paso a `ready` solo se permite si el comando fue provisto explícitamente como argumento del MCP, rechazando subshells (`$()`), pipes (`|`), redirecciones (`>`) o cadenas de ejecución (`&&`, `;`). Queda terminantemente prohibido ejecutar comandos desde el frontmatter Markdown.
+3. **Contención de Rutas de Filesystem (SEC-07):** Toda resolución de directorios en el navegador de proyectos valida la ruta física real (`realpathSync`) contra la raíz permitida para neutralizar enlaces simbólicos maliciosos.
+4. **Cero Fabricación de ACs (SEC-02):** La sincronización automática opera con `autoFix: false` por defecto para impedir que herramientas alteren checkboxes `- [ ]` a `- [x]` sin verificación real.
+
+---
+
+## 7. Tabla de Impacto Rápido
 
 | Si necesitas modificar... | Archivos principales a intervenir | Efecto colateral a vigilar |
 | :--- | :--- | :--- |
-| **Estados o campos de una tarea** | [src/types.ts](src/types.ts), [scripts/backlogMdParser.ts](scripts/backlogMdParser.ts), [vite.config.ts](vite.config.ts) | Verificar parser de markdown y consistencia de frontmatter YAML. |
-| **Visualización de tarjetas en tablero** | [src/components/ItemCard.tsx](src/components/ItemCard.tsx), [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx) | Comportamiento del drag-and-drop y render a 60 FPS. |
-| **Criterios de Aceptación o checklist** | [src/components/ItemModal.tsx](src/components/ItemModal.tsx), [scripts/backlogMdParser.ts](scripts/backlogMdParser.ts) | Formato de checkboxes `- [x]` y guard pre-commit. |
-| **Filtrado y búsqueda** | [src/components/FilterBar.tsx](src/components/FilterBar.tsx), [src/components/AdvancedFiltersPopover.tsx](src/components/AdvancedFiltersPopover.tsx), [src/App.tsx](src/App.tsx) | Filtrado reactivo en vistas de Kanban y Sprints. |
-| **Endpoints API locales** | [vite.config.ts](vite.config.ts), [src/api.ts](src/api.ts) | Contratos de respuesta JSON y persistencia en disco. |
-| **Herramientas MCP** | [scripts/mcp-server.ts](scripts/mcp-server.ts), [bin/gripm-mcp.js](bin/gripm-mcp.js) | Compatibilidad de parámetros con `AGENTS.md`. |
+| **Persistencia, mutaciones o reglas de negocio** | [server/services/backlogService.ts](server/services/backlogService.ts) | Paridad con MCP (`bin/gripm-mcp.js`), API REST y sandbox. |
+| **Formato Markdown, YAML o secciones de tarea** | [scripts/backlogMdParser.ts](scripts/backlogMdParser.ts) | Correr `scripts/test-parser-roundtrip.js` (cero pérdida de datos). |
+| **Formulario o paneles de edición de tareas** | [src/components/item-modal/](src/components/item-modal/), [src/components/ItemModal.tsx](src/components/ItemModal.tsx) | Preservar trampa de foco y contratos ARIA accesibles. |
+| **Pestañas o paneles de configuración** | [src/components/settings/](src/components/settings/), [src/components/SettingsView.tsx](src/components/SettingsView.tsx) | Sincronización con `.gripm/config.json` y localStorage. |
+| **Filtrado, búsqueda o multi-selección** | [src/utils/filterItems.ts](src/utils/filterItems.ts), [src/components/FilterBar.tsx](src/components/FilterBar.tsx) | Consistencia en Kanban, Backlog y vistas de Sprint. |
+| **Herramientas para agentes IA (MCP)** | [scripts/mcp-server.ts](scripts/mcp-server.ts), [server/services/backlogService.ts](server/services/backlogService.ts) | Validar schemas de entrada y compatibilidad con `AGENTS.md`. |
+| **Endpoints locales o transporte SSE** | [server/routes/api.ts](server/routes/api.ts), [src/api.ts](src/api.ts) | Manejo de CORS local y reconexión resiliente de eventos. |
 
 ---
 
-## 6. Modelo de Datos Canónico de Tareas (Task Data Specification)
+## 8. Modelo Canónico de Datos de Tareas (Task Data Specification)
 
-Cada tarea en gripm cuando se almacena en modo `backlog-md` reside en `backlog/tasks/<ID> - <slug>.md`. Se compone de metadatos estructurados en YAML frontmatter y secciones de contenido delimitadas por comentarios HTML.
+Cada tarea en gripm reside en `backlog/tasks/<ID> - <slug>.md`. Se compone de metadatos estructurados en YAML frontmatter y secciones de contenido delimitadas por comentarios HTML canónicos:
 
 ### A. Metadatos de YAML Frontmatter
 
-| Campo Frontmatter | Tipo TypeScript / Valores | Semántica y Propósito | Ámbito de Interfaz |
-| :--- | :--- | :--- | :--- |
-| `id` | `string` (ej. `DEV-110`) | Identificador canónico e inmutable. | ItemModal, Cards, Tablas |
-| `title` | `string` | Título del requerimiento o bug. | ItemModal, Cards, Tablas |
-| `status` | `CanonicalStatus` (`ideas`, `draft`, `doing`, `review`, `ready`, `done`, `dismissed`, `cancelled`) | Estado en el flujo de valor normalizado. | ItemModal, Columnas Kanban, Filtros |
-| `type` | `ItemType` (`feature`, `bug`, `tech_debt`, `ux`, `epic`, `initiative` + personalizados) | Taxonomía del ítem. Soporta tipos dinámicos. | ItemModal, Badges, Filtros |
-| `priority` | `Priority` (`p0`/`urgent`, `p1`/`high`, `p2`/`medium`, `p3`/`low`) | Nivel de urgencia o severidad. | ItemModal, Badges, Filtros |
-| `estimate` | `number` o `string` (ej. `5` o `"XL"`) | Estimación de esfuerzo (Fibonacci o T-Shirt Sizes). | ItemModal, Cards, SprintView, Filtros |
-| `assignee` / `assignees` | `string[]` o `string` | Agentes o desarrolladores asignados. | Tabla SprintView / Backlog |
-| `labels` | `string[]` | Etiquetas transversales libres. | Tabla SprintView / Backlog |
-| `sprint` / `targetSprint` | `string` (ej. `"Sprint 6"`) | Sprint de trabajo actual. | ItemModal, Sprints Hub |
-| `sprints` | `string[]` | Historial multi-sprint (sprints cerrados + actual). | ItemModal (historial) |
-| `release` / `targetRelease` | `string` (ej. `"0.6.0"`) | Versión formal planificada o entregada. | ItemModal, Releases Hub |
-| `releases` | `string[]` | Array multi-versión asignado. | ItemModal (multi-versión) |
-| `parent` / `parentId` | `string` (ej. `"DEV-040"`) | Padre único 1-a-N (Épica / Historia contenedora). | ItemModal (relaciones) |
-| `blocks` | `string[]` | Códigos de tareas que dependen de esta tarea. | ItemModal (relaciones) |
-| `blocked_by` / `blockedBy` | `string[]` | Tareas que bloquean el inicio de esta tarea. | ItemModal (relaciones) |
-| `related_to` / `relatedTo` | `string[]` | Vínculos conceptuales horizontales. | ItemModal (relaciones) |
-| `dependencies` | `string[]` | Lista de dependencias funcionales (MrLesk alias). | Persistencia / MCP |
-| `created_date` | `string` (datetime/ISO) | Fecha de creación del archivo. | Auditoría / Orden |
-| `updated_date` | `string` (datetime/ISO) | Última modificación en disco. | Concurrencia / Sincronización |
-| `order` | `number` | Orden relativo en columnas. | D&D Kanban |
-| `isDeleted` | `boolean` | Flag de borrado lógico (Papelera). | TrashView |
-| `deletedAt` | `string` (ISO) | Fecha de envío a papelera. | TrashView |
-| `previousStatus` | `string` | Estado previo para restauración limpia. | TrashView |
-| *Arbitrarios* (`rawExtraFrontmatter`) | `Record<string, string>` | Claves YAML adicionales preservadas en round-trip. | Persistencia sin pérdida |
+| Campo Frontmatter | Tipo TypeScript / Valores | Semántica y Propósito |
+| :--- | :--- | :--- |
+| `id` | `string` (ej. `DEV-110`) | Identificador unívoco e inmutable. |
+| `title` | `string` | Título del requerimiento o corrección. |
+| `status` | `CanonicalStatus` (`ideas`, `draft`, `doing`, `review`, `ready`, `done`, `dismissed`, `cancelled`) | Estado formal en el flujo de valor. |
+| `type` | `ItemType` (`feature`, `bug`, `tech_debt`, `ux`, `epic`, `initiative` + personalizados) | Taxonomía funcional. Admite tipos dinámicos. |
+| `priority` | `Priority` (`p0`/`urgent`, `p1`/`high`, `p2`/`medium`, `p3`/`low`) | Nivel de urgencia o severidad. |
+| `estimate` | `number` o `string` (ej. `5` o `"XL"`) | Estimación de esfuerzo. |
+| `assignee` / `assignees` | `string[]` o `string` | Responsables asignados. |
+| `labels` | `string[]` | Etiquetas transversales de búsqueda. |
+| `sprint` / `targetSprint` | `string` (ej. `"Sprint 6"`) | Sprint de ejecución actual. |
+| `sprints` | `string[]` | Historial de sprints asociados. |
+| `release` / `targetRelease` | `string` (ej. `"1.5.0"`) | Versión de entrega planificada o entregada. |
+| `releases` | `string[]` | Array multi-versión asignado. |
+| `modules` | `string[]` | Módulos funcionales asociados a la tarea. |
+| `parent` / `parentId` | `string` (ej. `"DEV-040"`) | Padre jerárquico 1-a-N (Épica o iniciativa). |
+| `blocks` | `string[]` | Tareas que dependen de la entrega de este ítem. |
+| `blocked_by` / `blockedBy` | `string[]` | Tareas que bloquean el inicio de este ítem. |
+| `related_to` / `relatedTo` | `string[]` | Enlaces conceptuales no bloqueantes. |
+| `dependencies` | `string[]` | Lista de dependencias funcionales del ítem. |
+| `created_date` | `string` (datetime/ISO) | Fecha original de creación. |
+| `updated_date` | `string` (datetime/ISO) | Timestamp de última modificación en disco. |
+| `order` | `number` | Posición relativa en columnas de visualización. |
+| `isDeleted` | `boolean` | Flag de borrado lógico (Papelera). |
+| `deletedAt` | `string` (ISO) | Fecha y hora de envío a la papelera. |
+| `previousStatus` | `string` | Estado previo para restauración limpia. |
+| *Arbitrarios* (`rawExtraFrontmatter`) | `Record<string, string>` | Claves YAML adicionales preservadas en round-trip. |
 
 ### B. Secciones Delimitadas en el Cuerpo Markdown
 
 | Sección | Delimitador Canónico | Propósito |
 | :--- | :--- | :--- |
-| `## Description` | `<!-- SECTION:DESCRIPTION:BEGIN -->` ... `<!-- SECTION:DESCRIPTION:END -->` | Requerimiento detallado, contexto o Historia BDD (`COMO/QUIERO/PARA`). |
-| `## Acceptance Criteria` | `<!-- AC:BEGIN -->` ... `<!-- AC:END -->` | Criterios de aceptación con checklist `- [x] #1` o `- [ ] #1` y BDD Scenarios. |
-| `## Implementation Plan` | `<!-- SECTION:PLAN:BEGIN -->` ... `<!-- SECTION:PLAN:END -->` | Plan de ingeniería paso a paso (Plan Guard). |
-| `## Implementation Notes` | `<!-- SECTION:NOTES:BEGIN -->` ... `<!-- SECTION:NOTES:END -->` | Notas técnicas de desarrollo, fixes y riesgos aplicados. |
+| `## Description` | `<!-- SECTION:DESCRIPTION:BEGIN -->` ... `<!-- SECTION:DESCRIPTION:END -->` | Contexto, especificación y User Stories. |
+| `## Acceptance Criteria` | `<!-- AC:BEGIN -->` ... `<!-- AC:END -->` | Criterios de aceptación (`- [x] #1`, `- [ ] #1`) y escenarios BDD. |
+| `## Implementation Plan` | `<!-- SECTION:PLAN:BEGIN -->` ... `<!-- SECTION:PLAN:END -->` | Plan de desarrollo paso a paso (Plan Guard). |
+| `## Implementation Notes` | `<!-- SECTION:NOTES:BEGIN -->` ... `<!-- SECTION:NOTES:END -->` | Notas técnicas de desarrollo, cambios aplicados y riesgos. |
 | `## Final Summary` | `<!-- SECTION:FINAL_SUMMARY:BEGIN -->` ... `<!-- SECTION:FINAL_SUMMARY:END -->` | Resumen de cierre o entrega de la tarea. |
 
 ---
 
-## 7. Registro de Decisiones de Arquitectura (ADR)
+## 9. Registro de Decisiones de Arquitectura (ADR)
 
-Este documento describe **cómo es el sistema hoy**. Las decisiones que explican **por qué es así** -y las alternativas que se descartaron- viven en el registro de ADR, en [`docs/adr/`](adr/README.md).
+Este documento describe **cómo está construido el sistema actualmente**. Los fundamentos de las decisiones y las alternativas evaluadas se documentan en [`docs/adr/`](adr/README.md).
 
 | # | Decisión |
 | :--- | :--- |
 | [0001](adr/0001-markdown-como-fuente-de-verdad.md) | Markdown como fuente de verdad del backlog |
-| [0002](adr/0002-backend-embebido-como-plugin-de-vite.md) | Backend embebido como plugin de middleware de Vite |
+| [0002](adr/0002-backend-embebido-como-plugin-de-vite.md) | Backend embebido y desacople de runtime para producción |
 | [0003](adr/0003-servidor-mcp-por-stdio.md) | Servidor MCP sobre stdio con núcleo de persistencia compartido |
 | [0004](adr/0004-daemon-local-sin-autenticacion-http.md) | Daemon local monousuario sin autenticación HTTP |
 | [0005](adr/0005-overlays-via-portales-y-layout-estable.md) | Overlays montados vía portales y layout raíz estable (cero CLS) |
 
-Toda decisión arquitectónica con _trade-offs_ reales que no sea derivable del código se registra como un ADR nuevo (`NNNN-slug.md`, numeración secuencial e inmutable). La convención, los estados canónicos y el criterio de admisión están en [`docs/adr/README.md`](adr/README.md).
+Toda decisión con impacto estructural se documenta como un ADR numerado secuencial e inmutable en [`docs/adr/`](adr/).

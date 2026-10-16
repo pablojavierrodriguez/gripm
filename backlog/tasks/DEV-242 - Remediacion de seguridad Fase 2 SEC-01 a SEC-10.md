@@ -19,7 +19,7 @@ type: bug
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/auditoria-2026-10-10.md` §4 y §11.2):
+Implementación y certificación de la **Fase 2 de Seguridad** definida en la auditoría integral de `@gripm/board@1.1.0` (`docs/archive/auditoria-2026-10-10.md` §4 y §11.2):
 
 1. **SEC-01 · Ejecución ciega de comandos persistidos en frontmatter:**
    El Gatekeeper de `scripts/mcp-server.ts` leía `verifyCommand` desde `rawExtraFrontmatter` del archivo Markdown en disco y lo persistía tras cada transición. Cualquier tarea con comandos shell maliciosos en su frontmatter lograba ejecución de código (RCE) en la máquina del próximo agente o usuario al transicionar a `ready` o `done`. Se erradica la lectura ciega desde disco y la persistencia de scripts en los archivos Markdown.

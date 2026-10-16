@@ -25,7 +25,7 @@ Auditoria exhaustiva de `@gripm/board@1.1.0` (`f9dadc3`) sobre cuatro ejes: codi
 proceso (backlog, releases, sprints, retrospectivas). Ademas: historia completa de git y
 reconstruccion de la cadena de incidentes de CI.
 
-**El informe completo vive fuera del backlog, en `docs/auditoria-2026-10-10.md`.**
+**El informe completo vive fuera del backlog, en `docs/archive/auditoria-2026-10-10.md`.**
 Esta tarea solo lo referencia y le da seguimiento. El texto no se duplica aqui a
 proposito: el informe tiene ~1.100 lineas y 90 hallazgos con ID estable, y copiarlo al
 backlog lo convertiria en otro documento que nadie puede mantener sincronizado.
@@ -84,7 +84,7 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [x] #1 El informe `docs/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
+- [x] #1 El informe `docs/archive/auditoria-2026-10-10.md` esta commiteado y cada hallazgo tiene ID estable, referencia `archivo:linea` o comando de reproduccion
 - [x] #2 Las 5 fases de la seccion 11 del informe tienen cada una su criterio de verificacion de cierre escrito como comando ejecutable, no como descripcion
 - [x] #3 Los 17 hallazgos `OK-xx` estan marcados como normativa: ningun refactor posterior puede eliminarlos sin una tarea que lo justifique
 - [x] #4 La seccion 11.3 (lo que queda deliberadamente sin resolver: PROC-01, TOOL-08, SEC-06, PROC-10/12/13/14/15) tiene una decision del PO registrada, no un silencio
@@ -103,7 +103,7 @@ del informe tiene una columna "Verificacion de cierre" con un comando ejecutable
 <!-- SECTION:PLAN:BEGIN -->
 **Esta tarea NO se implementa. Es un contenedor de seguimiento.**
 
-El plan de trabajo completo esta en `docs/auditoria-2026-10-10.md` seccion 11.2, con 5
+El plan de trabajo completo esta en `docs/archive/auditoria-2026-10-10.md` seccion 11.2, con 5
 fases y ~50 lineas de verificacion de cierre. Resumen de la secuencia y su dependencia:
 
 1. **Fase 0 - P0 funcional (1 dia).** `BUG-01` (hooks tras early return) +
