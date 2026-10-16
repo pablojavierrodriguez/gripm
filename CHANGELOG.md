@@ -13,6 +13,17 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.5.1] — 2026-10-15 🛠️ Backend Standalone Compilado y Corrección de Smoke Test en CI
+
+### 🎯 Resumen
+*Versión 1.5.1 de Gripm: compilación del backend API a bundle independiente en bin/server.js para compatibilidad universal con cualquier runtime de Node.js (>=20.0.0) sin requerir cargadores de TypeScript, y resolución del paso de build en el job de smoke test de CI.*
+
+### 🛠️ Correcciones y Robustecimiento de Runtime
+- **Backend standalone en bin/server.js:** empaquetado del middleware backend a JavaScript estándar (ESM) para ejecución directa y autónoma sin necesidad de flags de tipado en Node 20/22.
+- **Resolución de smoke test en CI:** incorporación del paso de build en el runner de Playwright y auto-sanación de bundle en test-ui-smoke.js.
+
+---
+
 ## [1.5.0] — 2026-10-15 🚀 Métricas de Flujo, Importador Universal, Acciones Masivas y Blindaje de Persistencia Atómica
 
 ### 🎯 Resumen

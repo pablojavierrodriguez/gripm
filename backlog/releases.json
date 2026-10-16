@@ -1,5 +1,19 @@
 [
   {
+    "id": "rel-1-5-1",
+    "projectId": "gripm",
+    "version": "1.5.1",
+    "date": "2026-10-15",
+    "targetDate": "2026-10-15",
+    "status": "released",
+    "title": "v1.5.1 — Backend Standalone Compilado y Corrección de Smoke Test en CI",
+    "summary": "Versión 1.5.1 de Gripm: compilación del backend API a bundle independiente en bin/server.js para compatibilidad universal con cualquier runtime de Node.js (>=20.0.0) sin requerir cargadores de TypeScript, y resolución del paso de build en el job de smoke test de CI.",
+    "scopeNotes": "Parche crítico de runtime 1.5.1: bundle precompilado de servidor backend para compatibilidad universal en npm distribution y CI.",
+    "itemCodes": [],
+    "markdownContent": "## [1.5.1] — 2026-10-15 🛠️ Backend Standalone Compilado y Corrección de Smoke Test en CI\\n\\n### 🎯 Resumen\\n*Versión 1.5.1 de Gripm: compilación del backend API a bundle independiente en bin/server.js para compatibilidad universal con cualquier runtime de Node.js (>=20.0.0) sin requerir cargadores de TypeScript, y resolución del paso de build en el job de smoke test de CI.*\\n\\n### 🛠️ Correcciones y Robustecimiento de Runtime\\n- **Backend standalone en bin/server.js:** empaquetado del middleware backend a JavaScript estándar (ESM) para ejecución directa y autónoma sin necesidad de flags de tipado en Node 20/22.\\n- **Resolución de smoke test en CI:** incorporación del paso de build en el runner de Playwright y auto-sanación de bundle en test-ui-smoke.js.",
+    "createdAt": "2026-10-16T00:05:00.000Z"
+  },
+  {
     "id": "rel-1-5-0",
     "projectId": "gripm",
     "version": "1.5.0",
