@@ -401,7 +401,13 @@ async function main() {
   }
 
   if (host === '0.0.0.0') {
-    console.warn('⚠️  ADVERTENCIA DE SEGURIDAD: Enlazando a 0.0.0.0. La interfaz y el API están expuestos a la red local sin autenticación.');
+    const crypto = await import('node:crypto');
+    const token = process.env.GRIPM_TOKEN || crypto.randomBytes(16).toString('hex');
+    process.env.GRIPM_TOKEN = token;
+    console.warn('⚠️  ADVERTENCIA DE SEGURIDAD: Enlazando a 0.0.0.0 (red local).');
+    console.log(`🔑 Token de autenticación efímero: ${token}`);
+    console.log(`🌐 Acceso local seguro: http://localhost:4100/`);
+    console.log(`📱 Acceso LAN con token: http://<IP-LAN>:4100/?token=${token}\n`);
   }
 
   let targetRepo = process.cwd();

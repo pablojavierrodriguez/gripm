@@ -153,6 +153,17 @@ Descripción inicial de prueba.
   }
   console.log(`✅ [2/4] Detección de colisión exitosa: HTTP 409 Conflict recibido (${conflictRes.body.message})`);
 
+  // 2b. Test DEV-301: Detección estricta dentro de los 1000ms (diferencia de 50ms)
+  const subSecondStaleMtime = item.mtime - 50;
+  const subSecondConflict = await dispatch('PUT', `/api/items/${item.code}`, {
+    title: `${item.title} (Intento conflictivo 50ms)`,
+    expectedMtime: subSecondStaleMtime
+  });
+  if (subSecondConflict.status !== 409 || subSecondConflict.body?.error !== 'conflict') {
+    throw new Error(`DEV-301 falló: no detectó colisión dentro de los 1000ms (50ms de diferencia): ${subSecondConflict.status}`);
+  }
+  console.log(`✅ [2b] DEV-301: Detección de colisión estricta sin margen ciego de 1000ms (50ms -> 409 Conflict)`);
+
   // 3. Test PUT /api/items/:id con expectedMtime correcto -> debe guardar (200 OK)
   const successRes = await dispatch('PUT', `/api/items/${item.code}`, {
     title: item.title,

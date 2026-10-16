@@ -85,7 +85,27 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (6)
+### 🚀 Ready for Deploy (9)
+
+#### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
+
+Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN puede conectarse a la IP del host y acceder o mutar el backlog sin restricciones. Para permitir previsualización móvil en redes Wi-Fi sin exponer el backlog a otros participantes de la red:
+1. Al arrancar con `0.0.0.0`, el daemon genera un token criptográfico efímero en memoria (`crypto.randomBytes(16)`).
+2. Se muestra en consola la URL con el token pre-cargado: `http://<ip-lan>:4100/?token=<token>`.
+3. Peticiones que se originen desde interfaces externas requieren el token en query param (`?token=...`) o cabecera `X-Gripm-Token`.
+4. El tráfico local en loopback (`127.0.0.1` / `localhost`) se mantiene transparente sin exigir token para no degradar la ergonomía de desarrollo local.
+
+**Criterios de Aceptación:**
+- [x] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
+- [x] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
+- [x] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
+- [x] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
+- [x] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
+
+---
 
 #### [DEV-299] Arquitectura de Persistencia: Motor Unificado de Backlog (BacklogService) y Erradicación de Duplicación
 - **Prioridad**: `urgent` | **Tipo**: `architecture`
@@ -167,6 +187,86 @@ El parser actual se basa en expresiones regulares heurísticas y particiones por
 - [x] #5 `parseBacklogMd` soporta archivos con UTF-8 BOM (`\uFEFF`) y archivos sin salto de línea final tras el cierre `---`
 - [x] #6 `generateMonolithicBacklogMd` incluye las tareas en estado `cancelled` bajo su sección correspondiente en `BACKLOG.md`
 - [x] #7 Una suite de pruebas de ida y vuelta (round-trip) con 50 casos borde de Markdown/YAML complejos verifica 100% de preservación de bytes y fidelidad semántica
+
+---
+
+#### [DEV-301] Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Rediseño del protocolo de concurrencia optimista y sincronización en tiempo real entre el servidor y el cliente React: corrección del mecanismo de bloqueo por `mtime` en disco, eliminación de falsos positivos/negativos de colisión `409 Conflict`, y reemplazo de tormentas de peticiones HTTP N+1 por operaciones en lote atómicas (`bulkUpdateItems`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Desactivación Silenciosa del Guard 409 (`App.tsx` vs `ItemModal.tsx`):**
+   Al recibir eventos SSE `backlog_changed`, `App.tsx:337` actualiza `editingItem.mtime` al nuevo timestamp del disco para "evitar errores 409". Sin embargo, `ItemModal` no recarga sus 35 campos de formulario si el modal ya está abierto. Al pulsar "Guardar", envía el `mtime` nuevo pero con los datos viejos en pantalla, sobrescribiendo silenciosamente los cambios que un agente o usuario externo hizo en disco.
+2. **Margen Ciego de 1.000 ms en el Backend:**
+   En `server/routes/api.ts:278`, la verificación `if (existing.mtime > body.expectedMtime + 1000)` ignora deliberadamente colisiones concurrentes dentro de un segundo. Este hack se introdujo porque `api.ts:337` devolvía `updatedItem.mtime = Date.now()` (hora de CPU) en vez de `fs.statSync(targetFilePath).mtimeMs` (hora del sistema de archivos), provocando desfasajes artificiales.
+3. **Tormenta N+1 y Corrupción de Orden en Bulk Actions:**
+   Reordenar una tarea en `App.tsx:660-672` o mover tareas seleccionadas en `SprintView.tsx:680-721` ejecuta bucles con decenas de llamadas individuales `PUT /api/items/:id`. Además, como `onReorderItem` lee `boardData.items` desde un closure obsoleto en cada iteración del bucle, los órdenes se computan con datos viejos y corrompen la secuencia de las tareas anteriores.
+4. **Bypass del Estado en Modo Sandbox:**
+   Componentes como `KanbanBoard` y `SprintView` importan y llaman directamente a `updateItem()` desde `src/api.ts` sin notificar a `App.tsx`. En modo Sandbox (`gripm.vercel.app`), donde SSE es un no-op, la interfaz no se entera del cambio hasta que el usuario recarga la página.
+
+### Solución Arquitectónica Profunda:
+
+- **Protocolo Mtime Determinista:**
+  - `saveBacklogMdItem` y `PUT /api/items/:id` leen y devuelven el valor exacto `Math.round(fs.statSync(filePath).mtimeMs)`.
+  - La verificación de conflicto en `api.ts` se vuelve exacta (`existing.mtime > body.expectedMtime`), erradicando la ventana ciega de 1.000 ms.
+  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco — [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
+- **Batching Atómico Universal:**
+  - Migrar todas las operaciones de reordenamiento (`handleReorderBacklogItem`), finalización de sprint (`handleCompleteSprint`) y acciones masivas en `SprintView` para que utilicen el endpoint ya existente `POST /api/items/bulk` en **una única transacción HTTP**, con un único `setBoardData` funcional y una única notificación SSE.
+  - Asegurar que todas las mutaciones pasen por los handlers de `App.tsx` para sincronización inmediata en modo Sandbox y HTTP.
+
+**Criterios de Aceptación:**
+- [x] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
+- [x] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
+- [x] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
+- [x] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
+- [x] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
+
+---
+
+#### [DEV-302] Blindaje Integral de Seguridad: Daemon Local, Scoping Multi-Proyecto, IPv6 y Gatekeeper
+- **Prioridad**: `high` | **Tipo**: `security`
+
+Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la superficie de ataque del daemon local y el servidor MCP: soporte de loopback IPv6, contención estricta de symlinks con resolución de ancestros, aislamiento riguroso entre proyectos para prevenir mutaciones cruzadas por colisión de ID, blindaje del Gatekeeper de ejecución y sanitización de rutas HTTP.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Rechazo de Loopback IPv6 (`[::1]`):**
+   En `server/middleware/security.ts:62`, `(req.headers.host || '').split(':')[0]` convierte `[::1]:4100` en `'['`, fallando la comprobación `isLoopbackHost` y devolviendo `403 Forbidden` a cualquier cliente o navegador configurado con pila dual IPv6 local.
+2. **Evasión de Allowlist en el Gatekeeper de Certificación (`verifyCommand`):**
+   En `scripts/mcp-server.ts:260-384`, `validateVerifyCommand` valida el comando base (`npm test`, `npx vitest`), pero admite cualquier argumento que coincida con caracteres alfanuméricos y símbolos. Flags como `--prefix=/tmp/evil`, `--script-shell=/bin/sh`, `--config=/tmp/malicious.js` o `-c` permiten ejecutar código arbitrario fuera del repositorio.
+3. **Bypass de Contención por Symlinks en Rutas Inexistentes y en MCP:**
+   - En `server/services/fsExplorer.ts:57-62`, si se consulta una ruta que aún no existe físicamente (`/allowed/symlink_a_raiz/archivo_nuevo`), `fs.realpathSync` falla con `ENOENT` y el bloque `catch` realiza una comprobación sintáctica sobre la ruta sin resolver, permitiendo escapar de los límites permitidos.
+   - En `scripts/mcp-server.ts:148`, `isAllowedBrowsePath` evalúa `isPathContained` **antes** de resolver `fs.realpathSync`, permitiendo que enlaces simbólicos dentro de `cwd` sorteen la contención.
+4. **Colisión de IDs entre Proyectos (Mutación Cruzada):**
+   En `server/routes/api.ts:270-420` (`PUT`, `PATCH`, `DELETE`) y en `mcp-server.ts:1050/1160`, las operaciones buscan tareas iterando `registry.projects` desde el índice `0` sin filtrar por `projectId`. En un entorno con varios proyectos registrados, si dos repositorios tienen una tarea `DEV-001`, editar o borrar `DEV-001` en el Proyecto 2 muta o borra la tarea del Proyecto 1.
+5. **Ruteo con `req.url` en lugar de `pathname` y Parámetros no Sanitizados:**
+   Más de 15 endpoints en `api.ts` comparan directamente `req.url` (incluyendo query strings) o usan `url.split('/')[3]` sin `decodeURIComponent`. Además, `POST /api/import` no valida `docsPath` y `POST /api/projects` acepta `backlogDir` con secuencias `../`.
+
+### Solución Arquitectónica Profunda:
+
+- **Middleware de Seguridad Robusto:**
+  - Parseo RFC-compliant de la cabecera `Host` soportando formato IPv6 `[::1]` y validación de `Origin` / `Sec-Fetch-Site` en todos los métodos de mutación (`POST`, `PUT`, `DELETE`, `PATCH`).
+- **Gatekeeper Hardened:**
+  - Rechazar cualquier argumento que comience con `--prefix`, `--config`, `-c`, `--script-shell`, `--eval`, `-e`, `--import`, `--loader` o contenga secuencias relativas `..` o barras absolutas.
+  - Ejecutar verificación mediante argumentos estructurados sin invocación de shell en entornos POSIX.
+- **Contención de Filesystem con Resolución de Ancestros:**
+  - En `isAllowedBrowsePath`, si el archivo objetivo no existe, resolver iterativamente `fs.realpathSync` sobre su directorio padre existente más cercano antes de evaluar la contención. Unificar esta función en un solo módulo.
+- **Scoping Estricto por `projectId`:**
+  - Exigir o resolver prioritariamente el proyecto activo (`body.projectId || query.projectId || activeProjectId`) en todos los endpoints y herramientas MCP, garantizando que ninguna operación sobre `DEV-XXX` afecte a un proyecto ajeno.
+- **Sanitización de Ruteo:**
+  - Extraer `pathname` mediante `new URL(req.url, 'http://localhost')` en todos los manejadores de `server/routes/api.ts`, y validar contención estricta en `docsPath` y `backlogDir`.
+
+**Criterios de Aceptación:**
+- [x] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
+- [x] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
+- [x] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
+- [x] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
+- [x] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
+- [x] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
+- [x] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
+- [x] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
 
 ---
 
@@ -299,7 +399,7 @@ Unificación bilingüe en un solo archivo (inglés primero, español debajo) par
 
 ---
 
-### 📋 Backlog / Draft (25)
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -546,26 +646,6 @@ Permitir que múltiples sesiones de agentes (o un agente y el desarrollador) tra
 - [ ] #2 Mecanismo de bloqueo (file lock) en disco que previene condiciones de carrera en mutaciones simultaneas
 - [ ] #3 Comando para sincronizar y reintegrar la rama del worktree una vez finalizada la tarea
 - [ ] #4 npm test y npx tsc --noEmit pasan con codigo 0
-
----
-
-#### [DEV-245] Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Aislamiento de acceso en redes de área local (LAN) cuando el servidor se ejecuta con `--host 0.0.0.0`:
-
-Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN puede conectarse a la IP del host y acceder o mutar el backlog sin restricciones. Para permitir previsualización móvil en redes Wi-Fi sin exponer el backlog a otros participantes de la red:
-1. Al arrancar con `0.0.0.0`, el daemon genera un token criptográfico efímero en memoria (`crypto.randomBytes(16)`).
-2. Se muestra en consola la URL con el token pre-cargado: `http://<ip-lan>:4100/?token=<token>`.
-3. Peticiones que se originen desde interfaces externas requieren el token en query param (`?token=...`) o cabecera `X-Gripm-Token`.
-4. El tráfico local en loopback (`127.0.0.1` / `localhost`) se mantiene transparente sin exigir token para no degradar la ergonomía de desarrollo local.
-
-**Criterios de Aceptación:**
-- [ ] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
-- [ ] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
-- [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
-- [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
-- [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
 
 ---
 
@@ -838,86 +918,6 @@ Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) c
 - [ ] #2 AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
 - [ ] #3 AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
 - [ ] #4 AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
-
----
-
-#### [DEV-301] Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-Rediseño del protocolo de concurrencia optimista y sincronización en tiempo real entre el servidor y el cliente React: corrección del mecanismo de bloqueo por `mtime` en disco, eliminación de falsos positivos/negativos de colisión `409 Conflict`, y reemplazo de tormentas de peticiones HTTP N+1 por operaciones en lote atómicas (`bulkUpdateItems`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Desactivación Silenciosa del Guard 409 (`App.tsx` vs `ItemModal.tsx`):**
-   Al recibir eventos SSE `backlog_changed`, `App.tsx:337` actualiza `editingItem.mtime` al nuevo timestamp del disco para "evitar errores 409". Sin embargo, `ItemModal` no recarga sus 35 campos de formulario si el modal ya está abierto. Al pulsar "Guardar", envía el `mtime` nuevo pero con los datos viejos en pantalla, sobrescribiendo silenciosamente los cambios que un agente o usuario externo hizo en disco.
-2. **Margen Ciego de 1.000 ms en el Backend:**
-   En `server/routes/api.ts:278`, la verificación `if (existing.mtime > body.expectedMtime + 1000)` ignora deliberadamente colisiones concurrentes dentro de un segundo. Este hack se introdujo porque `api.ts:337` devolvía `updatedItem.mtime = Date.now()` (hora de CPU) en vez de `fs.statSync(targetFilePath).mtimeMs` (hora del sistema de archivos), provocando desfasajes artificiales.
-3. **Tormenta N+1 y Corrupción de Orden en Bulk Actions:**
-   Reordenar una tarea en `App.tsx:660-672` o mover tareas seleccionadas en `SprintView.tsx:680-721` ejecuta bucles con decenas de llamadas individuales `PUT /api/items/:id`. Además, como `onReorderItem` lee `boardData.items` desde un closure obsoleto en cada iteración del bucle, los órdenes se computan con datos viejos y corrompen la secuencia de las tareas anteriores.
-4. **Bypass del Estado en Modo Sandbox:**
-   Componentes como `KanbanBoard` y `SprintView` importan y llaman directamente a `updateItem()` desde `src/api.ts` sin notificar a `App.tsx`. En modo Sandbox (`gripm.vercel.app`), donde SSE es un no-op, la interfaz no se entera del cambio hasta que el usuario recarga la página.
-
-### Solución Arquitectónica Profunda:
-
-- **Protocolo Mtime Determinista:**
-  - `saveBacklogMdItem` y `PUT /api/items/:id` leen y devuelven el valor exacto `Math.round(fs.statSync(filePath).mtimeMs)`.
-  - La verificación de conflicto en `api.ts` se vuelve exacta (`existing.mtime > body.expectedMtime`), erradicando la ventana ciega de 1.000 ms.
-  - En `App.tsx`, no se pisa `prevEditing.mtime` en segundo plano. Si el disco cambia mientras el modal está abierto, `ItemModal` muestra un banner contextual: *"Esta tarea fue modificada externamente en disco — [Comparar / Recargar]"*, preservando el bloqueo optimista 409 si el usuario decide guardar sobre una versión desfasada.
-- **Batching Atómico Universal:**
-  - Migrar todas las operaciones de reordenamiento (`handleReorderBacklogItem`), finalización de sprint (`handleCompleteSprint`) y acciones masivas en `SprintView` para que utilicen el endpoint ya existente `POST /api/items/bulk` en **una única transacción HTTP**, con un único `setBoardData` funcional y una única notificación SSE.
-  - Asegurar que todas las mutaciones pasen por los handlers de `App.tsx` para sincronización inmediata en modo Sandbox y HTTP.
-
-**Criterios de Aceptación:**
-- [ ] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
-- [ ] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
-- [ ] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
-- [ ] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
-- [ ] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
-
----
-
-#### [DEV-302] Blindaje Integral de Seguridad: Daemon Local, Scoping Multi-Proyecto, IPv6 y Gatekeeper
-- **Prioridad**: `high` | **Tipo**: `security`
-
-Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la superficie de ataque del daemon local y el servidor MCP: soporte de loopback IPv6, contención estricta de symlinks con resolución de ancestros, aislamiento riguroso entre proyectos para prevenir mutaciones cruzadas por colisión de ID, blindaje del Gatekeeper de ejecución y sanitización de rutas HTTP.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Rechazo de Loopback IPv6 (`[::1]`):**
-   En `server/middleware/security.ts:62`, `(req.headers.host || '').split(':')[0]` convierte `[::1]:4100` en `'['`, fallando la comprobación `isLoopbackHost` y devolviendo `403 Forbidden` a cualquier cliente o navegador configurado con pila dual IPv6 local.
-2. **Evasión de Allowlist en el Gatekeeper de Certificación (`verifyCommand`):**
-   En `scripts/mcp-server.ts:260-384`, `validateVerifyCommand` valida el comando base (`npm test`, `npx vitest`), pero admite cualquier argumento que coincida con caracteres alfanuméricos y símbolos. Flags como `--prefix=/tmp/evil`, `--script-shell=/bin/sh`, `--config=/tmp/malicious.js` o `-c` permiten ejecutar código arbitrario fuera del repositorio.
-3. **Bypass de Contención por Symlinks en Rutas Inexistentes y en MCP:**
-   - En `server/services/fsExplorer.ts:57-62`, si se consulta una ruta que aún no existe físicamente (`/allowed/symlink_a_raiz/archivo_nuevo`), `fs.realpathSync` falla con `ENOENT` y el bloque `catch` realiza una comprobación sintáctica sobre la ruta sin resolver, permitiendo escapar de los límites permitidos.
-   - En `scripts/mcp-server.ts:148`, `isAllowedBrowsePath` evalúa `isPathContained` **antes** de resolver `fs.realpathSync`, permitiendo que enlaces simbólicos dentro de `cwd` sorteen la contención.
-4. **Colisión de IDs entre Proyectos (Mutación Cruzada):**
-   En `server/routes/api.ts:270-420` (`PUT`, `PATCH`, `DELETE`) y en `mcp-server.ts:1050/1160`, las operaciones buscan tareas iterando `registry.projects` desde el índice `0` sin filtrar por `projectId`. En un entorno con varios proyectos registrados, si dos repositorios tienen una tarea `DEV-001`, editar o borrar `DEV-001` en el Proyecto 2 muta o borra la tarea del Proyecto 1.
-5. **Ruteo con `req.url` en lugar de `pathname` y Parámetros no Sanitizados:**
-   Más de 15 endpoints en `api.ts` comparan directamente `req.url` (incluyendo query strings) o usan `url.split('/')[3]` sin `decodeURIComponent`. Además, `POST /api/import` no valida `docsPath` y `POST /api/projects` acepta `backlogDir` con secuencias `../`.
-
-### Solución Arquitectónica Profunda:
-
-- **Middleware de Seguridad Robusto:**
-  - Parseo RFC-compliant de la cabecera `Host` soportando formato IPv6 `[::1]` y validación de `Origin` / `Sec-Fetch-Site` en todos los métodos de mutación (`POST`, `PUT`, `DELETE`, `PATCH`).
-- **Gatekeeper Hardened:**
-  - Rechazar cualquier argumento que comience con `--prefix`, `--config`, `-c`, `--script-shell`, `--eval`, `-e`, `--import`, `--loader` o contenga secuencias relativas `..` o barras absolutas.
-  - Ejecutar verificación mediante argumentos estructurados sin invocación de shell en entornos POSIX.
-- **Contención de Filesystem con Resolución de Ancestros:**
-  - En `isAllowedBrowsePath`, si el archivo objetivo no existe, resolver iterativamente `fs.realpathSync` sobre su directorio padre existente más cercano antes de evaluar la contención. Unificar esta función en un solo módulo.
-- **Scoping Estricto por `projectId`:**
-  - Exigir o resolver prioritariamente el proyecto activo (`body.projectId || query.projectId || activeProjectId`) en todos los endpoints y herramientas MCP, garantizando que ninguna operación sobre `DEV-XXX` afecte a un proyecto ajeno.
-- **Sanitización de Ruteo:**
-  - Extraer `pathname` mediante `new URL(req.url, 'http://localhost')` en todos los manejadores de `server/routes/api.ts`, y validar contención estricta en `docsPath` y `backlogDir`.
-
-**Criterios de Aceptación:**
-- [ ] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
-- [ ] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
-- [ ] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
-- [ ] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
-- [ ] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
-- [ ] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
-- [ ] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
-- [ ] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
 
 ---
 

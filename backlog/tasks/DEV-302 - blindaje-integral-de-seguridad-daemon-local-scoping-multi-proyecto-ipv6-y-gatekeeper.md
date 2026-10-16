@@ -1,9 +1,9 @@
 ---
 id: DEV-302
 title: "Blindaje Integral de Seguridad: Daemon Local, Scoping Multi-Proyecto, IPv6 y Gatekeeper"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-16 05:28'
 labels:
   - "security"
   - "backend"
@@ -53,14 +53,14 @@ Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la sup
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
-- [ ] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
-- [ ] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
-- [ ] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
-- [ ] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
-- [ ] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
-- [ ] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
-- [ ] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
+- [x] #1 Peticiones locales HTTP emitidas sobre IPv6 (`Host: [::1]:port`) son reconocidas legítimamente como loopback sin emitir `403 Forbidden`
+- [x] #2 `validateVerifyCommand` rechaza de forma determinista cualquier intento de pasar flags de evasión (`--prefix`, `--config`, `--script-shell`, etc.) o rutas con escape `..`
+- [x] #3 `isAllowedBrowsePath` resuelve symlinks sobre el ancestro existente más cercano, impidiendo escapes de contención sobre archivos nuevos o inexistentes tanto en HTTP como en MCP
+- [x] #4 Las operaciones de edición, restauración y borrado de tareas (`PUT/PATCH/DELETE /api/items/:id` y MCP) aplican scoping estricto al proyecto seleccionado, impidiendo mutaciones en proyectos homónimos
+- [x] #5 El ruteo de `server/routes/api.ts` opera exclusivamente sobre `pathname` decodificado, siendo inmune a variaciones de query parameters
+- [x] #6 `POST /api/import` y `POST /api/projects` validan que `docsPath` y `backlogDir` residan estrictamente dentro de la raíz permitida
+- [x] #7 Todos los watchers `fs.FSWatcher` registran listeners de error para evitar caídas fatales del proceso Node ante borrado de directorios
+- [x] #8 La suite de seguridad `scripts/test-api-security.js` valida limpiamente las 8 mitigaciones con código 0
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -74,8 +74,3 @@ Cierre sistemático de vulnerabilidades de seguridad y robustecimiento de la sup
 6. Agregar listeners `watcher.on('error', ...)` en `server/sse/sseManager.ts`.
 7. Actualizar y ejecutar `scripts/test-api-security.js`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

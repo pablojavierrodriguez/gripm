@@ -1,6 +1,7 @@
 import { httpAdapter } from './httpAdapter.ts';
 import { sandboxAdapter } from './sandbox.ts';
 import { setActiveApi } from './runtime.ts';
+import { getStoredToken } from '../utils/token.ts';
 import type { GripmApi } from './types';
 
 /**
@@ -36,9 +37,12 @@ function probeAvailableApi(): Promise<boolean> {
 
   return (async () => {
     try {
+      const token = getStoredToken();
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      if (token) headers['X-Gripm-Token'] = token;
       const res = await fetch(PROBE_URL, {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers,
         signal: controller?.signal,
       });
       if (!res.ok) return false;

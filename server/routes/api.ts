@@ -45,7 +45,9 @@ try {
 
 export async function handleApiRequest(req: any, res: any): Promise<void> {
   const url = req.url || '';
-  const pathname = url.split('?')[0];
+  const urlObj = new URL(url, 'http://localhost');
+  const pathname = decodeURIComponent(urlObj.pathname);
+  const searchParams = urlObj.searchParams;
 
   try {
     const registry = getRegistry();
@@ -167,7 +169,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // GET /api/updates
-    if (req.method === 'GET' && url === '/api/updates') {
+    if (req.method === 'GET' && pathname === '/api/updates') {
       const cached = getCachedUpdateInfo(appVersion);
       return sendJson(res, 200, {
         currentVersion: appVersion,
@@ -176,7 +178,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/items
-    if (req.method === 'POST' && url === '/api/items') {
+    if (req.method === 'POST' && pathname === '/api/items') {
       const body = await getBody(req, res);
       const now = new Date().toISOString();
 
@@ -261,21 +263,117 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       return sendJson(res, 201, { ok: true, item: newItem });
     }
 
+    // POST /api/items/bulk (DEV-301: Atomic batch updates for bulk operations, sprint completion, reordering)
+    if (req.method === 'POST' && pathname === '/api/items/bulk') {
+      const body = await getBody(req, res);
+      const itemsToUpdate = Array.isArray(body.items) ? body.items : [];
+      const explicitProjectId = body.projectId || searchParams.get('projectId');
+      const targetProject = explicitProjectId
+        ? registry.projects.find(p => p.id === explicitProjectId)
+        : (registry.projects.find(p => p.id === registry.activeProjectId) || registry.projects[0]);
+
+      if (!targetProject) {
+        return sendJson(res, 400, { error: 'No active project found for bulk update' });
+      }
+
+      let updatedCount = 0;
+      const now = new Date().toISOString();
+      const backlog = readProjectBacklog(targetProject);
+
+      for (const patch of itemsToUpdate) {
+        if (!patch || (!patch.id && !patch.code)) continue;
+        const targetId = patch.code || patch.id;
+        const idx = backlog.items.findIndex(it => it.id === targetId || it.code === targetId);
+        if (idx !== -1) {
+          const existing = backlog.items[idx];
+          const newNormalizedStatus = patch.status ? normalizeStatus(patch.status) : existing.status;
+          const wasDone = existing.status === 'done';
+          const isNowDone = newNormalizedStatus === 'done';
+
+          const updatedItem = {
+            ...existing,
+            ...patch,
+            id: existing.id,
+            code: existing.code,
+            status: newNormalizedStatus,
+            priority: patch.priority ? normalizePriority(patch.priority) : existing.priority,
+            updatedAt: now,
+            completedAt: isNowDone && !wasDone ? now : (isNowDone ? existing.completedAt : undefined)
+          };
+
+          if (patch.sprint !== undefined) {
+            updatedItem.sprint = patch.sprint || undefined;
+            updatedItem.targetSprint = patch.sprint || undefined;
+            if (!patch.sprint && updatedItem.milestone && updatedItem.milestone.toLowerCase().includes('sprint')) {
+              updatedItem.milestone = undefined;
+            }
+            if (patch.sprint) {
+              updatedItem.sprints = Array.from(new Set([...(updatedItem.sprints || []), patch.sprint]));
+            } else {
+              updatedItem.sprints = [];
+            }
+          }
+          if (patch.sprints !== undefined) {
+            updatedItem.sprints = patch.sprints;
+          }
+          if (patch.release !== undefined || patch.targetRelease !== undefined || patch.milestone !== undefined || patch.releases !== undefined) {
+            const rVal = (patch.release || patch.targetRelease || patch.milestone || (patch.releases && patch.releases.length > 0 ? patch.releases[0] : '') || '').trim();
+            const relArr = Array.isArray(patch.releases) ? patch.releases.filter(Boolean) : (rVal ? [rVal] : []);
+            updatedItem.release = rVal || undefined;
+            updatedItem.targetRelease = rVal || undefined;
+            updatedItem.milestone = rVal || undefined;
+            updatedItem.releases = relArr;
+          }
+          if (patch.estimate !== undefined) {
+            updatedItem.estimate = (patch.estimate === '' || patch.estimate === null) ? undefined : patch.estimate;
+          }
+
+          if (isBacklogMdProject(targetProject)) {
+            saveBacklogMdItem(targetProject, updatedItem);
+          } else {
+            backlog.items[idx] = updatedItem;
+          }
+          updatedCount++;
+        }
+      }
+
+      if (!isBacklogMdProject(targetProject)) {
+        writeProjectBacklog(targetProject, backlog);
+      }
+
+      broadcastSse('backlog_changed', {
+        projectId: targetProject.id,
+        action: 'bulk_updated',
+        count: updatedCount,
+        timestamp: Date.now()
+      });
+
+      return sendJson(res, 200, { ok: true, updatedCount });
+    }
+
     // PUT /api/items/:id
-    if (req.method === 'PUT' && url.startsWith('/api/items/')) {
-      const id = decodeURIComponent(url.replace('/api/items/', '').split('?')[0]);
+    if (req.method === 'PUT' && pathname.startsWith('/api/items/')) {
+      const id = decodeURIComponent(pathname.replace('/api/items/', ''));
       const body = await getBody(req, res);
       const now = new Date().toISOString();
 
-      for (const p of registry.projects) {
+      const explicitProjectId = body?.projectId || searchParams.get('projectId');
+      const candidateProjects = explicitProjectId
+        ? registry.projects.filter(p => p.id === explicitProjectId)
+        : [
+            registry.projects.find(p => p.id === registry.activeProjectId),
+            ...registry.projects.filter(p => p.id !== registry.activeProjectId)
+          ].filter(Boolean) as ProjectMeta[];
+
+      for (const p of candidateProjects) {
         const backlog = readProjectBacklog(p);
         const index = backlog.items.findIndex(i => i.id === id || i.code === id);
         if (index !== -1) {
           const existing = backlog.items[index];
 
-          // DEV-017: Optimistic Concurrency Check (ETag / Mtime)
+          // DEV-017 & DEV-301: Optimistic Concurrency Check (ETag / Mtime)
           if (!body.force && typeof body.expectedMtime === 'number' && typeof existing.mtime === 'number') {
-            if (existing.mtime > body.expectedMtime + 1000) {
+            if (existing.mtime > body.expectedMtime) {
               return sendJson(res, 409, {
                 error: 'conflict',
                 message: `La tarea "${existing.code}" fue modificada en disco por otro proceso o agente.`,
@@ -329,12 +427,23 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
 
           if (isBacklogMdProject(p)) {
             saveBacklogMdItem(p, updatedItem);
+            const fileInfo = findBacklogMdFile(p, updatedItem.code || updatedItem.id);
+            updatedItem.mtime = fileInfo?.filePath && fs.existsSync(fileInfo.filePath)
+              ? Math.round(fs.statSync(fileInfo.filePath).mtimeMs)
+              : Date.now();
           } else {
             backlog.items[index] = updatedItem;
             writeProjectBacklog(p, backlog);
+            const jsonPath = p.repoPath
+              ? path.join(p.repoPath, '.gripm/backlog.json')
+              : (fs.existsSync(path.resolve(PKG_ROOT, 'src/data/demo-backlog.json'))
+                  ? path.resolve(PKG_ROOT, 'src/data/demo-backlog.json')
+                  : path.resolve(PKG_ROOT, 'data/demo-backlog.json'));
+            updatedItem.mtime = fs.existsSync(jsonPath)
+              ? Math.round(fs.statSync(jsonPath).mtimeMs)
+              : Date.now();
           }
 
-          updatedItem.mtime = Date.now();
           return sendJson(res, 200, { ok: true, item: updatedItem });
         }
       }
@@ -343,9 +452,17 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // PATCH /api/items/:id/restore (DEV-049: Restore soft-deleted item)
-    if (req.method === 'PATCH' && /^\/api\/items\/[^/]+\/restore$/.test(url)) {
-      const id = decodeURIComponent(url.replace('/api/items/', '').replace('/restore', ''));
-      for (const p of registry.projects) {
+    if (req.method === 'PATCH' && /^\/api\/items\/[^/]+\/restore$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.replace('/api/items/', '').replace('/restore', ''));
+      const explicitProjectId = searchParams.get('projectId');
+      const candidateProjects = explicitProjectId
+        ? registry.projects.filter(p => p.id === explicitProjectId)
+        : [
+            registry.projects.find(p => p.id === registry.activeProjectId),
+            ...registry.projects.filter(p => p.id !== registry.activeProjectId)
+          ].filter(Boolean) as ProjectMeta[];
+
+      for (const p of candidateProjects) {
         if (isBacklogMdProject(p)) {
           const restored = restoreBacklogMdItem(p, id);
           if (restored) {
@@ -371,12 +488,18 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // DELETE /api/items/:id (DEV-049: soft-delete by default, ?purge=true for physical removal)
-    if (req.method === 'DELETE' && url.startsWith('/api/items/')) {
-      const rawUrl = url;
-      const isPurge = rawUrl.includes('?purge=true');
-      const id = decodeURIComponent(rawUrl.replace('/api/items/', '').split('?')[0]);
+    if (req.method === 'DELETE' && pathname.startsWith('/api/items/')) {
+      const isPurge = searchParams.get('purge') === 'true';
+      const id = decodeURIComponent(pathname.replace('/api/items/', ''));
+      const explicitProjectId = searchParams.get('projectId');
+      const candidateProjects = explicitProjectId
+        ? registry.projects.filter(p => p.id === explicitProjectId)
+        : [
+            registry.projects.find(p => p.id === registry.activeProjectId),
+            ...registry.projects.filter(p => p.id !== registry.activeProjectId)
+          ].filter(Boolean) as ProjectMeta[];
 
-      for (const p of registry.projects) {
+      for (const p of candidateProjects) {
         if (isBacklogMdProject(p)) {
           if (isPurge) {
             const purged = purgeBacklogMdItem(p, id);
@@ -423,7 +546,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/import/legacy-md (DEV-018)
-    if (req.method === 'POST' && url === '/api/import/legacy-md') {
+    if (req.method === 'POST' && pathname === '/api/import/legacy-md') {
       const body = await getBody(req, res);
       const projectId = body.projectId || registry.projects[0]?.id;
       const project = registry.projects.find(p => p.id === projectId);
@@ -509,7 +632,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects
-    if (req.method === 'POST' && url === '/api/projects') {
+    if (req.method === 'POST' && pathname === '/api/projects') {
       const body = await getBody(req, res);
       const now = new Date().toISOString();
 
@@ -517,6 +640,13 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
 
       let storageType = body.storageType;
       let backlogDir = body.backlogDir || 'backlog';
+
+      if (body.backlogDir) {
+        const normBacklog = path.normalize(body.backlogDir);
+        if (path.isAbsolute(normBacklog) || normBacklog.startsWith('..') || normBacklog.includes(`..${path.sep}`)) {
+          return sendJson(res, 400, { ok: false, error: 'Invalid backlogDir: must be a relative directory inside the repository' });
+        }
+      }
 
       const normalizedRepoPath = body.repoPath ? path.normalize(body.repoPath.trim()) : undefined;
       if (normalizedRepoPath && !isAllowedBrowsePath(normalizedRepoPath)) {
@@ -550,7 +680,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/restore-demo
-    if (req.method === 'POST' && url === '/api/projects/restore-demo') {
+    if (req.method === 'POST' && pathname === '/api/projects/restore-demo') {
       const hasDemo = registry.projects.some(p => p.id === 'demo');
       if (!hasDemo) {
         registry.projects.push({
@@ -569,7 +699,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/detect-path
-    if (req.method === 'POST' && url === '/api/projects/detect-path') {
+    if (req.method === 'POST' && pathname === '/api/projects/detect-path') {
       const body = await getBody(req, res);
       const inputPath = body.repoPath ? path.normalize(body.repoPath.trim()) : '';
       if (!inputPath) {
@@ -591,8 +721,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // DELETE /api/projects/:id (Unlink project from gripm)
-    if (req.method === 'DELETE' && url.startsWith('/api/projects/')) {
-      const id = decodeURIComponent(url.replace('/api/projects/', '').split('?')[0]);
+    if (req.method === 'DELETE' && pathname.startsWith('/api/projects/')) {
+      const id = decodeURIComponent(pathname.replace('/api/projects/', ''));
       const initialLen = registry.projects.length;
       registry.projects = registry.projects.filter(p => p.id !== id);
 
@@ -609,7 +739,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/active
-    if (req.method === 'POST' && url === '/api/projects/active') {
+    if (req.method === 'POST' && pathname === '/api/projects/active') {
       const body = await getBody(req, res);
       const { projectId } = body || {};
       if (isSingleMode) {
@@ -625,9 +755,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // GET /api/fs/browse?dir=...
-    if (req.method === 'GET' && url.startsWith('/api/fs/browse')) {
-      const urlObj = new URL(`http://localhost${url}`);
-      let rawDir = urlObj.searchParams.get('dir') || '';
+    if (req.method === 'GET' && (pathname === '/api/fs/browse' || pathname.startsWith('/api/fs/browse'))) {
+      let rawDir = searchParams.get('dir') || '';
       let targetDir = rawDir.trim();
 
       if (!targetDir) {
@@ -728,8 +857,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/:id/detect-storage
-    if (req.method === 'POST' && url.includes('/detect-storage')) {
-      const id = url.split('/')[3];
+    if (req.method === 'POST' && /^\/api\/projects\/[^/]+\/detect-storage$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/detect-storage$/)![1]);
       const p = registry.projects.find(proj => proj.id === id);
       if (!p) return sendJson(res, 404, { error: 'Project not found' });
       const detection = detectProjectStorage(p.repoPath);
@@ -737,8 +866,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/:id/convert-to-md
-    if (req.method === 'POST' && url.includes('/convert-to-md')) {
-      const id = url.split('/')[3];
+    if (req.method === 'POST' && /^\/api\/projects\/[^/]+\/convert-to-md$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/convert-to-md$/)![1]);
       const project = registry.projects.find(proj => proj.id === id);
       if (!project || !project.repoPath) {
         return sendJson(res, 400, { error: 'Project not found or lacks repoPath' });
@@ -770,8 +899,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/:id/convert-to-json
-    if (req.method === 'POST' && url.includes('/convert-to-json')) {
-      const id = url.split('/')[3];
+    if (req.method === 'POST' && /^\/api\/projects\/[^/]+\/convert-to-json$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/convert-to-json$/)![1]);
       const project = registry.projects.find(proj => proj.id === id);
       if (!project || !project.repoPath) {
         return sendJson(res, 400, { error: 'Project not found or lacks repoPath' });
@@ -797,8 +926,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // GET /api/projects/:id/export-json
-    if (req.method === 'GET' && url.includes('/export-json')) {
-      const id = url.split('?')[0].split('/')[3];
+    if (req.method === 'GET' && /^\/api\/projects\/[^/]+\/export-json$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/export-json$/)![1]);
       const project = registry.projects.find(proj => proj.id === id);
       if (!project) return sendJson(res, 404, { error: 'Project not found' });
 
@@ -811,8 +940,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // GET /api/projects/:id/export-monolithic-md (Read-only, no disk mutations DEV-292)
-    if (req.method === 'GET' && url.includes('/export-monolithic-md')) {
-      const id = url.split('?')[0].split('/')[3];
+    if (req.method === 'GET' && /^\/api\/projects\/[^/]+\/export-monolithic-md$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/export-monolithic-md$/)![1]);
       const project = registry.projects.find(proj => proj.id === id);
       if (!project) return sendJson(res, 404, { error: 'Project not found' });
 
@@ -837,8 +966,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/projects/:id/export-monolithic-md (Saves BACKLOG.md to disk atomically DEV-292)
-    if (req.method === 'POST' && url.includes('/export-monolithic-md')) {
-      const id = url.split('?')[0].split('/')[3];
+    if (req.method === 'POST' && /^\/api\/projects\/[^/]+\/export-monolithic-md$/.test(pathname)) {
+      const id = decodeURIComponent(pathname.match(/^\/api\/projects\/([^/]+)\/export-monolithic-md$/)![1]);
       const project = registry.projects.find(proj => proj.id === id);
       if (!project) return sendJson(res, 404, { error: 'Project not found' });
       if (!project.repoPath) return sendJson(res, 400, { error: 'Project lacks repoPath' });
@@ -869,7 +998,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/releases
-    if (req.method === 'POST' && url === '/api/releases') {
+    if (req.method === 'POST' && pathname === '/api/releases') {
       const body = await getBody(req, res);
       const now = new Date().toISOString();
 
@@ -978,8 +1107,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // DELETE /api/releases/:id
-    if (req.method === 'DELETE' && url.startsWith('/api/releases/')) {
-      const releaseId = decodeURIComponent(url.replace('/api/releases/', '').split('?')[0]);
+    if (req.method === 'DELETE' && pathname.startsWith('/api/releases/')) {
+      const releaseId = decodeURIComponent(pathname.replace('/api/releases/', ''));
       const project = registry.projects.find(p => p.id === registry.activeProjectId) || registry.projects[0];
       if (!project) return sendJson(res, 400, { error: 'Project not found' });
       const backlog = readProjectBacklog(project);
@@ -990,7 +1119,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/releases/sync-legacy
-    if (req.method === 'POST' && url === '/api/releases/sync-legacy') {
+    if (req.method === 'POST' && pathname === '/api/releases/sync-legacy') {
       const body = await getBody(req, res);
       const project = registry.projects.find(p => p.id === body.projectId)
         || registry.projects.find(p => p.id === registry.activeProjectId)
@@ -1021,9 +1150,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // GET /api/sprints
-    if (req.method === 'GET' && url.startsWith('/api/sprints')) {
-      const urlObj = new URL(url, 'http://localhost');
-      const projectId = urlObj.searchParams.get('projectId') || registry.activeProjectId || registry.projects[0]?.id;
+    if (req.method === 'GET' && (pathname === '/api/sprints' || pathname.startsWith('/api/sprints'))) {
+      const projectId = searchParams.get('projectId') || registry.activeProjectId || registry.projects[0]?.id;
       const project = registry.projects.find(p => p.id === projectId) || registry.projects[0];
       if (!project) return sendJson(res, 400, { error: 'Project not found' });
       const backlog = readProjectBacklog(project);
@@ -1031,7 +1159,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // POST /api/sprints
-    if (req.method === 'POST' && url === '/api/sprints') {
+    if (req.method === 'POST' && pathname === '/api/sprints') {
       const body = await getBody(req, res);
       const now = new Date().toISOString();
       const project = registry.projects.find(p => p.id === body.projectId)
@@ -1091,8 +1219,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     }
 
     // PUT /api/sprints/:id
-    if (req.method === 'PUT' && url.startsWith('/api/sprints/')) {
-      const sprintId = decodeURIComponent(url.replace('/api/sprints/', '').split('?')[0]);
+    if (req.method === 'PUT' && pathname.startsWith('/api/sprints/')) {
+      const sprintId = decodeURIComponent(pathname.replace('/api/sprints/', ''));
       const body = await getBody(req, res);
       const now = new Date().toISOString();
       const project = registry.projects.find(p => p.id === body.projectId)
@@ -1188,9 +1316,8 @@ ${Array.isArray(r.actions) && r.actions.length > 0
     }
 
     // GET /api/retros (DEV-070)
-    if (req.method === 'GET' && url.startsWith('/api/retros')) {
-      const urlObj = new URL(url, 'http://localhost');
-      const projectId = urlObj.searchParams.get('projectId');
+    if (req.method === 'GET' && (pathname === '/api/retros' || pathname.startsWith('/api/retros'))) {
+      const projectId = searchParams.get('projectId');
       const project = registry.projects.find(p => p.id === projectId)
         || registry.projects.find(p => p.id === registry.activeProjectId)
         || registry.projects[0];
@@ -1215,10 +1342,9 @@ ${Array.isArray(r.actions) && r.actions.length > 0
     }
 
     // DELETE /api/sprints/:id
-    if (req.method === 'DELETE' && url.startsWith('/api/sprints/')) {
-      const urlObj = new URL(url, 'http://localhost');
-      const sprintId = decodeURIComponent(url.replace('/api/sprints/', '').split('?')[0]);
-      const projectId = urlObj.searchParams.get('projectId') || registry.activeProjectId || registry.projects[0]?.id;
+    if (req.method === 'DELETE' && pathname.startsWith('/api/sprints/')) {
+      const sprintId = decodeURIComponent(pathname.replace('/api/sprints/', ''));
+      const projectId = searchParams.get('projectId') || registry.activeProjectId || registry.projects[0]?.id;
       const project = registry.projects.find(p => p.id === projectId) || registry.projects[0];
       if (!project) return sendJson(res, 400, { error: 'Project not found' });
 
@@ -1252,7 +1378,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
     }
 
     // POST /api/import (DEV-012)
-    if (req.method === 'POST' && url === '/api/import') {
+    if (req.method === 'POST' && pathname === '/api/import') {
       try {
         const body = await getBody(req, res).catch(() => ({}));
         const projectId = body.projectId || registry.activeProjectId || registry.projects[0]?.id;
@@ -1262,6 +1388,9 @@ ${Array.isArray(r.actions) && r.actions.length > 0
         }
 
         const docsDir = body.docsPath || getProjectDocsPath(targetProject);
+        if (body.docsPath && !isAllowedBrowsePath(body.docsPath)) {
+          return sendJson(res, 403, { ok: false, error: 'Forbidden: docsPath is outside allowed roots' });
+        }
         if (!docsDir || !fs.existsSync(docsDir)) {
           return sendJson(res, 400, {
             ok: false,

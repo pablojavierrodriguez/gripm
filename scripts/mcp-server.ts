@@ -8,12 +8,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
 import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from './updateChecker.js';
 import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
 import { BacklogService } from '../server/services/backlogService.ts';
+import { isAllowedBrowsePath, isSystemRootDir } from '../server/services/fsExplorer.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,74 +79,7 @@ interface ProjectMeta {
   error?: string;
 }
 
-function isPathContained(targetPath: string, rootDir: string): boolean {
-  const relative = path.relative(rootDir, targetPath);
-  return !relative.startsWith('..') && !path.isAbsolute(relative);
-}
 
-function isSystemRootDir(targetPath: string): boolean {
-  const resolved = path.resolve(targetPath);
-  const parsed = path.parse(resolved);
-  if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
-  const lower = resolved.toLowerCase();
-  const restrictedPrefixes = [
-    'c:\\windows', 'c:\\program files', 'c:\\program files (x86)',
-    '/etc', '/var', '/usr', '/bin', '/sbin', '/sys', '/proc', '/dev'
-  ];
-  return restrictedPrefixes.some(p => lower === p || lower.startsWith(p + path.sep));
-}
-
-function isAllowedBrowsePath(targetPath: string, projectRoots: string[] = []): boolean {
-  if (!targetPath || typeof targetPath !== 'string') return false;
-  try {
-    const resolved = path.resolve(path.normalize(targetPath));
-    if (isSystemRootDir(resolved)) return false;
-
-    const roots: string[] = [];
-    const homedir = os.homedir();
-    if (homedir) {
-      roots.push(path.resolve(homedir));
-      try { roots.push(fs.realpathSync(homedir)); } catch {}
-    }
-    const cwd = process.cwd();
-    if (cwd) {
-      roots.push(path.resolve(cwd));
-      try { roots.push(fs.realpathSync(cwd)); } catch {}
-    }
-    const tmpdir = os.tmpdir();
-    if (tmpdir) {
-      roots.push(path.resolve(tmpdir));
-      try { roots.push(fs.realpathSync(tmpdir)); } catch {}
-    }
-    for (const pr of projectRoots) {
-      if (pr) {
-        roots.push(path.resolve(pr));
-        try { roots.push(fs.realpathSync(pr)); } catch {}
-      }
-    }
-    const extra = process.env.GRIPM_ALLOWED_PATHS;
-    if (extra) {
-      for (const p of extra.split(path.delimiter)) {
-        if (p.trim()) {
-          roots.push(path.resolve(p.trim()));
-          try { roots.push(fs.realpathSync(p.trim())); } catch {}
-        }
-      }
-    }
-
-    const uniqueRoots = [...new Set(roots)];
-    if (uniqueRoots.some(root => isPathContained(resolved, root))) return true;
-
-    try {
-      const real = fs.realpathSync(resolved);
-      if (uniqueRoots.some(root => isPathContained(real, root))) return true;
-    } catch {}
-
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 function getRegistry(): { activeProjectId: string; projects: ProjectMeta[] } {
   let reg: { activeProjectId: string; projects: ProjectMeta[] } = loadRegistryFile(ROOT_DIR);
@@ -595,8 +528,14 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       throw new Error(`[MCP Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
     }
     const cleanId = String(args.taskId).toLowerCase();
-    for (const p of registry.projects) {
-      if (args.projectId && p.id !== args.projectId) continue;
+    const candidateProjects = args.projectId
+      ? registry.projects.filter(p => p.id === args.projectId)
+      : [
+          registry.projects.find(p => p.id === registry.activeProjectId),
+          ...registry.projects.filter(p => p.id !== registry.activeProjectId)
+        ].filter(Boolean) as ProjectMeta[];
+
+    for (const p of candidateProjects) {
       try {
         const res = BacklogService.getTask(p as any, cleanId);
         if (res.found) return res;
@@ -624,8 +563,14 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
       }
     }
 
-    for (const project of registry.projects) {
-      if (args.projectId && project.id !== args.projectId) continue;
+    const candidateProjects = args.projectId
+      ? registry.projects.filter(p => p.id === args.projectId)
+      : [
+          registry.projects.find(p => p.id === registry.activeProjectId),
+          ...registry.projects.filter(p => p.id !== registry.activeProjectId)
+        ].filter(Boolean) as ProjectMeta[];
+
+    for (const project of candidateProjects) {
       try {
         const res = BacklogService.updateTask(project as any, args.taskId, args, {
           force: args.force,

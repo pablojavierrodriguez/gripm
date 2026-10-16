@@ -1,9 +1,9 @@
 ---
 id: DEV-301
 title: "Concurrencia y Sincronización: Protocolo Optimista Real Mtime y Batching Atómico en API"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-16 05:05'
 labels:
   - "concurrency"
   - "frontend"
@@ -46,11 +46,11 @@ Rediseño del protocolo de concurrencia optimista y sincronización en tiempo re
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
-- [ ] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
-- [ ] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
-- [ ] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
-- [ ] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
+- [x] #1 `PUT /api/items/:id` devuelve el `mtime` exacto del archivo en disco (`fs.statSync().mtimeMs`) y aplica validación estricta de conflicto sin márgenes arbitrarios de 1.000 ms
+- [x] #2 `src/App.tsx` no sobrescribe silenciosamente `expectedMtime` cuando una tarea en edición cambia en disco; `ItemModal` advierte de la modificación externa permitiendo al usuario decidir recargar o resolver el conflicto
+- [x] #3 `handleReorderBacklogItem`, `handleCompleteSprint` y todas las acciones masivas de `SprintView` ejecutan una única llamada `bulkUpdateItems` por operación, eliminando bucles N+1 de peticiones individuales
+- [x] #4 Las mutaciones disparadas desde menús contextuales en `KanbanBoard` y `SprintView` actualizan el estado de `App.tsx`, garantizando consistencia inmediata en modo Sandbox y modo Local
+- [x] #5 El cambio de proyecto activo en `App.tsx` espera a la confirmación de la API antes de cargar datos y mantiene una conexión SSE persistente sin destruirla innecesariamente
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -62,8 +62,3 @@ Rediseño del protocolo de concurrencia optimista y sincronización en tiempo re
 4. Conectar el banner de advertencia de cambio en disco en `ItemModal.tsx`.
 5. Validar con prueba de stress y simulación de concurrencia en `npm run test:ui`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

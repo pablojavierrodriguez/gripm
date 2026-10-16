@@ -81,6 +81,10 @@ export function setupProjectWatchers() {
         }
         notifyChange(dir, filename);
       });
+      // DEV-302 AC #7: Register error listener on watcher to prevent unhandled error crashes
+      watcher.on('error', (err: any) => {
+        console.warn(`[gripm Watcher] Error on ${dir}:`, err?.message || err);
+      });
       // DEV-190: no `unref()` call here on purpose. FSWatcher has no such
       // method, so the previous `typeof watcher.unref === 'function'` guard
       // was silently dead code. Cleanup goes through closeWatchers().

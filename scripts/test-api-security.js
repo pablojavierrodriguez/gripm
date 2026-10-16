@@ -146,15 +146,53 @@ class MockRequest extends EventEmitter {
   console.log('✅ 0.0.0.0: Petición cross-origin desde web externa bloqueada con 403');
 }
 
-// Test 7: Host 0.0.0.0 allows LAN client with matching IP origin
+// Test 7: Host 0.0.0.0 & Ephemeral Token Authentication (DEV-245)
 {
   process.env.GRIPM_HOST = '0.0.0.0';
-  const req = new MockRequest('GET', '/api/data', { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100' });
-  const res = new MockResponse();
-  let nextCalled = false;
-  middlewareHandler(req, res, () => { nextCalled = true; });
-  assert.strictEqual(res.statusCode, 200, 'En 0.0.0.0, Origin que coincide con Host LAN debe responder 200 OK');
-  console.log('✅ 0.0.0.0: Petición LAN legítima permitida con 200 OK');
+  const { getEphemeralToken, setEphemeralToken } = await import('../server/middleware/security.ts');
+  const validToken = getEphemeralToken() || 'test-ephemeral-token-1234';
+  setEphemeralToken(validToken);
+
+  // 1. LAN request without token is rejected with 401
+  const reqNoToken = new MockRequest('GET', '/api/data', { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100' });
+  const resNoToken = new MockResponse();
+  let nextCalledNoToken = false;
+  middlewareHandler(reqNoToken, resNoToken, () => { nextCalledNoToken = true; });
+  assert.strictEqual(resNoToken.statusCode, 401, 'En 0.0.0.0, petición LAN sin token debe responder 401 Unauthorized');
+  assert.strictEqual(nextCalledNoToken, false);
+
+  // 2. LAN request with invalid token is rejected with 401
+  const reqBadToken = new MockRequest('GET', '/api/data', { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100', 'x-gripm-token': 'wrong-token' });
+  const resBadToken = new MockResponse();
+  let nextCalledBadToken = false;
+  middlewareHandler(reqBadToken, resBadToken, () => { nextCalledBadToken = true; });
+  assert.strictEqual(resBadToken.statusCode, 401, 'En 0.0.0.0, petición LAN con token inválido debe responder 401');
+  assert.strictEqual(nextCalledBadToken, false);
+
+  // 3. LAN request with valid token in header succeeds with 200 OK
+  const reqGoodHeader = new MockRequest('GET', '/api/data', { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100', 'x-gripm-token': validToken });
+  const resGoodHeader = new MockResponse();
+  let nextCalledGoodHeader = false;
+  middlewareHandler(reqGoodHeader, resGoodHeader, () => { nextCalledGoodHeader = true; });
+  assert.strictEqual(resGoodHeader.statusCode, 200, 'Petición LAN con header X-Gripm-Token válido debe responder 200 OK');
+
+  // 4. LAN request with valid token in query param (?token=...) succeeds with 200 OK
+  const reqGoodQuery = new MockRequest('GET', `/api/data?token=${validToken}`, { host: '192.168.1.50:4100', origin: 'http://192.168.1.50:4100' });
+  const resGoodQuery = new MockResponse();
+  let nextCalledGoodQuery = false;
+  middlewareHandler(reqGoodQuery, resGoodQuery, () => { nextCalledGoodQuery = true; });
+  assert.strictEqual(resGoodQuery.statusCode, 200, 'Petición LAN con ?token=... válido en URL debe responder 200 OK');
+
+  // 5. Loopback access on 127.0.0.1, localhost and IPv6 [::1] does not require token
+  for (const host of ['127.0.0.1:4100', 'localhost:4100', '[::1]:4100']) {
+    const reqLoopback = new MockRequest('GET', '/api/data', { host });
+    const resLoopback = new MockResponse();
+    let nextCalledLoopback = false;
+    middlewareHandler(reqLoopback, resLoopback, () => { nextCalledLoopback = true; });
+    assert.strictEqual(resLoopback.statusCode, 200, `Petición en loopback (${host}) sin token debe responder 200 OK de forma transparente`);
+  }
+
+  console.log('✅ 0.0.0.0 & LAN Auth (DEV-245): Peticiones LAN sin token dan 401, con token dan 200, y loopback (IPv4/IPv6) es transparente');
 }
 
 // Test 8: OPTIONS preflight sets Vary: Origin
@@ -614,6 +652,69 @@ class MockRequest extends EventEmitter {
   }
 
   console.log('✅ Symlink Containment (DEV-292 AC #4): isAllowedBrowsePath resuelve fs.realpathSync antes de verificar contención');
+}
+
+// Test 22: Blindaje Integral de Seguridad (DEV-302)
+{
+  const { validateVerifyCommand } = await import('../server/services/backlogService.ts');
+  const { isAllowedBrowsePath, isSystemRootDir } = await import('../server/services/fsExplorer.ts');
+
+  // AC #1: IPv6 Loopback [::1]
+  const reqIpv6 = new MockRequest('GET', '/api/data', { host: '[::1]:4100' });
+  const resIpv6 = new MockResponse();
+  let nextIpv6 = false;
+  middlewareHandler(reqIpv6, resIpv6, () => { nextIpv6 = true; });
+  assert.strictEqual(resIpv6.statusCode, 200, 'Loopback IPv6 [::1] debe responder 200 sin emitir 403 (DEV-302 AC #1)');
+
+  // AC #2: Gatekeeper evasion flags and escapes
+  const dangerousCommands = [
+    'npm test -- --prefix=/tmp',
+    'npm test -- --config=malicious.js',
+    'npm test -- -c',
+    'npm test -- --script-shell=/bin/sh',
+    'npm test -- --eval=process.exit()',
+    'npm test -- -e',
+    'npm test -- --import=evil.mjs',
+    'npm test -- --loader=evil.js',
+    'npm test -- ../outside/test.js',
+    'npm test -- /etc/passwd'
+  ];
+
+  for (const cmd of dangerousCommands) {
+    const result = validateVerifyCommand(cmd, process.cwd());
+    assert.strictEqual(result.valid, false, `Gatekeeper debe rechazar comando peligroso: ${cmd}`);
+  }
+
+  const safeResult = validateVerifyCommand('npm test', process.cwd());
+  assert.strictEqual(safeResult.valid, true, 'Gatekeeper debe permitir comando estándar legítimo: npm test');
+
+  // AC #3: isAllowedBrowsePath resolves ancestors on non-existent files
+  const nonExistentInside = path.join(process.cwd(), 'a_non_existent_folder_abc', 'subfile.md');
+  assert.strictEqual(isAllowedBrowsePath(nonExistentInside), true, 'Ruta inexistente dentro de directorio permitido debe permitirse');
+
+  const systemRoot = path.parse(process.cwd()).root;
+  const nonExistentOutside = path.join(systemRoot, 'a_non_existent_system_dir_xyz', 'subfile.md');
+  assert.strictEqual(isAllowedBrowsePath(nonExistentOutside), false, 'Ruta inexistente fuera de directorios permitidos debe rechazarse');
+
+  // AC #5: Router operates on decoded pathname immune to query params
+  const reqWithQuery = new MockRequest('GET', '/api/data?nocache=1&filter=all', { host: 'localhost:4100' });
+  const resWithQuery = new MockResponse();
+  middlewareHandler(reqWithQuery, resWithQuery, () => {});
+  assert.strictEqual(resWithQuery.statusCode, 200, 'Router debe responder 200 a /api/data independientemente de query parameters');
+
+  // AC #6: POST /api/projects rejects relative path escapes in backlogDir
+  const reqEscapeProject = new MockRequest('POST', '/api/projects', {
+    host: 'localhost:4100',
+    'content-type': 'application/json'
+  });
+  const resEscapeProject = new MockResponse();
+  middlewareHandler(reqEscapeProject, resEscapeProject, () => {});
+  reqEscapeProject.emit('data', JSON.stringify({ name: 'Evil Project', backlogDir: '../../etc' }));
+  reqEscapeProject.emit('end');
+  await new Promise(r => resEscapeProject.once('finish', r));
+  assert.strictEqual(resEscapeProject.statusCode, 400, 'POST /api/projects debe rechazar backlogDir con escape relativo ..');
+
+  console.log('✅ Blindaje Integral de Seguridad (DEV-302): IPv6 loopback, Gatekeeper hardened, ancestros symlink, pathname router y contención validados');
 }
 
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');

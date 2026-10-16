@@ -56,10 +56,57 @@ export function getBody(req: any, res: any): Promise<any> {
   });
 }
 
+import crypto from 'node:crypto';
+
+let ephemeralToken: string | null = null;
+
+export function getEphemeralToken(): string | null {
+  return ephemeralToken;
+}
+
+export function setEphemeralToken(token: string | null) {
+  ephemeralToken = token;
+}
+
+export function generateEphemeralToken(): string {
+  ephemeralToken = crypto.randomBytes(16).toString('hex');
+  return ephemeralToken;
+}
+
+export function parseHostHeader(rawHost: string): string {
+  const trimmed = (rawHost || '').trim().toLowerCase();
+  if (trimmed.startsWith('[')) {
+    const end = trimmed.indexOf(']');
+    if (end !== -1) {
+      return trimmed.slice(0, end + 1);
+    }
+  }
+  return trimmed.split(':')[0];
+}
+
+export function extractRequestToken(req: any): string | null {
+  const headerToken = req.headers['x-gripm-token'];
+  if (headerToken && typeof headerToken === 'string') {
+    return headerToken.trim();
+  }
+  const authHeader = req.headers['authorization'];
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  if (req.url) {
+    try {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const queryToken = urlObj.searchParams.get('token');
+      if (queryToken) return queryToken.trim();
+    } catch {}
+  }
+  return null;
+}
+
 export function validateSecurity(req: any, res: any): { isAllowedOrigin: boolean } | null {
   applySecurityHeaders(res);
 
-  const hostHeader = (req.headers.host || '').split(':')[0].toLowerCase();
+  const hostHeader = parseHostHeader(req.headers.host || '');
   const originHeader = req.headers.origin;
   const configuredHost = (process.env.GRIPM_HOST || '127.0.0.1').toLowerCase();
   const isLoopbackHost = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostHeader);
@@ -109,6 +156,23 @@ export function validateSecurity(req: any, res: any): { isAllowedOrigin: boolean
     }
   }
 
+  // 2.5 Ephemeral Token Authentication for LAN exposure (DEV-245)
+  let activeToken = process.env.GRIPM_TOKEN || getEphemeralToken();
+  if (configuredHost === '0.0.0.0' && !activeToken) {
+    activeToken = generateEphemeralToken();
+    process.env.GRIPM_TOKEN = activeToken;
+  }
+
+  if (activeToken && !isLoopbackHost) {
+    const providedToken = extractRequestToken(req);
+    if (!providedToken || providedToken !== activeToken) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Unauthorized: Ephemeral token required for LAN access' }));
+      return null;
+    }
+  }
+
   // 3. Mutating methods protection: require Content-Type application/json
   const method = (req.method || 'GET').toUpperCase();
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
@@ -130,7 +194,7 @@ export function validateSecurity(req: any, res: any): { isAllowedOrigin: boolean
       res.setHeader('Access-Control-Allow-Origin', originHeader);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Gripm-Token, Authorization');
     }
     res.statusCode = 204;
     res.end();

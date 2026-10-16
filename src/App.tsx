@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import type { 
   BacklogItem, 
@@ -39,6 +39,7 @@ import {
   createSprint,
   updateSprint,
   deleteSprint,
+  bulkUpdateItems,
   restoreItem,
   purgeItem
 } from './api';
@@ -77,14 +78,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
-  useEffect(() => {
-    if (!boardData) return;
-    if (boardData.singleProject) return;
-    if (selectedProjectId && selectedProjectId !== 'all') {
-      setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, selectedProjectId);
-      setActiveProjectApi(selectedProjectId).catch(() => {});
-    }
-  }, [selectedProjectId, boardData]);
+
   const [activeTab, setActiveTab] = useState<AppActiveTab>(() => {
     try {
       const saved = getStoredItem(STORAGE_KEYS.ACTIVE_TAB) as AppActiveTab | null;
@@ -333,13 +327,12 @@ export function App() {
         if (!prevEditing) return null;
         const updated = data.items.find((it) => it.id === prevEditing.id);
         if (!updated) return prevEditing;
+        // DEV-301: Do not overwrite expectedMtime behind the user's back while editing.
+        // Preserving original expectedMtime ensures that saving stale data triggers the 409 Conflict dialog.
         if (updated.mtime && prevEditing.mtime && updated.mtime !== prevEditing.mtime) {
-          showToast(`Tarea ${updated.code || updated.id} sincronizada con cambios en disco`, 'info');
+          showToast(`Tarea ${updated.code || updated.id} modificada externamente en disco`, 'info');
         }
-        return {
-          ...prevEditing,
-          mtime: updated.mtime ?? prevEditing.mtime,
-        };
+        return prevEditing;
       });
       if (data.projects.length > 0) {
         if (data.singleProject || data.projects.length <= 1) {
@@ -377,11 +370,35 @@ export function App() {
   }, [selectedProjectId, showToast]);
 
   useEffect(() => {
-    loadData();
-    loadSettings(selectedProjectId);
+    let cancelled = false;
+    const switchProjectAndLoad = async () => {
+      if (selectedProjectId && selectedProjectId !== 'all' && !boardData?.singleProject) {
+        setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, selectedProjectId);
+        try {
+          await setActiveProjectApi(selectedProjectId);
+        } catch {}
+      }
+      if (!cancelled) {
+        await loadData();
+        await loadSettings(selectedProjectId);
+      }
+    };
+    switchProjectAndLoad();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProjectId]);
 
-  // SSE Real-time Live Watcher Subscription (DEV-014 & DEV-006)
+  // DEV-301: Persistent SSE subscription using refs to prevent unnecessary reconnect teardowns
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+  const loadSettingsRef = useRef(loadSettings);
+  loadSettingsRef.current = loadSettings;
+  const selectedProjectIdRef = useRef(selectedProjectId);
+  selectedProjectIdRef.current = selectedProjectId;
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+
   useEffect(() => {
     const unsubscribe = subscribeToBoardEvents((event) => {
       if (event.type === 'connected') {
@@ -389,17 +406,17 @@ export function App() {
       } else if (event.type === 'disconnected') {
         setLiveConnected(false);
       } else if (event.type === 'backlog_changed') {
-        loadData(true);
-        showToast('Tablero sincronizado con cambios en disco', 'info');
+        loadDataRef.current(true);
+        showToastRef.current('Tablero sincronizado con cambios en disco', 'info');
       } else if (event.type === 'settings_changed') {
-        loadSettings(selectedProjectId);
-        loadData(true);
-        showToast('Configuración sincronizada con cambios en disco', 'info');
+        loadSettingsRef.current(selectedProjectIdRef.current);
+        loadDataRef.current(true);
+        showToastRef.current('Configuración sincronizada con cambios en disco', 'info');
       }
     });
 
     return unsubscribe;
-  }, [loadData, loadSettings, selectedProjectId, showToast]);
+  }, []);
 
   // Keyboard Shortcuts: 'N' for new item, '1'-'4' for tabs, '⌘+,' for settings
   useEffect(() => {
@@ -657,26 +674,55 @@ export function App() {
     setBoardData((prev) => (prev ? { ...prev, items: newItems } : null));
 
     try {
-      // 1. Update dragged item via API
-      await updateItem(draggedId, {
-        sprint: targetSprint,
-        targetSprint: targetSprint,
-        order: newOrder
-      });
-
-      // 2. Persist updated sibling orders in parallel
-      const siblingUpdates = Array.from(orderMap.entries())
-        .filter(([id]) => id !== draggedId)
-        .map(([id, ord]) => updateItem(id, { order: ord }));
-      if (siblingUpdates.length > 0) {
-        await Promise.all(siblingUpdates);
-      }
+      // DEV-301: Persist dragged item and sibling orders in a single atomic bulk update transaction
+      const patches = [
+        {
+          id: draggedId,
+          sprint: targetSprint,
+          targetSprint: targetSprint,
+          order: newOrder
+        },
+        ...Array.from(orderMap.entries())
+          .filter(([id]) => id !== draggedId)
+          .map(([id, ord]) => ({ id, order: ord }))
+      ];
+      await bulkUpdateItems(patches);
       showToast('Orden de tareas actualizado', 'success');
     } catch (err: any) {
       setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
       showToast('Error al reordenar tarea: ' + err.message, 'error');
     }
   }, [boardData, showToast]);
+
+  // DEV-301: Unified contextual sprint assignment propagating immediately across Sandbox and Local modes
+  const handleAssignSprint = useCallback(async (item: BacklogItem, targetSprint: string) => {
+    try {
+      await updateItem(item.id, {
+        sprint: targetSprint,
+        targetSprint: targetSprint,
+        sprints: targetSprint ? [targetSprint] : []
+      });
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  sprint: targetSprint,
+                  targetSprint: targetSprint,
+                  sprints: targetSprint ? [targetSprint] : []
+                }
+              : i
+          )
+        };
+      });
+      showToast(targetSprint ? `Asignado a ${targetSprint}` : 'Devuelto al Backlog', 'success');
+    } catch (err: any) {
+      showToast(`Error al asignar sprint: ${err?.message || err}`, 'error');
+    }
+  }, [showToast]);
 
   // DEV-049/DEV-096: Soft delete (send to trash)
   const handleDeleteItem = useCallback(async (id: string) => {
@@ -784,28 +830,36 @@ export function App() {
                !(i.status === 'done' || i.status === 'ready' || i.status === 'finish')
       );
 
+      // DEV-301: Atomic bulk update of pending and completed tasks on sprint completion
+      const sprintPatches: Array<{ id: string } & Partial<BacklogItem>> = [];
       for (const item of sprintPendingItems) {
         const existingSprints = item.sprints || [sprint.name];
         const updatedSprints = Array.from(new Set([...existingSprints, sprint.name, ...(destinationSprintName ? [destinationSprintName] : [])]));
-        await updateItem(item.id, {
+        sprintPatches.push({
+          id: item.id,
           sprint: destinationSprintName || '',
           targetSprint: destinationSprintName || '',
           sprints: updatedSprints
         });
       }
 
-      // Preserve sprint history on completed tasks as well (DEV-056)
       const sprintDoneItems = (boardData?.items || []).filter(
         (i) => (i.sprint === sprint.name || i.targetSprint === sprint.name) &&
                (i.status === 'done' || i.status === 'ready' || i.status === 'finish')
       );
+
       for (const item of sprintDoneItems) {
         const existingSprints = item.sprints || [sprint.name];
         if (!existingSprints.includes(sprint.name)) {
-          await updateItem(item.id, {
+          sprintPatches.push({
+            id: item.id,
             sprints: [...existingSprints, sprint.name]
           });
         }
+      }
+
+      if (sprintPatches.length > 0) {
+        await bulkUpdateItems(sprintPatches);
       }
 
       setBoardData((prev) => {
@@ -1369,6 +1423,7 @@ export function App() {
               setItemModalOpen(true);
             }}
             onShowToast={showToast}
+            onAssignSprint={handleAssignSprint}
           />
         )}
 

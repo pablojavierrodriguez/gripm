@@ -29,6 +29,7 @@ interface KanbanBoardProps {
   includeDismissedCancelled?: boolean;
   includeIdeas?: boolean;
   onToggleIdeas?: (include: boolean) => void;
+  onAssignSprint?: (item: BacklogItem, targetSprint: string) => Promise<void>;
 }
 
 
@@ -220,6 +221,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   includeDismissedCancelled,
   includeIdeas,
   onToggleIdeas,
+  onAssignSprint,
 }: KanbanBoardProps) => {
   const { t } = useTranslation();
   const getStatusMeta = useStatusMeta();
@@ -629,6 +631,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const handleAssignItemSprint = useCallback(async (item: BacklogItem, targetSprint: string) => {
     const curSprint = item.sprint || item.targetSprint || '';
     if (curSprint === targetSprint) return;
+    if (onAssignSprint) {
+      await onAssignSprint(item, targetSprint);
+      return;
+    }
     try {
       await updateItem(item.id, {
         sprint: targetSprint,
@@ -643,7 +649,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onShowToast(`Error al asignar sprint: ${err?.message || err}`, 'error');
       }
     }
-  }, [onShowToast]);
+  }, [onAssignSprint, onShowToast]);
 
   const handleMoveItemWithinColumn = useCallback((
     item: BacklogItem,

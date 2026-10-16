@@ -1,9 +1,9 @@
 ---
 id: DEV-245
 title: "Autenticacion por token efimero en escucha LAN (--host 0.0.0.0)"
-status: draft
+status: ready
 created_date: '2026-10-11'
-updated_date: '2026-10-11'
+updated_date: '2026-10-16 05:28'
 labels:
   - "security"
   - "lan"
@@ -29,11 +29,11 @@ Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN pued
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
-- [ ] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
-- [ ] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
-- [ ] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
-- [ ] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
+- [x] #1 Al iniciar con --host 0.0.0.0, genera un token efímero aleatorio en memoria e imprime URL de acceso en consola
+- [x] #2 Peticiones mutantes y lecturas de backlog desde IPs externas exigen token respondiendo 401 Unauthorized si falta o es inválido
+- [x] #3 Peticiones en loopback (127.0.0.1 / localhost) mantienen acceso transparente sin fricción
+- [x] #4 UI web almacena y reenvía el token si fue provisto en la URL inicial
+- [x] #5 Pruebas en test-api-security.js validan rechazo 401 en LAN sin token y 200 con token
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -44,8 +44,3 @@ Cuando gripm corre escuchando en `0.0.0.0`, cualquier dispositivo de la LAN pued
 3. En `src/api.ts`, incluir header `X-Gripm-Token` si existe token guardado en `sessionStorage`.
 4. Probar en `scripts/test-api-security.js`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

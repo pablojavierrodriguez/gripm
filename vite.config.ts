@@ -12,6 +12,11 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(async () => {
   const host = process.env.GRIPM_HOST || '127.0.0.1';
+  if (host === '0.0.0.0' && !process.env.GRIPM_TOKEN) {
+    const crypto = await import('node:crypto');
+    process.env.GRIPM_TOKEN = crypto.randomBytes(16).toString('hex');
+    console.log(`🔑 Token de autenticación efímero (LAN): ${process.env.GRIPM_TOKEN}`);
+  }
   const defaultPort = parseInt(process.env.GRIPM_PORT || '4100', 10);
   const resolvedPort = await findAvailablePort(defaultPort, host);
   const displayHost = host === '127.0.0.1' ? 'localhost' : host;

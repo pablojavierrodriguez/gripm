@@ -1,6 +1,20 @@
 import type { GripmApi, FsBrowseResult, BoardEvent } from './types';
+import { getStoredToken } from '../utils/token.ts';
 
 const API_BASE = '/api';
+
+const nativeFetch = globalThis.fetch;
+function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = getStoredToken();
+  if (token) {
+    const headers = new Headers(init?.headers || {});
+    if (!headers.has('X-Gripm-Token')) {
+      headers.set('X-Gripm-Token', token);
+    }
+    return nativeFetch(input, { ...init, headers });
+  }
+  return nativeFetch(input, init);
+}
 
 /**
  * DEV-222 — Implementación HTTP de la capa de datos.
@@ -269,7 +283,9 @@ export const httpAdapter: GripmApi = {
     function connect() {
       if (isClosed) return;
       try {
-        es = new EventSource(`${API_BASE}/events`);
+        const token = getStoredToken();
+        const sseUrl = token ? `${API_BASE}/events?token=${encodeURIComponent(token)}` : `${API_BASE}/events`;
+        es = new EventSource(sseUrl);
 
         es.onopen = () => {
           onEvent({ type: 'connected', data: null });

@@ -40,7 +40,7 @@ import { CompleteSprintModal } from './CompleteSprintModal';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
-import { fetchRetros, updateItem, deleteItem } from '../api';
+import { fetchRetros, updateItem, deleteItem, bulkUpdateItems } from '../api';
 import {
   ALL_OPTIONAL_COLS,
   DEFAULT_COLS,
@@ -682,9 +682,8 @@ export const SprintView: FC<SprintViewProps> = ({
           }
         } else {
           const reordered = [...groupSelected, ...groupUnselected];
-          for (let i = 0; i < reordered.length; i++) {
-            await updateItem(reordered[i].id, { order: (i + 1) * 10 });
-          }
+          const patches = reordered.map((it, i) => ({ id: it.id, order: (i + 1) * 10 }));
+          await bulkUpdateItems(patches);
         }
       }
       setSortBy('order');
@@ -721,9 +720,8 @@ export const SprintView: FC<SprintViewProps> = ({
           }
         } else {
           const reordered = [...groupUnselected, ...groupSelected];
-          for (let i = 0; i < reordered.length; i++) {
-            await updateItem(reordered[i].id, { order: (i + 1) * 10 });
-          }
+          const patches = reordered.map((it, i) => ({ id: it.id, order: (i + 1) * 10 }));
+          await bulkUpdateItems(patches);
         }
       }
       setSortBy('order');
@@ -745,16 +743,17 @@ export const SprintView: FC<SprintViewProps> = ({
     const count = selectedItemIds.size;
     try {
       const ids = Array.from(selectedItemIds);
-      for (const id of ids) {
-        if (onUpdateSprint) {
+      if (onUpdateSprint) {
+        for (const id of ids) {
           await onUpdateSprint(id, newSprint);
-        } else {
-          await updateItem(id, {
-            sprint: newSprint,
-            targetSprint: newSprint,
-            sprints: newSprint ? [newSprint] : []
-          });
         }
+      } else {
+        await bulkUpdateItems(ids.map((id) => ({
+          id,
+          sprint: newSprint,
+          targetSprint: newSprint,
+          sprints: newSprint ? [newSprint] : []
+        })));
       }
       showNotification(
         isEs
@@ -776,13 +775,12 @@ export const SprintView: FC<SprintViewProps> = ({
     const count = selectedItemIds.size;
     try {
       const ids = Array.from(selectedItemIds);
-      for (const id of ids) {
-        await updateItem(id, {
-          release: newRelease,
-          targetRelease: newRelease,
-          releases: newRelease ? [newRelease] : []
-        });
-      }
+      await bulkUpdateItems(ids.map((id) => ({
+        id,
+        release: newRelease,
+        targetRelease: newRelease,
+        releases: newRelease ? [newRelease] : []
+      })));
       showNotification(
         isEs
           ? `Se asignaron ${count} tareas a ${newRelease ? (newRelease.startsWith('v') ? newRelease : `v${newRelease}`) : 'Sin Release'}`
@@ -803,12 +801,12 @@ export const SprintView: FC<SprintViewProps> = ({
     const count = selectedItemIds.size;
     try {
       const ids = Array.from(selectedItemIds);
-      for (const id of ids) {
-        if (onUpdateStatus) {
+      if (onUpdateStatus) {
+        for (const id of ids) {
           await onUpdateStatus(id, newStatus);
-        } else {
-          await updateItem(id, { status: newStatus });
         }
+      } else {
+        await bulkUpdateItems(ids.map((id) => ({ id, status: newStatus })));
       }
       showNotification(
         isEs
@@ -830,12 +828,12 @@ export const SprintView: FC<SprintViewProps> = ({
     const count = selectedItemIds.size;
     try {
       const ids = Array.from(selectedItemIds);
-      for (const id of ids) {
-        if (onUpdatePriority) {
+      if (onUpdatePriority) {
+        for (const id of ids) {
           await onUpdatePriority(id, newPriority);
-        } else {
-          await updateItem(id, { priority: newPriority });
         }
+      } else {
+        await bulkUpdateItems(ids.map((id) => ({ id, priority: newPriority })));
       }
       showNotification(
         isEs

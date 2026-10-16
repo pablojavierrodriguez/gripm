@@ -142,6 +142,30 @@ export function validateVerifyCommand(cmd: string, repoPath: string): VerifyComm
     }
   }
 
+  // 2.5 Rechazar flags de evasión, secuencias relativas '..' y rutas absolutas (DEV-302 AC #2)
+  const forbiddenFlagPattern = /^(--prefix|--config|-c|--script-shell|--eval|-e|--import|--loader)(?:=.*)?$/i;
+  for (let i = 1; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (forbiddenFlagPattern.test(token)) {
+      return {
+        valid: false,
+        reason: `El argumento '${token}' no está permitido por el Gatekeeper (flags de configuración/evasión prohibidas).`
+      };
+    }
+    if (token.includes('..')) {
+      return {
+        valid: false,
+        reason: `El argumento '${token}' no está permitido por el Gatekeeper (secuencias relativas '..' prohibidas).`
+      };
+    }
+    if (token.startsWith('/') || token.startsWith('\\') || /^[a-zA-Z]:[/\\]/.test(token)) {
+      return {
+        valid: false,
+        reason: `El argumento '${token}' no está permitido por el Gatekeeper (rutas absolutas prohibidas).`
+      };
+    }
+  }
+
   // Leer package.json del repositorio
   let pkgScripts: Record<string, string> = {};
   let pkgDeps: Set<string> = new Set();
