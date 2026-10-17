@@ -10,7 +10,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { loadRegistryFile, resolveProjectIdentity } from './registryConfig.js';
-import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from './updateChecker.js';
+import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo, semverGreaterThan } from './updateChecker.js';
 import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
 import { BacklogService } from '../server/services/backlogService.ts';
 import { isAllowedBrowsePath, isSystemRootDir } from '../server/services/fsExplorer.ts';
@@ -60,7 +60,8 @@ try {
     process.stderr.write('\n' + formatUpdateBanner(currentVersion, cached.latestVersion) + '\n\n');
   }
   checkForUpdates(currentVersion).then((res) => {
-    if (res.hasUpdate && !cached?.hasUpdate) {
+    const isNewerThanCached = cached?.latestVersion && semverGreaterThan(res.latestVersion, cached.latestVersion);
+    if (res.hasUpdate && (!cached?.hasUpdate || isNewerThanCached)) {
       process.stderr.write('\n' + formatUpdateBanner(currentVersion, res.latestVersion) + '\n\n');
     }
   }).catch(() => {});

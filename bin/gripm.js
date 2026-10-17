@@ -12,7 +12,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { loadRegistryFile, saveRegistryFile, getRegistryPath, resolveProjectIdentity } from '../scripts/registryConfig.js';
-import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo } from '../scripts/updateChecker.js';
+import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo, semverGreaterThan } from '../scripts/updateChecker.js';
 import { runInitWizard } from '../scripts/initScaffold.js';
 import { runUninstallCommand } from '../scripts/uninstall.js';
 import { findAvailablePort } from '../scripts/portUtils.js';
@@ -739,9 +739,10 @@ async function main() {
     console.log(formatUpdateBanner(currentVersion, cachedUpdate.latestVersion) + '\n');
   }
 
-  // Non-blocking background check for newer releases (cached for 24h)
+  // Non-blocking background check for newer releases (cached for 4h)
   checkForUpdates(currentVersion).then((res) => {
-    if (res.hasUpdate && !cachedUpdate?.hasUpdate) {
+    const isNewerThanCached = cachedUpdate?.latestVersion && semverGreaterThan(res.latestVersion, cachedUpdate.latestVersion);
+    if (res.hasUpdate && (!cachedUpdate?.hasUpdate || isNewerThanCached)) {
       console.log('\n' + formatUpdateBanner(currentVersion, res.latestVersion) + '\n');
     }
   }).catch(() => {});

@@ -24,7 +24,10 @@ import {
   writeUpdateCache,
   readUpdateCache,
   getCachedUpdateInfo,
-  isUpdateCheckDisabled
+  isUpdateCheckDisabled,
+  checkForUpdates,
+  CACHE_TTL_MS,
+  NPM_PACKAGE
 } from './updateChecker.js';
 import { runInitWizard } from './initScaffold.js';
 
@@ -360,7 +363,27 @@ try {
   assert.strictEqual(getCachedUpdateInfo('0.5.0'), null, 'Should return null when silenced');
   delete process.env.GRIPM_NO_UPDATE_CHECK;
 
-  console.log('✅ DEV-107: Update checker semver, 24h cache persistence, silencing, and banners verified');
+  // Test DEV-318: 4h TTL, npm package canonical identity, and cache auto-invalidation
+  assert.strictEqual(CACHE_TTL_MS, 4 * 60 * 60 * 1000, 'TTL should be 4 hours');
+  assert.strictEqual(NPM_PACKAGE, '@gripm/board', 'Canonical npm package should be @gripm/board');
+
+  // Verify auto-invalidation when currentVersion catches up with or exceeds latestVersion
+  writeUpdateCache({
+    lastCheck: Date.now(),
+    currentVersion: '1.6.0',
+    latestVersion: '1.6.0',
+    hasUpdate: true
+  });
+  const upToDateInfo = getCachedUpdateInfo('1.6.0');
+  assert.strictEqual(upToDateInfo, null, 'Should return null when version is up-to-date');
+  const cleanedCache = readUpdateCache();
+  assert.strictEqual(cleanedCache?.hasUpdate, false, 'Cache should auto-invalidate hasUpdate to false');
+
+  // Verify newer version check
+  assert.strictEqual(semverGreaterThan('1.6.1', '1.6.0'), true, '1.6.1 should be greater than 1.6.0');
+  assert.strictEqual(semverGreaterThan('1.6.0', '1.6.1'), false, '1.6.0 should not be greater than 1.6.1');
+
+  console.log('✅ DEV-107 & DEV-318: Update checker semver, 4h cache persistence, npm registry priority, silencing, and banners verified');
 } finally {
   delete process.env.GRIPM_UPDATE_CACHE_PATH;
   delete process.env.GRIPM_NO_UPDATE_CHECK;

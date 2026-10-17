@@ -3787,7 +3787,8 @@ init_registryConfig();
 import fs8 from "node:fs";
 import path8 from "node:path";
 var CACHE_FILE_NAME = "update-cache.json";
-var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
+var CACHE_TTL_MS = 4 * 60 * 60 * 1e3;
+var NPM_PACKAGE = "@gripm/board";
 var GITHUB_REPO = "pablojavierrodriguez/gripm";
 function semverGreaterThan(target, current) {
   if (!target || !current) return false;
@@ -3843,6 +3844,12 @@ function getCachedUpdateInfo(currentVersion) {
         latestVersion: cached.latestVersion,
         url: cached.url || `https://github.com/${GITHUB_REPO}/releases/latest`
       };
+    } else {
+      writeUpdateCache({
+        ...cached,
+        currentVersion,
+        hasUpdate: false
+      });
     }
   }
   return null;
@@ -3866,24 +3873,52 @@ async function checkForUpdates(currentVersion, { force = false, timeoutMs = 2e3 
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "gripm-cli",
-        "Accept": "application/vnd.github.v3+json"
+    let latestVersion = "";
+    let releaseUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
+    try {
+      const npmRes = await fetch(`https://registry.npmjs.org/${NPM_PACKAGE}/latest`, {
+        signal: controller.signal,
+        headers: {
+          "Accept": "application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*",
+          "User-Agent": "gripm-cli"
+        }
+      });
+      if (npmRes.ok) {
+        const npmData = await npmRes.json();
+        if (npmData && typeof npmData.version === "string") {
+          latestVersion = npmData.version.trim();
+          releaseUrl = `https://github.com/${GITHUB_REPO}/releases/tag/v${latestVersion}`;
+        }
       }
-    });
+    } catch {
+    }
+    if (!latestVersion) {
+      try {
+        const ghRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "gripm-cli",
+            "Accept": "application/vnd.github.v3+json"
+          }
+        });
+        if (ghRes.ok) {
+          const ghData = await ghRes.json();
+          const rawTag = ghData.tag_name || ghData.name || "";
+          latestVersion = rawTag.replace(/^v/, "").trim();
+          if (ghData.html_url) releaseUrl = ghData.html_url;
+        }
+      } catch {
+      }
+    }
     clearTimeout(timer);
-    if (res.ok) {
-      const data = await res.json();
-      const rawTag = data.tag_name || data.name || "";
-      const latestVersion = rawTag.replace(/^v/, "").trim();
-      const hasUpdate = semverGreaterThan(latestVersion, currentVersion);
-      const url = data.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`;
+    if (latestVersion) {
+      const cleanLatest = latestVersion.replace(/^v/, "").trim();
+      const hasUpdate = semverGreaterThan(cleanLatest, currentVersion);
+      const url = releaseUrl || `https://github.com/${GITHUB_REPO}/releases/tag/v${cleanLatest}`;
       const cacheData = {
         lastCheck: now,
         currentVersion,
-        latestVersion,
+        latestVersion: cleanLatest,
         hasUpdate,
         url
       };
@@ -3891,7 +3926,7 @@ async function checkForUpdates(currentVersion, { force = false, timeoutMs = 2e3 
       return {
         hasUpdate,
         currentVersion,
-        latestVersion,
+        latestVersion: cleanLatest,
         url,
         fromCache: false
       };

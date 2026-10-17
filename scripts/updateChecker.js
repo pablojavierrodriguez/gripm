@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getGripmHomeDir, atomicWriteFileSync } from './registryConfig.js';
 
-const CACHE_FILE_NAME = 'update-cache.json';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const GITHUB_REPO = 'pablojavierrodriguez/gripm';
+export const CACHE_FILE_NAME = 'update-cache.json';
+export const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+export const NPM_PACKAGE = '@gripm/board';
+export const GITHUB_REPO = 'pablojavierrodriguez/gripm';
 
 /**
  * Compares two semver strings (e.g., '0.6.0' > '0.5.0' -> true).
@@ -94,14 +95,21 @@ export function getCachedUpdateInfo(currentVersion) {
         latestVersion: cached.latestVersion,
         url: cached.url || `https://github.com/${GITHUB_REPO}/releases/latest`
       };
+    } else {
+      // Auto-invalidate / clean up cached update when currentVersion caught up or passed latestVersion
+      writeUpdateCache({
+        ...cached,
+        currentVersion,
+        hasUpdate: false
+      });
     }
   }
   return null;
 }
 
 /**
- * Checks for updates against GitHub Releases.
- * Non-blocking, cached for 24h, silentiable via GRIPM_NO_UPDATE_CHECK=1.
+ * Checks for updates against npm Registry (canonical) with fallback to GitHub Releases.
+ * Non-blocking, cached for 4h, silentiable via GRIPM_NO_UPDATE_CHECK=1.
  */
 export async function checkForUpdates(currentVersion, { force = false, timeoutMs = 2000 } = {}) {
   if (isUpdateCheckDisabled()) {
@@ -122,32 +130,66 @@ export async function checkForUpdates(currentVersion, { force = false, timeoutMs
     };
   }
 
-  // Fetch from GitHub Releases API
+  // Fetch latest version: prioritize npm registry with resilient fallback to GitHub Releases API
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'gripm-cli',
-        'Accept': 'application/vnd.github.v3+json'
+    let latestVersion = '';
+    let releaseUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
+
+    // 1. Try npm registry (canonical distribution source for @gripm/board)
+    try {
+      const npmRes = await fetch(`https://registry.npmjs.org/${NPM_PACKAGE}/latest`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
+          'User-Agent': 'gripm-cli'
+        }
+      });
+      if (npmRes.ok) {
+        const npmData = await npmRes.json();
+        if (npmData && typeof npmData.version === 'string') {
+          latestVersion = npmData.version.trim();
+          releaseUrl = `https://github.com/${GITHUB_REPO}/releases/tag/v${latestVersion}`;
+        }
       }
-    });
+    } catch {
+      // npm fetch failed or timed out, fallback will proceed
+    }
+
+    // 2. Resilient fallback to GitHub Releases API
+    if (!latestVersion) {
+      try {
+        const ghRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'gripm-cli',
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        if (ghRes.ok) {
+          const ghData = await ghRes.json();
+          const rawTag = ghData.tag_name || ghData.name || '';
+          latestVersion = rawTag.replace(/^v/, '').trim();
+          if (ghData.html_url) releaseUrl = ghData.html_url;
+        }
+      } catch {
+        // GitHub fetch failed or timed out
+      }
+    }
 
     clearTimeout(timer);
 
-    if (res.ok) {
-      const data = await res.json();
-      const rawTag = data.tag_name || data.name || '';
-      const latestVersion = rawTag.replace(/^v/, '').trim();
-      const hasUpdate = semverGreaterThan(latestVersion, currentVersion);
-      const url = data.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`;
+    if (latestVersion) {
+      const cleanLatest = latestVersion.replace(/^v/, '').trim();
+      const hasUpdate = semverGreaterThan(cleanLatest, currentVersion);
+      const url = releaseUrl || `https://github.com/${GITHUB_REPO}/releases/tag/v${cleanLatest}`;
 
       const cacheData = {
         lastCheck: now,
         currentVersion,
-        latestVersion,
+        latestVersion: cleanLatest,
         hasUpdate,
         url
       };
@@ -156,12 +198,12 @@ export async function checkForUpdates(currentVersion, { force = false, timeoutMs
       return {
         hasUpdate,
         currentVersion,
-        latestVersion,
+        latestVersion: cleanLatest,
         url,
         fromCache: false
       };
     } else {
-      // On non-200 (rate limited or private), extend lastCheck to avoid repeating
+      // On failure to fetch, extend lastCheck to avoid repeating on every run
       if (cached) {
         writeUpdateCache({ ...cached, lastCheck: now });
       } else {
