@@ -85,7 +85,33 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (5)
+### 🚀 Ready for Deploy (9)
+
+#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
+
+### Problemas identificados:
+1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
+2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
+3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
+4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
+
+### Solución propuesta:
+- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
+- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
+- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
+- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
+
+**Criterios de Aceptación:**
+- [x] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
+- [x] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
+- [x] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
+- [x] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
+- [x] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
+
+---
 
 #### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
 - **Prioridad**: `medium` | **Tipo**: `tech_debt`
@@ -130,6 +156,118 @@ Actualización y sincronización exhaustiva de la documentación técnica de arq
 - [x] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
 - [x] #6 `.playbook-lock.json` no contiene rutas locales absolutas
 - [x] #7 Descartado por instrucción explícita del PO: preservación de nombres de archivo históricos pre-v1 sin churn innecesario de disco
+
+---
+
+#### [DEV-307] Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización radical de la superficie de distribución del paquete npm `@gripm/board`: exclusión del código fuente de desarrollo (`src/`, `server/`, `scripts/`, `.githooks/`), reducción de la huella de instalación y fortalecimiento de las verificaciones de empaquetado para garantizar un tarball productivo minimalista y autocontenido.
+
+### Diagnóstico de la Causa Raíz:
+
+Actualmente, el campo `"files"` de `package.json:48-66` declara:
+```json
+"files": [
+  ".agents/skills/gripm",
+  ".githooks",
+  "audit-ux-baseline.json",
+  "bin",
+  "dist",
+  "public",
+  "scripts",
+  "server",
+  "src",
+  "data/demo-backlog.json",
+  ...
+]
+```
+Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos internos:
+1. **Todo el árbol de fuentes TypeScript de React (`src/`):** A pesar de que `dist/` contiene los bundles compilados para el navegador, se incluye todo `src/` únicamente porque `bin/gripm.js` y `server/plugin.ts` importaban archivos `.ts` en crudo.
+2. **Todos los scripts de pruebas internas (`scripts/`):** Se distribuyen 24 scripts internos de test (`scripts/test-*.js`, `scripts/verify-*.js`, `scripts/repro-ci-linux.sh`, `scripts/watchdog.js`).
+3. **Archivos de metodología Playbook en `scripts/`:** Se distribuyen `scripts/gate-qa.mjs`, `scripts/sync-playbook.mjs`, `scripts/audit-ux-code.cjs` y `scripts/ux-rules.json`, contradiciendo `AGENTS.md` §0 (que establece que los artefactos del Playbook están excluidos del tarball de producción).
+4. **Baselines y hooks internos:** `.githooks` y `audit-ux-baseline.json` se incluyen en el paquete de producción sin tener ninguna utilidad para el usuario final.
+
+### Solución Arquitectónica Profunda:
+
+- **Distribución de Artefactos Precompilados:**
+  Con la compilación de ejecutables y servidor en `bin/` y la compilación web en `dist/`, el paquete de npm solo necesita distribuir:
+  - `bin/`: Binarios ejecutables de Node (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
+  - `dist/`: Aplicación web compilada y optimizada.
+  - `public/`: Activos públicos.
+  - `data/demo-backlog.json`: Datos iniciales de demostración.
+  - `.agents/skills/gripm/SKILL.md`: Skill oficial de conexión para agentes de IA.
+  - `LICENSE`, `README.md`, `README.es.md`.
+- **Exclusión Radical:**
+  Remover `"src"`, `"scripts"`, `"server"`, `".githooks"` y `"audit-ux-baseline.json"` del array `"files"` en `package.json`.
+- **Blindaje en `verify-publish-surface.js`:**
+  Ampliar `FORBIDDEN_PLAYBOOK_ENTRIES` y las reglas de inspección física para certificar que el tarball empaquetado (`npm pack`) nunca contenga código fuente `.ts`, scripts de test ni artefactos de Playbook.
+
+**Criterios de Aceptación:**
+- [x] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
+- [x] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
+- [x] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
+- [x] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
+- [x] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
+
+---
+
+#### [DEV-310] Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Garantizar la soberanía, aislamiento y privacidad de proyectos locales configurados en modo mono-proyecto (`mode: "single"` en `.gripm/config.json`), evitando que aparezcan listados en el selector de proyectos (Hub) de otros repositorios que tengan activo el modo multi-proyecto (`mode: "multi"`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Frontera de Visibilidad Incompleta:**
+   Actualmente, el switch de `mode` en `.gripm/config.json` solo condiciona la interfaz cuando `gripm` se inicia directamente dentro de ese repositorio (`projectsToProcess = [activeProject]`). Sin embargo, cuando se inicia `gripm` en otro proyecto que tiene `multi` activo, `server/routes/api.ts:138` procesa incondicionalmente todos los proyectos del registro global (`registry.projects`), exponiendo proyectos que se configuraron explícitamente para operar de forma aislada.
+
+2. **Federación Opt-In Deseada:**
+   Si un proyecto declara `mode: "single"` en su `.gripm/config.json`, no solo expresa la intención de no ver otros proyectos (*inbound*), sino también la de no ser indexado ni accesible desde los Hubs de otros proyectos de la máquina (*outbound*), protegiendo proyectos privados, personales o bajo acuerdos de confidencialidad.
+
+### Solución Técnica:
+
+- En `server/routes/api.ts`, durante la resolución de `projectsToProcess` en modo Hub, filtrar aquellos proyectos registrados cuyo `.gripm/config.json` tenga `mode === 'single'`.
+- Preservar al proyecto activo actual (aunque fuera single) y al proyecto Demo si está habilitado.
+- Añadir pruebas de integración que aseguren que un repositorio marcado como `single` no se fuga en el selector del Hub de otro proyecto `multi`.
+
+**Criterios de Aceptación:**
+- [x] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
+- [x] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
+- [x] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
+- [x] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
+
+---
+
+#### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `@gripm/playbook` v2.3.0 (`.agents/STATE_MACHINE.md`), incorporando `blocked` (junto con el metadato obligatorio `blocked_reason`) y formalizando `dismissed` en el parser Markdown, el servidor MCP y la interfaz visual.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Degradación Silenciosa de `blocked` a `draft`:**
+   En `scripts/backlogMdParser.ts`, el tipo `CanonicalStatus` omite `blocked`. En la función `normalizeStatus`, cualquier tarea con `status: blocked` cae en la rama `default: return 'draft'`. Si un agente o usuario marca una tarea como bloqueada conforme a la metodología Playbook, Gripm Board destruye el estado al leer o guardar el archivo.
+   
+2. **Falta del Campo `blocked_reason` y `dismissed_reason`:**
+   La máquina de estados del Playbook establece que `blocked` exige un motivo no vacío (`blocked_reason`) para evitar la inflación de WIP, y que `dismissed` exige `dismissed_reason`. Actualmente, `BacklogMdTask` y `BacklogItem` no modelan estos campos como propiedades formales de primer nivel.
+
+3. **Inconsistencia de `cancelled`:**
+   `CanonicalStatus` declara `'cancelled'` en su tipo unión, pero `normalizeStatus('cancelled')` devuelve `'dismissed'`, generando ambigüedad entre el tipado estático y el runtime.
+
+### Solución Técnica:
+
+- Incorporar `'blocked'` en `CanonicalStatus` (`scripts/backlogMdParser.ts`) y en `ItemStatus` (`src/types.ts`).
+- Actualizar `normalizeStatus` para que devuelva `'blocked'` cuando reciba `'blocked'` o `'impediment'`.
+- Añadir `blockedReason` y `dismissedReason` al modelo de datos de tareas y mapearlo en frontmatter (`blocked_reason` / `dismissed_reason`).
+- Integrar la columna / badge visual de tareas bloqueadas en `KanbanBoard` e `ItemCard`, y el campo de motivo en `ItemModal`.
+
+**Criterios de Aceptación:**
+- [x] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
+- [x] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
+- [x] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
+- [x] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
+- [x] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
 
 ---
 
@@ -213,7 +351,7 @@ Completar la homogeneización visual absoluta de la interfaz de terminal (CLI), 
 
 ---
 
-### 📋 Backlog / Draft (26)
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -525,32 +663,6 @@ naturaleza distinta.
 
 ---
 
-#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
-
-### Problemas identificados:
-1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
-2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
-3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
-4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
-
-### Solución propuesta:
-- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
-- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
-- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
-- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
-
-**Criterios de Aceptación:**
-- [ ] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
-- [ ] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
-- [ ] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
-- [ ] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
-- [ ] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
-
----
-
 #### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
 
@@ -756,86 +868,6 @@ Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestió
 
 ---
 
-#### [DEV-307] Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Optimización radical de la superficie de distribución del paquete npm `@gripm/board`: exclusión del código fuente de desarrollo (`src/`, `server/`, `scripts/`, `.githooks/`), reducción de la huella de instalación y fortalecimiento de las verificaciones de empaquetado para garantizar un tarball productivo minimalista y autocontenido.
-
-### Diagnóstico de la Causa Raíz:
-
-Actualmente, el campo `"files"` de `package.json:48-66` declara:
-```json
-"files": [
-  ".agents/skills/gripm",
-  ".githooks",
-  "audit-ux-baseline.json",
-  "bin",
-  "dist",
-  "public",
-  "scripts",
-  "server",
-  "src",
-  "data/demo-backlog.json",
-  ...
-]
-```
-Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos internos:
-1. **Todo el árbol de fuentes TypeScript de React (`src/`):** A pesar de que `dist/` contiene los bundles compilados para el navegador, se incluye todo `src/` únicamente porque `bin/gripm.js` y `server/plugin.ts` importaban archivos `.ts` en crudo.
-2. **Todos los scripts de pruebas internas (`scripts/`):** Se distribuyen 24 scripts internos de test (`scripts/test-*.js`, `scripts/verify-*.js`, `scripts/repro-ci-linux.sh`, `scripts/watchdog.js`).
-3. **Archivos de metodología Playbook en `scripts/`:** Se distribuyen `scripts/gate-qa.mjs`, `scripts/sync-playbook.mjs`, `scripts/audit-ux-code.cjs` y `scripts/ux-rules.json`, contradiciendo `AGENTS.md` §0 (que establece que los artefactos del Playbook están excluidos del tarball de producción).
-4. **Baselines y hooks internos:** `.githooks` y `audit-ux-baseline.json` se incluyen en el paquete de producción sin tener ninguna utilidad para el usuario final.
-
-### Solución Arquitectónica Profunda:
-
-- **Distribución de Artefactos Precompilados:**
-  Con la compilación de ejecutables y servidor en `bin/` y la compilación web en `dist/`, el paquete de npm solo necesita distribuir:
-  - `bin/`: Binarios ejecutables de Node (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
-  - `dist/`: Aplicación web compilada y optimizada.
-  - `public/`: Activos públicos.
-  - `data/demo-backlog.json`: Datos iniciales de demostración.
-  - `.agents/skills/gripm/SKILL.md`: Skill oficial de conexión para agentes de IA.
-  - `LICENSE`, `README.md`, `README.es.md`.
-- **Exclusión Radical:**
-  Remover `"src"`, `"scripts"`, `"server"`, `".githooks"` y `"audit-ux-baseline.json"` del array `"files"` en `package.json`.
-- **Blindaje en `verify-publish-surface.js`:**
-  Ampliar `FORBIDDEN_PLAYBOOK_ENTRIES` y las reglas de inspección física para certificar que el tarball empaquetado (`npm pack`) nunca contenga código fuente `.ts`, scripts de test ni artefactos de Playbook.
-
-**Criterios de Aceptación:**
-- [ ] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
-- [ ] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
-- [ ] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
-- [ ] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
-- [ ] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
-
----
-
-#### [DEV-310] Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Garantizar la soberanía, aislamiento y privacidad de proyectos locales configurados en modo mono-proyecto (`mode: "single"` en `.gripm/config.json`), evitando que aparezcan listados en el selector de proyectos (Hub) de otros repositorios que tengan activo el modo multi-proyecto (`mode: "multi"`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Frontera de Visibilidad Incompleta:**
-   Actualmente, el switch de `mode` en `.gripm/config.json` solo condiciona la interfaz cuando `gripm` se inicia directamente dentro de ese repositorio (`projectsToProcess = [activeProject]`). Sin embargo, cuando se inicia `gripm` en otro proyecto que tiene `multi` activo, `server/routes/api.ts:138` procesa incondicionalmente todos los proyectos del registro global (`registry.projects`), exponiendo proyectos que se configuraron explícitamente para operar de forma aislada.
-
-2. **Federación Opt-In Deseada:**
-   Si un proyecto declara `mode: "single"` en su `.gripm/config.json`, no solo expresa la intención de no ver otros proyectos (*inbound*), sino también la de no ser indexado ni accesible desde los Hubs de otros proyectos de la máquina (*outbound*), protegiendo proyectos privados, personales o bajo acuerdos de confidencialidad.
-
-### Solución Técnica:
-
-- En `server/routes/api.ts`, durante la resolución de `projectsToProcess` en modo Hub, filtrar aquellos proyectos registrados cuyo `.gripm/config.json` tenga `mode === 'single'`.
-- Preservar al proyecto activo actual (aunque fuera single) y al proyecto Demo si está habilitado.
-- Añadir pruebas de integración que aseguren que un repositorio marcado como `single` no se fuga en el selector del Hub de otro proyecto `multi`.
-
-**Criterios de Aceptación:**
-- [ ] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
-- [ ] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
-- [ ] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
-- [ ] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
-
----
-
 #### [DEV-311] Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
 
@@ -864,38 +896,6 @@ Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `s
 - [ ] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
 - [ ] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
 - [ ] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
-
----
-
-#### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `@gripm/playbook` v2.3.0 (`.agents/STATE_MACHINE.md`), incorporando `blocked` (junto con el metadato obligatorio `blocked_reason`) y formalizando `dismissed` en el parser Markdown, el servidor MCP y la interfaz visual.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Degradación Silenciosa de `blocked` a `draft`:**
-   En `scripts/backlogMdParser.ts`, el tipo `CanonicalStatus` omite `blocked`. En la función `normalizeStatus`, cualquier tarea con `status: blocked` cae en la rama `default: return 'draft'`. Si un agente o usuario marca una tarea como bloqueada conforme a la metodología Playbook, Gripm Board destruye el estado al leer o guardar el archivo.
-   
-2. **Falta del Campo `blocked_reason` y `dismissed_reason`:**
-   La máquina de estados del Playbook establece que `blocked` exige un motivo no vacío (`blocked_reason`) para evitar la inflación de WIP, y que `dismissed` exige `dismissed_reason`. Actualmente, `BacklogMdTask` y `BacklogItem` no modelan estos campos como propiedades formales de primer nivel.
-
-3. **Inconsistencia de `cancelled`:**
-   `CanonicalStatus` declara `'cancelled'` en su tipo unión, pero `normalizeStatus('cancelled')` devuelve `'dismissed'`, generando ambigüedad entre el tipado estático y el runtime.
-
-### Solución Técnica:
-
-- Incorporar `'blocked'` en `CanonicalStatus` (`scripts/backlogMdParser.ts`) y en `ItemStatus` (`src/types.ts`).
-- Actualizar `normalizeStatus` para que devuelva `'blocked'` cuando reciba `'blocked'` o `'impediment'`.
-- Añadir `blockedReason` y `dismissedReason` al modelo de datos de tareas y mapearlo en frontmatter (`blocked_reason` / `dismissed_reason`).
-- Integrar la columna / badge visual de tareas bloqueadas en `KanbanBoard` e `ItemCard`, y el campo de motivo en `ItemModal`.
-
-**Criterios de Aceptación:**
-- [ ] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
-- [ ] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
-- [ ] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
-- [ ] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
-- [ ] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
 
 ---
 

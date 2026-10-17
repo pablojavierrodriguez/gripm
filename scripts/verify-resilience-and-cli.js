@@ -151,7 +151,10 @@ try {
   // 8. DEV-240: Verificación de precedencia de flags CLI --single vs --hub e interoperabilidad
   {
     const binSource = fs.readFileSync(path.join(ROOT, 'bin/gripm.js'), 'utf8');
-    if (!binSource.includes("process.env.GRIPM_MODE = 'multi'") || !binSource.includes("process.env.GRIPM_MODE = 'single'") || !binSource.includes("delete process.env.GRIPM_MODE")) {
+    const hasMulti = /process\.env\.GRIPM_MODE\s*=\s*['"]multi['"]/.test(binSource);
+    const hasSingle = /process\.env\.GRIPM_MODE\s*=\s*['"]single['"]/.test(binSource);
+    const hasDelete = binSource.includes('delete process.env.GRIPM_MODE');
+    if (!hasMulti || !hasSingle || !hasDelete) {
       throw new Error('DEV-240 FAILED: bin/gripm.js no maneja flags --single / --hub con precedencia limpia');
     }
 

@@ -42,6 +42,7 @@ import { useSettingsState } from './settings/useSettingsState';
 export const ALL_ITEM_STATUSES: { id: ItemStatus; label: string; desc: string; isLegacy?: boolean }[] = [
   { id: 'draft', label: 'Draft', desc: 'Backlog inicial' },
   { id: 'doing', label: 'Doing', desc: 'En desarrollo activo' },
+  { id: 'blocked', label: 'Blocked', desc: 'Bloqueado con motivo explícito' },
   { id: 'review', label: 'Review', desc: 'En revisión o testing' },
   { id: 'ready', label: 'Ready', desc: 'Listo para producción' },
   { id: 'done', label: 'Done', desc: 'Desplegado / Finalizado' },

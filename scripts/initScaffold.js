@@ -32,6 +32,54 @@ export function getSkillTemplate(language = 'en') {
   return '# gripm Agent Skill\n';
 }
 
+const CANONICAL_AGENTS_EN = `# AI Agent Contribution Guide (AGENTS.md)
+
+Welcome to **{{projectName}}**. When working on this repository, AI agents (Antigravity, Cursor, Claude Code) and human developers must strictly adhere to the following guidelines:
+
+## 1. Dogfooding and Living Backlog
+- **Every code modification must be associated with a task in \`backlog/tasks/\`**.
+- Move the task to \`doing\` before writing code.
+- Check acceptance criteria (\`- [x]\`) live as they are completed.
+- **Canonical Limit of Development: Only up to \`ready\`**. The agent NEVER promotes a task to \`done\` during the sprint. The \`ready\` status (Ready for Release) is the terminal development state in a sprint.
+- The \`done\` status belongs exclusively to formally released versions.
+- Include the task \`.md\` file in the same commit as the code changes.
+
+## 2. gripm MCP Server
+Use gripm tools (\`gripm-mcp\` or \`npm run mcp\`):
+- \`gripm_list_tasks\`: Token-efficient task listing and filtering.
+- \`gripm_get_task\`: Read full task details and acceptance criteria.
+- \`gripm_update_task\`: Update status, plan, and check criteria sequentially.
+- \`gripm_sync_backlog\`: Automatically reconcile tasks and regenerate \`BACKLOG.md\`.
+
+## 3. Pre-Commit Safeguards & Developer Sovereignty
+- **Prohibited \`git commit\` by Deduction**: The agent only stages workspace changes and validates tests and typing (\`tsc\`). Execute \`git commit\` **solely upon explicit textual instruction from the user**.
+- **Zero Inferred Releases**: Belonging to a sprint does not imply having a release assigned. Release fields remain unassigned until explicitly set by the user.
+`;
+
+const CANONICAL_AGENTS_ES = `# Guía de Contribución para Agentes de IA (AGENTS.md)
+
+Bienvenido a **{{projectName}}**. Al trabajar en este repositorio, tanto agentes de IA (Antigravity, Cursor, Claude Code) como desarrolladores humanos deben adherirse a las siguientes normas:
+
+## 1. Dogfooding y Backlog Vivo
+- **Toda modificación de código debe estar asociada a una tarea en \`backlog/tasks/\`**.
+- Pasa la tarea a \`doing\` antes de comenzar a codificar.
+- Tilda los criterios de aceptación (\`- [x]\`) en vivo a medida que se cumplan.
+- **Límite Canónico del Desarrollo: Sólo hasta \`ready\`**. El agente NUNCA promueve una tarea a \`done\` durante el sprint. El estado \`ready\` (Ready for Release) es el estado terminal del desarrollo en el sprint.
+- El estado \`done\` pertenece exclusivamente al Release formalmente liberado.
+- Incluye el archivo \`.md\` de la tarea en el mismo commit que el código.
+
+## 2. Servidor MCP de gripm
+Usa las herramientas de gripm (\`gripm-mcp\` o \`npm run mcp\`):
+- \`gripm_list_tasks\`: Lista y filtra tareas con mínimo consumo de tokens.
+- \`gripm_get_task\`: Lee detalles y criterios de aceptación.
+- \`gripm_update_task\`: Actualiza estado, plan y tilda criterios secuencialmente.
+- \`gripm_sync_backlog\`: Reconcilia tareas y regenera \`BACKLOG.md\` automáticamente.
+
+## 3. Salvaguarda Pre-Commit y Soberanía del Desarrollador
+- **Prohibido \`git commit\` por deducción**: El agente solo prepara los cambios en el árbol de trabajo y valida pruebas y tipado (\`tsc\`). Se ejecuta \`git commit\` **única y exclusivamente ante una orden textual y explícita del usuario**.
+- **Cero Releases Falsos**: Pertenecer a un sprint no implica tener versión asignada. Los campos de release permanecen sin asignar hasta decisión expresa del usuario.
+`;
+
 /**
  * Embedded canonical AGENTS.md template for consumer repositories
  */
@@ -47,8 +95,8 @@ export function getAgentsMdTemplate(projectName, language = 'en') {
     } catch {}
   }
 
-  console.warn(`⚠️  [gripm init] ADVERTENCIA: No se encontró la plantilla canónica de AGENTS.md en "${templatePath}". Generando stub básico.`);
-  return `# Guía de Contribución para Agentes de IA (AGENTS.md)\n\nBienvenido a **${projectName}**.\n`;
+  const embedded = isEn ? CANONICAL_AGENTS_EN : CANONICAL_AGENTS_ES;
+  return embedded.replace(/\{\{projectName\}\}/g, projectName);
 }
 
 /**
@@ -450,6 +498,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         await runPlaybookSync(targetRepo, { yes: true });
         results.playbook = true;
         console.log(isEnCurrent ? '  ✅ Gripm Playbook synchronized successfully.' : '  ✅ Gripm Playbook sincronizado con éxito.');
+      } else {
+        const { execFileSync } = await import('node:child_process');
+        const isWin = process.platform === 'win32';
+        execFileSync(isWin ? 'npx.cmd' : 'npx', ['-y', '@gripm/playbook', 'sync', '--repo', targetRepo, '--yes'], { stdio: 'inherit', shell: isWin });
+        results.playbook = true;
+        console.log(isEnCurrent ? '  ✅ Gripm Playbook synchronized successfully via npm (@gripm/playbook).' : '  ✅ Gripm Playbook sincronizado con éxito desde npm (@gripm/playbook).');
       }
     } catch (err) {
       console.warn(isEnCurrent ? '  ⚠️ Could not synchronize Gripm Playbook automatically:' : '  ⚠️ No se pudo sincronizar Gripm Playbook automáticamente:', err.message);

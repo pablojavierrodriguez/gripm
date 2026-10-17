@@ -39,15 +39,39 @@ await esbuild.build({
   external: ['fsevents', 'vite']
 });
 
+// 3. Bundle scripts/gripm-cli.ts into bin/gripm-cli.js
+await esbuild.build({
+  entryPoints: [path.join(ROOT_DIR, 'scripts/gripm-cli.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outfile: path.join(BIN_DIR, 'gripm-cli.js'),
+  external: ['fsevents']
+});
+
+// 4. Bundle scripts/gripm-runner.js into bin/gripm.js (pure standalone CLI, zero scripts/ or src/ runtime dependencies)
+await esbuild.build({
+  entryPoints: [path.join(ROOT_DIR, 'scripts/gripm-runner.js')],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outfile: path.join(BIN_DIR, 'gripm.js'),
+  external: ['fsevents', 'vite']
+});
+
 fs.chmodSync(path.join(BIN_DIR, 'gripm-mcp.js'), 0o755);
 if (fs.existsSync(path.join(BIN_DIR, 'server.js'))) {
   fs.chmodSync(path.join(BIN_DIR, 'server.js'), 0o755);
 }
-console.log('✅ bin/gripm-mcp.js y bin/server.js generados con éxito.');
-
+if (fs.existsSync(path.join(BIN_DIR, 'gripm-cli.js'))) {
+  fs.chmodSync(path.join(BIN_DIR, 'gripm-cli.js'), 0o755);
+}
 if (fs.existsSync(path.join(BIN_DIR, 'gripm.js'))) {
   fs.chmodSync(path.join(BIN_DIR, 'gripm.js'), 0o755);
 }
 
+console.log('✅ bin/gripm.js, bin/gripm-mcp.js, bin/server.js y bin/gripm-cli.js generados con éxito.');
 console.log('✅ Ejecutables canónicos gripm y gripm-mcp listos en bin/.');
 

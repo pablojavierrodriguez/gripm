@@ -1,9 +1,9 @@
 ---
 id: DEV-282
 title: "Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-17 16:28'
 labels:
   - "performance"
   - "kanban"
@@ -36,14 +36,19 @@ Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/c
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
-- [ ] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
-- [ ] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
-- [ ] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
-- [ ] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
+- [x] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
+- [x] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
+- [x] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
+- [x] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
+- [x] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
 <!-- AC:END -->
 
 ## Implementation Notes
 
-- Archivos involucrados: `src/components/KanbanBoard.tsx`, `src/components/ItemCard.tsx`.
-- Verificar compatibilidad de drag and drop y atajos de teclado sin alterar el comportamiento funcional.
+<!-- SECTION:NOTES:BEGIN -->
+- Callbacks estabilizados con `useCallback` y referencias estables en `src/App.tsx` (`handleKanbanUpdateStatus`, `handleKanbanClickItem`, `handleKanbanQuickAddItem`) y `src/components/KanbanBoard.tsx` (`handleCardUpdateStatus`, `handleMoveWithinColumn`, `handleMoveItemWithinColumn` desacoplado de recreaciones de ítems mediante `useRef`).
+- Listener global `mousedown` en `ItemCard.tsx` asegurado con salida temprana estricta cuando los menús no están abiertos (`!menuOpen && !statusMenuOpen && !sprintMenuOpen`).
+- Búsqueda de tarea padre optimizada a O(1) mediante `parentLookupMap` memoizado en `KanbanBoard` e inyectado directamente como prop `parentItem` a `ItemCard`, evitando la propagación de `allItems` y la búsqueda cuadrática O(N^2).
+- Montaje de `ConfirmModal` condicionalizado (`showDeleteConfirm && <ConfirmModal ... />`) reduciendo la instanciación innecesaria en el Virtual DOM.
+- Pirámide de verificación aprobada: 0 errores de tipo en `npx tsc --noEmit`, 19 pasos en `npm test` exitosos incluyendo `verify-kanban-reorder.js`.
+<!-- SECTION:NOTES:END -->

@@ -43,6 +43,20 @@ try {
   if (pkg.version) appVersion = pkg.version;
 } catch {}
 
+export function getVisibleProjects(projects: ProjectMeta[], activeProject?: ProjectMeta | null): ProjectMeta[] {
+  return projects.filter(p => {
+    if (p.isDemo || p.id === 'demo') return true;
+    if (activeProject && (p.id === activeProject.id || (p.repoPath && activeProject.repoPath && path.resolve(p.repoPath) === path.resolve(activeProject.repoPath)))) {
+      return true;
+    }
+    if (p.repoPath) {
+      const cfg = readProjectConfig(p);
+      if (cfg?.mode === 'single') return false;
+    }
+    return true;
+  });
+}
+
 export async function handleApiRequest(req: any, res: any): Promise<void> {
   const url = req.url || '';
   const urlObj = new URL(url, 'http://localhost');
@@ -135,7 +149,9 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       const allSprints: any[] = [];
       const resolvedProjects: ProjectMeta[] = [];
 
-      const projectsToProcess = (isSingleMode && activeProject) ? [activeProject] : registry.projects;
+      const projectsToProcess = (isSingleMode && activeProject)
+        ? [activeProject]
+        : getVisibleProjects(registry.projects, activeProject);
 
       for (const p of projectsToProcess) {
         const backlog = readProjectBacklog(p);
@@ -436,9 +452,9 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
             writeProjectBacklog(p, backlog);
             const jsonPath = p.repoPath
               ? path.join(p.repoPath, '.gripm/backlog.json')
-              : (fs.existsSync(path.resolve(PKG_ROOT, 'src/data/demo-backlog.json'))
-                  ? path.resolve(PKG_ROOT, 'src/data/demo-backlog.json')
-                  : path.resolve(PKG_ROOT, 'data/demo-backlog.json'));
+              : (fs.existsSync(path.resolve(PKG_ROOT, 'data/demo-backlog.json'))
+                  ? path.resolve(PKG_ROOT, 'data/demo-backlog.json')
+                  : path.resolve(PKG_ROOT, 'src/data/demo-backlog.json'));
             updatedItem.mtime = fs.existsSync(jsonPath)
               ? Math.round(fs.statSync(jsonPath).mtimeMs)
               : Date.now();
@@ -695,7 +711,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       }
       registry.activeProjectId = 'demo';
       saveRegistry(registry);
-      return sendJson(res, 200, { ok: true, projects: registry.projects, activeProjectId: 'demo' });
+      const visible = isSingleMode ? (activeProject ? [activeProject] : []) : getVisibleProjects(registry.projects, activeProject);
+      return sendJson(res, 200, { ok: true, projects: visible, activeProjectId: 'demo' });
     }
 
     // POST /api/projects/detect-path
@@ -735,7 +752,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       }
 
       saveRegistry(registry);
-      return sendJson(res, 200, { ok: true, id, remainingProjects: registry.projects });
+      const visible = isSingleMode ? (activeProject ? [activeProject] : []) : getVisibleProjects(registry.projects, activeProject);
+      return sendJson(res, 200, { ok: true, id, remainingProjects: visible });
     }
 
     // POST /api/projects/active
@@ -746,7 +764,8 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         // In single-project mode, active project is strictly bound to the target repository
         return sendJson(res, 200, { ok: true, activeProjectId: activeProject?.id, singleProject: true });
       }
-      if (projectId && registry.projects.some(p => p.id === projectId)) {
+      const visibleProjects = getVisibleProjects(registry.projects, activeProject);
+      if (projectId && visibleProjects.some(p => p.id === projectId)) {
         registry.activeProjectId = projectId;
         saveRegistry(registry);
         return sendJson(res, 200, { ok: true, activeProjectId: projectId });

@@ -63,6 +63,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   const flowStatusOptions: { id: ItemStatus; label: string; dot: string; icon: string }[] = [
     { id: 'draft', label: t('status.draft'), dot: 'bg-indigo-500', icon: '📋' },
     { id: 'doing', label: t('status.doing'), dot: 'bg-amber-500', icon: '⚡' },
+    { id: 'blocked', label: t('status.blocked'), dot: 'bg-red-500', icon: '⛔' },
     { id: 'review', label: t('status.review'), dot: 'bg-purple-500', icon: '🔍' },
     { id: 'ready', label: t('status.ready'), dot: 'bg-teal-500', icon: '🚀' },
     { id: 'done', label: t('status.done'), dot: 'bg-emerald-500', icon: '✅' },

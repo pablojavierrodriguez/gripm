@@ -401,6 +401,9 @@ function getConfigFilepath(project) {
   return path3.join(repo, ".gripm/config.json");
 }
 function readProjectConfig(project) {
+  if (project?.isDemo || project?.id === "demo") {
+    return { ...DEFAULT_CONFIG };
+  }
   const configFile = getConfigFilepath(project);
   try {
     if (fs3.existsSync(configFile)) {
@@ -434,7 +437,7 @@ var init_registry = __esm({
     __filename2 = fileURLToPath2(import.meta.url);
     __dirname2 = path3.dirname(__filename2);
     PKG_ROOT = path3.resolve(__dirname2, "../../");
-    DEMO_FILE = path3.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+    DEMO_FILE = fs3.existsSync(path3.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path3.resolve(PKG_ROOT, "data/demo-backlog.json") : path3.resolve(PKG_ROOT, "src/data/demo-backlog.json");
     DEFAULT_CONFIG = {
       theme: "dark",
       density: "comfortable",
@@ -768,6 +771,12 @@ function normalizeStatus(raw) {
     case "active":
     case "started":
       return "doing";
+    case "blocked":
+    case "impediment":
+    case "block":
+    case "hold":
+    case "onhold":
+      return "blocked";
     case "review":
     case "testing":
     case "testingqa":
@@ -807,6 +816,8 @@ function formatStatusForMd(status) {
       return "draft";
     case "doing":
       return "doing";
+    case "blocked":
+      return "blocked";
     case "review":
       return "review";
     case "ready":
@@ -1188,6 +1199,16 @@ function parseBacklogMd(content, defaultId = "") {
           case "blockedby":
             result.blockedBy = [cleanVal];
             break;
+          case "blocked_reason":
+          case "blockedreason":
+            result.blockedReason = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.blocked_reason = cleanVal;
+            break;
+          case "dismissed_reason":
+          case "dismissedreason":
+            result.dismissedReason = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.dismissed_reason = cleanVal;
+            break;
           case "related_to":
           case "relatedto":
             result.relatedTo = [cleanVal];
@@ -1400,6 +1421,12 @@ function serializeBacklogMd(task) {
     frontmatterLines.push("blocked_by:");
     task.blockedBy.forEach((b) => frontmatterLines.push(`  - ${JSON.stringify(b)}`));
   }
+  if (task.blockedReason) {
+    frontmatterLines.push(`blocked_reason: ${JSON.stringify(task.blockedReason)}`);
+  }
+  if (task.dismissedReason) {
+    frontmatterLines.push(`dismissed_reason: ${JSON.stringify(task.dismissedReason)}`);
+  }
   if (task.relatedTo && task.relatedTo.length > 0) {
     frontmatterLines.push("related_to:");
     task.relatedTo.forEach((r) => frontmatterLines.push(`  - ${JSON.stringify(r)}`));
@@ -1453,7 +1480,7 @@ function serializeBacklogMd(task) {
       if (!/^[a-zA-Z0-9_-]+$/.test(k)) {
         continue;
       }
-      if (!["id", "title", "status", "assignee", "assignees", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints", "start_date", "startdate", "due_date", "duedate", "target_date", "targetdate"].includes(k.toLowerCase())) {
+      if (!["id", "title", "status", "assignee", "assignees", "created_date", "updated_date", "labels", "dependencies", "priority", "type", "milestone", "parent", "parentid", "blocks", "blocked_by", "blockedby", "blocked_reason", "blockedreason", "dismissed_reason", "dismissedreason", "related_to", "relatedto", "sprints", "releases", "sprint", "targetsprint", "isdeleted", "deletedat", "previousstatus", "estimate", "estimation", "points", "story_points", "storypoints", "start_date", "startdate", "due_date", "duedate", "target_date", "targetdate"].includes(k.toLowerCase())) {
         if (v === void 0 || v === null) {
           continue;
         }
@@ -1528,10 +1555,11 @@ function generateMonolithicBacklogMd(projectName, items) {
     "## Resumen de Estados",
     ""
   ];
-  const statuses = ["ideas", "doing", "review", "ready", "draft", "done", "dismissed", "cancelled"];
+  const statuses = ["ideas", "doing", "blocked", "review", "ready", "draft", "done", "dismissed", "cancelled"];
   const grouped = {
     ideas: [],
     doing: [],
+    blocked: [],
     review: [],
     ready: [],
     draft: [],
@@ -1583,7 +1611,7 @@ ${item.description}
 // server/services/backlogService.ts
 init_registry();
 init_atomicWrite();
-var DEMO_FILE2 = path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var DEMO_FILE2 = fs5.existsSync(path5.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path5.resolve(PKG_ROOT, "data/demo-backlog.json") : path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
@@ -1956,6 +1984,8 @@ function mapMarkdownTaskToCanonical(task, project, filename, fileStat) {
     parentId: task.parentId || rawFm.parent || rawFm.parentId || void 0,
     blocks: task.blocks || (rawFm.blocks ? Array.isArray(rawFm.blocks) ? rawFm.blocks : [rawFm.blocks] : []),
     blockedBy: task.blockedBy || (rawFm.blocked_by ? Array.isArray(rawFm.blocked_by) ? rawFm.blocked_by : [rawFm.blocked_by] : []),
+    blockedReason: task.blockedReason || rawFm.blocked_reason || rawFm.blockedReason || void 0,
+    dismissedReason: task.dismissedReason || rawFm.dismissed_reason || rawFm.dismissedReason || void 0,
     relatedTo: task.relatedTo || (rawFm.related_to ? Array.isArray(rawFm.related_to) ? rawFm.related_to : [rawFm.related_to] : []),
     dependencies: task.dependencies || [],
     sprints: task.sprints && task.sprints.length > 0 ? task.sprints : sprintVal ? [sprintVal] : [],
@@ -2232,6 +2262,8 @@ var BacklogService = class _BacklogService {
       parentId: data.parentId,
       blocks: data.blocks || [],
       blockedBy: data.blockedBy || [],
+      blockedReason: data.blockedReason || void 0,
+      dismissedReason: data.dismissedReason || void 0,
       relatedTo: data.relatedTo || []
     };
     if (isBacklogMdProject(project) && project.repoPath) {
@@ -2981,6 +3013,8 @@ previousStatus: "${previousStatus}"
         parentId: item.parentId !== void 0 ? item.parentId : existingTask.parentId,
         blocks: item.blocks !== void 0 ? item.blocks : existingTask.blocks,
         blockedBy: item.blockedBy !== void 0 ? item.blockedBy : existingTask.blockedBy,
+        blockedReason: item.blockedReason !== void 0 ? item.blockedReason : existingTask.blockedReason,
+        dismissedReason: item.dismissedReason !== void 0 ? item.dismissedReason : existingTask.dismissedReason,
         relatedTo: item.relatedTo !== void 0 ? item.relatedTo : existingTask.relatedTo,
         sprints: item.sprints !== void 0 ? item.sprints : existingTask.sprints,
         releases: item.release !== void 0 || item.targetRelease !== void 0 || item.milestone !== void 0 || item.releases !== void 0 ? (Array.isArray(item.releases) ? item.releases.filter(Boolean) : item.release ? [item.release] : []).filter((r) => !r.toLowerCase().includes("sprint")) : (existingTask.releases || []).filter((r) => !r.toLowerCase().includes("sprint")),
@@ -3959,6 +3993,19 @@ try {
   if (pkg.version) appVersion = pkg.version;
 } catch {
 }
+function getVisibleProjects(projects, activeProject) {
+  return projects.filter((p) => {
+    if (p.isDemo || p.id === "demo") return true;
+    if (activeProject && (p.id === activeProject.id || p.repoPath && activeProject.repoPath && path9.resolve(p.repoPath) === path9.resolve(activeProject.repoPath))) {
+      return true;
+    }
+    if (p.repoPath) {
+      const cfg = readProjectConfig(p);
+      if (cfg?.mode === "single") return false;
+    }
+    return true;
+  });
+}
 async function handleApiRequest(req, res) {
   const url = req.url || "";
   const urlObj = new URL(url, "http://localhost");
@@ -4028,7 +4075,7 @@ async function handleApiRequest(req, res) {
       const allReleases = [];
       const allSprints = [];
       const resolvedProjects = [];
-      const projectsToProcess = isSingleMode && activeProject ? [activeProject] : registry.projects;
+      const projectsToProcess = isSingleMode && activeProject ? [activeProject] : getVisibleProjects(registry.projects, activeProject);
       for (const p of projectsToProcess) {
         const backlog = readProjectBacklog(p);
         const proj = backlog.project || p;
@@ -4285,7 +4332,7 @@ async function handleApiRequest(req, res) {
           } else {
             backlog.items[index] = updatedItem;
             writeProjectBacklog(p, backlog);
-            const jsonPath = p.repoPath ? path9.join(p.repoPath, ".gripm/backlog.json") : fs9.existsSync(path9.resolve(PKG_ROOT, "src/data/demo-backlog.json")) ? path9.resolve(PKG_ROOT, "src/data/demo-backlog.json") : path9.resolve(PKG_ROOT, "data/demo-backlog.json");
+            const jsonPath = p.repoPath ? path9.join(p.repoPath, ".gripm/backlog.json") : fs9.existsSync(path9.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path9.resolve(PKG_ROOT, "data/demo-backlog.json") : path9.resolve(PKG_ROOT, "src/data/demo-backlog.json");
             updatedItem.mtime = fs9.existsSync(jsonPath) ? Math.round(fs9.statSync(jsonPath).mtimeMs) : Date.now();
           }
           return sendJson(res, 200, { ok: true, item: updatedItem });
@@ -4500,7 +4547,8 @@ async function handleApiRequest(req, res) {
       }
       registry.activeProjectId = "demo";
       saveRegistry(registry);
-      return sendJson(res, 200, { ok: true, projects: registry.projects, activeProjectId: "demo" });
+      const visible = isSingleMode ? activeProject ? [activeProject] : [] : getVisibleProjects(registry.projects, activeProject);
+      return sendJson(res, 200, { ok: true, projects: visible, activeProjectId: "demo" });
     }
     if (req.method === "POST" && pathname === "/api/projects/detect-path") {
       const body = await getBody(req, res);
@@ -4533,7 +4581,8 @@ async function handleApiRequest(req, res) {
         registry.activeProjectId = registry.projects[0]?.id || "";
       }
       saveRegistry(registry);
-      return sendJson(res, 200, { ok: true, id, remainingProjects: registry.projects });
+      const visible = isSingleMode ? activeProject ? [activeProject] : [] : getVisibleProjects(registry.projects, activeProject);
+      return sendJson(res, 200, { ok: true, id, remainingProjects: visible });
     }
     if (req.method === "POST" && pathname === "/api/projects/active") {
       const body = await getBody(req, res);
@@ -4541,7 +4590,8 @@ async function handleApiRequest(req, res) {
       if (isSingleMode) {
         return sendJson(res, 200, { ok: true, activeProjectId: activeProject?.id, singleProject: true });
       }
-      if (projectId && registry.projects.some((p) => p.id === projectId)) {
+      const visibleProjects = getVisibleProjects(registry.projects, activeProject);
+      if (projectId && visibleProjects.some((p) => p.id === projectId)) {
         registry.activeProjectId = projectId;
         saveRegistry(registry);
         return sendJson(res, 200, { ok: true, activeProjectId: projectId });

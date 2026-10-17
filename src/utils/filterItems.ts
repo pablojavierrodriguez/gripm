@@ -13,6 +13,8 @@ export function normalizeCanonicalStatus(status: ItemStatus | string): ItemStatu
     case 'doing':
     case 'in_progress':
       return 'doing';
+    case 'blocked':
+      return 'blocked';
     case 'review':
     case 'testing_qa':
       return 'review';

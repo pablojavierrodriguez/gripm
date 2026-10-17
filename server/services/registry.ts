@@ -9,7 +9,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const PKG_ROOT = path.resolve(__dirname, '../../');
 
-export const DEMO_FILE = path.resolve(PKG_ROOT, 'src/data/demo-backlog.json');
+export const DEMO_FILE = fs.existsSync(path.resolve(PKG_ROOT, 'data/demo-backlog.json'))
+  ? path.resolve(PKG_ROOT, 'data/demo-backlog.json')
+  : path.resolve(PKG_ROOT, 'src/data/demo-backlog.json');
 
 export function detectProjectStorage(repoPath?: string): { storageType: 'json' | 'markdown'; backlogDir: string } {
   if (!repoPath) return { storageType: 'json', backlogDir: 'backlog' };
@@ -188,6 +190,9 @@ export const DEFAULT_CONFIG = {
 };
 
 export function readProjectConfig(project?: ProjectMeta): any {
+  if (project?.isDemo || project?.id === 'demo') {
+    return { ...DEFAULT_CONFIG };
+  }
   const configFile = getConfigFilepath(project);
   try {
     if (fs.existsSync(configFile)) {

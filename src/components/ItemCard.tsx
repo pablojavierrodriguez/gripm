@@ -46,6 +46,7 @@ import { ConfirmModal } from './ConfirmModal';
 
 interface ItemCardProps {
   item: BacklogItem;
+  parentItem?: BacklogItem;
   allItems?: BacklogItem[];
   isDragging?: boolean;
   onClick: (item: BacklogItem) => void;
@@ -221,6 +222,7 @@ interface MenuPosition {
 
 const ItemCardComponent: React.FC<ItemCardProps> = ({
   item,
+  parentItem: parentItemProp,
   allItems = [],
   isDragging = false,
   onClick,
@@ -262,9 +264,12 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const dragJustEndedRef = useRef(false);
-  const parentItem = item.parentId
-    ? allItems.find(candidate => candidate.id === item.parentId || candidate.code === item.parentId)
-    : undefined;
+  // DEV-282: Resolución O(1) de la tarea padre usando parentItem pre-indexado
+  const parentItem = parentItemProp !== undefined
+    ? parentItemProp
+    : (item.parentId
+      ? allItems.find(candidate => candidate.id === item.parentId || candidate.code === item.parentId)
+      : undefined);
 
   useEffect(() => {
     if (!menuOpen && !statusMenuOpen && !sprintMenuOpen) return;
@@ -521,7 +526,7 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
 
                   {statusMenuOpen && (
                     <div className={`absolute ${menuPos && menuPos.left < 180 ? 'left-full ml-1' : 'right-full mr-1'} top-0 w-44 rounded-xl bg-white dark:bg-[#0e1626] border border-slate-200 dark:border-white/10 shadow-2xl p-1 z-50 text-xs`}>
-                      {(['ideas', 'draft', 'doing', 'review', 'ready', 'done'] as ItemStatus[]).map((s) => (
+                      {(['ideas', 'draft', 'doing', 'blocked', 'review', 'ready', 'done'] as ItemStatus[]).map((s) => (
                         <button
                           key={s}
                           onClick={() => {
@@ -824,29 +829,40 @@ const ItemCardComponent: React.FC<ItemCardProps> = ({
           </span>
         )}
 
+        {item.status === 'blocked' && (
+          <span
+            className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-medium text-xs flex items-center gap-1"
+            title={item.blockedReason ? t('card.blockedReason', { reason: item.blockedReason }) : t('status.blocked')}
+          >
+            ⛔ {t('status.blocked')}{item.blockedReason ? `: ${item.blockedReason}` : ''}
+          </span>
+        )}
+
         {visibleCardMetadata?.blocked !== false && item.blockedBy && item.blockedBy.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}>
+          <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 font-medium text-xs flex items-center gap-1" title={t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}>
             ⛔ {t('card.blockedBy', { tasks: item.blockedBy.join(', ') })}
           </span>
         )}
 
         {visibleCardMetadata?.blocked !== false && item.blocks && item.blocks.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 font-medium text-[9px] flex items-center gap-1" title={t('card.blocks', { tasks: item.blocks.join(', ') })}>
+          <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 font-medium text-xs flex items-center gap-1" title={t('card.blocks', { tasks: item.blocks.join(', ') })}>
             ⚠️ {t('card.blocks', { tasks: item.blocks.join(', ') })}
           </span>
         )}
       </div>
 
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        title={t('card.moveToTrash')}
-        message={t('itemModal.deletePrompt', { code: item.code })}
-        detail={item.title}
-        confirmText={t('card.moveToTrash')}
-        variant="danger"
-        onConfirm={() => onDelete(item.id)}
-        onClose={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmModal
+          isOpen={showDeleteConfirm}
+          title={t('card.moveToTrash')}
+          message={t('itemModal.deletePrompt', { code: item.code })}
+          detail={item.title}
+          confirmText={t('card.moveToTrash')}
+          variant="danger"
+          onConfirm={() => onDelete(item.id)}
+          onClose={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 };

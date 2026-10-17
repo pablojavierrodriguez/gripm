@@ -59,7 +59,7 @@ export const SIMPLIFIED_BASE_COLUMNS: ColumnConfig[] = [
     subtitle: 'Doing & Review',
     color: 'border-amber-500/30',
     dotColor: 'bg-amber-500',
-    statuses: ['doing', 'review'],
+    statuses: ['doing', 'review', 'blocked'],
     dropTargetStatus: 'doing'
   },
   {
@@ -104,7 +104,7 @@ export const EXPANDED_COLUMNS: ColumnConfig[] = [
     subtitle: 'Desarrollo activo',
     color: 'border-amber-500/30',
     dotColor: 'bg-amber-500',
-    statuses: ['doing'],
+    statuses: ['doing', 'blocked'],
     dropTargetStatus: 'doing'
   },
   {
@@ -156,6 +156,13 @@ const SUB_DROP_THEME: Record<string, {
     hoverText: 'text-amber-900 dark:text-amber-100 font-semibold',
     hoverRing: 'ring-2 ring-amber-500/40',
     dot: 'bg-amber-500 ring-2 ring-amber-500/30',
+  },
+  blocked: {
+    hoverBg: 'bg-rose-500/15 dark:bg-rose-500/25',
+    hoverBorder: 'border-rose-500 dark:border-rose-400',
+    hoverText: 'text-rose-900 dark:text-rose-100 font-semibold',
+    hoverRing: 'ring-2 ring-rose-500/40',
+    dot: 'bg-rose-500 ring-2 ring-rose-500/30',
   },
   review: {
     hoverBg: 'bg-purple-500/15 dark:bg-purple-500/25',
@@ -543,6 +550,30 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     });
   };
 
+  // DEV-282: Pre-indexación en Map para resolución O(1) de tareas padre
+  const parentLookupMap = useMemo(() => {
+    const map = new Map<string, BacklogItem>();
+    const pool = allItems && allItems.length > 0 ? allItems : items;
+    for (const it of pool) {
+      if (it.id) map.set(it.id, it);
+      if (it.code) map.set(it.code, it);
+    }
+    return map;
+  }, [allItems, items]);
+
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+  const includeIdeasRef = useRef(includeIdeas);
+  includeIdeasRef.current = includeIdeas;
+
+  const handleCardUpdateStatus = useCallback((id: string, newStatus: ItemStatus) => {
+    onUpdateStatus(id, newStatus);
+  }, [onUpdateStatus]);
+
   /**
    * Moves a card one slot up or down inside its column without a pointer (DEV-173,
    * AC #3). Reordering is otherwise drag-and-drop only, which WCAG 2.5.7 forbids
@@ -559,7 +590,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
    * Uses fractional order for adjacent swaps and deterministic offset (-10 / +10)
    * for top/bottom repositioning, maintaining ranking stability.
    */
-  const handleMoveWithinColumn = (
+  const handleMoveWithinColumn = useCallback((
     item: BacklogItem,
     col: ColumnConfig,
     colItems: BacklogItem[],
@@ -611,7 +642,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
 
     onUpdateStatus(item.id, item.status, col.id, undefined, nextOrder);
-  };
+  }, [onUpdateStatus]);
 
   const activeOrAvailableSprintNames = useMemo(() => {
     const nonCompleted = sprints.filter((s) => s.status !== 'completed' && Boolean(s.name)).map((s) => s.name);
@@ -655,10 +686,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     item: BacklogItem,
     direction: 'up' | 'down' | 'top' | 'bottom'
   ) => {
-    const col = columns.find((c) => c.statuses.includes(item.status)) || columns[0];
-    const colItems = getKanbanColumnItems(items, col, { showIdeas: Boolean(includeIdeas), viewMode });
+    const currentCols = columnsRef.current;
+    const currentItems = itemsRef.current;
+    const col = currentCols.find((c) => c.statuses.includes(item.status)) || currentCols[0];
+    const colItems = getKanbanColumnItems(currentItems, col, { showIdeas: Boolean(includeIdeasRef.current), viewMode: viewModeRef.current });
     handleMoveWithinColumn(item, col, colItems, direction);
-  }, [columns, items, includeIdeas, viewMode, onUpdateStatus]);
+  }, [handleMoveWithinColumn]);
 
   const handleDrop = (
     e: React.DragEvent, 
@@ -1046,10 +1079,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 >
                   <ItemCard
                     item={item}
-                    allItems={allItems || items}
+                    parentItem={item.parentId ? parentLookupMap.get(item.parentId) : undefined}
                     isDragging={isItemDragged}
                     onClick={onClickItem}
-                    onUpdateStatus={onUpdateStatus}
+                    onUpdateStatus={handleCardUpdateStatus}
                     onDelete={onDeleteItem}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}

@@ -22,6 +22,8 @@ export interface ItemFormValues {
   fix: string;
   implementationPlan: string;
   acceptanceCriteriaList: AcceptanceCriterion[];
+  blockedReason: string;
+  dismissedReason: string;
   estimate: string | number | undefined;
   customEstimateInput: string;
   startDate: string;
@@ -81,6 +83,8 @@ export function parseItemToFormValues(
     fix: source.fix || '',
     implementationPlan: source.implementationPlan || '',
     acceptanceCriteriaList: source.acceptanceCriteriaList || [],
+    blockedReason: source.blockedReason || '',
+    dismissedReason: source.dismissedReason || '',
     estimate: sourceEst,
     customEstimateInput,
     startDate: source.startDate || '',
@@ -126,6 +130,8 @@ export function getInitialFormValues(
     fix: '',
     implementationPlan: '',
     acceptanceCriteriaList: [],
+    blockedReason: '',
+    dismissedReason: '',
     estimate: undefined,
     customEstimateInput: '',
     startDate: '',

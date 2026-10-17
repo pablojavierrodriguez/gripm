@@ -1,9 +1,9 @@
 ---
 id: DEV-310
 title: "Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single"
-status: draft
+status: ready
 created_date: '2026-10-16'
-updated_date: '2026-10-16'
+updated_date: '2026-10-17 15:47'
 labels:
   - "projects"
   - "hub"
@@ -39,10 +39,10 @@ Garantizar la soberanía, aislamiento y privacidad de proyectos locales configur
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
-- [ ] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
-- [ ] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
-- [ ] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
+- [x] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
+- [x] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
+- [x] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
+- [x] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -52,8 +52,3 @@ Garantizar la soberanía, aislamiento y privacidad de proyectos locales configur
 2. Aplicar el filtro opt-in en la resolución de `projectsToProcess`.
 3. Agregar caso de prueba en `scripts/verify-integration.js`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

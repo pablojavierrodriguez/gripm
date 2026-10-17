@@ -287,6 +287,10 @@ export const ItemModal: FC<ItemModalProps> = ({
               statusTypeProps={{
                 status: form.status,
                 setStatus: form.setStatus,
+                blockedReason: form.blockedReason,
+                setBlockedReason: form.setBlockedReason,
+                dismissedReason: form.dismissedReason,
+                setDismissedReason: form.setDismissedReason,
                 priority: form.priority,
                 setPriority: form.setPriority,
                 type: form.type,

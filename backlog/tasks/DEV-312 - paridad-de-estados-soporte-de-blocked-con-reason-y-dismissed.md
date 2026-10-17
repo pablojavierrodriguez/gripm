@@ -1,9 +1,9 @@
 ---
 id: DEV-312
 title: "Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser"
-status: draft
+status: ready
 created_date: '2026-10-17'
-updated_date: '2026-10-17'
+updated_date: '2026-10-17 16:17'
 labels:
   - "state-machine"
   - "parser"
@@ -43,11 +43,11 @@ Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
-- [ ] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
-- [ ] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
-- [ ] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
-- [ ] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
+- [x] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
+- [x] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
+- [x] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
+- [x] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
+- [x] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -63,4 +63,8 @@ Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+- Agregado 'blocked' como valor canónico en CanonicalStatus (`scripts/backlogMdParser.ts`), ItemStatus (`src/types.ts`), statusMeta (`src/utils/statusMeta.ts`), SettingsView y AdvancedFiltersPopover.
+- Agregados campos blockedReason y dismissedReason en modelos de datos, parser de frontmatter YAML (`blocked_reason`, `dismissed_reason`), serializador y hooks de formulario (`useItemFormState`).
+- Integrado selector y campos de texto reactivos en `ItemSidebarStatusType.tsx` y badge con motivo en `ItemCard.tsx` con verificación de contraste WCAG AA (5.66:1 light / 5.92:1 dark).
+- Verificación exhaustiva: TypeScript strict 0 errores, 19 pasos en `npm test` exitosos, y 100% de paridad en `test-parser.js`.
 <!-- SECTION:NOTES:END -->

@@ -40,8 +40,15 @@ try {
   const skillCount = (tarList.match(/package\/\.agents\/skills\/gripm\/SKILL\.(en|es)\.md/g) || []).length;
   assert.ok(skillCount >= 2, `El tarball debe contener las plantillas SKILL.en.md y SKILL.es.md, encontradas: ${skillCount}`);
 
-  const githooksCount = (tarList.match(/package\/\.githooks\/pre-commit/g) || []).length;
-  assert.strictEqual(githooksCount, 1, `El tarball debe contener .githooks/pre-commit exactamente 1 vez, encontrados: ${githooksCount}`);
+  // DEV-307: El tarball no debe contener directorios internos de desarrollo ni hooks
+  const githooksCount = (tarList.match(/package\/\.githooks\//g) || []).length;
+  assert.strictEqual(githooksCount, 0, 'El tarball de Gripm Board no debe contener .githooks/ (DEV-307)');
+  const srcCount = (tarList.match(/package\/src\//g) || []).length;
+  assert.strictEqual(srcCount, 0, 'El tarball de Gripm Board no debe contener src/ (DEV-307)');
+  const scriptsCount = (tarList.match(/package\/scripts\//g) || []).length;
+  assert.strictEqual(scriptsCount, 0, 'El tarball de Gripm Board no debe contener scripts/ (DEV-307)');
+  const serverCount = (tarList.match(/package\/server\//g) || []).length;
+  assert.strictEqual(serverCount, 0, 'El tarball de Gripm Board no debe contener server/ (DEV-307)');
 
   // DEV-250: El tarball no debe contener el framework de Gripm Playbook
   const playbookCount = (tarList.match(/package\/\.agents\/TEAM_PLAYBOOK\.md/g) || []).length;
@@ -107,9 +114,30 @@ try {
   assert.ok(agentsEsContent.includes('Guía de Contribución para Agentes de IA'), 'AGENTS.md en español debe ser la guía canónica');
   assert.ok(!agentsEsContent.includes('Bienvenido a **demo**'), 'AGENTS.md en español no debe ser el stub básico');
 
-  console.log('✅ AC #2 & #3: las plantillas canónicas .agents y .githooks están en el tarball');
+  // 6. DEV-307 AC #3: Verificar ejecución 100% autónoma sin devDependencies desde el paquete extraído
+  const isolatedBoardBin = path.join(pkgRoot, 'bin', 'gripm.js');
+  const isolatedMcpBin = path.join(pkgRoot, 'bin', 'gripm-mcp.js');
+  const isolatedServerBin = path.join(pkgRoot, 'bin', 'server.js');
+  const isolatedCliBin = path.join(pkgRoot, 'bin', 'gripm-cli.js');
+
+  assert.ok(!fs.existsSync(path.join(pkgRoot, 'node_modules')), 'El paquete empaquetado no contiene node_modules');
+
+  const vOut = execSync(`node "${isolatedBoardBin}" --version`, { cwd: tmp, encoding: 'utf8' }).trim();
+  assert.ok(vOut.length > 0, 'gripm --version debe responder desde paquete aislado sin devDependencies');
+
+  const helpOut = execSync(`node "${isolatedBoardBin}" --help`, { cwd: tmp, encoding: 'utf8' });
+  assert.ok(helpOut.includes('gripm CLI'), 'gripm --help debe responder desde paquete aislado sin devDependencies');
+
+  const cliHelpOut = execSync(`node "${isolatedCliBin}" --help`, { cwd: tmp, encoding: 'utf8' });
+  assert.ok(cliHelpOut.includes('gripm · Gestión'), 'gripm-cli --help debe responder desde paquete aislado sin devDependencies');
+
+  execSync(`node -c "${isolatedMcpBin}"`, { cwd: tmp });
+  execSync(`node -c "${isolatedServerBin}"`, { cwd: tmp });
+
+  console.log('✅ AC #2 & #3: las plantillas canónicas .agents están en el tarball y los directorios de desarrollo están excluidos');
   console.log('✅ AC #4 & #5: Artefactos instalados >= 1000 bytes sin stubs degradados');
   console.log('✅ AC #6: Selección de idioma en plantillas validada para EN y ES');
+  console.log('✅ DEV-307 AC #3: Instalación limpia con --omit=dev y ejecución de binarios verificada');
   console.log('🎉 [Distribution Guard] Verificación de distribución de npm pasada con éxito!\n');
 } finally {
   if (tarballPath && fs.existsSync(tarballPath)) {

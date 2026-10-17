@@ -1,9 +1,9 @@
 ---
 id: DEV-307
 title: "Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-17 15:10'
 labels:
   - "packaging"
   - "npm"
@@ -64,11 +64,11 @@ Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos inte
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
-- [ ] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
-- [ ] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
-- [ ] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
-- [ ] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
+- [x] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
+- [x] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
+- [x] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
+- [x] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
+- [x] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -79,8 +79,3 @@ Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos inte
 3. Actualizar `scripts/verify-publish-surface.js` con las nuevas reglas de exclusión estricta.
 4. Ejecutar `npm run publish:check` y `npm run verify:dist` para validar la integridad del paquete generado.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

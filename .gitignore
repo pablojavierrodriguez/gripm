@@ -27,7 +27,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Legacy local data directory (zero-leak policy)
-data/
+data/*
+!data/demo-backlog.json
 
 # gripm local cache
 .gripm/update-cache.json

@@ -904,6 +904,50 @@ try {
   }
 }
 
+// DEV-310: Aislamiento y Federación Opt-In en Multi-Project Hub
+{
+  const tempHubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-hub-'));
+  const tempMultiDir = path.join(tempHubDir, 'multi-repo');
+  const tempSingleDir = path.join(tempHubDir, 'single-repo');
+  const tempStandardDir = path.join(tempHubDir, 'standard-repo');
+
+  fs.mkdirSync(path.join(tempMultiDir, '.gripm'), { recursive: true });
+  fs.mkdirSync(path.join(tempSingleDir, '.gripm'), { recursive: true });
+  fs.mkdirSync(path.join(tempStandardDir, '.gripm'), { recursive: true });
+
+  fs.writeFileSync(path.join(tempMultiDir, '.gripm/config.json'), JSON.stringify({ mode: 'multi' }), 'utf8');
+  fs.writeFileSync(path.join(tempSingleDir, '.gripm/config.json'), JSON.stringify({ mode: 'single' }), 'utf8');
+  fs.writeFileSync(path.join(tempStandardDir, '.gripm/config.json'), JSON.stringify({ mode: 'kanban' }), 'utf8');
+
+  try {
+    const apiMod = await import('../server/routes/api.ts?dev310=' + Date.now());
+    const { getVisibleProjects } = apiMod;
+
+    const mockProjects = [
+      { id: 'proj-multi', name: 'Multi Repo', repoPath: tempMultiDir },
+      { id: 'proj-single', name: 'Single Repo', repoPath: tempSingleDir },
+      { id: 'proj-standard', name: 'Standard Repo', repoPath: tempStandardDir },
+      { id: 'demo', name: 'Proyecto Demo', isDemo: true }
+    ];
+
+    // 1. In Hub mode (active is multi), single repo is excluded
+    const visibleInHub = getVisibleProjects(mockProjects, mockProjects[0]);
+    const visibleIds = visibleInHub.map(p => p.id);
+    assert.ok(visibleIds.includes('proj-multi'), 'DEV-310: Active multi project must be visible');
+    assert.ok(visibleIds.includes('proj-standard'), 'DEV-310: Standard project must be visible in Hub');
+    assert.ok(visibleIds.includes('demo'), 'DEV-310: Virtual demo project must be visible in Hub');
+    assert.strictEqual(visibleIds.includes('proj-single'), false, 'DEV-310: Single-mode project must NOT be exposed in Hub');
+
+    // 2. When the single repo itself is active (started directly), it is accessible
+    const visibleWhenDirect = getVisibleProjects(mockProjects, mockProjects[1]);
+    assert.ok(visibleWhenDirect.some(p => p.id === 'proj-single'), 'DEV-310: Single repo is visible and accessible when targeted directly');
+
+    console.log('✅ DEV-310: Multi-Project Hub opt-in federation and single-mode isolation verified');
+  } finally {
+    fs.rmSync(tempHubDir, { recursive: true, force: true });
+  }
+}
+
 // Clean up test files
 fs.rmSync(testRepoDir, { recursive: true, force: true });
 console.log('🧹 Cleaned up test directory');

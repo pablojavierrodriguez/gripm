@@ -75,7 +75,9 @@ export interface SyncBacklogResult {
   backlogPath: string | null;
   changesWritten: boolean;
 }
-const DEMO_FILE = path.resolve(PKG_ROOT, 'src/data/demo-backlog.json');
+const DEMO_FILE = fs.existsSync(path.resolve(PKG_ROOT, 'data/demo-backlog.json'))
+  ? path.resolve(PKG_ROOT, 'data/demo-backlog.json')
+  : path.resolve(PKG_ROOT, 'src/data/demo-backlog.json');
 
 // ---------------------------------------------------------------------------
 // Path and Identity Helpers
@@ -524,6 +526,8 @@ function mapMarkdownTaskToCanonical(
     parentId: task.parentId || rawFm.parent || rawFm.parentId || undefined,
     blocks: task.blocks || (rawFm.blocks ? (Array.isArray(rawFm.blocks) ? rawFm.blocks : [rawFm.blocks]) : []),
     blockedBy: task.blockedBy || (rawFm.blocked_by ? (Array.isArray(rawFm.blocked_by) ? rawFm.blocked_by : [rawFm.blocked_by]) : []),
+    blockedReason: task.blockedReason || rawFm.blocked_reason || rawFm.blockedReason || undefined,
+    dismissedReason: task.dismissedReason || rawFm.dismissed_reason || rawFm.dismissedReason || undefined,
     relatedTo: task.relatedTo || (rawFm.related_to ? (Array.isArray(rawFm.related_to) ? rawFm.related_to : [rawFm.related_to]) : []),
     dependencies: task.dependencies || [],
     sprints: task.sprints && task.sprints.length > 0 ? task.sprints : (sprintVal ? [sprintVal] : []),
@@ -843,6 +847,8 @@ export class BacklogService {
       parentId: data.parentId,
       blocks: data.blocks || [],
       blockedBy: data.blockedBy || [],
+      blockedReason: data.blockedReason || undefined,
+      dismissedReason: data.dismissedReason || undefined,
       relatedTo: data.relatedTo || []
     };
 
@@ -1742,6 +1748,8 @@ export class BacklogService {
         parentId: item.parentId !== undefined ? item.parentId : existingTask.parentId,
         blocks: item.blocks !== undefined ? item.blocks : existingTask.blocks,
         blockedBy: item.blockedBy !== undefined ? item.blockedBy : existingTask.blockedBy,
+        blockedReason: item.blockedReason !== undefined ? item.blockedReason : existingTask.blockedReason,
+        dismissedReason: item.dismissedReason !== undefined ? item.dismissedReason : existingTask.dismissedReason,
         relatedTo: item.relatedTo !== undefined ? item.relatedTo : existingTask.relatedTo,
         sprints: item.sprints !== undefined ? item.sprints : existingTask.sprints,
         releases: (item.release !== undefined || item.targetRelease !== undefined || item.milestone !== undefined || item.releases !== undefined)

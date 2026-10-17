@@ -6,6 +6,10 @@ import { DEFAULT_FIBONACCI, DEFAULT_TSHIRT } from '../../types';
 export interface ItemSidebarStatusTypeProps {
   status: ItemStatus;
   setStatus: (s: ItemStatus) => void;
+  blockedReason?: string;
+  setBlockedReason?: (s: string) => void;
+  dismissedReason?: string;
+  setDismissedReason?: (s: string) => void;
   priority: Priority;
   setPriority: (p: Priority) => void;
   type: ItemType;
@@ -21,6 +25,10 @@ export interface ItemSidebarStatusTypeProps {
 export const ItemSidebarStatusType: React.FC<ItemSidebarStatusTypeProps> = ({
   status,
   setStatus,
+  blockedReason,
+  setBlockedReason,
+  dismissedReason,
+  setDismissedReason,
   priority,
   setPriority,
   type,
@@ -48,6 +56,7 @@ export const ItemSidebarStatusType: React.FC<ItemSidebarStatusTypeProps> = ({
             <option value="ideas" className="bg-white dark:bg-[#0e1626]">💡 {t('status.ideas')}</option>
             <option value="draft" className="bg-white dark:bg-[#0e1626]">{t('status.draft')}</option>
             <option value="doing" className="bg-white dark:bg-[#0e1626]">{t('status.doing')}</option>
+            <option value="blocked" className="bg-white dark:bg-[#0e1626]">⛔ {t('status.blocked')}</option>
             <option value="review" className="bg-white dark:bg-[#0e1626]">{t('status.review')}</option>
             <option value="ready" className="bg-white dark:bg-[#0e1626]">{t('status.ready')}</option>
             <option value="done" className="bg-white dark:bg-[#0e1626]">{t('status.done')}</option>
@@ -56,6 +65,36 @@ export const ItemSidebarStatusType: React.FC<ItemSidebarStatusTypeProps> = ({
           </select>
           <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
+
+        {status === 'blocked' && setBlockedReason && (
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-rose-600 dark:text-rose-400 mb-1">
+              {t('modal.blockedReason')}
+            </label>
+            <textarea
+              rows={2}
+              value={blockedReason || ''}
+              onChange={(e) => setBlockedReason(e.target.value)}
+              placeholder={t('modal.blockedReasonPlaceholder')}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-rose-500/50 resize-none"
+            />
+          </div>
+        )}
+
+        {status === 'dismissed' && setDismissedReason && (
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              {t('modal.dismissedReason')}
+            </label>
+            <textarea
+              rows={2}
+              value={dismissedReason || ''}
+              onChange={(e) => setDismissedReason(e.target.value)}
+              placeholder={t('modal.dismissedReasonPlaceholder')}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500/50 resize-none"
+            />
+          </div>
+        )}
       </div>
 
       {/* Priority & Type */}

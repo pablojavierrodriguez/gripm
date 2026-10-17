@@ -75,6 +75,8 @@ export function useItemFormState({
   const [blocks, setBlocks] = useState<string[]>([]);
   const [blockedBy, setBlockedBy] = useState<string[]>([]);
   const [relatedTo, setRelatedTo] = useState<string[]>([]);
+  const [blockedReason, setBlockedReason] = useState('');
+  const [dismissedReason, setDismissedReason] = useState('');
   const [description, setDescription] = useState('');
   const [risk, setRisk] = useState('');
   const [fix, setFix] = useState('');
@@ -184,6 +186,8 @@ export function useItemFormState({
     setParentId(v.parentId);
     setBlocks(v.blocks);
     setBlockedBy(v.blockedBy);
+    setBlockedReason(v.blockedReason || '');
+    setDismissedReason(v.dismissedReason || '');
     setRelatedTo(v.relatedTo);
     setDescription(v.description);
     setRisk(v.risk);
@@ -262,6 +266,8 @@ export function useItemFormState({
         parentId,
         blocks,
         blockedBy,
+        blockedReason,
+        dismissedReason,
         relatedTo,
         description,
         risk,
@@ -394,6 +400,10 @@ export function useItemFormState({
     setBlocks,
     blockedBy,
     setBlockedBy,
+    blockedReason,
+    setBlockedReason,
+    dismissedReason,
+    setDismissedReason,
     relatedTo,
     setRelatedTo,
     description,

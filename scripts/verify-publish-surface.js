@@ -65,22 +65,22 @@ const CONTENT_PATTERNS = [
   { label: 'ruta absoluta de home de usuario (Windows)', re: /[a-zA-Z]:(?:\\|\/|\\\\)Users(?:\\|\/|\\\\)[a-zA-Z0-9_-]+(?:\\|\/|\\\\)/i },
 ];
 
-/** Allowlist explícita: todo lo que SÍ debe estar en el tarball. */
+/** Allowlist explícita: todo lo que SÍ debe estar en el tarball (DEV-307). */
 const REQUIRED_ENTRIES = [
   'bin/gripm.js',
   'bin/gripm-mcp.js',
+  'bin/server.js',
+  'bin/gripm-cli.js',
   'dist/index.html',
   'public/logo.png',
-  'src/data/demo-backlog.json',
+  'data/demo-backlog.json',
   'package.json',
   'README.md',
+  'README.es.md',
   'LICENSE',
   '.agents/skills/gripm/SKILL.md',
   '.agents/skills/gripm/SKILL.en.md',
   '.agents/skills/gripm/SKILL.es.md',
-  'scripts/templates/AGENTS.en.md',
-  'scripts/templates/AGENTS.es.md',
-  '.githooks/pre-commit',
 ];
 
 function run(cmd, args, opts = {}) {
@@ -144,6 +144,34 @@ try {
     if (allFiles.includes(forbidden)) {
       console.error(`  ${c.red('✖')} CONTENIDO DE PLAYBOOK FILTRADO EN GRIPM BOARD: ${forbidden}`);
       console.error(`    ${c.yellow('▲')} Gripm Playbook es un paquete independiente (@gripm/playbook). No debe empaquetarse en @gripm/board.`);
+      failed = true;
+    }
+  }
+
+  // 4c. Chequeo A3 - exclusión estricta de código fuente, scripts de test y baselines (DEV-307).
+  const FORBIDDEN_DIRS = ['src/', 'server/', 'scripts/', '.githooks/'];
+  const FORBIDDEN_DEV_FILES = [
+    'audit-ux-baseline.json',
+    'vite.config.ts',
+    'tailwind.config.js',
+    'postcss.config.js',
+    'index.html',
+  ];
+
+  for (const file of allFiles) {
+    if (FORBIDDEN_DIRS.some((dir) => file.startsWith(dir))) {
+      console.error(`  ${c.red('✖')} DIRECTORIO DE DESARROLLO EN TARBALL: ${file}`);
+      console.error(`    ${c.yellow('▲')} Los directorios src/, server/, scripts/ y .githooks/ deben excluirse del paquete de producción (DEV-307).`);
+      failed = true;
+    }
+    if (FORBIDDEN_DEV_FILES.includes(file)) {
+      console.error(`  ${c.red('✖')} ARTEFACTO DE CONFIGURACIÓN INTERNA PUBLICADO: ${file}`);
+      console.error(`    ${c.yellow('▲')} Archivos de tooling o baselines internos no deben empaquetarse en npm (DEV-307).`);
+      failed = true;
+    }
+    if (/\.(ts|tsx)$/i.test(file)) {
+      console.error(`  ${c.red('✖')} ARCHIVO TYPESCRIPT SIN COMPILAR EN TARBALL: ${file}`);
+      console.error(`    ${c.yellow('▲')} El paquete de producción debe distribuir únicamente artefactos precompilados en bin/ y dist/ (DEV-307).`);
       failed = true;
     }
   }

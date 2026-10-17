@@ -31,22 +31,30 @@ try {
   const extractedPkg = path.join(tempDir, 'package');
   assert.ok(fs.existsSync(extractedPkg), 'El directorio extraído "package/" debe existir');
 
-  // 3. Verify critical files inside the package
+  // 3. Verify critical files inside the package (DEV-307)
   const expectedFiles = [
     'bin/gripm.js',
     'bin/gripm-mcp.js',
-    'scripts/registryConfig.js',
-    'scripts/updateChecker.js',
-    'scripts/initScaffold.js',
-    'scripts/uninstall.js',
-    'scripts/portUtils.js',
-    'vite.config.ts',
-    'package.json'
+    'bin/server.js',
+    'bin/gripm-cli.js',
+    'dist/index.html',
+    'data/demo-backlog.json',
+    '.agents/skills/gripm/SKILL.md',
+    'package.json',
+    'README.md',
+    'README.es.md',
+    'LICENSE'
   ];
 
   for (const relFile of expectedFiles) {
     const fullPath = path.join(extractedPkg, relFile);
     assert.ok(fs.existsSync(fullPath), `Archivo crítico faltante en tarball npm: ${relFile}`);
+  }
+
+  // DEV-307: Directorios de desarrollo nunca deben estar en el tarball
+  const forbiddenDirs = ['src', 'server', 'scripts', '.githooks'];
+  for (const dir of forbiddenDirs) {
+    assert.ok(!fs.existsSync(path.join(extractedPkg, dir)), `El directorio ${dir}/ NO debe estar en el tarball de producción (DEV-307)`);
   }
 
   // 4. Test running bin/gripm.js --help directly from the extracted package

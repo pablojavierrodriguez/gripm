@@ -36,6 +36,9 @@ assert.strictEqual(normalizeStatus('Done'), 'done');
 assert.strictEqual(normalizeStatus('deployed'), 'done');
 assert.strictEqual(normalizeStatus('dismissed'), 'dismissed');
 assert.strictEqual(normalizeStatus('cancelled'), 'dismissed');
+assert.strictEqual(normalizeStatus('blocked'), 'blocked');
+assert.strictEqual(normalizeStatus('impediment'), 'blocked');
+assert.strictEqual(normalizeStatus('Blocked'), 'blocked');
 
 // DEV-134: serializeBacklogMd canonicalizes uppercase status variants to lowercase
 const uppercaseStatusVariants = [
@@ -44,7 +47,9 @@ const uppercaseStatusVariants = [
   { input: 'In Progress', expected: 'doing' },
   { input: 'Ready', expected: 'ready' },
   { input: 'Testing', expected: 'review' },
-  { input: 'Review', expected: 'review' }
+  { input: 'Review', expected: 'review' },
+  { input: 'Blocked', expected: 'blocked' },
+  { input: 'Dismissed', expected: 'dismissed' }
 ];
 
 for (const variant of uppercaseStatusVariants) {
@@ -163,8 +168,55 @@ assert.strictEqual(formatStatusForMd('In Progress'), 'doing');
 assert.strictEqual(formatStatusForMd('review'), 'review');
 assert.strictEqual(formatStatusForMd('ready'), 'ready');
 assert.strictEqual(formatStatusForMd('done'), 'done');
+assert.strictEqual(formatStatusForMd('blocked'), 'blocked');
+assert.strictEqual(formatStatusForMd('Blocked'), 'blocked');
 assert.strictEqual(formatStatusForMd('dismissed'), 'dismissed');
 console.log('✅ Lowercase status formatting passed');
+
+// 4.2. DEV-312: blocked_reason and dismissed_reason round-trip
+const blockedTaskMd = `---
+id: DEV-999
+title: 'Blocked task with reason'
+status: blocked
+blocked_reason: 'Waiting on external API credentials'
+---
+
+## Description
+Task blocked.
+`;
+
+const parsedBlocked = parseBacklogMd(blockedTaskMd);
+assert.strictEqual(parsedBlocked.status, 'blocked');
+assert.strictEqual(parsedBlocked.blockedReason, 'Waiting on external API credentials');
+
+const serializedBlocked = serializeBacklogMd(parsedBlocked);
+assert.ok(serializedBlocked.includes('blocked_reason: "Waiting on external API credentials"'));
+const reparsedBlocked = parseBacklogMd(serializedBlocked);
+assert.strictEqual(reparsedBlocked.status, 'blocked');
+assert.strictEqual(reparsedBlocked.blockedReason, 'Waiting on external API credentials');
+
+const dismissedTaskMd = `---
+id: DEV-998
+title: 'Dismissed task with reason'
+status: dismissed
+dismissed_reason: 'Obsolete due to architectural change'
+---
+
+## Description
+Task dismissed.
+`;
+
+const parsedDismissed = parseBacklogMd(dismissedTaskMd);
+assert.strictEqual(parsedDismissed.status, 'dismissed');
+assert.strictEqual(parsedDismissed.dismissedReason, 'Obsolete due to architectural change');
+
+const serializedDismissed = serializeBacklogMd(parsedDismissed);
+assert.ok(serializedDismissed.includes('dismissed_reason: "Obsolete due to architectural change"'));
+const reparsedDismissed = parseBacklogMd(serializedDismissed);
+assert.strictEqual(reparsedDismissed.status, 'dismissed');
+assert.strictEqual(reparsedDismissed.dismissedReason, 'Obsolete due to architectural change');
+
+console.log('✅ DEV-312: blocked_reason and dismissed_reason round-trip passed');
 
 // 5. Monolithic export
 const monolithic = generateMonolithicBacklogMd('Test Project', [parsed]);

@@ -751,6 +751,29 @@ export function App() {
     }
   }, [boardData, showToast]);
 
+  // DEV-282: Callbacks estables para el tablero Kanban y memorización de ItemCard
+  const handleKanbanUpdateStatus = useCallback((
+    id: string,
+    status: ItemStatus,
+    targetColId?: string,
+    targetIndex?: number,
+    calculatedOrder?: number
+  ) => {
+    handleUpdateStatus(id, status, false, targetColId, targetIndex, calculatedOrder);
+  }, [handleUpdateStatus]);
+
+  const handleKanbanClickItem = useCallback((item: BacklogItem) => {
+    setEditingItem(item);
+    setItemModalOpen(true);
+  }, []);
+
+  const handleKanbanQuickAddItem = useCallback((status: ItemStatus, defaultSprint?: string) => {
+    setEditingItem(null);
+    setDefaultNewStatus(status);
+    setDefaultNewSprint(defaultSprint || '');
+    setItemModalOpen(true);
+  }, []);
+
   // Sprint lifecycle handlers (DEV-055)
   const handleCreateSprint = useCallback(async (sprintData: Partial<Sprint>) => {
     try {
@@ -1410,18 +1433,10 @@ export function App() {
             }))}
             onNavigateToTab={setActiveTab}
             onUpdateColumnTitle={handleUpdateColumnTitle}
-            onUpdateStatus={(id, status, targetColId, targetIndex, calculatedOrder) => handleUpdateStatus(id, status, false, targetColId, targetIndex, calculatedOrder)}
+            onUpdateStatus={handleKanbanUpdateStatus}
             onDeleteItem={handleDeleteItem}
-            onClickItem={(item) => {
-              setEditingItem(item);
-              setItemModalOpen(true);
-            }}
-            onQuickAddItem={(status, defaultSprint) => {
-              setEditingItem(null);
-              setDefaultNewStatus(status);
-              setDefaultNewSprint(defaultSprint || '');
-              setItemModalOpen(true);
-            }}
+            onClickItem={handleKanbanClickItem}
+            onQuickAddItem={handleKanbanQuickAddItem}
             onShowToast={showToast}
             onAssignSprint={handleAssignSprint}
           />

@@ -22,6 +22,8 @@ export interface BuildSavePayloadInput {
   fix: string;
   implementationPlan: string;
   acceptanceCriteriaList: AcceptanceCriterion[];
+  blockedReason?: string;
+  dismissedReason?: string;
   labels: string[];
   assignees: string[];
   estimate: string | number | undefined;
@@ -53,6 +55,8 @@ export function buildSavePayload(input: BuildSavePayloadInput): Partial<BacklogI
     fix,
     implementationPlan,
     acceptanceCriteriaList,
+    blockedReason,
+    dismissedReason,
     labels,
     assignees,
     estimate,
@@ -82,6 +86,8 @@ export function buildSavePayload(input: BuildSavePayloadInput): Partial<BacklogI
     parentId: parentId.trim(),
     blocks,
     blockedBy,
+    blockedReason: blockedReason ? blockedReason.trim() : undefined,
+    dismissedReason: dismissedReason ? dismissedReason.trim() : undefined,
     relatedTo,
     description: description.trim(),
     risk: risk.trim() || undefined,

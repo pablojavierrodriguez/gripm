@@ -14,6 +14,7 @@ export type Priority = "p0" | "p1" | "p2" | "p3";
 export type ItemStatus =
   | "draft"
   | "doing"
+  | "blocked"
   | "review"
   | "ready"
   | "done"
@@ -76,6 +77,8 @@ export interface BacklogItem {
   parentId?: string; // Strict 1-to-N parent (Epic, Story, Container)
   blocks?: string[]; // IDs/codes of tasks blocked by this task
   blockedBy?: string[]; // IDs/codes of tasks blocking this task
+  blockedReason?: string; // Explicit impediment / reason why task is blocked (STATE_MACHINE)
+  dismissedReason?: string; // Explicit reason why task was dismissed (STATE_MACHINE)
   relatedTo?: string[]; // IDs/codes of related tasks
   dependencies?: string[]; // Functional dependencies (alias or complement to blockedBy)
   // DEV-056: Multi-version releases & Jira-style sprints model

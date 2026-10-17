@@ -4,6 +4,7 @@ export type CanonicalStatus =
   | 'ideas'
   | 'draft'
   | 'doing'
+  | 'blocked'
   | 'review'
   | 'ready'
   | 'done'
@@ -24,6 +25,7 @@ export const CANONICAL_STATUSES: CanonicalStatus[] = [
   'ideas',
   'draft',
   'doing',
+  'blocked',
   'review',
   'ready',
   'done',
@@ -77,6 +79,13 @@ export const STATUS_STYLE_MAP: Record<CanonicalStatus, { dot: string; bg: string
     border: 'border-amber-500/30',
     color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     text: 'text-amber-700 dark:text-amber-400'
+  },
+  blocked: {
+    dot: 'bg-red-500',
+    bg: 'bg-red-500/10',
+    border: 'border-red-500/30',
+    color: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    text: 'text-red-700 dark:text-red-400'
   },
   review: {
     dot: 'bg-purple-500',

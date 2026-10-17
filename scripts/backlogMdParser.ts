@@ -4,7 +4,7 @@
  * Compatible con Node.js y navegadores.
  */
 
-export type CanonicalStatus = 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas';
+export type CanonicalStatus = 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas' | 'blocked';
 
 export interface ParsedAcceptanceCriteria {
   index: number;
@@ -28,6 +28,8 @@ export interface BacklogMdTask {
   parentId?: string;
   blocks?: string[];
   blockedBy?: string[];
+  blockedReason?: string;
+  dismissedReason?: string;
   relatedTo?: string[];
   sprints?: string[];
   releases?: string[];
@@ -55,7 +57,7 @@ export interface BacklogMdTask {
 
 /**
  * Normaliza cualquier estado (legacy o comunidad) al estándar unificado:
- * 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas'
+ * 'draft' | 'doing' | 'review' | 'ready' | 'done' | 'dismissed' | 'cancelled' | 'ideas' | 'blocked'
  */
 export function normalizeStatus(raw: string | undefined | null): CanonicalStatus {
   if (!raw) return 'draft';
@@ -81,6 +83,13 @@ export function normalizeStatus(raw: string | undefined | null): CanonicalStatus
     case 'active':
     case 'started':
       return 'doing';
+
+    case 'blocked':
+    case 'impediment':
+    case 'block':
+    case 'hold':
+    case 'onhold':
+      return 'blocked';
 
     case 'review':
     case 'testing':
@@ -129,6 +138,8 @@ export function formatStatusForMd(status: CanonicalStatus | string): string {
       return 'draft';
     case 'doing':
       return 'doing';
+    case 'blocked':
+      return 'blocked';
     case 'review':
       return 'review';
     case 'ready':
@@ -636,6 +647,16 @@ export function parseBacklogMd(content: string, defaultId = ''): BacklogMdTask {
           case 'blockedby':
             result.blockedBy = [cleanVal];
             break;
+          case 'blocked_reason':
+          case 'blockedreason':
+            result.blockedReason = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.blocked_reason = cleanVal;
+            break;
+          case 'dismissed_reason':
+          case 'dismissedreason':
+            result.dismissedReason = cleanVal;
+            if (result.rawExtraFrontmatter) result.rawExtraFrontmatter.dismissed_reason = cleanVal;
+            break;
           case 'related_to':
           case 'relatedto':
             result.relatedTo = [cleanVal];
@@ -884,6 +905,14 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
     task.blockedBy.forEach(b => frontmatterLines.push(`  - ${JSON.stringify(b)}`));
   }
 
+  if (task.blockedReason) {
+    frontmatterLines.push(`blocked_reason: ${JSON.stringify(task.blockedReason)}`);
+  }
+
+  if (task.dismissedReason) {
+    frontmatterLines.push(`dismissed_reason: ${JSON.stringify(task.dismissedReason)}`);
+  }
+
   if (task.relatedTo && task.relatedTo.length > 0) {
     frontmatterLines.push('related_to:');
     task.relatedTo.forEach(r => frontmatterLines.push(`  - ${JSON.stringify(r)}`));
@@ -948,7 +977,7 @@ export function serializeBacklogMd(task: BacklogMdTask): string {
       if (!/^[a-zA-Z0-9_-]+$/.test(k)) {
         continue;
       }
-      if (!['id', 'title', 'status', 'assignee', 'assignees', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints', 'start_date', 'startdate', 'due_date', 'duedate', 'target_date', 'targetdate'].includes(k.toLowerCase())) {
+      if (!['id', 'title', 'status', 'assignee', 'assignees', 'created_date', 'updated_date', 'labels', 'dependencies', 'priority', 'type', 'milestone', 'parent', 'parentid', 'blocks', 'blocked_by', 'blockedby', 'blocked_reason', 'blockedreason', 'dismissed_reason', 'dismissedreason', 'related_to', 'relatedto', 'sprints', 'releases', 'sprint', 'targetsprint', 'isdeleted', 'deletedat', 'previousstatus', 'estimate', 'estimation', 'points', 'story_points', 'storypoints', 'start_date', 'startdate', 'due_date', 'duedate', 'target_date', 'targetdate'].includes(k.toLowerCase())) {
         if (v === undefined || v === null) {
           continue;
         }
@@ -1068,10 +1097,11 @@ export function generateMonolithicBacklogMd(projectName: string, items: BacklogM
     ''
   ];
 
-  const statuses: CanonicalStatus[] = ['ideas', 'doing', 'review', 'ready', 'draft', 'done', 'dismissed', 'cancelled'];
+  const statuses: CanonicalStatus[] = ['ideas', 'doing', 'blocked', 'review', 'ready', 'draft', 'done', 'dismissed', 'cancelled'];
   const grouped: Record<CanonicalStatus, BacklogMdTask[]> = {
     ideas: [],
     doing: [],
+    blocked: [],
     review: [],
     ready: [],
     draft: [],
