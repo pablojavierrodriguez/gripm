@@ -40,4 +40,4 @@ Esta tarea introduce un mecanismo de locking atómico inter-proceso:
 ## Notas Tecnicas
 
 - Sin dependencias pesadas innecesarias; priorizar primitivas estándar de Node.js (`fs.openSync` con flag `'wx'`) o `proper-lockfile`.
-- Cero uso de em-dash (`—`), respetando la regla canónica de guión simple ` - `.
+- Cero uso de em-dash o en-dash, respetando la regla canónica de guión simple ` - `.

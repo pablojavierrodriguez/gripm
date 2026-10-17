@@ -18,29 +18,32 @@ estimate: 3
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Garantizar que el workflow de publicación en npm (`.github/workflows/publish.yml`) no emita ningún paquete al registro público sin que la suite integral de CI (`.github/workflows/ci.yml`, incluyendo la matriz multi-OS y los tests de navegador Playwright) haya finalizado exitosamente sobre el commit del release.
+Garantizar que ningún paquete de `@gripm/board` sea emitido al registro público de npm sin que la suite integral de CI (`ci.yml`, incluyendo la matriz multi-OS de Ubuntu, macOS y Windows, y los smoke tests de navegador Playwright) haya finalizado exitosamente sobre el commit del release.
 
-### Diagnóstico del Defecto de Arquitectura:
-Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) corren en paralelo y de forma desacoplada:
-1. Al pushear el commit a `main`, se dispara `ci.yml`.
-2. Al pushear el tag `v*`, se dispara `publish.yml`.
-3. `publish.yml` ejecuta una pirámide local básica antes de publicar, pero **no incluye el smoke test de navegador de Playwright (`test:ui`) ni la matriz multiplataforma**.
-4. En caso de fallas que solo emergen en el smoke test o en runners de Windows/macOS, `publish.yml` publica el paquete a npm antes de que CI termine de detectar el problema, dejando a los usuarios con una versión inmutable defectuosa en npm.
+### Diagnostico del Defecto de Arquitectura:
+El pipeline previo ejecutaba la publicación de forma desacoplada y en paralelo:
+1. Al pushear el tag, se disparaba un workflow separado de publicación que corría solo en Ubuntu.
+2. En caso de fallas que solo emergían en runners de Windows/macOS o en el smoke test de UI, el paquete se publicaba a npm antes de que CI terminara de detectar el problema, dejando a los usuarios con una versión inmutable defectuosa en npm.
+3. El sondeo paralelo vía API introducía esperas ociosas de runners y riesgos de rate limits.
 
-### Solución Técnica Propuesta:
-- **Validación de Check Suites en `publish.yml`:**
-  Antes de ejecutar `npm publish`, agregar un paso que consulte la API de GitHub (`gh api repos/:owner/:repo/commits/:sha/check-runs`) para certificar que todos los jobs de `ci.yml` asociados al commit taggeado estén en estado `completed` con conclusión `success`.
-- **Manejo de Reintentos / Espera:**
-  Si los checks de CI aún están `in_progress`, esperar con timeout configurable o utilizar el evento `workflow_run` para encadenar la publicación únicamente tras el éxito garantizado de CI en `main`.
+### Solucion Tecnica Implementada:
+- **Orquestacion Nativa de 3 Fases en `ci.yml`:**
+  1. Fase 1: Matriz de verificación estricta (`verify`) en 6 runners (Ubuntu, macOS, Windows en Node 22.6 y 22.x).
+  2. Fase 2: Smoke test de navegador Playwright (`ui-smoke`) sobre bundle de producción.
+  3. Fase 3: Job de publicación (`publish`) bloqueado físicamente bajo `needs: [verify, ui-smoke]` y restringido a la rama `main`.
+- **Certificacion Idempotente:**
+  El job consulta `npm view @gripm/board@<version>`: si la versión ya existe, concluye de inmediato sin publicar.
+- **Auto-Tagging y GitHub Release Oficial:**
+  Tras la publicación exitosa en npmjs con provenance, el pipeline genera automáticamente el tag anotado `vX.Y.Z` y la GitHub Release correspondiente con las notas de `releases.json`.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [x] AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
-- [x] AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
-- [x] AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
-- [x] AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
+- [x] AC #1: Pipeline de release integrado bajo orquestación nativa (`needs: [verify, ui-smoke]`) garantizando que ningún paquete sea emitido a npm sin que la suite multi-plataforma completa esté 100% aprobada.
+- [x] AC #2: Si algún check de CI falla (en Ubuntu, Windows, macOS o browser smoke test), el engine de GitHub Actions cancela/omite el job de publicación automáticamente, impidiendo cualquier emisión a npm.
+- [x] AC #3: Detección automática e idempotente de versión en npmjs para omitir el despliegue en commits regulares a main.
+- [x] AC #4: Creación automática del tag anotado de Git y de la GitHub Release oficial tras la publicación exitosa en npmjs.
 <!-- AC:END -->
 
 ## Notes

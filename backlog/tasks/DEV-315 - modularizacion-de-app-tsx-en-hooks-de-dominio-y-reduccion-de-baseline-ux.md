@@ -44,4 +44,4 @@ Esta tarea refactoriza y desacopla `src/App.tsx` en hooks especializados y compo
 ## Notas Tecnicas
 
 - Mantener la experiencia Zero-CLS y los portales para modales existentes.
-- Cero uso de em-dash (`—`), respetando la regla canónica de guión simple ` - `.
+- Cero uso de em-dash o en-dash, respetando la regla canónica de guión simple ` - `.

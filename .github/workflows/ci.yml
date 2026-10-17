@@ -5,10 +5,11 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -17,11 +18,8 @@ jobs:
   verify:
     name: Verify (${{ matrix.os }}, Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
-    # 25 min: la suite son 15 pasos y en runners Windows/macOS el npm install y la
-    # compilación de binarios consumen bastante. Antes en 15, y el job de ubuntu moría
-    # por timeout; la causa real (el sondeo de puertos que colgaba el proceso) está
-    # corregida en DEV-189, pero el margen evita que un runner lento se lea como un
-    # fallo de código.
+    # 35 min: la suite son 19 pasos y en runners Windows/macOS el npm install y la
+    # compilación de binarios consumen bastante tiempo.
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -103,3 +101,123 @@ jobs:
 
       - name: Run browser smoke test
         run: npm run test:ui
+
+  publish:
+    name: Publish to npm & GitHub Release
+    needs: [verify, ui-smoke]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.6.0'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check if package version is already published
+        id: check_npm
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "pkg_version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+
+          if npm view "@gripm/board@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  @gripm/board@${PKG_VERSION} ya está publicado en npmjs. Se omite el despliegue."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "🚀 Nueva versión detectada: @gripm/board@${PKG_VERSION}. Procediendo al release."
+          fi
+
+      - name: Validate changelog and release metadata
+        if: steps.check_npm.outputs.already_published == 'false'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.check_npm.outputs.pkg_version }}"
+
+          npm run changelog
+          if ! git diff --quiet -- CHANGELOG.md; then
+            echo "::error::CHANGELOG.md no refleja backlog/releases.json para v$VERSION. Ejecutá 'npm run changelog' y commiteá."
+            git diff -- CHANGELOG.md
+            exit 1
+          fi
+
+      - name: Build package and verify distribution surface
+        if: steps.check_npm.outputs.already_published == 'false'
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run publish:check
+          npm pack --dry-run
+
+      - name: Publish to npm with provenance
+        if: steps.check_npm.outputs.already_published == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Create annotated git tag and push to remote
+        if: steps.check_npm.outputs.already_published == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.check_npm.outputs.pkg_version }}"
+          TAG="v${VERSION}"
+
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "ℹ️  Tag $TAG ya existe en el remoto."
+          else
+            echo "🏷️  Creando y publicando tag anotado $TAG..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "$TAG - Release oficial de @gripm/board"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check_npm.outputs.already_published == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.check_npm.outputs.pkg_version }}
+        run: |
+          set -euo pipefail
+          TAG="v${RELEASE_VERSION}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "✅ GitHub Release $TAG ya existe. Omitiendo creación duplicada."
+          else
+            echo "📦 Generando notas de la release desde backlog/releases.json..."
+            TAG="$TAG" node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('backlog/releases.json', 'utf8'));
+              const list = Array.isArray(data) ? data : (data.releases || []);
+              const rel = list.find(r => r.version === process.env.RELEASE_VERSION) || {};
+              const title = rel.title || (rel.name ? \`\${process.env.TAG} - \${rel.name}\` : process.env.TAG);
+              fs.writeFileSync('release-title.txt', title.trim());
+              const notes = rel.markdownContent ? rel.markdownContent.replace(/\\r\\n|\\n/g, '\n').trim() : (rel.summary || rel.notes || 'Release oficial ' + process.env.TAG);
+              fs.writeFileSync('release-notes.txt', notes.trim() + '\n');
+            "
+
+            RELEASE_TITLE="$(cat release-title.txt)"
+            echo "🚀 Creando GitHub Release $TAG: $RELEASE_TITLE"
+            gh release create "$TAG" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.txt
+            echo "✅ GitHub Release $TAG creada exitosamente."
+          fi

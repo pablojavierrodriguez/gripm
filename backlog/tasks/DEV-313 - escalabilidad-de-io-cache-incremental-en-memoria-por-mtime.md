@@ -41,4 +41,4 @@ Esta tarea implementa una capa de caché en memoria e indexación incremental en
 ## Notas Tecnicas
 
 - Preservar la compatibilidad de llamadas síncronas requeridas por la arquitectura actual.
-- Cero uso de em-dash (`—`), respetando la regla canónica de guión simple ` - `.
+- Cero uso de em-dash o en-dash, respetando la regla canónica de guión simple ` - `.
