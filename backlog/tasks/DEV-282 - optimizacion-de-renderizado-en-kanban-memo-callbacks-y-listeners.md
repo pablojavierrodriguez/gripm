@@ -1,9 +1,9 @@
 ---
 id: DEV-282
 title: "Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-17 16:28'
+updated_date: '2026-10-17 17:20'
 labels:
   - "performance"
   - "kanban"
@@ -42,6 +42,11 @@ Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/c
 - [x] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
 - [x] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -1,9 +1,9 @@
 ---
 id: DEV-307
 title: "Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-17 15:10'
+updated_date: '2026-10-17 17:20'
 labels:
   - "packaging"
   - "npm"

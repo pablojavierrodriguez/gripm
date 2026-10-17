@@ -1,9 +1,9 @@
 ---
 id: DEV-310
 title: "Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single"
-status: ready
+status: done
 created_date: '2026-10-16'
-updated_date: '2026-10-17 15:47'
+updated_date: '2026-10-17 17:20'
 labels:
   - "projects"
   - "hub"

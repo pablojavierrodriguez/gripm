@@ -1,9 +1,9 @@
 ---
 id: DEV-306
 title: "Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-17 17:20'
 labels:
   - "documentation"
   - "adr"
@@ -75,8 +75,3 @@ Actualización y sincronización exhaustiva de la documentación técnica de arq
 6. Sanitizar `.playbook-lock.json`.
 7. Normalizar nombres de archivos `dev-` a `DEV-` y correr `npm run backlog:sync`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

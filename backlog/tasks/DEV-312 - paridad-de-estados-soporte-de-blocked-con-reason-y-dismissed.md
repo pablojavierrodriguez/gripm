@@ -1,9 +1,9 @@
 ---
 id: DEV-312
 title: "Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser"
-status: ready
+status: done
 created_date: '2026-10-17'
-updated_date: '2026-10-17 16:17'
+updated_date: '2026-10-17 17:20'
 labels:
   - "state-machine"
   - "parser"

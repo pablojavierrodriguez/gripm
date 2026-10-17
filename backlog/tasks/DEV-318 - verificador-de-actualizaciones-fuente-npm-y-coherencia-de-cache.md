@@ -1,9 +1,9 @@
 ---
 id: DEV-318
 title: "Verificador de actualizaciones: consulta directa a npm Registry, ajuste de TTL y resiliencia de caché"
-status: ready
+status: done
 created_date: '2026-10-17'
-updated_date: '2026-10-17'
+updated_date: '2026-10-17 17:20'
 labels:
   - "cli"
   - "updates"
@@ -34,14 +34,19 @@ El sistema de verificación de actualizaciones (`scripts/updateChecker.js`) noti
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [x] AC #1: `checkForUpdates` en `scripts/updateChecker.js` consulta prioritariamente el registry público de npm (`https://registry.npmjs.org/@gripm/board/latest`), extrayendo el campo `version` canónico con fallback a GitHub Releases.
-- [x] AC #2: Reducir `CACHE_TTL_MS` a 4 horas e invalidar/actualizar `hasUpdate: false` en `update-cache.json` cuando `currentVersion` sea igual o mayor que `latestVersion`.
-- [x] AC #3: `bin/gripm.js` y `scripts/mcp-server.ts` actualizan el banner en vivo si la comprobación asíncrona descubre una versión superior a la que existía en el caché.
-- [x] AC #4: Pruebas automatizadas en `scripts/verify-integration.js` validan la consulta simulada, la invalidación de caché y las comparaciones semver.
-- [x] AC #5: Pirámide de verificación en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run build`).
+- [x] #1 AC #1: `checkForUpdates` en `scripts/updateChecker.js` consulta prioritariamente el registry público de npm (`https://registry.npmjs.org/@gripm/board/latest`), extrayendo el campo `version` canónico con fallback a GitHub Releases.
+- [x] #2 AC #2: Reducir `CACHE_TTL_MS` a 4 horas e invalidar/actualizar `hasUpdate: false` en `update-cache.json` cuando `currentVersion` sea igual o mayor que `latestVersion`.
+- [x] #3 AC #3: `bin/gripm.js` y `scripts/mcp-server.ts` actualizan el banner en vivo si la comprobación asíncrona descubre una versión superior a la que existía en el caché.
+- [x] #4 AC #4: Pruebas automatizadas en `scripts/verify-integration.js` validan la consulta simulada, la invalidación de caché y las comparaciones semver.
+- [x] #5 AC #5: Pirámide de verificación en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run build`).
 <!-- AC:END -->
 
-## Notes
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Mantiene intacta la coexistencia de ejecución de binario global vs desarrollo local en el repo sin emitir advertencias intrusivas.

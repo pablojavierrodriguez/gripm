@@ -85,273 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (9)
-
-#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
-
-### Problemas identificados:
-1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
-2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
-3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
-4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
-
-### Solución propuesta:
-- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
-- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
-- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
-- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
-
-**Criterios de Aceptación:**
-- [x] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
-- [x] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
-- [x] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
-- [x] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
-- [x] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
-
----
-
-#### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Actualización y sincronización exhaustiva de la documentación técnica de arquitectura, registro formal de ADRs pendientes, resolución de contradicciones normativas en `AGENTS.md` y reparación de las herramientas de integración del framework Gripm Playbook (`gate-qa.mjs`, `sync-playbook.mjs`, `.playbook-lock.json`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **`docs/ARCHITECTURE.md` Desfasado:**
-   - Afirma que el backend corre dentro de `vite.config.ts` (desacoplado a `server/` en `v1.1.0` y servido por servidor HTTP nativo en `DEV-290`).
-   - Describe un servidor inexistente llamado `"CodeGraph MCP"` (`lines 99-108`) que nunca formó parte del repositorio.
-   - Omite componentes y módulos actuales de primera clase: `TimelineView` (Roadmap), `MetricsView` (Analytics), `universalImporter`, `atomicWrite.ts`, etc.
-2. **Desincronización de Registros de Arquitectura (`docs/adr/`):**
-   - `docs/adr/0002-backend-embebido-como-plugin-de-vite.md` sigue figurando con estado `Aceptado`. Tras `DEV-290`, el servidor de producción es un ejecutable HTTP nativo desacoplado de Vite. Falta marcar `ADR-0002` como `Reemplazado` y formalizar `ADR-0006`.
-3. **Contradicción Normativa en `AGENTS.md`:**
-   - Gotcha 12 y `ADR-0005:53` exigen usar `text-[11px]` en advertencias y confirmaciones.
-   - Gotcha 21 (`UX-011`) prohíbe terminantemente usar `text-[11px]` en cualquier componente de UI.
-4. **Herramientas de Playbook Desalineadas:**
-   - `scripts/gate-qa.mjs` busca scripts inexistentes en `package.json` (`validate`, `gate:review`, `audit:ux:strict`), fallando con código 1 en downstream projects.
-   - `scripts/sync-playbook.mjs` crashea con `TypeError: pack is not iterable` al usar `--stack` o `--list-stacks` porque `.playbook-manifest.json` define cada stack como un objeto `{ description, files }` en vez de array.
-   - `npm run playbook:check` falla con exit code 1 en modo `--dry-run` por la presencia de archivos modificados legítimamente en `lock.customizations`.
-   - `.playbook-lock.json:3` contiene commiteada una ruta local absoluta (`C:\Users\Pablo\...`).
-5. **Prefijos Heterogéneos en Tareas:**
-   - 101 archivos históricos (`dev-001` a `dev-101`) preservan el prefijo en minúscula `dev-` en su nombre de archivo en disco mientras su YAML frontmatter declara `DEV-XXX`.
-
-### Solución Arquitectónica Profunda:
-
-- **Reescritura de `docs/ARCHITECTURE.md`:** Reflejar con precisión milimétrica la arquitectura actual del producto (servidor HTTP nativo en `bin/gripm.js`, capa `server/`, standalone MCP, módulos de Timeline/Metrics y adaptadores Sandbox).
-- **Formalización de ADR-0006:** Registrar la arquitectura de servidor estático desacoplado de Vite para producción y marcar `ADR-0002` como `Reemplazado`.
-- **Resolución Normativa:** Alinear `AGENTS.md` Gotcha 12 y `ADR-0005` al token estándar `text-xs`.
-- **Adaptabilidad de `gate-qa.mjs` y `sync-playbook.mjs`:**
-  - Hacer que `gate-qa.mjs` detecte dinámicamente los scripts de verificación disponibles en el `package.json` del host (`tsc`, `test`, `backlog:check`, `audit:ux`, `publish:check`, `build`).
-  - Normalizar `const packFiles = Array.isArray(pack) ? pack : (pack?.files ?? []);` en `sync-playbook.mjs` y no salir con código 1 en `--dry-run` ante archivos en `customizations`.
-  - Sanitizar `.playbook-lock.json` usando ruta relativa `../gripm-playbook`.
-- **Normalización de Tareas:** Estandarizar los 101 nombres de archivo a mayúsculas canónicas `DEV-XXX`.
-
-**Criterios de Aceptación:**
-- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
-- [x] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
-- [x] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
-- [x] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
-- [x] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
-- [x] #6 `.playbook-lock.json` no contiene rutas locales absolutas
-- [x] #7 Descartado por instrucción explícita del PO: preservación de nombres de archivo históricos pre-v1 sin churn innecesario de disco
-
----
-
-#### [DEV-307] Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Optimización radical de la superficie de distribución del paquete npm `@gripm/board`: exclusión del código fuente de desarrollo (`src/`, `server/`, `scripts/`, `.githooks/`), reducción de la huella de instalación y fortalecimiento de las verificaciones de empaquetado para garantizar un tarball productivo minimalista y autocontenido.
-
-### Diagnóstico de la Causa Raíz:
-
-Actualmente, el campo `"files"` de `package.json:48-66` declara:
-```json
-"files": [
-  ".agents/skills/gripm",
-  ".githooks",
-  "audit-ux-baseline.json",
-  "bin",
-  "dist",
-  "public",
-  "scripts",
-  "server",
-  "src",
-  "data/demo-backlog.json",
-  ...
-]
-```
-Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos internos:
-1. **Todo el árbol de fuentes TypeScript de React (`src/`):** A pesar de que `dist/` contiene los bundles compilados para el navegador, se incluye todo `src/` únicamente porque `bin/gripm.js` y `server/plugin.ts` importaban archivos `.ts` en crudo.
-2. **Todos los scripts de pruebas internas (`scripts/`):** Se distribuyen 24 scripts internos de test (`scripts/test-*.js`, `scripts/verify-*.js`, `scripts/repro-ci-linux.sh`, `scripts/watchdog.js`).
-3. **Archivos de metodología Playbook en `scripts/`:** Se distribuyen `scripts/gate-qa.mjs`, `scripts/sync-playbook.mjs`, `scripts/audit-ux-code.cjs` y `scripts/ux-rules.json`, contradiciendo `AGENTS.md` §0 (que establece que los artefactos del Playbook están excluidos del tarball de producción).
-4. **Baselines y hooks internos:** `.githooks` y `audit-ux-baseline.json` se incluyen en el paquete de producción sin tener ninguna utilidad para el usuario final.
-
-### Solución Arquitectónica Profunda:
-
-- **Distribución de Artefactos Precompilados:**
-  Con la compilación de ejecutables y servidor en `bin/` y la compilación web en `dist/`, el paquete de npm solo necesita distribuir:
-  - `bin/`: Binarios ejecutables de Node (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
-  - `dist/`: Aplicación web compilada y optimizada.
-  - `public/`: Activos públicos.
-  - `data/demo-backlog.json`: Datos iniciales de demostración.
-  - `.agents/skills/gripm/SKILL.md`: Skill oficial de conexión para agentes de IA.
-  - `LICENSE`, `README.md`, `README.es.md`.
-- **Exclusión Radical:**
-  Remover `"src"`, `"scripts"`, `"server"`, `".githooks"` y `"audit-ux-baseline.json"` del array `"files"` en `package.json`.
-- **Blindaje en `verify-publish-surface.js`:**
-  Ampliar `FORBIDDEN_PLAYBOOK_ENTRIES` y las reglas de inspección física para certificar que el tarball empaquetado (`npm pack`) nunca contenga código fuente `.ts`, scripts de test ni artefactos de Playbook.
-
-**Criterios de Aceptación:**
-- [x] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
-- [x] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
-- [x] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
-- [x] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
-- [x] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
-
----
-
-#### [DEV-310] Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Garantizar la soberanía, aislamiento y privacidad de proyectos locales configurados en modo mono-proyecto (`mode: "single"` en `.gripm/config.json`), evitando que aparezcan listados en el selector de proyectos (Hub) de otros repositorios que tengan activo el modo multi-proyecto (`mode: "multi"`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Frontera de Visibilidad Incompleta:**
-   Actualmente, el switch de `mode` en `.gripm/config.json` solo condiciona la interfaz cuando `gripm` se inicia directamente dentro de ese repositorio (`projectsToProcess = [activeProject]`). Sin embargo, cuando se inicia `gripm` en otro proyecto que tiene `multi` activo, `server/routes/api.ts:138` procesa incondicionalmente todos los proyectos del registro global (`registry.projects`), exponiendo proyectos que se configuraron explícitamente para operar de forma aislada.
-
-2. **Federación Opt-In Deseada:**
-   Si un proyecto declara `mode: "single"` en su `.gripm/config.json`, no solo expresa la intención de no ver otros proyectos (*inbound*), sino también la de no ser indexado ni accesible desde los Hubs de otros proyectos de la máquina (*outbound*), protegiendo proyectos privados, personales o bajo acuerdos de confidencialidad.
-
-### Solución Técnica:
-
-- En `server/routes/api.ts`, durante la resolución de `projectsToProcess` en modo Hub, filtrar aquellos proyectos registrados cuyo `.gripm/config.json` tenga `mode === 'single'`.
-- Preservar al proyecto activo actual (aunque fuera single) y al proyecto Demo si está habilitado.
-- Añadir pruebas de integración que aseguren que un repositorio marcado como `single` no se fuga en el selector del Hub de otro proyecto `multi`.
-
-**Criterios de Aceptación:**
-- [x] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
-- [x] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
-- [x] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
-- [x] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
-
----
-
-#### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `@gripm/playbook` v2.3.0 (`.agents/STATE_MACHINE.md`), incorporando `blocked` (junto con el metadato obligatorio `blocked_reason`) y formalizando `dismissed` en el parser Markdown, el servidor MCP y la interfaz visual.
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Degradación Silenciosa de `blocked` a `draft`:**
-   En `scripts/backlogMdParser.ts`, el tipo `CanonicalStatus` omite `blocked`. En la función `normalizeStatus`, cualquier tarea con `status: blocked` cae en la rama `default: return 'draft'`. Si un agente o usuario marca una tarea como bloqueada conforme a la metodología Playbook, Gripm Board destruye el estado al leer o guardar el archivo.
-   
-2. **Falta del Campo `blocked_reason` y `dismissed_reason`:**
-   La máquina de estados del Playbook establece que `blocked` exige un motivo no vacío (`blocked_reason`) para evitar la inflación de WIP, y que `dismissed` exige `dismissed_reason`. Actualmente, `BacklogMdTask` y `BacklogItem` no modelan estos campos como propiedades formales de primer nivel.
-
-3. **Inconsistencia de `cancelled`:**
-   `CanonicalStatus` declara `'cancelled'` en su tipo unión, pero `normalizeStatus('cancelled')` devuelve `'dismissed'`, generando ambigüedad entre el tipado estático y el runtime.
-
-### Solución Técnica:
-
-- Incorporar `'blocked'` en `CanonicalStatus` (`scripts/backlogMdParser.ts`) y en `ItemStatus` (`src/types.ts`).
-- Actualizar `normalizeStatus` para que devuelva `'blocked'` cuando reciba `'blocked'` o `'impediment'`.
-- Añadir `blockedReason` y `dismissedReason` al modelo de datos de tareas y mapearlo en frontmatter (`blocked_reason` / `dismissed_reason`).
-- Integrar la columna / badge visual de tareas bloqueadas en `KanbanBoard` e `ItemCard`, y el campo de motivo en `ItemModal`.
-
-**Criterios de Aceptación:**
-- [x] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
-- [x] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
-- [x] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
-- [x] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
-- [x] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
-
----
-
-#### [DEV-316] Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura
-- **Prioridad**: `low` | **Tipo**: `debt`
-**Criterios de Aceptación:**
-- [x] #1 Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
-- [x] #2 Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
-- [x] #3 Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
-- [x] #4 Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
-- [x] #5 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
-
----
-
-#### [DEV-318] Verificador de actualizaciones: consulta directa a npm Registry, ajuste de TTL y resiliencia de caché
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-El sistema de verificación de actualizaciones (`scripts/updateChecker.js`) notificaba versiones desfasadas respecto al comando de instalación sugerido (`npm i -g @gripm/board@latest`), provocando situaciones donde la terminal o la interfaz web reportaban una versión disponible anterior (ej. `v1.3.0 → v1.6.0`) cuando npm instalaba una versión más reciente (ej. `1.6.1`).
-
-### Causa Raíz Identificada:
-1. **Desalineación de fuente de verdad:** `updateChecker.js` consultaba exclusivamente la API de GitHub Releases (`api.github.com/repos/.../releases/latest`), sujeta a demoras de marcado, rate limits no autenticados (60 req/h) y divergencias con el registry público de npm donde se distribuye `@gripm/board`.
-2. **TTL rígido de caché (24 horas):** La ventana de persistencia en `update-cache.json` (`CACHE_TTL_MS = 24 * 60 * 60 * 1000`) impedía detectar releases publicados durante el mismo día y no se invalidaba al actualizar el paquete localmente.
-3. **Condición restrictiva en listeners asíncronos:** En `bin/gripm.js` y `scripts/mcp-server.ts`, el callback de fondo evaluaba `if (res.hasUpdate && !cachedUpdate?.hasUpdate)`, descartando cualquier versión más reciente que la cacheada previamente si `hasUpdate` ya estaba activo.
-
-### Solución Implementada:
-- Priorizada la consulta directa a `https://registry.npmjs.org/@gripm/board/latest` (con fallback de resiliencia a GitHub Releases API).
-- Reducido el TTL de caché de 24 horas a 4 horas e implementada la invalidación/limpieza automática de `hasUpdate` cuando la versión en ejecución sea mayor o igual a la última conocida.
-- `bin/gripm.js` y `scripts/mcp-server.ts` ahora actualizan el aviso si la versión detectada en vivo es mayor que la que estaba en caché (`semverGreaterThan(res.latestVersion, cachedUpdate.latestVersion)`).
-
-**Criterios de Aceptación:**
-- [x] #1 AC #1: `checkForUpdates` en `scripts/updateChecker.js` consulta prioritariamente el registry público de npm (`https://registry.npmjs.org/@gripm/board/latest`), extrayendo el campo `version` canónico con fallback a GitHub Releases.
-- [x] #2 AC #2: Reducir `CACHE_TTL_MS` a 4 horas e invalidar/actualizar `hasUpdate: false` en `update-cache.json` cuando `currentVersion` sea igual o mayor que `latestVersion`.
-- [x] #3 AC #3: `bin/gripm.js` y `scripts/mcp-server.ts` actualizan el banner en vivo si la comprobación asíncrona descubre una versión superior a la que existía en el caché.
-- [x] #4 AC #4: Pruebas automatizadas en `scripts/verify-integration.js` validan la consulta simulada, la invalidación de caché y las comparaciones semver.
-- [x] #5 AC #5: Pirámide de verificación en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run build`).
-
----
-
-#### [DEV-319] Rediseño y estandarización visual de interfaz CLI en sync-playbook
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-playbook.mjs`) adoptando la directiva de diseño de interfaz CLI establecida en DEV-252 (estándares clig.dev, Vite, Next.js):
-1. Erradicar la caja rígida cerrada Unicode (`┌─┐`, `│`, `└─┘`) en el banner de arranque a favor de un formato abierto con sangría consistente y punteros sobrios (`➜`).
-2. Eliminar la saturación de emojis decorativos ("emoji soup": `🛡️`, `➖`, `✨`, `🔄`, `🧩`, `🔏`, `📊`) sustituyéndolos por glifos mono-ancho (`•`, `▲`, `✔`, `✖`) con etiquetas de ancho fijo (`padEnd(10)`) que alinean los nombres de archivo exactamente en la misma columna.
-3. Formatear el bloque de resumen (`Summary`) con jerarquía limpia sin emojis decorativos y sangría consistente.
-4. Reemplazar guiones largos artificiales (em-dash) por el guión simple estándar con espacios (` - `) en cumplimiento de la Regla 25.
-5. Preservar el soporte semántico de colores ANSI respetando entornos `NO_COLOR` y terminales no interactivas (no-TTY).
-
-**Criterios de Aceptación:**
-- [x] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
-- [x] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
-- [x] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
-- [x] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
-- [x] #5 Salida ANSI respeta NO_COLOR y TTY
-- [x] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
-
----
-
-#### [DEV-320] Estandarización visual integral de la interfaz CLI, guards y herramientas
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Completar la homogeneización visual absoluta de la interfaz de terminal (CLI), guards y scripts de soporte en todo el ecosistema de gripm según los estándares modernos de DEV-252 (clig.dev, Vite, Next.js):
-1. **bin/gripm.js:** Modernizar el bloque de advertencia y tokens efímeros de red local (--host 0.0.0.0), sustituyendo emojis por punteros sobrios (➜) y glifo de advertencia (▲).
-2. **scripts/gripm-cli.ts:** Rediseñar el dashboard de métricas (--stats), eliminando emojis decorativos y bordes dobles a favor de una estructura abierta con sangría uniforme y colores ANSI semánticos. Limpiar mensajes de export y check.
-3. **scripts/gate-qa.mjs:** Erradicar cajas rígidas (=== / ---) y emojis en el auditor ejecutable de QA a favor de encabezado abierto estilo gripm, lista alineada y veredictos con ✔ y ✖.
-4. **scripts/audit-ux-code.cjs:** Modernizar encabezado y reporte humano de auditoría estática de UX, erradicando cajas de signos de igual.
-5. **scripts/verify-backlog-sync.js:** Limpiar prefijos redundantes entre corchetes ([gripm Guard], [Consolidado]) y emojis (🔍, 📄, 🛑, ✅) a favor de mensajes atómicos y sobrios.
-6. **scripts/verify-publish-surface.js:** Eliminar corchetes y emojis festivos (🎉, 📦), adoptando checks mono-ancho consistentes.
-7. **scripts/generate-changelog.cjs:** Estandarizar la salida de regeneración de changelog.
-8. **scripts/run-tests.js:** Sustituir emojis ✅ y ❌ por ✔ y ✖ en el resumen secuencial de la suite de pruebas.
-9. **Paridad con Playbook:** Reflejar las mejoras correspondientes en las herramientas de gripm-playbook.
-
-**Criterios de Aceptación:**
-- [x] #1 Modernizada la advertencia de red LAN en bin/gripm.js (--host 0.0.0.0) sin emojis decorativos
-- [x] #2 Rediseñado el dashboard de métricas y mensajes en scripts/gripm-cli.ts bajo la jerarquía abierta estándar
-- [x] #3 Modernizada la salida de scripts/gate-qa.mjs con encabezado abierto, punteros ➜ y glifos mono-ancho
-- [x] #4 Limpiado el reporte de auditoría en scripts/audit-ux-code.cjs sin recuadros de signos =
-- [x] #5 Estandarizadas las salidas de guards (verify-backlog-sync.js, verify-publish-surface.js, generate-changelog.cjs, run-tests.js)
-- [x] #6 Cero em-dashes y soporte total de NO_COLOR en todas las herramientas intervenidas
-- [x] #7 Sincronización en gripm-playbook y Pirámide de Verificación completa en verde
-
----
-
-### 📋 Backlog / Draft (22)
+### 📋 Backlog / Draft (23)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -936,7 +670,46 @@ Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `s
 
 ---
 
-### ✅ Done / Deployed (278)
+#### [DEV-321] Optimización Integral de Densidad UX en 1366x768 y Viewports Reales de Portátil (1366x650)
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+Auditoría y resolución integral de los problemas de densidad vertical y horizontal en pantallas de portátil de `1366x768` (considerando tanto el viewport completo `1366x768` como el alto útil real de navegador `1366x650` tras descontar barra de tareas del sistema operativo y pestañas/barra de direcciones del navegador), validado pantalla por pantalla con Playwright en Español e Inglés.
+
+### Invariante de Diseño Obligatorio (Restricción Negativa):
+- **El scroll horizontal en las columnas del tablero Kanban es 100% intencional por diseño.** Queda terminantemente prohibido alterar el ancho mínimo de las columnas del Kanban o intentar forzar que todas las columnas entren sin scroll horizontal.
+
+### Diagnóstico Pantalla por Pantalla Pendiente de Resolver:
+
+1. **Modal de Edición / Creación de Ítem (`src/components/ItemModal.tsx` y subcomponentes en `src/components/item-modal/`):**
+   - En `1366x768` (y más aún en `1366x650`), la combinación de paddings verticales amplios, `textarea` de descripción y la sección `Implementation Plan & Plan Guard` desplegada por defecto empuja la sección crítica de **Acceptance Criteria (AC)** completamente fuera del área visible inicial (no se ve ni un solo criterio sin scrollear).
+   - En la columna lateral derecha (`Item Attributes`), el bloque de `Labels` y sus chips quedan cortados al ras del footer.
+   - Se requiere compactar la densidad vertical en alturas `<= 800px` (paddings, gaps, colapso inteligente de secciones secundarias vacías o no prioritarias) para que Título, Descripción, Estado/Atributos y el inicio de Acceptance Criteria sean visibles de inmediato sin cortes.
+
+2. **Popover de Filtros Avanzados (`src/components/AdvancedFiltersPopover.tsx`):**
+   - Limitar `max-h` únicamente agrega scroll interno a una lista vertical larga de una sola columna (`420px`), dejando **Target Release**, **Sprint** y el botón de **Reset** enterrados debajo del pliegue en `1366x768` / `1366x650`.
+   - Se requiere un layout más compacto (grilla de 2 columnas o chips de menor altura/espaciado vertical) para que todos los grupos de filtros y el pie de acciones entren de un vistazo sin requerir scroll interno salvo cuando existan decenas de releases/sprints.
+
+3. **Header con las 5 Pestañas Activas en Español e Inglés (`src/components/Header.tsx`):**
+   - Validar y blindar el presupuesto horizontal en `1366px` y `1280px` cuando están activas simultáneamente las **5 pestañas** (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), junto con nombre de proyecto largo, badge de nueva versión (`vX.Y.Z`), indicador de sincronización, botón `Re-sync /docs`, utilidades y CTA `+ Nueva Tarea`, garantizando cero solapamientos y cero salto de línea en botones.
+
+4. **Vistas Principales y Modales Secundarios en `1366x768` / `1366x650`:**
+   - **SprintView (`src/components/SprintView.tsx`):** Verificar y ajustar cabeceras de sprint, métricas superiores y listas de tareas para no desperdiciar más del 35% del alto útil de `650px` en banners estáticos antes de ver las tareas.
+   - **TimelineView (`src/components/TimelineView.tsx`):** Verificar controles de zoom/rango, cabeceras de fechas y filas del cronograma sin cortes ni desbordes de controles.
+   - **ReleaseAssembler (`src/components/ReleaseAssembler.tsx`) y ReleaseView (`src/components/ReleaseView.tsx`):** Asegurar que el panel de armado de release, preview de notas y selector de ítems `ready` funcionen sin recorte vertical en `650px - 768px` de alto.
+   - **SettingsView (`src/components/SettingsView.tsx`):** Verificar tabs/secciones de configuración y controles sin truncamientos ni desbordes en `1366x768`.
+   - **Modales operativos (`ImportWizardModal.tsx`, `SprintModal.tsx`, `CompleteSprintModal.tsx`, `ProjectModal.tsx`, `TrashModal.tsx`, `KeyboardShortcutsModal.tsx`):** Auditar y ajustar alturas máximas, paddings de cabecera/pie y scroll interno en viewport de `1366x650`.
+
+**Criterios de Aceptación:**
+- [ ] #1 Con las 5 pestañas habilitadas en Español (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), badge de actualización visible, botón `Re-sync /docs` y nombre de proyecto de 25 caracteres, el `Header` en `1366x768` y `1280x800` mantiene separación `>= 16px` entre bloques y `0` saltos de línea en botones
+- [ ] #2 En `ItemModal` abierto a `1366x768` y `1366x650`, la cabecera de `Acceptance Criteria` y al menos los primeros criterios son visibles sin necesidad de scroll inicial, y todos los campos de la barra lateral derecha (`Status`, `Priority`, `Type`, `Sprint`, `Release`, `Dates`, `Assignees`, `Labels`) quedan accesibles sin recortes
+- [ ] #3 `AdvancedFiltersPopover` presenta una disposición compacta donde las secciones de estado, tipo, prioridad, release/sprint y el botón de reset son visibles simultáneamente en `1366x768` sin corte inferior
+- [ ] #4 `SprintView`, `TimelineView`, `ReleaseView` / `ReleaseAssembler`, `MetricsView` y `SettingsView` pasan validación visual y geométrica automatizada con Playwright en `1366x768` y `1366x650` (ES y EN) sin elementos solapados ni recortados
+- [ ] #5 Todos los modales secundarios (`ImportWizardModal`, `SprintModal`, `CompleteSprintModal`, `ProjectModal`, `TrashModal`, `KeyboardShortcutsModal`) mantienen cabecera y pie de acciones 100% visibles dentro de un viewport de `1366x650`
+- [ ] #6 El scroll horizontal de las columnas del `KanbanBoard` se mantiene intacto sin alteraciones
+
+---
+
+### ✅ Done / Deployed (287)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -7009,6 +6782,32 @@ Actualmente, Gripm carece de un modelo de fechas de inicio y fin en las tareas i
 
 ---
 
+#### [DEV-282] Optimización de renderizado en Kanban: callbacks estables, listener condicional y lookup O(1)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/components/KanbanBoard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/KanbanBoard.tsx) e [src/components/ItemCard.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemCard.tsx)) para eliminar caídas de frames y lag de interacción cuando el backlog acumula más de 100-250 tareas.
+
+### Problemas identificados:
+1. **Invalidación de `React.memo` por callbacks anónimos:** En `KanbanBoard.tsx`, cada tarjeta recibe props con funciones anónimas inline (`onClick={() => onClickItem(item)}`, `onUpdateStatus={(id, s) => onUpdateStatus(id, s)}`). Esto invalida `React.memo(ItemCard)` y causa que las 278 tarjetas re-rendericen completamente ante cualquier cambio de filtro, tipeo en búsqueda o actualización de estado.
+2. **Fuga y saturación de event listeners globales:** Cada tarjeta montada registra un listener permanente `document.addEventListener('mousedown', handleClickOutside)` en su `useEffect`, sin importar si su menú contextual está abierto o cerrado. Con más de 200 tarjetas, cada clic en el documento activa más de 200 handlers simultáneos.
+3. **Búsqueda cuadrática $O(N^2)$ por render:** Dentro de `ItemCard`, la búsqueda de la tarea padre ejecuta `allItems.find(...)`, provocando decenas de miles de comparaciones redundantes en cada ciclo de render.
+4. **Modales no condicionales en el árbol virtual:** Cada tarjeta instancia un `<ConfirmModal isOpen={showDeleteConfirm} ... />` de forma permanente, agregando hooks, estado y refs innecesarios por tarjeta.
+
+### Solución propuesta:
+- Estabilizar callbacks con `useCallback` en el contenedor Kanban o delegar acciones por ID.
+- Activar el listener de `mousedown` en `ItemCard` exclusivamente cuando `menuOpen === true`.
+- Pre-calcular un `Map<string, BacklogItem>` en el contenedor padre para resolución $O(1)$ de tareas padre.
+- Condicionalizar el montaje de `ConfirmModal` (`{showDeleteConfirm && <ConfirmModal ... />}`).
+
+**Criterios de Aceptación:**
+- [x] #1 Los callbacks pasados a `ItemCard` (`onClick`, `onUpdateStatus`, `onDelete`) preservan referencias estables para que `React.memo` evite re-renders innecesarios
+- [x] #2 El listener global `mousedown` de click-outside en `ItemCard` solo se registra en `document` cuando el menú contextual está activo (`menuOpen === true`)
+- [x] #3 La búsqueda de la tarea padre (`parentItem`) se resuelve en $O(1)$ mediante una tabla hash/Map pre-indexada
+- [x] #4 `ConfirmModal` en `ItemCard` se monta condicionalmente solo cuando la confirmación es solicitada
+- [x] #5 La suite de pruebas y typechecking aprueban limpiamente (`npm test` y `npx tsc --noEmit`)
+
+---
+
 #### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
 - **Prioridad**: `low` | **Tipo**: `ux`
 
@@ -7608,6 +7407,105 @@ Saneamiento integral de la Pirámide de Verificación y el pipeline de pruebas: 
 
 ---
 
+#### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Actualización y sincronización exhaustiva de la documentación técnica de arquitectura, registro formal de ADRs pendientes, resolución de contradicciones normativas en `AGENTS.md` y reparación de las herramientas de integración del framework Gripm Playbook (`gate-qa.mjs`, `sync-playbook.mjs`, `.playbook-lock.json`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **`docs/ARCHITECTURE.md` Desfasado:**
+   - Afirma que el backend corre dentro de `vite.config.ts` (desacoplado a `server/` en `v1.1.0` y servido por servidor HTTP nativo en `DEV-290`).
+   - Describe un servidor inexistente llamado `"CodeGraph MCP"` (`lines 99-108`) que nunca formó parte del repositorio.
+   - Omite componentes y módulos actuales de primera clase: `TimelineView` (Roadmap), `MetricsView` (Analytics), `universalImporter`, `atomicWrite.ts`, etc.
+2. **Desincronización de Registros de Arquitectura (`docs/adr/`):**
+   - `docs/adr/0002-backend-embebido-como-plugin-de-vite.md` sigue figurando con estado `Aceptado`. Tras `DEV-290`, el servidor de producción es un ejecutable HTTP nativo desacoplado de Vite. Falta marcar `ADR-0002` como `Reemplazado` y formalizar `ADR-0006`.
+3. **Contradicción Normativa en `AGENTS.md`:**
+   - Gotcha 12 y `ADR-0005:53` exigen usar `text-[11px]` en advertencias y confirmaciones.
+   - Gotcha 21 (`UX-011`) prohíbe terminantemente usar `text-[11px]` en cualquier componente de UI.
+4. **Herramientas de Playbook Desalineadas:**
+   - `scripts/gate-qa.mjs` busca scripts inexistentes en `package.json` (`validate`, `gate:review`, `audit:ux:strict`), fallando con código 1 en downstream projects.
+   - `scripts/sync-playbook.mjs` crashea con `TypeError: pack is not iterable` al usar `--stack` o `--list-stacks` porque `.playbook-manifest.json` define cada stack como un objeto `{ description, files }` en vez de array.
+   - `npm run playbook:check` falla con exit code 1 en modo `--dry-run` por la presencia de archivos modificados legítimamente en `lock.customizations`.
+   - `.playbook-lock.json:3` contiene commiteada una ruta local absoluta (`C:\Users\Pablo\...`).
+5. **Prefijos Heterogéneos en Tareas:**
+   - 101 archivos históricos (`dev-001` a `dev-101`) preservan el prefijo en minúscula `dev-` en su nombre de archivo en disco mientras su YAML frontmatter declara `DEV-XXX`.
+
+### Solución Arquitectónica Profunda:
+
+- **Reescritura de `docs/ARCHITECTURE.md`:** Reflejar con precisión milimétrica la arquitectura actual del producto (servidor HTTP nativo en `bin/gripm.js`, capa `server/`, standalone MCP, módulos de Timeline/Metrics y adaptadores Sandbox).
+- **Formalización de ADR-0006:** Registrar la arquitectura de servidor estático desacoplado de Vite para producción y marcar `ADR-0002` como `Reemplazado`.
+- **Resolución Normativa:** Alinear `AGENTS.md` Gotcha 12 y `ADR-0005` al token estándar `text-xs`.
+- **Adaptabilidad de `gate-qa.mjs` y `sync-playbook.mjs`:**
+  - Hacer que `gate-qa.mjs` detecte dinámicamente los scripts de verificación disponibles en el `package.json` del host (`tsc`, `test`, `backlog:check`, `audit:ux`, `publish:check`, `build`).
+  - Normalizar `const packFiles = Array.isArray(pack) ? pack : (pack?.files ?? []);` en `sync-playbook.mjs` y no salir con código 1 en `--dry-run` ante archivos en `customizations`.
+  - Sanitizar `.playbook-lock.json` usando ruta relativa `../gripm-playbook`.
+- **Normalización de Tareas:** Estandarizar los 101 nombres de archivo a mayúsculas canónicas `DEV-XXX`.
+
+**Criterios de Aceptación:**
+- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
+- [x] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
+- [x] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
+- [x] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
+- [x] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
+- [x] #6 `.playbook-lock.json` no contiene rutas locales absolutas
+- [x] #7 Descartado por instrucción explícita del PO: preservación de nombres de archivo históricos pre-v1 sin churn innecesario de disco
+
+---
+
+#### [DEV-307] Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización radical de la superficie de distribución del paquete npm `@gripm/board`: exclusión del código fuente de desarrollo (`src/`, `server/`, `scripts/`, `.githooks/`), reducción de la huella de instalación y fortalecimiento de las verificaciones de empaquetado para garantizar un tarball productivo minimalista y autocontenido.
+
+### Diagnóstico de la Causa Raíz:
+
+Actualmente, el campo `"files"` de `package.json:48-66` declara:
+```json
+"files": [
+  ".agents/skills/gripm",
+  ".githooks",
+  "audit-ux-baseline.json",
+  "bin",
+  "dist",
+  "public",
+  "scripts",
+  "server",
+  "src",
+  "data/demo-backlog.json",
+  ...
+]
+```
+Esto provoca que el paquete distribuido en npm arrastre más de 76 archivos internos:
+1. **Todo el árbol de fuentes TypeScript de React (`src/`):** A pesar de que `dist/` contiene los bundles compilados para el navegador, se incluye todo `src/` únicamente porque `bin/gripm.js` y `server/plugin.ts` importaban archivos `.ts` en crudo.
+2. **Todos los scripts de pruebas internas (`scripts/`):** Se distribuyen 24 scripts internos de test (`scripts/test-*.js`, `scripts/verify-*.js`, `scripts/repro-ci-linux.sh`, `scripts/watchdog.js`).
+3. **Archivos de metodología Playbook en `scripts/`:** Se distribuyen `scripts/gate-qa.mjs`, `scripts/sync-playbook.mjs`, `scripts/audit-ux-code.cjs` y `scripts/ux-rules.json`, contradiciendo `AGENTS.md` §0 (que establece que los artefactos del Playbook están excluidos del tarball de producción).
+4. **Baselines y hooks internos:** `.githooks` y `audit-ux-baseline.json` se incluyen en el paquete de producción sin tener ninguna utilidad para el usuario final.
+
+### Solución Arquitectónica Profunda:
+
+- **Distribución de Artefactos Precompilados:**
+  Con la compilación de ejecutables y servidor en `bin/` y la compilación web en `dist/`, el paquete de npm solo necesita distribuir:
+  - `bin/`: Binarios ejecutables de Node (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
+  - `dist/`: Aplicación web compilada y optimizada.
+  - `public/`: Activos públicos.
+  - `data/demo-backlog.json`: Datos iniciales de demostración.
+  - `.agents/skills/gripm/SKILL.md`: Skill oficial de conexión para agentes de IA.
+  - `LICENSE`, `README.md`, `README.es.md`.
+- **Exclusión Radical:**
+  Remover `"src"`, `"scripts"`, `"server"`, `".githooks"` y `"audit-ux-baseline.json"` del array `"files"` en `package.json`.
+- **Blindaje en `verify-publish-surface.js`:**
+  Ampliar `FORBIDDEN_PLAYBOOK_ENTRIES` y las reglas de inspección física para certificar que el tarball empaquetado (`npm pack`) nunca contenga código fuente `.ts`, scripts de test ni artefactos de Playbook.
+
+**Criterios de Aceptación:**
+- [x] #1 El campo `"files"` en `package.json` restringe la distribución exclusivamente a `bin`, `dist`, `public`, `data/demo-backlog.json`, `.agents/skills/gripm/SKILL.md` y documentación legal/README
+- [x] #2 El tarball de producción (`npm pack`) no contiene directorios `src/`, `server/`, `scripts/`, `.githooks/` ni archivos `audit-ux-baseline.json`
+- [x] #3 La instalación y ejecución del paquete distribuido en un entorno limpio sin devDependencies (`npm install --omit=dev`) funciona al 100% (modo web cockpit, CLI y servidor MCP)
+- [x] #4 `scripts/verify-publish-surface.js` audita y bloquea la presencia accidental de scripts de prueba o código fuente en el paquete empaquetado
+- [x] #5 `npm run publish:check` y `npm run verify:dist` aprueban limpiamente con código de salida 0
+
+---
+
 #### [DEV-308] Saneamiento de Estructura: Reubicación de demo-backlog.json a src/data y Eliminación del Directorio data/
 - **Prioridad**: `low` | **Tipo**: `tech_debt`
 
@@ -7649,6 +7547,76 @@ Unificación bilingüe en un solo archivo (inglés primero, español debajo) par
 
 ---
 
+#### [DEV-310] Aislamiento y Federación Opt-In en Multi-Project Hub: Exclusión de Proyectos en Modo Single
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Garantizar la soberanía, aislamiento y privacidad de proyectos locales configurados en modo mono-proyecto (`mode: "single"` en `.gripm/config.json`), evitando que aparezcan listados en el selector de proyectos (Hub) de otros repositorios que tengan activo el modo multi-proyecto (`mode: "multi"`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Frontera de Visibilidad Incompleta:**
+   Actualmente, el switch de `mode` en `.gripm/config.json` solo condiciona la interfaz cuando `gripm` se inicia directamente dentro de ese repositorio (`projectsToProcess = [activeProject]`). Sin embargo, cuando se inicia `gripm` en otro proyecto que tiene `multi` activo, `server/routes/api.ts:138` procesa incondicionalmente todos los proyectos del registro global (`registry.projects`), exponiendo proyectos que se configuraron explícitamente para operar de forma aislada.
+
+2. **Federación Opt-In Deseada:**
+   Si un proyecto declara `mode: "single"` en su `.gripm/config.json`, no solo expresa la intención de no ver otros proyectos (*inbound*), sino también la de no ser indexado ni accesible desde los Hubs de otros proyectos de la máquina (*outbound*), protegiendo proyectos privados, personales o bajo acuerdos de confidencialidad.
+
+### Solución Técnica:
+
+- En `server/routes/api.ts`, durante la resolución de `projectsToProcess` en modo Hub, filtrar aquellos proyectos registrados cuyo `.gripm/config.json` tenga `mode === 'single'`.
+- Preservar al proyecto activo actual (aunque fuera single) y al proyecto Demo si está habilitado.
+- Añadir pruebas de integración que aseguren que un repositorio marcado como `single` no se fuga en el selector del Hub de otro proyecto `multi`.
+
+**Criterios de Aceptación:**
+- [x] #1 `GET /api/data` en modo Hub (`isMultiMode`) excluye del catálogo de proyectos a aquellos repositorios registrados cuyo `.gripm/config.json` declare `mode: "single"`
+- [x] #2 Un proyecto con `mode: "single"` permanece 100% accesible y funcional cuando `gripm` se inicia directamente desde su directorio local
+- [x] #3 El proyecto virtual Demo permanece visible y accesible en modo Hub sin verse bloqueado por el filtro
+- [x] #4 La prueba de integración valida mecánicamente el aislamiento y la no exposición de proyectos en modo `single`
+
+---
+
+#### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `@gripm/playbook` v2.3.0 (`.agents/STATE_MACHINE.md`), incorporando `blocked` (junto con el metadato obligatorio `blocked_reason`) y formalizando `dismissed` en el parser Markdown, el servidor MCP y la interfaz visual.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Degradación Silenciosa de `blocked` a `draft`:**
+   En `scripts/backlogMdParser.ts`, el tipo `CanonicalStatus` omite `blocked`. En la función `normalizeStatus`, cualquier tarea con `status: blocked` cae en la rama `default: return 'draft'`. Si un agente o usuario marca una tarea como bloqueada conforme a la metodología Playbook, Gripm Board destruye el estado al leer o guardar el archivo.
+   
+2. **Falta del Campo `blocked_reason` y `dismissed_reason`:**
+   La máquina de estados del Playbook establece que `blocked` exige un motivo no vacío (`blocked_reason`) para evitar la inflación de WIP, y que `dismissed` exige `dismissed_reason`. Actualmente, `BacklogMdTask` y `BacklogItem` no modelan estos campos como propiedades formales de primer nivel.
+
+3. **Inconsistencia de `cancelled`:**
+   `CanonicalStatus` declara `'cancelled'` en su tipo unión, pero `normalizeStatus('cancelled')` devuelve `'dismissed'`, generando ambigüedad entre el tipado estático y el runtime.
+
+### Solución Técnica:
+
+- Incorporar `'blocked'` en `CanonicalStatus` (`scripts/backlogMdParser.ts`) y en `ItemStatus` (`src/types.ts`).
+- Actualizar `normalizeStatus` para que devuelva `'blocked'` cuando reciba `'blocked'` o `'impediment'`.
+- Añadir `blockedReason` y `dismissedReason` al modelo de datos de tareas y mapearlo en frontmatter (`blocked_reason` / `dismissed_reason`).
+- Integrar la columna / badge visual de tareas bloqueadas en `KanbanBoard` e `ItemCard`, y el campo de motivo en `ItemModal`.
+
+**Criterios de Aceptación:**
+- [x] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
+- [x] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
+- [x] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
+- [x] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
+- [x] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
+
+---
+
+#### [DEV-316] Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura
+- **Prioridad**: `low` | **Tipo**: `debt`
+**Criterios de Aceptación:**
+- [x] #1 Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
+- [x] #2 Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
+- [x] #3 Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
+- [x] #4 Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
+- [x] #5 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
+
+---
+
 #### [DEV-317] Compatibilidad macOS: Excepción de directorio temporal en isSystemRootDir para fsExplorer
 - **Prioridad**: `high` | **Tipo**: `bug`
 
@@ -7667,6 +7635,75 @@ Esto causaba que cualquier fixture de prueba o proyecto temporal creado dentro d
 - [x] #2 AC #2: `isAllowedBrowsePath` autoriza la exploración y registro de repositorios temporales creados en `os.tmpdir()` (`POST /api/projects`).
 - [x] #3 AC #3: Rutas reales del sistema operativo (`/etc`, `/var`, `/usr`, `C:\Windows`) continúan estrictamente bloqueadas con `403 Forbidden`.
 - [x] #4 AC #4: La suite de pruebas de seguridad y concurrencia optimista pasa sin errores en todas las plataformas (`node scripts/test-api-security.js` y `node scripts/verify-optimistic-locking.js`).
+
+---
+
+#### [DEV-318] Verificador de actualizaciones: consulta directa a npm Registry, ajuste de TTL y resiliencia de caché
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+El sistema de verificación de actualizaciones (`scripts/updateChecker.js`) notificaba versiones desfasadas respecto al comando de instalación sugerido (`npm i -g @gripm/board@latest`), provocando situaciones donde la terminal o la interfaz web reportaban una versión disponible anterior (ej. `v1.3.0 → v1.6.0`) cuando npm instalaba una versión más reciente (ej. `1.6.1`).
+
+### Causa Raíz Identificada:
+1. **Desalineación de fuente de verdad:** `updateChecker.js` consultaba exclusivamente la API de GitHub Releases (`api.github.com/repos/.../releases/latest`), sujeta a demoras de marcado, rate limits no autenticados (60 req/h) y divergencias con el registry público de npm donde se distribuye `@gripm/board`.
+2. **TTL rígido de caché (24 horas):** La ventana de persistencia en `update-cache.json` (`CACHE_TTL_MS = 24 * 60 * 60 * 1000`) impedía detectar releases publicados durante el mismo día y no se invalidaba al actualizar el paquete localmente.
+3. **Condición restrictiva en listeners asíncronos:** En `bin/gripm.js` y `scripts/mcp-server.ts`, el callback de fondo evaluaba `if (res.hasUpdate && !cachedUpdate?.hasUpdate)`, descartando cualquier versión más reciente que la cacheada previamente si `hasUpdate` ya estaba activo.
+
+### Solución Implementada:
+- Priorizada la consulta directa a `https://registry.npmjs.org/@gripm/board/latest` (con fallback de resiliencia a GitHub Releases API).
+- Reducido el TTL de caché de 24 horas a 4 horas e implementada la invalidación/limpieza automática de `hasUpdate` cuando la versión en ejecución sea mayor o igual a la última conocida.
+- `bin/gripm.js` y `scripts/mcp-server.ts` ahora actualizan el aviso si la versión detectada en vivo es mayor que la que estaba en caché (`semverGreaterThan(res.latestVersion, cachedUpdate.latestVersion)`).
+
+**Criterios de Aceptación:**
+- [x] #1 AC #1: `checkForUpdates` en `scripts/updateChecker.js` consulta prioritariamente el registry público de npm (`https://registry.npmjs.org/@gripm/board/latest`), extrayendo el campo `version` canónico con fallback a GitHub Releases.
+- [x] #2 AC #2: Reducir `CACHE_TTL_MS` a 4 horas e invalidar/actualizar `hasUpdate: false` en `update-cache.json` cuando `currentVersion` sea igual o mayor que `latestVersion`.
+- [x] #3 AC #3: `bin/gripm.js` y `scripts/mcp-server.ts` actualizan el banner en vivo si la comprobación asíncrona descubre una versión superior a la que existía en el caché.
+- [x] #4 AC #4: Pruebas automatizadas en `scripts/verify-integration.js` validan la consulta simulada, la invalidación de caché y las comparaciones semver.
+- [x] #5 AC #5: Pirámide de verificación en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run build`).
+
+---
+
+#### [DEV-319] Rediseño y estandarización visual de interfaz CLI en sync-playbook
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-playbook.mjs`) adoptando la directiva de diseño de interfaz CLI establecida en DEV-252 (estándares clig.dev, Vite, Next.js):
+1. Erradicar la caja rígida cerrada Unicode (`┌─┐`, `│`, `└─┘`) en el banner de arranque a favor de un formato abierto con sangría consistente y punteros sobrios (`➜`).
+2. Eliminar la saturación de emojis decorativos ("emoji soup": `🛡️`, `➖`, `✨`, `🔄`, `🧩`, `🔏`, `📊`) sustituyéndolos por glifos mono-ancho (`•`, `▲`, `✔`, `✖`) con etiquetas de ancho fijo (`padEnd(10)`) que alinean los nombres de archivo exactamente en la misma columna.
+3. Formatear el bloque de resumen (`Summary`) con jerarquía limpia sin emojis decorativos y sangría consistente.
+4. Reemplazar guiones largos artificiales (em-dash) por el guión simple estándar con espacios (` - `) en cumplimiento de la Regla 25.
+5. Preservar el soporte semántico de colores ANSI respetando entornos `NO_COLOR` y terminales no interactivas (no-TTY).
+
+**Criterios de Aceptación:**
+- [x] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
+- [x] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
+- [x] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
+- [x] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
+- [x] #5 Salida ANSI respeta NO_COLOR y TTY
+- [x] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
+
+---
+
+#### [DEV-320] Estandarización visual integral de la interfaz CLI, guards y herramientas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Completar la homogeneización visual absoluta de la interfaz de terminal (CLI), guards y scripts de soporte en todo el ecosistema de gripm según los estándares modernos de DEV-252 (clig.dev, Vite, Next.js):
+1. **bin/gripm.js:** Modernizar el bloque de advertencia y tokens efímeros de red local (--host 0.0.0.0), sustituyendo emojis por punteros sobrios (➜) y glifo de advertencia (▲).
+2. **scripts/gripm-cli.ts:** Rediseñar el dashboard de métricas (--stats), eliminando emojis decorativos y bordes dobles a favor de una estructura abierta con sangría uniforme y colores ANSI semánticos. Limpiar mensajes de export y check.
+3. **scripts/gate-qa.mjs:** Erradicar cajas rígidas (=== / ---) y emojis en el auditor ejecutable de QA a favor de encabezado abierto estilo gripm, lista alineada y veredictos con ✔ y ✖.
+4. **scripts/audit-ux-code.cjs:** Modernizar encabezado y reporte humano de auditoría estática de UX, erradicando cajas de signos de igual.
+5. **scripts/verify-backlog-sync.js:** Limpiar prefijos redundantes entre corchetes ([gripm Guard], [Consolidado]) y emojis (🔍, 📄, 🛑, ✅) a favor de mensajes atómicos y sobrios.
+6. **scripts/verify-publish-surface.js:** Eliminar corchetes y emojis festivos (🎉, 📦), adoptando checks mono-ancho consistentes.
+7. **scripts/generate-changelog.cjs:** Estandarizar la salida de regeneración de changelog.
+8. **scripts/run-tests.js:** Sustituir emojis ✅ y ❌ por ✔ y ✖ en el resumen secuencial de la suite de pruebas.
+9. **Paridad con Playbook:** Reflejar las mejoras correspondientes en las herramientas de gripm-playbook.
+
+**Criterios de Aceptación:**
+- [x] #1 Modernizada la advertencia de red LAN en bin/gripm.js (--host 0.0.0.0) sin emojis decorativos
+- [x] #2 Rediseñado el dashboard de métricas y mensajes en scripts/gripm-cli.ts bajo la jerarquía abierta estándar
+- [x] #3 Modernizada la salida de scripts/gate-qa.mjs con encabezado abierto, punteros ➜ y glifos mono-ancho
+- [x] #4 Limpiado el reporte de auditoría en scripts/audit-ux-code.cjs sin recuadros de signos =
+- [x] #5 Estandarizadas las salidas de guards (verify-backlog-sync.js, verify-publish-surface.js, generate-changelog.cjs, run-tests.js)
+- [x] #6 Cero em-dashes y soporte total de NO_COLOR en todas las herramientas intervenidas
+- [x] #7 Sincronización en gripm-playbook y Pirámide de Verificación completa en verde
 
 ---
 

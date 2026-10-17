@@ -1,0 +1,322 @@
+{
+  "project": {
+    "id": "demo",
+    "name": "Proyecto Demo (Tour)",
+    "codePrefix": "DEMO",
+    "description": "Proyecto de demostración de gripm. Puedes explorarlo o eliminarlo en cualquier momento.",
+    "isDemo": true,
+    "storageType": "json",
+    "createdAt": "2026-09-16T20:45:40.567Z"
+  },
+  "sprints": [
+    {
+      "id": "sprint-demo-1",
+      "projectId": "demo",
+      "name": "Sprint 1 - Onboarding",
+      "goal": "Que un equipo nuevo pueda levantar el tablero y publicar su primer release.",
+      "startDate": "2026-09-01",
+      "endDate": "2026-09-14",
+      "durationWeeks": 2,
+      "status": "completed",
+      "createdAt": "2026-09-01T09:00:00.000Z",
+      "completedAt": "2026-09-16T20:00:00.000Z"
+    },
+    {
+      "id": "sprint-demo-2",
+      "projectId": "demo",
+      "name": "Sprint 2 - Resiliencia",
+      "goal": "Blindar la ingesta de datos y eliminar la deuda técnica que bloquea el escalado.",
+      "startDate": "2026-09-21",
+      "endDate": "2026-10-04",
+      "durationWeeks": 2,
+      "status": "active",
+      "createdAt": "2026-09-21T09:00:00.000Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "item-demo-001",
+      "code": "DEMO-001",
+      "projectId": "demo",
+      "title": "Configurar paleta de diseño y modo oscuro",
+      "description": "Revisar los tokens de color HSL y verificar contraste en pantallas OLED.",
+      "type": "ux",
+      "priority": "p2",
+      "status": "done",
+      "module": "Design System",
+      "fix": "Se configuró paleta Slate y acentos Indigo/Violeta.",
+      "sprint": "Sprint 1 - Onboarding",
+      "targetSprint": "Sprint 1 - Onboarding",
+      "sprints": [
+        "Sprint 1 - Onboarding"
+      ],
+      "targetRelease": "1.0.0",
+      "releases": [
+        "1.0.0"
+      ],
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Tokens de color definidos en HSL con contraste AA en texto secundario",
+          "checked": true
+        },
+        {
+          "index": 2,
+          "text": "Modo oscuro sin elevación perceptible al cambiar de tema",
+          "checked": true
+        }
+      ],
+      "order": 1,
+      "createdAt": "2026-09-16T09:00:00.000Z",
+      "updatedAt": "2026-09-16T20:46:41.470Z",
+      "completedAt": "2026-09-16T20:00:00.000Z",
+      "releasedAt": "2026-09-16T10:00:00.000Z"
+    },
+    {
+      "id": "item-demo-002",
+      "code": "DEMO-002",
+      "projectId": "demo",
+      "title": "Optimizar debounce en la búsqueda global de la barra",
+      "description": "El input de búsqueda bloqueaba el render en listas largas al teclear.",
+      "type": "tech_debt",
+      "priority": "p1",
+      "status": "doing",
+      "module": "Performance",
+      "impactedFile": "src/components/FilterBar.tsx",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
+      "sprints": [
+        "Sprint 2 - Resiliencia"
+      ],
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Debounce de 250 ms aplicado a la entrada de búsqueda global",
+          "checked": true
+        },
+        {
+          "index": 2,
+          "text": "El filtrado no recalcula columnas visibles en cada tecla",
+          "checked": true
+        },
+        {
+          "index": 3,
+          "text": "Medir tiempo de respuesta con 500 ítems en el tablero",
+          "checked": false
+        },
+        {
+          "index": 4,
+          "text": "Cancelar la búsqueda pendiente al cerrar el modal de filtros",
+          "checked": false
+        }
+      ],
+      "order": 2,
+      "createdAt": "2026-09-16T10:00:00.000Z",
+      "updatedAt": "2026-09-16T20:46:32.936Z"
+    },
+    {
+      "id": "item-demo-003",
+      "code": "DEMO-003",
+      "projectId": "demo",
+      "title": "Error al sincronizar extractos con delimitador de punto y coma",
+      "description": "El parser asume coma estándar en CSV y falla en configuraciones europeas.",
+      "type": "bug",
+      "priority": "p0",
+      "status": "review",
+      "module": "Ingesta CSV",
+      "risk": "Falla silenciosa en importación masiva: el archivo se acepta y queda vacío.",
+      "fix": "Detección heurística del delimitador observando la primera línea.",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
+      "sprints": [
+        "Sprint 2 - Resiliencia"
+      ],
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Detectar coma, punto y coma y tabulador en la primera línea",
+          "checked": true
+        },
+        {
+          "index": 2,
+          "text": "Reportar el delimitador detectado en la respuesta de importación",
+          "checked": true
+        },
+        {
+          "index": 3,
+          "text": "Cubrir el caso con cabecera y sin cabecera",
+          "checked": true
+        },
+        {
+          "index": 4,
+          "text": "Validar contra el fixture de exportación de la plataforma anterior",
+          "checked": false
+        }
+      ],
+      "order": 3,
+      "createdAt": "2026-09-16T10:20:00.000Z",
+      "updatedAt": "2026-09-16T20:46:37.856Z"
+    },
+    {
+      "id": "item-demo-004",
+      "code": "DEMO-004",
+      "projectId": "demo",
+      "title": "Integración de notificaciones push vía Web Push API",
+      "description": "Permitir avisar al usuario de transacciones recurrentes pendientes.",
+      "type": "feature",
+      "priority": "p2",
+      "status": "ready",
+      "module": "Notificaciones",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
+      "sprints": [
+        "Sprint 2 - Resiliencia"
+      ],
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Solicitar permiso de notificaciones desde la configuración",
+          "checked": true
+        },
+        {
+          "index": 2,
+          "text": "Registrar la service worker y el endpoint de suscripción",
+          "checked": true
+        },
+        {
+          "index": 3,
+          "text": "Programar el aviso con la recurrencia configurada por el usuario",
+          "checked": true
+        }
+      ],
+      "order": 4,
+      "createdAt": "2026-09-16T10:30:00.000Z",
+      "updatedAt": "2026-09-16T20:46:50.686Z"
+    },
+    {
+      "id": "item-demo-005",
+      "code": "DEMO-005",
+      "projectId": "demo",
+      "title": "Migrar el exportador a streaming para archivos grandes",
+      "description": "Hoy el export monolithic arma el string completo en memoria y revienta con históricos grandes.",
+      "type": "tech_debt",
+      "priority": "p1",
+      "status": "draft",
+      "module": "Performance",
+      "impactedFile": "server/services/storage.ts",
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Definir el umbral a partir del cual se cambia a escritura por streaming",
+          "checked": false
+        },
+        {
+          "index": 2,
+          "text": "Medir pico de memoria con un backlog de 5000 ítems",
+          "checked": false
+        }
+      ],
+      "order": 5,
+      "createdAt": "2026-10-02T11:00:00.000Z",
+      "updatedAt": "2026-10-02T11:00:00.000Z"
+    },
+    {
+      "id": "item-demo-006",
+      "code": "DEMO-006",
+      "projectId": "demo",
+      "title": "Documentar el flujo de importación desde la plataforma anterior",
+      "description": "El equipo nuevo no tenía referencia de qué formatos acepta el importador.",
+      "type": "feature",
+      "priority": "p3",
+      "status": "done",
+      "module": "Documentación",
+      "sprint": "Sprint 1 - Onboarding",
+      "targetSprint": "Sprint 1 - Onboarding",
+      "sprints": [
+        "Sprint 1 - Onboarding"
+      ],
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Documentar los formatos de entrada soportados con ejemplos",
+          "checked": true
+        },
+        {
+          "index": 2,
+          "text": "Incluir el caso de campos que el importador no reconoce",
+          "checked": true
+        }
+      ],
+      "order": 6,
+      "createdAt": "2026-09-05T11:00:00.000Z",
+      "updatedAt": "2026-09-12T18:00:00.000Z",
+      "completedAt": "2026-09-12T18:00:00.000Z"
+    },
+    {
+      "id": "item-demo-007",
+      "code": "DEMO-007",
+      "projectId": "demo",
+      "title": "Evaluar sincronización offline entre dispositivos",
+      "description": "Hoy dos personas editing a la vez pisan el trabajo de la otra sin avisar.",
+      "type": "epic",
+      "priority": "p2",
+      "status": "draft",
+      "module": "Colaboración",
+      "description": "Explorar un modelo de bloqueo por ítem en disco antes de commitear a una arquitectura de servidor.",
+      "acceptanceCriteriaList": [
+        {
+          "index": 1,
+          "text": "Comparar bloqueo en disco versus bloqueo en servidor",
+          "checked": false
+        },
+        {
+          "index": 2,
+          "text": "Medir el costo de implementación de cada opción",
+          "checked": false
+        },
+        {
+          "index": 3,
+          "text": "Decidir y documentar el modelo elegido",
+          "checked": false
+        }
+      ],
+      "order": 7,
+      "createdAt": "2026-10-08T11:00:00.000Z",
+      "updatedAt": "2026-10-08T11:00:00.000Z"
+    }
+  ],
+  "releases": [
+    {
+      "id": "rel-demo-1-0-0",
+      "projectId": "demo",
+      "version": "1.0.0",
+      "date": "2026-09-16",
+      "title": "Lanzamiento Inicial Demo",
+      "summary": "Primer release de demostración con arquitectura desacoplada.",
+      "itemCodes": [
+        "DEMO-001",
+        "DEMO-006"
+      ],
+      "status": "released",
+      "markdownContent": "## [1.0.0] - 2026-09-16 🚀 Lanzamiento Inicial Demo\n\n### 🎯 Resumen\nPrimer release de demostración con arquitectura desacoplada.\n\n### ✨ Mejoras\n- Paleta de diseño y modo oscuro verificados en pantallas OLED\n- Documentación del flujo de importación desde la plataforma anterior",
+      "createdAt": "2026-09-16T10:00:00.000Z"
+    },
+    {
+      "id": "rel-demo-1-1-0",
+      "projectId": "demo",
+      "version": "1.1.0",
+      "date": "2026-10-04",
+      "title": "Resiliencia de la ingesta",
+      "summary": "Cierra la deuda crítica del sprint en curso y prepara la base para el escalado.",
+      "itemCodes": [
+        "DEMO-002",
+        "DEMO-003",
+        "DEMO-004"
+      ],
+      "status": "unreleased",
+      "markdownContent": "## [1.1.0] - 2026-10-04 🚧 Resiliencia de la ingesta\n\n### 🎯 Resumen\nCierra la deuda crítica del sprint en curso y prepara la base para el escalado.\n\n### 🐛 Fixes\n- El parser de CSV ya no falla en silencio con delimitador de punto y coma",
+      "createdAt": "2026-09-21T10:00:00.000Z"
+    }
+  ],
+  "lastUpdated": "2026-09-16T20:46:50.688Z"
+}

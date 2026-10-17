@@ -7076,6 +7076,8 @@ async function main() {
       if (branch) syncArgs.push("--branch", branch);
       if (remote) syncArgs.push("--remote", remote);
       if (source) syncArgs.push("--source", source);
+      if (dryRun) syncArgs.push("--dry-run");
+      if (force) syncArgs.push("--force");
       const isWin = process.platform === "win32";
       execFileSync(isWin ? "npx.cmd" : "npx", syncArgs, { stdio: "inherit", shell: isWin });
     }

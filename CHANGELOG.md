@@ -13,6 +13,32 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.7.0] - 2026-10-17 🚀 Aislamiento Multi-Proyecto Opt-In, Paridad Canónica de Estados y Optimización de Rendimiento en Kanban
+
+### 🎯 Resumen
+*Versión 1.7.0 de Gripm: aislamiento estricto de repositorios en modo single e integración opt-in en Multi-Project Hub (DEV-310), paridad canónica con la máquina de estados de Playbook v2.3.0 incorporando 'blocked' (con motivo obligatorio) y 'dismissed' con contraste accesible WCAG AA (DEV-312), optimización del ciclo de render en Kanban con resolución O(1) de tareas padre, callbacks estables y listeners condicionales (DEV-282), refinamiento ergonómico de Header y popover de filtros avanzados en resoluciones de escritorio 1366x768, packaging limpio con tarball reducido a 30 archivos (DEV-307), gobernanza documental con ADRs (DEV-306), erradicación de remanentes anti-em-dash (DEV-316), verificador de actualizaciones directo a npm Registry (DEV-318) y estandarización visual integral de interfaces CLI y guards (DEV-319, DEV-320).*
+
+### 🌐 Federación y Multi-Project Hub
+- **DEV-310 - Aislamiento y Federación Opt-In en Multi-Project Hub:** En modo single (`--single` o sin flag hub), el servidor aísla de forma determinista el repositorio actual, ignorando proyectos secundarios registrados y garantizando cero fugas de datos entre proyectos independientes.
+
+### 🔄 Paridad de Estados y Máquina de Estados Canónica
+- **DEV-312 - Soporte Canónico de 'blocked' y 'dismissed':** Integración de 'blocked' (junto al campo obligatorio `blocked_reason`) y 'dismissed' (con `dismissed_reason`) en el parser Markdown, el servidor MCP y la interfaz visual, con badges de contraste accesible WCAG AA (5.66:1 claro / 5.92:1 oscuro) y soporte en columnas WIP de Kanban.
+
+### ⚡ Rendimiento y Experiencia de Usuario
+- **DEV-282 - Optimización de Renderizado en Kanban:** Estabilización de callbacks con `useCallback` y `useRef`, resolución O(1) de tareas padre mediante pre-indexación en Map en el contenedor padre, montaje condicional de `ConfirmModal` y listener `mousedown` activo exclusivamente durante la apertura de menús contextuales.
+- **Ergonomía de Cabecera y Filtros en 1366x768:** Reemplazo del grid rígido en `Header` por un layout flex fluido libre de colisiones entre navegación central y utilidades, junto con límite de altura adaptativo (`calc(100vh-140px)`) en `AdvancedFiltersPopover`.
+
+### 📦 Distribución y Packaging
+- **DEV-307 - Packaging de Producción Limpio:** Adelgazamiento del tarball npm a 30 archivos esenciales mediante el filtrado estricto de directorios internos de desarrollo y exclusión de artefactos de testing.
+
+### 🛠️ Herramientas CLI, Gobernanza y Calidad
+- **DEV-306 - Gobernanza Documental y Sincronización:** Registro de ADRs arquitectónicos y alineación con estándares Playbook.
+- **DEV-316 - Erradicación de Remanentes Anti-Em-Dash:** Sustitución consistente de guiones largos por guiones estándar simples con espacios (` - `).
+- **DEV-318 - Verificador de Actualizaciones de npm Registry:** Consulta directa al Registry con TTL configurable y caché resiliente.
+- **DEV-319 & DEV-320 - Estandarización Visual de CLI:** Rediseño integral de herramientas CLI, guards y scripts de sincronización bajo la identidad visual canónica de Gripm.
+
+---
+
 ## [1.6.1] - 2026-10-17 🛠️ Gobernanza de CI/CD en Pipeline de Publish y Compatibilidad macOS
 
 ### 🎯 Resumen
