@@ -135,10 +135,10 @@ export const Header: FC<HeaderProps> = ({
   return (
     <>
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#090d15]/85 backdrop-blur-md transition-colors pt-[env(safe-area-inset-top,0px)]">
-        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
+        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2.5 sm:gap-4">
           
           {/* Left: Brand + Project Selector */}
-          <div className="flex items-center gap-2.5 sm:gap-4 justify-self-start min-w-0 max-w-full">
+          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0 min-w-0 max-w-xs xl:max-w-md">
             <button
               type="button"
               onClick={() => onSelectTab(defaultHomeTab)}
@@ -369,11 +369,11 @@ export const Header: FC<HeaderProps> = ({
           </div>
 
           {/* Center: Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] p-1 rounded-xl justify-self-center shrink-0">
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] p-1 rounded-xl shrink-0 mx-auto">
             {isKanbanEnabled && (
               <button
                 onClick={() => onSelectTab('kanban')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'kanban'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -387,7 +387,7 @@ export const Header: FC<HeaderProps> = ({
             {isSprintEnabled && (
               <button
                 onClick={() => onSelectTab('sprint')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'sprint'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -401,7 +401,7 @@ export const Header: FC<HeaderProps> = ({
             {isReleaseEnabled && (
               <button
                 onClick={() => onSelectTab('release')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'release'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -415,7 +415,7 @@ export const Header: FC<HeaderProps> = ({
             {isTimelineEnabled && (
               <button
                 onClick={() => onSelectTab('timeline')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'timeline'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -429,7 +429,7 @@ export const Header: FC<HeaderProps> = ({
             {isMetricsEnabled && (
               <button
                 onClick={() => onSelectTab('metrics')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 min-w-[92px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'metrics'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
@@ -442,7 +442,7 @@ export const Header: FC<HeaderProps> = ({
           </nav>
 
           {/* Right: Actions, Live Sync, Archive, Theme Switcher & Settings */}
-          <div className="flex items-center gap-2.5 justify-self-end">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end">
             {/* Update available badge (DEV-107) */}
             {updateAvailable?.hasUpdate && (
               <a
@@ -450,9 +450,9 @@ export const Header: FC<HeaderProps> = ({
                 target="_blank"
                 rel="noreferrer"
                 title={t('header.newVersionAvailable', { latest: updateAvailable.latestVersion, current: updateAvailable.currentVersion })}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-medium transition-all group shadow-xs"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-medium transition-all group shadow-xs shrink-0"
               >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse group-hover:rotate-12 transition-transform" />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse group-hover:rotate-12 transition-transform shrink-0" />
                 <span className="font-mono text-[11px] font-semibold">v{updateAvailable.latestVersion}</span>
               </a>
             )}
@@ -463,7 +463,7 @@ export const Header: FC<HeaderProps> = ({
                 la app funciona, no está degradada. */}
             <div
               title={isSandbox ? t('header.sandboxModeDesc') : (liveConnected ? t('header.liveConnectedDesc') : t('header.liveReconnectingDesc'))}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors shrink-0 ${
                 isSandbox
                   ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                   : (liveConnected
@@ -479,7 +479,7 @@ export const Header: FC<HeaderProps> = ({
                   isSandbox ? 'bg-indigo-500' : (liveConnected ? 'bg-emerald-500' : 'bg-amber-500')
                 }`}></span>
               </span>
-              <span className="hidden xl:inline">
+              <span className="hidden 2xl:inline">
                 {isSandbox ? t('header.sandboxMode') : (liveConnected ? t('header.liveConnected') : t('header.liveReconnecting'))}
               </span>
             </div>
@@ -560,10 +560,10 @@ export const Header: FC<HeaderProps> = ({
                 onClick={onResyncDocs}
                 disabled={isResyncing}
                 title={`Re-sincronizar /docs de ${currentProject.name}`}
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.03] dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-50"
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.03] dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-50 shrink-0"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 ${isResyncing ? 'animate-spin text-indigo-500' : ''}`} />
-                <span className="hidden lg:inline">{isResyncing ? 'Sincronizando...' : 'Re-sync /docs'}</span>
+                <span className="hidden 2xl:inline">{isResyncing ? 'Sincronizando...' : 'Re-sync /docs'}</span>
               </button>
             )}
 
@@ -571,10 +571,10 @@ export const Header: FC<HeaderProps> = ({
             <button
               onClick={onNewItem}
               aria-label={t('header.newItem')}
-              className="min-h-[40px] sm:min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/25 transition-all active:scale-[0.98]"
+              className="min-h-[40px] sm:min-h-[36px] flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/25 transition-all active:scale-[0.98] shrink-0 whitespace-nowrap"
             >
               <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">{t('header.newItem')}</span>
+              <span className="hidden sm:inline whitespace-nowrap">{t('header.newItem')}</span>
               <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-indigo-700/50 text-[10px] font-mono border border-indigo-400/30 ml-0.5">
                 N
               </kbd>
@@ -585,7 +585,7 @@ export const Header: FC<HeaderProps> = ({
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Abrir menú de opciones"
               title={t('header.mobileMenu')}
-              className="md:hidden min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 active:scale-95 transition-all"
+              className="md:hidden min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 active:scale-95 transition-all shrink-0"
             >
               <Menu className="w-4 h-4" />
             </button>

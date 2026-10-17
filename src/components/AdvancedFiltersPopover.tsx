@@ -260,7 +260,7 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   return (
     <div
       ref={popoverRef}
-      className="absolute left-0 top-full mt-2 w-[calc(100vw-32px)] sm:w-[420px] max-h-[85vh] overflow-y-auto rounded-2xl filters-popover z-50 p-4 space-y-4 text-xs animate-in fade-in zoom-in-95 duration-150"
+      className="absolute left-0 top-full mt-2 w-[calc(100vw-32px)] sm:w-[420px] max-h-[calc(100vh-140px)] overflow-y-auto rounded-2xl filters-popover z-50 p-4 space-y-4 text-xs animate-in fade-in zoom-in-95 duration-150"
     >
       {/* Popover Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06]">
