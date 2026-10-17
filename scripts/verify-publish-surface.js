@@ -29,6 +29,19 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
+const isColorSupported =
+  !('NO_COLOR' in process.env) &&
+  (process.env.FORCE_COLOR === '1' || (process.stdout?.isTTY && process.env.TERM !== 'dumb'));
+
+const c = {
+  bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[22m` : s),
+  dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[22m` : s),
+  cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[39m` : s),
+  green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[39m` : s),
+  yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[39m` : s),
+  red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[39m` : s),
+};
+
 /** Nombres de archivo que nunca deben publicarse (datos locales del usuario). */
 const FORBIDDEN_BASENAMES = ['projects-registry.json', 'dev-board.json'];
 
@@ -77,7 +90,7 @@ function run(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: 'utf8', cwd: ROOT, shell: isWin, ...opts, env: cleanEnv });
 }
 
-console.log('📦 [Publish Surface Guard] Empaquetando y verificando la superficie pública...\n');
+console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Verificando superficie de publicación...\n`);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-publish-guard-'));
 let tarballPath = null;
@@ -107,12 +120,12 @@ try {
     }
   })(pkgRoot);
 
-  console.log(`   Archivos en el tarball: ${allFiles.length}\n`);
+  console.log(`  Archivos en el tarball: ${c.bold(String(allFiles.length))}\n`);
 
   // 3a. El paquete no debe introducirse a sí mismo como dependencia.
   const packedPackage = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'));
   if (packedPackage.dependencies?.[packedPackage.name]) {
-    console.error(`   ❌ DEPENDENCIA CIRCULAR: ${packedPackage.name} depende de sí mismo.`);
+    console.error(`  ${c.red('✖')} DEPENDENCIA CIRCULAR: ${packedPackage.name} depende de sí mismo.`);
     failed = true;
   }
 
@@ -120,8 +133,8 @@ try {
   for (const file of allFiles) {
     const base = path.basename(file);
     if (FORBIDDEN_BASENAMES.includes(base)) {
-      console.error(`   ❌ ARCHIVO PROHIBIDO PUBLICADO: ${file}`);
-      console.error(`      Contiene datos locales del usuario. Debe excluirse del campo "files".`);
+      console.error(`  ${c.red('✖')} ARCHIVO PROHIBIDO PUBLICADO: ${file}`);
+      console.error(`    ${c.yellow('▲')} Contiene datos locales del usuario. Debe excluirse del campo "files".`);
       failed = true;
     }
   }
@@ -129,8 +142,8 @@ try {
   // 4b. Chequeo A2 - archivos del framework Gripm Playbook prohibidos en Gripm Board (DEV-250).
   for (const forbidden of FORBIDDEN_PLAYBOOK_ENTRIES) {
     if (allFiles.includes(forbidden)) {
-      console.error(`   ❌ CONTENIDO DE PLAYBOOK FILTRADO EN GRIPM BOARD: ${forbidden}`);
-      console.error(`      Gripm Playbook es un paquete independiente (@gripm/playbook). No debe empaquetarse en @gripm/board.`);
+      console.error(`  ${c.red('✖')} CONTENIDO DE PLAYBOOK FILTRADO EN GRIPM BOARD: ${forbidden}`);
+      console.error(`    ${c.yellow('▲')} Gripm Playbook es un paquete independiente (@gripm/playbook). No debe empaquetarse en @gripm/board.`);
       failed = true;
     }
   }
@@ -145,8 +158,8 @@ try {
     for (const { label, re } of CONTENT_PATTERNS) {
       if (re.test(content)) {
         const line = content.split('\n').find((l) => re.test(l)) ?? '';
-        console.error(`   ❌ FUGA DE CONTENIDO en ${file}: ${label}`);
-        console.error(`      ${line.trim().slice(0, 100)}`);
+        console.error(`  ${c.red('✖')} FUGA DE CONTENIDO en ${file}: ${label}`);
+        console.error(`    ${line.trim().slice(0, 100)}`);
         failed = true;
       }
     }
@@ -155,23 +168,23 @@ try {
   // 6. Chequeo C - allowlist: lo esencial debe estar presente.
   for (const required of REQUIRED_ENTRIES) {
     if (!allFiles.includes(required)) {
-      console.error(`   ❌ FALTA EN EL TARBALL (esperado por allowlist): ${required}`);
+      console.error(`  ${c.red('✖')} FALTA EN EL TARBALL (esperado por allowlist): ${required}`);
       failed = true;
     }
   }
 
   if (failed) {
-    console.error('\n🛑 La superficie de publicación está comprometida. NO publiques.\n');
+    console.error(`\n  ${c.red('✖')} La superficie de publicación está comprometida. NO publiques.\n`);
     process.exit(1);
   }
 
-  console.log('   ✅ Sin archivos de datos locales en el tarball');
-  console.log('   ✅ Sin rutas absolutas personales en el contenido');
-  console.log('   ✅ Allowlist completa (binarios, dist, assets, demo, docs legales)\n');
-  console.log('🎉 Publish Surface Guard: la superficie pública está limpia.\n');
+  console.log(`  ${c.green('✔')} Sin archivos de datos locales en el tarball`);
+  console.log(`  ${c.green('✔')} Sin rutas absolutas personales en el contenido`);
+  console.log(`  ${c.green('✔')} Allowlist completa (binarios, dist, assets, demo, docs legales)\n`);
+  console.log(`  ${c.green('✔')} Publish Surface Guard: la superficie pública está limpia.\n`);
 } catch (err) {
-  console.error('\n❌ Publish Surface Guard falló durante la verificación:');
-  console.error(`   ${err.message}\n`);
+  console.error(`\n  ${c.red('✖')} Publish Surface Guard falló durante la verificación:`);
+  console.error(`    ${err.message}\n`);
   process.exit(1);
 } finally {
   if (tarballPath && fs.existsSync(tarballPath)) fs.rmSync(tarballPath, { force: true });

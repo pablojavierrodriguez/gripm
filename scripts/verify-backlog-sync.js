@@ -16,16 +16,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
+const isColorSupported =
+  !('NO_COLOR' in process.env) &&
+  (process.env.FORCE_COLOR === '1' || (process.stdout?.isTTY && process.env.TERM !== 'dumb'));
+
+const c = {
+  bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[22m` : s),
+  dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[22m` : s),
+  cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[39m` : s),
+  green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[39m` : s),
+  yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[39m` : s),
+  red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[39m` : s),
+};
+
 const isFixMode = process.argv.includes('--fix') || process.argv.includes('--auto-sync');
 const isHookMode = process.argv.includes('--hook');
 
-console.log('🔍 [gripm Guard] Verificando sincronización viva del Backlog...');
+console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Verificando sincronización del Backlog...`);
 
 const cwd = process.cwd();
 const currentRepoDir = fs.existsSync(path.join(cwd, 'backlog/tasks')) ? cwd : ROOT_DIR;
 const tasksDir = path.join(currentRepoDir, 'backlog/tasks');
 if (!fs.existsSync(tasksDir)) {
-  console.log('ℹ️  No se encontró carpeta backlog/tasks. Omitiendo verificación.');
+  console.log(`  ${c.dim('ℹ')} No se encontró carpeta backlog/tasks. Omitiendo verificación.\n`);
   process.exit(0);
 }
 
@@ -65,15 +78,15 @@ if (isHookMode) {
   const hasBacklogInStage = stagedTasks.length > 0 || isBacklogStaged;
 
   if (!hasBacklogInStage) {
-    console.log('ℹ️  [gripm Guard] Sin cambios de backlog en este commit. Verificación omitida.');
+    console.log(`  ${c.dim('ℹ')} Sin cambios de backlog en este commit. Verificación omitida.\n`);
     process.exit(0);
   }
 
   // 1. Si hay tareas en el stage, BACKLOG.md debe estar incluido en el stage
   if (stagedTasks.length > 0 && !isBacklogStaged) {
-    console.error('\n🛑 [gripm Guard] Commit rechazado: Se detectaron tareas modificadas en el commit pero "BACKLOG.md" no está incluido en el índice:');
-    stagedTasks.forEach(t => console.error(`   - ${t}`));
-    console.error('\n   👉 Para mantener la coherencia del consolidado con el árbol de tareas:');
+    console.error(`\n  ${c.red('✖')} Commit rechazado: Se detectaron tareas modificadas en el commit pero "BACKLOG.md" no está incluido en el índice:`);
+    stagedTasks.forEach(t => console.error(`    ${c.dim('•')} ${t}`));
+    console.error(`\n    ${c.yellow('▲')} Para mantener la coherencia del consolidado con el árbol de tareas:`);
     console.error('      1. npm run backlog:sync    # Sincroniza y actualiza BACKLOG.md');
     console.error('      2. git add BACKLOG.md      # Incluye el consolidado en el commit\n');
     process.exit(1);
@@ -115,9 +128,9 @@ if (isHookMode) {
         }
 
         if (ghostTasks.length > 0) {
-          console.error('\n🛑 [gripm Guard] Commit rechazado: BACKLOG.md referencia tarea(s) que no están trackeadas en Git (archivos fantasma):');
-          ghostTasks.forEach(g => console.error(`   - ${g.id} (archivo sin trackear: ${g.file})`));
-          console.error('\n   👉 Para resolverlo:');
+          console.error(`\n  ${c.red('✖')} Commit rechazado: BACKLOG.md referencia tarea(s) que no están trackeadas en Git (archivos fantasma):`);
+          ghostTasks.forEach(g => console.error(`    ${c.dim('•')} ${g.id} (archivo sin trackear: ${g.file})`));
+          console.error(`\n    ${c.yellow('▲')} Para resolverlo:`);
           console.error('      git add ' + ghostTasks.map(g => `"${g.file}"`).join(' '));
           console.error('      O regenera BACKLOG.md sin esas tareas antes de commitear.\n');
           process.exit(1);
@@ -169,9 +182,9 @@ for (const { file, filePath, content } of taskEntries) {
       const lineNum = lineIdx + 1;
       if (seenBeginMarkers.has(markerKey)) {
         const prev = seenBeginMarkers.get(markerKey);
-        console.error(`❌ [Marcador Duplicado] ${file}:${lineNum}:`);
-        console.error(`   El marcador '${beginMatch[0]}' aparece más de una vez en el archivo (primera aparición en línea ${prev.lineNum}).`);
-        console.error(`   👉 Esto corrompe silenciosamente el parsing de secciones. Escapalo como '<!\\-- ${beginMatch[1]} -->' o eliminalo.`);
+        console.error(`  ${c.red('✖')} [Marcador Duplicado] ${file}:${lineNum}:`);
+        console.error(`    El marcador '${beginMatch[0]}' aparece más de una vez en el archivo (primera aparición en línea ${prev.lineNum}).`);
+        console.error(`    ${c.yellow('▲')} Esto corrompe silenciosamente el parsing de secciones. Escapalo como '<!\\-- ${beginMatch[1]} -->' o eliminalo.`);
         errorsFound++;
       } else {
         seenBeginMarkers.set(markerKey, { lineNum, markerText: beginMatch[0] });
@@ -199,10 +212,10 @@ for (const { file, filePath, content } of taskEntries) {
     // lo cierra, eso es un defecto del archivo, no una ausencia de ACs.
     if (content.includes('<!-- AC:BEGIN -->')) {
       const f = path.basename(file);
-      console.error(`\n  ⚠️  [Marcador AC Malformado] ${f}:`);
-      console.error(`   Abre <!-- AC:BEGIN --> pero no cierra <!-- AC:END -->.`);
-      console.error(`   Sus criterios de aceptación NO se están validando y tampoco llegan a BACKLOG.md.`);
-      console.error(`   Suele ser un <!-- SECTION:DESCRIPTION:END --> donde debía ir <!-- AC:END -->.`);
+      console.error(`\n  ${c.yellow('▲')} [Marcador AC Malformado] ${f}:`);
+      console.error(`    Abre <!-- AC:BEGIN --> pero no cierra <!-- AC:END -->.`);
+      console.error(`    Sus criterios de aceptación NO se están validando y tampoco llegan a BACKLOG.md.`);
+      console.error(`    Suele ser un <!-- SECTION:DESCRIPTION:END --> donde debía ir <!-- AC:END -->.`);
       malformedAcFiles.push(f);
       errorsFound++;
     }
@@ -221,21 +234,21 @@ for (const { file, filePath, content } of taskEntries) {
   // (la certificación formal es potestad exclusiva del rol QA tras la Pirámide de Verificación).
   if (totalAcs > 0 && totalChecked === totalAcs && (rawStatus === 'draft' || rawStatus === 'doing')) {
     if (rawStatus === 'draft') {
-      console.warn(`⚠️  [Inconsistencia de Backlog] ${taskId} (${file}):`);
-      console.warn(`   Está en 'draft' pero tiene todos sus criterios tildados (${totalChecked}/${totalAcs} AC).`);
+      console.warn(`  ${c.yellow('▲')} [Inconsistencia de Backlog] ${taskId} (${file}):`);
+      console.warn(`    Está en 'draft' pero tiene todos sus criterios tildados (${totalChecked}/${totalAcs} AC).`);
     } else {
-      console.warn(`⚠️  [Aviso de Ciclo de Vida] ${taskId} (${file}):`);
-      console.warn(`   Tiene todos los criterios de aceptación cumplidos (${totalChecked}/${totalAcs} AC) pero continúa en 'doing'.`);
-      console.warn(`   👉 Si la implementación concluyó, avanza a 'review' para auditoría de QA. No se auto-promociona a 'ready' para preservar la State Machine.`);
+      console.warn(`  ${c.yellow('▲')} [Aviso de Ciclo de Vida] ${taskId} (${file}):`);
+      console.warn(`    Tiene todos los criterios de aceptación cumplidos (${totalChecked}/${totalAcs} AC) pero continúa en 'doing'.`);
+      console.warn(`    ${c.yellow('▲')} Si la implementación concluyó, avanza a 'review' para auditoría de QA. No se auto-promociona a 'ready' para preservar la State Machine.`);
     }
   }
 
   // REGLA 2 (DEV-293): Si el estado es 'done', no debería tener ACs pendientes sin tildar.
   // Erradicación de fabricación de ACs (SEC-02): el modo --fix NUNCA altera '- [ ]' por '- [x]'.
   if (rawStatus === 'done' && totalAcs > 0 && totalChecked < totalAcs) {
-    console.warn(`⚠️  [Advertencia de Calidad] ${taskId} (${file}):`);
-    console.warn(`   El estado es 'done' pero tiene ${totalAcs - totalChecked} de ${totalAcs} criterios de aceptación sin tildar (- [ ]).`);
-    console.warn(`   👉 Prohibida la fabricación automática de ACs (SEC-02). Exige verificación real o reclasificación del estado.`);
+    console.warn(`  ${c.yellow('▲')} [Advertencia de Calidad] ${taskId} (${file}):`);
+    console.warn(`    El estado es 'done' pero tiene ${totalAcs - totalChecked} de ${totalAcs} criterios de aceptación sin tildar (- [ ]).`);
+    console.warn(`    ${c.yellow('▲')} Prohibida la fabricación automática de ACs (SEC-02). Exige verificación real o reclasificación del estado.`);
   }
 }
 
@@ -254,7 +267,7 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
     if (featOverviewMatch) {
       const docVersion = featOverviewMatch[1];
       if (docVersion !== pkg.version) {
-        console.error(`❌ [Documentación Desfasada] README.md menciona 'Features Overview (v${docVersion})', pero package.json está en 'v${pkg.version}'.`);
+        console.error(`  ${c.red('✖')} [Documentación Desfasada] README.md menciona 'Features Overview (v${docVersion})', pero package.json está en 'v${pkg.version}'.`);
         errorsFound++;
       }
     }
@@ -268,7 +281,7 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
         const mcpBinContent = fs.readFileSync(mcpBinPath, 'utf8');
         const toolDefs = (mcpBinContent.match(/name:\s*['"]gripm_[a-z0-9_]+['"]/g) || []).length;
         if (toolDefs > 0 && toolsInDoc < toolDefs) {
-          console.warn(`⚠️  [Documentación Desfasada] README.md declara ${toolsInDoc} herramientas MCP, pero gripm-mcp expone ${toolDefs} herramientas.`);
+          console.warn(`  ${c.yellow('▲')} [Documentación Desfasada] README.md declara ${toolsInDoc} herramientas MCP, pero gripm-mcp expone ${toolDefs} herramientas.`);
         }
       }
     }
@@ -283,12 +296,12 @@ if (fs.existsSync(readmePath) && fs.existsSync(pkgPath)) {
     for (const docFile of docsToCheck) {
       const docText = fs.readFileSync(docFile, 'utf8');
       if (docText.includes('legacyParser.ts')) {
-        console.error(`❌ [Error de Documentación] ${path.basename(docFile)} hace referencia al archivo obsoleto 'legacyParser.ts' (debe ser 'scripts/backlogMdParser.ts').`);
+        console.error(`  ${c.red('✖')} [Error de Documentación] ${path.basename(docFile)} hace referencia al archivo obsoleto 'legacyParser.ts' (debe ser 'scripts/backlogMdParser.ts').`);
         errorsFound++;
       }
     }
   } catch (docErr) {
-    console.error(`❌ [Error de Documentación] Falló la verificación de documentación: ${docErr.message}`);
+    console.error(`  ${c.red('✖')} [Error de Documentación] Falló la verificación de documentación: ${docErr.message}`);
     errorsFound++;
   }
 }
@@ -305,7 +318,7 @@ if (fs.existsSync(releasesJsonPath)) {
             const statusMatch = entry.content.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
             const status = (statusMatch ? statusMatch[1] : '').toLowerCase();
             if (status !== 'done') {
-              console.error(`❌ [Error de Release] Tarea ${code} pertenece al release publicado v${rel.version}, pero su estado en el archivo es '${status}' (debe ser 'done').`);
+              console.error(`  ${c.red('✖')} [Error de Release] Tarea ${code} pertenece al release publicado v${rel.version}, pero su estado en el archivo es '${status}' (debe ser 'done').`);
               errorsFound++;
             }
           }
@@ -313,7 +326,7 @@ if (fs.existsSync(releasesJsonPath)) {
       }
     }
   } catch (e) {
-    console.error(`❌ [Error de Release] No se pudo leer o parsear '${releasesJsonPath}': ${e.message}`);
+    console.error(`  ${c.red('✖')} [Error de Release] No se pudo leer o parsear '${releasesJsonPath}': ${e.message}`);
     errorsFound++;
   }
 }
@@ -326,22 +339,22 @@ if (fs.existsSync(sprintJsonPath)) {
     if (Array.isArray(sprints)) {
       for (const sp of sprints) {
         if (!/^sprint-\d+$/.test(sp.id || '')) {
-          console.error(`❌ [Error de Sprint] Sprint "${sp.name}" tiene ID no canónico '${sp.id}' (debe seguir el patrón sprint-<n>).`);
+          console.error(`  ${c.red('✖')} [Error de Sprint] Sprint "${sp.name}" tiene ID no canónico '${sp.id}' (debe seguir el patrón sprint-<n>).`);
           errorsFound++;
         }
       }
     }
   } catch (e) {
-    console.error(`❌ [Error de Sprint] No se pudo leer o parsear '${sprintJsonPath}': ${e.message}`);
+    console.error(`  ${c.red('✖')} [Error de Sprint] No se pudo leer o parsear '${sprintJsonPath}': ${e.message}`);
     errorsFound++;
   }
 }
 
 
 if (errorsFound > 0) {
-  console.error('\n🛑 [gripm Commit Guard] El commit fue bloqueado para evitar desactualización del backlog.');
-  console.error(`   Se detectaron ${errorsFound} tarea(s) desfasadas respecto al código.`);
-  console.error('   💡 Para solucionarlo automáticamente ejecuta: npm run backlog:sync\n');
+  console.error(`\n  ${c.red('✖')} El commit fue bloqueado para evitar desactualización del backlog.`);
+  console.error(`    Se detectaron ${errorsFound} tarea(s) desfasadas respecto al código.`);
+  console.error(`    ${c.yellow('▲')} Para solucionarlo automáticamente ejecuta: npm run backlog:sync\n`);
   process.exit(1);
 }
 
@@ -371,7 +384,7 @@ try {
       }
 
       if (isAlreadySynced) {
-        console.log('📄 [Consolidado] BACKLOG.md ya se encuentra sincronizado (sin diffs artificiales de timestamp).');
+        console.log(`  ${c.green('✔')} BACKLOG.md ya se encuentra sincronizado (sin diffs artificiales de timestamp).`);
       } else {
         execSync(`node --experimental-strip-types "${exportScript}" export`, { cwd: currentRepoDir, stdio: 'inherit' });
       }
@@ -386,9 +399,9 @@ try {
 }
 
 if (fixedCount > 0) {
-  console.log(`✅ [gripm Guard] Se auto-reconciliaron ${fixedCount} tarea(s) correctamente.`);
+  console.log(`  ${c.green('✔')} Se auto-reconciliaron ${fixedCount} tarea(s) correctamente.`);
 } else {
-  console.log('✅ [gripm Guard] Backlog 100% sincronizado y coherente con el código.');
+  console.log(`  ${c.green('✔')} Backlog 100% sincronizado y coherente con el código.\n`);
 }
 
 process.exit(0);

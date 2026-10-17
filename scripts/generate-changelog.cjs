@@ -24,6 +24,19 @@ const ROOT = path.resolve(__dirname, '..');
 const RELEASES_PATH = path.join(ROOT, 'backlog', 'releases.json');
 const OUTPUT_PATH = path.join(ROOT, 'CHANGELOG.md');
 
+const isColorSupported =
+  !('NO_COLOR' in process.env) &&
+  (process.env.FORCE_COLOR === '1' || (process.stdout?.isTTY && process.env.TERM !== 'dumb'));
+
+const c = {
+  bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[22m` : s),
+  dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[22m` : s),
+  cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[39m` : s),
+  green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[39m` : s),
+  yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[39m` : s),
+  red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[39m` : s),
+};
+
 // Orden de presentación: más reciente primero.
 const semverCompare = (a, b) => {
   const pa = a.split('.').map(Number);
@@ -48,7 +61,7 @@ const normalizeMarkdown = (raw) => {
 
 function main() {
   if (!fs.existsSync(RELEASES_PATH)) {
-    console.error(`❌ No se encontró ${RELEASES_PATH}`);
+    console.error(`  ${c.red('✖')} No se encontró ${RELEASES_PATH}`);
     process.exit(1);
   }
 
@@ -56,12 +69,12 @@ function main() {
   try {
     releases = JSON.parse(fs.readFileSync(RELEASES_PATH, 'utf8'));
   } catch (err) {
-    console.error(`❌ releases.json no es JSON válido: ${err.message}`);
+    console.error(`  ${c.red('✖')} releases.json no es JSON válido: ${err.message}`);
     process.exit(1);
   }
 
   if (!Array.isArray(releases) || releases.length === 0) {
-    console.error('❌ releases.json no contiene releases.');
+    console.error(`  ${c.red('✖')} releases.json no contiene releases.`);
     process.exit(1);
   }
 
@@ -110,12 +123,12 @@ ${sections.join('\n\n---\n\n')}
 
   fs.writeFileSync(OUTPUT_PATH, output, 'utf8');
 
-  console.log('📝 [gripm] CHANGELOG.md regenerado desde releases.json');
-  console.log(`   Releases liberadas: ${released.length}`);
+  console.log(`\n  ${c.green('✔')} CHANGELOG.md regenerado desde releases.json`);
+  console.log(`    Releases liberadas: ${c.bold(String(released.length))}`);
   if (pending.length > 0) {
-    console.log(`   En preparación: ${pending.map((r) => r.version).join(', ')}`);
+    console.log(`    En preparación:     ${pending.map((r) => r.version).join(', ')}`);
   }
-  console.log(`   Archivo: ${path.relative(ROOT, OUTPUT_PATH)}`);
+  console.log(`    Archivo:            ${c.dim(path.relative(ROOT, OUTPUT_PATH))}\n`);
 }
 
 main();

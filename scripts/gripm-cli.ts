@@ -143,20 +143,33 @@ function loadTasks(project: any, options: { staged?: boolean } = {}): any[] {
   return BacklogService.listTasks(project, { includeDeleted: false });
 }
 
+const isColorSupported =
+  !('NO_COLOR' in process.env) &&
+  (process.env.FORCE_COLOR === '1' || (process.stdout?.isTTY && process.env.TERM !== 'dumb'));
+
+const c = {
+  bold: (s: string) => (isColorSupported ? `\x1b[1m${s}\x1b[22m` : s),
+  dim: (s: string) => (isColorSupported ? `\x1b[2m${s}\x1b[22m` : s),
+  cyan: (s: string) => (isColorSupported ? `\x1b[36m${s}\x1b[39m` : s),
+  green: (s: string) => (isColorSupported ? `\x1b[32m${s}\x1b[39m` : s),
+  yellow: (s: string) => (isColorSupported ? `\x1b[33m${s}\x1b[39m` : s),
+  red: (s: string) => (isColorSupported ? `\x1b[31m${s}\x1b[39m` : s),
+};
+
 function printUsage() {
   console.log(`
-📋 gripm CLI - Gestión, Auditoría y Mutaciones de Backlog
+  ${c.bold('gripm')} ${c.dim('·')} Gestión, Auditoría y Mutaciones de Backlog
 
-Uso:
+${c.bold('Uso:')}
   gripm [comando] [opciones]
   npm run tasks -- [opciones]
 
-Comandos / Modos:
+${c.bold('Comandos / Modos:')}
   list                 (Por defecto) Lista las tareas con filtros aplicados
   --stats              Muestra un panel consolidado de métricas y agrupación por prefijo
   --update-status <s>  Actualiza masivamente el estado de todas las tareas filtradas
 
-Filtros:
+${c.bold('Filtros:')}
   --open, -o           Muestra solo tareas abiertas (excluye done, dismissed, released)
   --prefix <prefijo>   Filtra por prefijo de código (ej: FEAT, BUG, DEV)
   --ids <id1,id2>      Filtra por lista explícita de IDs separados por coma
@@ -201,7 +214,7 @@ async function main() {
 
   const project = getProject(projectId);
   if (!project) {
-    console.error('❌ No se encontró ningún proyecto registrado en gripm.');
+    console.error(`  ${c.red('✖')} No se encontró ningún proyecto registrado en gripm.`);
     process.exit(1);
   }
 
@@ -233,7 +246,7 @@ async function main() {
             stdio: ['pipe', 'pipe', 'pipe']
           });
         } catch {
-          console.error('🛑 BACKLOG.md no está presente en el índice de Git (stage).');
+          console.error(`  ${c.red('✖')} BACKLOG.md no está presente en el índice de Git (stage).`);
           process.exit(1);
         }
       } else {
@@ -257,23 +270,23 @@ async function main() {
         }
 
         if (differingFiles.length > 0) {
-          console.error(`🛑 BACKLOG.md ${isStaged ? 'en el índice de Git' : ''} no coincide con el estado de las tareas:`);
-          differingFiles.slice(0, 5).forEach(f => console.error(`   - ${f}`));
+          console.error(`  ${c.red('✖')} BACKLOG.md ${isStaged ? 'en el índice de Git ' : ''}no coincide con el estado de las tareas:`);
+          differingFiles.slice(0, 5).forEach(f => console.error(`    ${c.dim('•')} ${f}`));
           if (differingFiles.length > 5) {
-            console.error(`   ... y ${differingFiles.length - 5} tarea(s) más.`);
+            console.error(`    ${c.dim('...')} y ${differingFiles.length - 5} tarea(s) más.`);
           }
-          console.error(`   👉 Acción requerida: Regenera BACKLOG.md ${isStaged ? 'desde el índice y stagealo' : 'con npm run backlog:sync'}.\n`);
+          console.error(`    ${c.yellow('▲')} Acción requerida: Regenera BACKLOG.md ${isStaged ? 'desde el índice y stagealo' : 'con npm run backlog:sync'}.\n`);
         } else {
-          console.error(`🛑 BACKLOG.md ${isStaged ? 'en el índice de Git' : ''} está desactualizado respecto a las tareas en backlog/tasks/. Ejecuta: npm run backlog:sync`);
+          console.error(`  ${c.red('✖')} BACKLOG.md ${isStaged ? 'en el índice de Git ' : ''}está desactualizado respecto a las tareas en backlog/tasks/. Ejecuta: npm run backlog:sync`);
         }
         process.exit(1);
       }
-      console.log(`📄 [Consolidado] BACKLOG.md ${isStaged ? '(índice Git) ' : ''}100% sincronizado (modo solo lectura).`);
+      console.log(`  ${c.green('✔')} BACKLOG.md ${isStaged ? '(índice Git) ' : ''}100% sincronizado (modo solo lectura).`);
       return;
     }
 
     atomicWriteFileSync(exportPath, md, 'utf8');
-    console.log(`📄 Backlog consolidado exportado exitosamente a: ${exportPath}`);
+    console.log(`  ${c.green('✔')} Backlog consolidado exportado exitosamente a: ${exportPath}`);
     return;
   }
 
@@ -318,23 +331,22 @@ async function main() {
       return;
     }
 
-    console.log(`\n📊 Dashboard de Métricas: ${project.name} [${project.storageType.toUpperCase()}]`);
-    console.log(`══════════════════════════════════════════════════════════════`);
-    console.log(`  Total Ítems:       ${total}`);
-    console.log(`  Abiertos:          ${openCount} (${total > 0 ? Math.round((openCount / total) * 100) : 0}%)`);
-    console.log(`  Terminados:        ${doneCount} (${completionRate}%)`);
-    console.log(`  Tasa de Avance:    [${'█'.repeat(Math.round(completionRate / 5))}${'░'.repeat(20 - Math.round(completionRate / 5))}] ${completionRate}%`);
+    console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Métricas de Backlog: ${c.bold(project.name)} ${c.dim(`[${project.storageType.toUpperCase()}]`)}\n`);
+    console.log(`  Total Ítems:       ${c.bold(String(total))}`);
+    console.log(`  Abiertos:          ${openCount} ${c.dim(`(${total > 0 ? Math.round((openCount / total) * 100) : 0}%)`)}`);
+    console.log(`  Terminados:        ${doneCount} ${c.dim(`(${completionRate}%)`)}`);
+    console.log(`  Tasa de Avance:    [${c.green('█'.repeat(Math.round(completionRate / 5)))}${c.dim('░'.repeat(20 - Math.round(completionRate / 5)))}] ${completionRate}%\n`);
 
-    console.log(`\n📌 Por Estado:`);
+    console.log(`  ${c.bold('Por Estado:')}`);
     for (const [st, cnt] of Object.entries(byStatus)) {
-      console.log(`  • ${st.padEnd(12, ' ')} : ${cnt}`);
+      console.log(`    ${c.dim('•')} ${st.padEnd(12, ' ')} : ${cnt}`);
     }
 
-    console.log(`\n🏷️ Agrupación por Prefijo de Tarea:`);
-    console.log(`  Prefijo          Total      Abiertas   Terminadas`);
-    console.log(`  ───────────────  ─────────  ─────────  ──────────`);
+    console.log(`\n  ${c.bold('Agrupación por Prefijo de Tarea:')}`);
+    console.log(`    Prefijo          Total      Abiertas   Terminadas`);
+    console.log(`    ${c.dim('───────────────  ─────────  ─────────  ──────────')}`);
     for (const [pfx, data] of Object.entries(byPrefix)) {
-      console.log(`  ${pfx.padEnd(15, ' ')}  ${String(data.total).padEnd(9, ' ')}  ${String(data.open).padEnd(9, ' ')}  ${data.done}`);
+      console.log(`    ${pfx.padEnd(15, ' ')}  ${String(data.total).padEnd(9, ' ')}  ${String(data.open).padEnd(9, ' ')}  ${data.done}`);
     }
     console.log('');
     return;
@@ -390,7 +402,7 @@ async function main() {
     const newStatus = normalizeStatus(updateStatus);
 
     if (tasks.length === 0) {
-      console.log('⚠️ No hay tareas que coincidan con los filtros para actualizar.');
+      console.log(`  ${c.yellow('▲')} No hay tareas que coincidan con los filtros para actualizar.`);
       return;
     }
 
@@ -406,12 +418,12 @@ async function main() {
       );
 
       if (res.warning) {
-        console.warn(`\n⚠️  ${res.warning}`);
+        console.warn(`\n  ${c.yellow('▲')} ${res.warning}`);
       }
 
-      console.log(`\n✔ Actualización masiva completada: ${res.updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
+      console.log(`\n  ${c.green('✔')} Actualización masiva completada: ${res.updatedCount} tareas pasadas a estado '${newStatus}'.\n`);
     } catch (err: any) {
-      console.error(`\n❌ Error al actualizar tareas: ${err.message}\n`);
+      console.error(`\n  ${c.red('✖')} Error al actualizar tareas: ${err.message}\n`);
       process.exit(1);
     }
     return;
@@ -430,7 +442,7 @@ async function main() {
     return;
   }
 
-  console.log(`\n  Backlog: ${project.name} (${project.storageType.toUpperCase()})`);
+  console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Backlog: ${project.name} ${c.dim(`(${project.storageType.toUpperCase()})`)}`);
   console.log(`  Mostrando ${sliced.length} de ${totalFiltered} tareas ${openOnly ? 'abiertas' : ''}:\n`);
 
   if (sliced.length === 0) {
@@ -444,7 +456,7 @@ async function main() {
       ? ` [${acList.filter((ac: any) => ac.checked).length}/${acList.length} AC]` 
       : '';
     const sprintTag = t.milestone || t.targetSprint ? ` <${t.milestone || t.targetSprint}>` : '';
-    const statusMarker = t.status === 'doing' ? '●' : t.status === 'review' ? '◐' : t.status === 'ready' ? '◎' : t.status === 'done' ? '✔' : '○';
+    const statusMarker = t.status === 'doing' ? c.cyan('●') : t.status === 'review' ? c.yellow('◐') : t.status === 'ready' ? c.green('◎') : t.status === 'done' ? c.green('✔') : c.dim('○');
 
     console.log(`  ${String(i + 1).padStart(2, ' ')}. ${statusMarker} [${t.code || t.id}] (${t.status.toUpperCase()} / ${t.priority})${sprintTag} - ${t.title}${acProgress}`);
   });
@@ -456,6 +468,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Error:', err.message);
+  console.error(`  ${c.red('✖')} Error:`, err.message);
   process.exit(1);
 });

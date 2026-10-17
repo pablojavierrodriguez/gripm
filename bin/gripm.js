@@ -176,6 +176,7 @@ async function main() {
     '--language', '--lang',
     '--branch', '-b',
     '--remote',
+    '--source', '--from',
     '--file', '-f',
     '--prefix'
   ]);
@@ -252,6 +253,8 @@ async function main() {
     const branch = branchIdx !== -1 ? args[branchIdx + 1] : undefined;
     const remoteIdx = args.findIndex(a => a === '--remote');
     const remote = remoteIdx !== -1 ? args[remoteIdx + 1] : undefined;
+    const sourceIdx = args.findIndex(a => a === '--source' || a === '--from');
+    const source = sourceIdx !== -1 ? args[sourceIdx + 1] : undefined;
     const dryRun = args.includes('--dry-run');
     const force = args.includes('--force');
 
@@ -261,7 +264,7 @@ async function main() {
       targetRepo = path.resolve(args[repoIdx + 1]);
     }
 
-    await runPlaybookSync(targetRepo, { branch, remote, dryRun, force });
+    await runPlaybookSync(targetRepo, { branch, remote, source, dryRun, force });
     return;
   }
 
@@ -404,10 +407,10 @@ async function main() {
     const crypto = await import('node:crypto');
     const token = process.env.GRIPM_TOKEN || crypto.randomBytes(16).toString('hex');
     process.env.GRIPM_TOKEN = token;
-    console.warn('⚠️  ADVERTENCIA DE SEGURIDAD: Enlazando a 0.0.0.0 (red local).');
-    console.log(`🔑 Token de autenticación efímero: ${token}`);
-    console.log(`🌐 Acceso local seguro: http://localhost:4100/`);
-    console.log(`📱 Acceso LAN con token: http://<IP-LAN>:4100/?token=${token}\n`);
+    console.warn(`\n  ${c.yellow('▲')}  ${c.yellow('Advertencia de seguridad: Enlazando a 0.0.0.0 (red local).')}`);
+    console.log(`  ${c.dim('➜')}  ${c.dim('Token de acceso:')}  ${token}`);
+    console.log(`  ${c.dim('➜')}  ${c.dim('Acceso local:')}    ${c.cyan('http://localhost:4100/')}`);
+    console.log(`  ${c.dim('➜')}  ${c.dim('Acceso en LAN:')}    ${c.cyan(`http://<IP-LAN>:4100/?token=${token}`)}\n`);
   }
 
   let targetRepo = process.cwd();

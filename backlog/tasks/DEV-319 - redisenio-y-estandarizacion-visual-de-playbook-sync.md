@@ -1,8 +1,7 @@
 ---
 id: DEV-319
 title: "Rediseño y estandarización visual de interfaz CLI en sync-playbook"
-status: doing
-claimed_by: "antigravity:80a7372b-a537-48df-a1c4-8385724b0a1f"
+status: ready
 created_date: '2026-10-17'
 updated_date: '2026-10-17'
 labels:
@@ -30,12 +29,12 @@ Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-pl
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
-- [ ] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
-- [ ] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
-- [ ] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
-- [ ] #5 Salida ANSI respeta NO_COLOR y TTY
-- [ ] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
+- [x] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
+- [x] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
+- [x] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
+- [x] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
+- [x] #5 Salida ANSI respeta NO_COLOR y TTY
+- [x] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -43,4 +42,6 @@ Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-pl
 <!-- SECTION:NOTES:BEGIN -->
 - Sigue la misma directiva y paleta semántica aplicada en `bin/gripm.js`, `scripts/initScaffold.js` y `scripts/uninstall.js` (DEV-252).
 - Garantiza alineación visual exacta tanto en terminales Unix como en Windows Terminal y PowerShell.
+- `listStacks` actualizado para admitir `sourceDir` en entornos locales u offline sin depender de la red externa.
+- `bin/gripm.js` extendido con soporte para `--source` / `--from` en el subcomando `gripm playbook sync`.
 <!-- SECTION:NOTES:END -->

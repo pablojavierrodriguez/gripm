@@ -28,6 +28,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+const isColorSupported =
+  !('NO_COLOR' in process.env) &&
+  (process.env.FORCE_COLOR === '1' || (process.stdout?.isTTY && process.env.TERM !== 'dumb'));
+
+const c = {
+  bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[22m` : s),
+  dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[22m` : s),
+  cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[39m` : s),
+  green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[39m` : s),
+  yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[39m` : s),
+  red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[39m` : s),
+};
+
 const STEPS = [
   ['parser', 'scripts/test-parser.js'],
   ['integration', 'scripts/verify-integration.js'],
@@ -58,7 +71,7 @@ let TIMEOUT_SECONDS = DEFAULT_TIMEOUT_SECONDS;
 if (timeoutArg !== -1) {
   const val = Number(args[timeoutArg + 1]);
   if (!Number.isFinite(val) || val <= 0) {
-    console.error(`❌ Valor inválido para --timeout: "${args[timeoutArg + 1]}". Debe ser un número de segundos positivo.`);
+    console.error(`  ${c.red('✖')} Valor inválido para --timeout: "${args[timeoutArg + 1]}". Debe ser un número de segundos positivo.`);
     process.exit(1);
   }
   TIMEOUT_SECONDS = val;
@@ -150,7 +163,7 @@ const runStep = ([name, script]) =>
       timedOut = true;
       child.kill('SIGKILL');
       console.error(
-        `\n⛔ ${name}: superó ${TIMEOUT_SECONDS}s y SIGKILL no lo detuvo. ` +
+        `\n  ${c.red('✖')} ${name}: superó ${TIMEOUT_SECONDS}s y SIGKILL no lo detuvo. ` +
           'El watchdog deberia haber reportado los handles.',
       );
     }, (TIMEOUT_SECONDS + 30) * 1000);
@@ -172,7 +185,7 @@ for (const step of STEPS) {
     continue;
   }
 
-  process.stdout.write(`\n▶ ${step[0]}\n`);
+  process.stdout.write(`\n  ${c.cyan('➜')} ${c.bold(step[0])}\n`);
   const result = await runStep(step);
   results.push(result);
 
@@ -189,19 +202,17 @@ for (const step of STEPS) {
 const ran = results.filter((r) => !r.skipped);
 const totalMs = ran.reduce((sum, r) => sum + r.ms, 0);
 
-console.log('\n─────────────────────────────────────────────────────────');
-console.log('Verificación por paso');
-console.log('─────────────────────────────────────────────────────────');
+console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Verificación por paso\n`);
 for (const r of [...ran].sort((a, b) => b.ms - a.ms)) {
-  const status = r.timedOut ? '⛔ TIMEOUT' : r.code === 0 ? '✅' : '❌';
-  console.log(`  ${status} ${r.name.padEnd(22)} ${String(r.ms).padStart(6)}ms  ${r.script}`);
+  const status = r.timedOut ? c.red('▲ TIMEOUT') : r.code === 0 ? c.green('✔') : c.red('✖');
+  console.log(`  ${status}  ${r.name.padEnd(24)} ${c.bold(String(r.ms).padStart(6) + 'ms')}  ${c.dim(r.script)}`);
 }
-console.log('─────────────────────────────────────────────────────────');
+console.log(`\n  ${c.dim('─'.repeat(55))}`);
 console.log(`  ${ran.length} pasos · ${(totalMs / 1000).toFixed(1)}s en total`);
 if (failed) {
-  console.log(`  ⛔ falló: ${failed.name}${failed.timedOut ? ' (timeout)' : ''}`);
+  console.log(`  ${c.red('✖')} falló: ${failed.name}${failed.timedOut ? ' (timeout)' : ''}`);
 }
-console.log('─────────────────────────────────────────────────────────');
+console.log(`  ${c.dim('─'.repeat(55))}\n`);
 
 if (failed) {
   process.exit(failed.timedOut ? 124 : failed.code ?? 1);

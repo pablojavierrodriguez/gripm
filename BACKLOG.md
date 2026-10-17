@@ -85,29 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### ⚡ In Progress / Doing (1)
-
-#### [DEV-319] Rediseño y estandarización visual de interfaz CLI en sync-playbook
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-playbook.mjs`) adoptando la directiva de diseño de interfaz CLI establecida en DEV-252 (estándares clig.dev, Vite, Next.js):
-1. Erradicar la caja rígida cerrada Unicode (`┌─┐`, `│`, `└─┘`) en el banner de arranque a favor de un formato abierto con sangría consistente y punteros sobrios (`➜`).
-2. Eliminar la saturación de emojis decorativos ("emoji soup": `🛡️`, `➖`, `✨`, `🔄`, `🧩`, `🔏`, `📊`) sustituyéndolos por glifos mono-ancho (`•`, `▲`, `✔`, `✖`) con etiquetas de ancho fijo (`padEnd(10)`) que alinean los nombres de archivo exactamente en la misma columna.
-3. Formatear el bloque de resumen (`Summary`) con jerarquía limpia sin emojis decorativos y sangría consistente.
-4. Reemplazar guiones largos artificiales (em-dash) por el guión simple estándar con espacios (` - `) en cumplimiento de la Regla 25.
-5. Preservar el soporte semántico de colores ANSI respetando entornos `NO_COLOR` y terminales no interactivas (no-TTY).
-
-**Criterios de Aceptación:**
-- [ ] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
-- [ ] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
-- [ ] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
-- [ ] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
-- [ ] #5 Salida ANSI respeta NO_COLOR y TTY
-- [ ] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
-
----
-
-### 🚀 Ready for Deploy (3)
+### 🚀 Ready for Deploy (5)
 
 #### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
 - **Prioridad**: `medium` | **Tipo**: `tech_debt`
@@ -187,6 +165,51 @@ El sistema de verificación de actualizaciones (`scripts/updateChecker.js`) noti
 - [x] #3 AC #3: `bin/gripm.js` y `scripts/mcp-server.ts` actualizan el banner en vivo si la comprobación asíncrona descubre una versión superior a la que existía en el caché.
 - [x] #4 AC #4: Pruebas automatizadas en `scripts/verify-integration.js` validan la consulta simulada, la invalidación de caché y las comparaciones semver.
 - [x] #5 AC #5: Pirámide de verificación en verde (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run build`).
+
+---
+
+#### [DEV-319] Rediseño y estandarización visual de interfaz CLI en sync-playbook
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-playbook.mjs`) adoptando la directiva de diseño de interfaz CLI establecida en DEV-252 (estándares clig.dev, Vite, Next.js):
+1. Erradicar la caja rígida cerrada Unicode (`┌─┐`, `│`, `└─┘`) en el banner de arranque a favor de un formato abierto con sangría consistente y punteros sobrios (`➜`).
+2. Eliminar la saturación de emojis decorativos ("emoji soup": `🛡️`, `➖`, `✨`, `🔄`, `🧩`, `🔏`, `📊`) sustituyéndolos por glifos mono-ancho (`•`, `▲`, `✔`, `✖`) con etiquetas de ancho fijo (`padEnd(10)`) que alinean los nombres de archivo exactamente en la misma columna.
+3. Formatear el bloque de resumen (`Summary`) con jerarquía limpia sin emojis decorativos y sangría consistente.
+4. Reemplazar guiones largos artificiales (em-dash) por el guión simple estándar con espacios (` - `) en cumplimiento de la Regla 25.
+5. Preservar el soporte semántico de colores ANSI respetando entornos `NO_COLOR` y terminales no interactivas (no-TTY).
+
+**Criterios de Aceptación:**
+- [x] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
+- [x] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
+- [x] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
+- [x] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
+- [x] #5 Salida ANSI respeta NO_COLOR y TTY
+- [x] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
+
+---
+
+#### [DEV-320] Estandarización visual integral de la interfaz CLI, guards y herramientas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Completar la homogeneización visual absoluta de la interfaz de terminal (CLI), guards y scripts de soporte en todo el ecosistema de gripm según los estándares modernos de DEV-252 (clig.dev, Vite, Next.js):
+1. **bin/gripm.js:** Modernizar el bloque de advertencia y tokens efímeros de red local (--host 0.0.0.0), sustituyendo emojis por punteros sobrios (➜) y glifo de advertencia (▲).
+2. **scripts/gripm-cli.ts:** Rediseñar el dashboard de métricas (--stats), eliminando emojis decorativos y bordes dobles a favor de una estructura abierta con sangría uniforme y colores ANSI semánticos. Limpiar mensajes de export y check.
+3. **scripts/gate-qa.mjs:** Erradicar cajas rígidas (=== / ---) y emojis en el auditor ejecutable de QA a favor de encabezado abierto estilo gripm, lista alineada y veredictos con ✔ y ✖.
+4. **scripts/audit-ux-code.cjs:** Modernizar encabezado y reporte humano de auditoría estática de UX, erradicando cajas de signos de igual.
+5. **scripts/verify-backlog-sync.js:** Limpiar prefijos redundantes entre corchetes ([gripm Guard], [Consolidado]) y emojis (🔍, 📄, 🛑, ✅) a favor de mensajes atómicos y sobrios.
+6. **scripts/verify-publish-surface.js:** Eliminar corchetes y emojis festivos (🎉, 📦), adoptando checks mono-ancho consistentes.
+7. **scripts/generate-changelog.cjs:** Estandarizar la salida de regeneración de changelog.
+8. **scripts/run-tests.js:** Sustituir emojis ✅ y ❌ por ✔ y ✖ en el resumen secuencial de la suite de pruebas.
+9. **Paridad con Playbook:** Reflejar las mejoras correspondientes en las herramientas de gripm-playbook.
+
+**Criterios de Aceptación:**
+- [x] #1 Modernizada la advertencia de red LAN en bin/gripm.js (--host 0.0.0.0) sin emojis decorativos
+- [x] #2 Rediseñado el dashboard de métricas y mensajes en scripts/gripm-cli.ts bajo la jerarquía abierta estándar
+- [x] #3 Modernizada la salida de scripts/gate-qa.mjs con encabezado abierto, punteros ➜ y glifos mono-ancho
+- [x] #4 Limpiado el reporte de auditoría en scripts/audit-ux-code.cjs sin recuadros de signos =
+- [x] #5 Estandarizadas las salidas de guards (verify-backlog-sync.js, verify-publish-surface.js, generate-changelog.cjs, run-tests.js)
+- [x] #6 Cero em-dashes y soporte total de NO_COLOR en todas las herramientas intervenidas
+- [x] #7 Sincronización en gripm-playbook y Pirámide de Verificación completa en verde
 
 ---
 
