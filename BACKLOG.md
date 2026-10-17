@@ -85,7 +85,86 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### ⚡ In Progress / Doing (1)
+
+#### [DEV-319] Rediseño y estandarización visual de interfaz CLI en sync-playbook
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Rediseñar la salida en terminal del sincronizador de Playbook (`scripts/sync-playbook.mjs`) adoptando la directiva de diseño de interfaz CLI establecida en DEV-252 (estándares clig.dev, Vite, Next.js):
+1. Erradicar la caja rígida cerrada Unicode (`┌─┐`, `│`, `└─┘`) en el banner de arranque a favor de un formato abierto con sangría consistente y punteros sobrios (`➜`).
+2. Eliminar la saturación de emojis decorativos ("emoji soup": `🛡️`, `➖`, `✨`, `🔄`, `🧩`, `🔏`, `📊`) sustituyéndolos por glifos mono-ancho (`•`, `▲`, `✔`, `✖`) con etiquetas de ancho fijo (`padEnd(10)`) que alinean los nombres de archivo exactamente en la misma columna.
+3. Formatear el bloque de resumen (`Summary`) con jerarquía limpia sin emojis decorativos y sangría consistente.
+4. Reemplazar guiones largos artificiales (em-dash) por el guión simple estándar con espacios (` - `) en cumplimiento de la Regla 25.
+5. Preservar el soporte semántico de colores ANSI respetando entornos `NO_COLOR` y terminales no interactivas (no-TTY).
+
+**Criterios de Aceptación:**
+- [ ] #1 Erradicada la caja Unicode cerrada en printBanner a favor de un encabezado limpio y abierto con punteros ➜
+- [ ] #2 Reemplazada la sopa de emojis en las líneas de estado por glifos mono-ancho y etiquetas alineadas a 10 caracteres
+- [ ] #3 Bloque de resumen formateado limpiamente sin emoji de gráfico y con sangría consistente
+- [ ] #4 Erradicado el uso de guiones largos (em-dash) en notas de estado y descripciones
+- [ ] #5 Salida ANSI respeta NO_COLOR y TTY
+- [ ] #6 Sincronizados los cambios en gripm y gripm-playbook manteniendo la suite de pruebas y pirámide de verificación en verde
+
+---
+
+### 🚀 Ready for Deploy (3)
+
+#### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Actualización y sincronización exhaustiva de la documentación técnica de arquitectura, registro formal de ADRs pendientes, resolución de contradicciones normativas en `AGENTS.md` y reparación de las herramientas de integración del framework Gripm Playbook (`gate-qa.mjs`, `sync-playbook.mjs`, `.playbook-lock.json`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **`docs/ARCHITECTURE.md` Desfasado:**
+   - Afirma que el backend corre dentro de `vite.config.ts` (desacoplado a `server/` en `v1.1.0` y servido por servidor HTTP nativo en `DEV-290`).
+   - Describe un servidor inexistente llamado `"CodeGraph MCP"` (`lines 99-108`) que nunca formó parte del repositorio.
+   - Omite componentes y módulos actuales de primera clase: `TimelineView` (Roadmap), `MetricsView` (Analytics), `universalImporter`, `atomicWrite.ts`, etc.
+2. **Desincronización de Registros de Arquitectura (`docs/adr/`):**
+   - `docs/adr/0002-backend-embebido-como-plugin-de-vite.md` sigue figurando con estado `Aceptado`. Tras `DEV-290`, el servidor de producción es un ejecutable HTTP nativo desacoplado de Vite. Falta marcar `ADR-0002` como `Reemplazado` y formalizar `ADR-0006`.
+3. **Contradicción Normativa en `AGENTS.md`:**
+   - Gotcha 12 y `ADR-0005:53` exigen usar `text-[11px]` en advertencias y confirmaciones.
+   - Gotcha 21 (`UX-011`) prohíbe terminantemente usar `text-[11px]` en cualquier componente de UI.
+4. **Herramientas de Playbook Desalineadas:**
+   - `scripts/gate-qa.mjs` busca scripts inexistentes en `package.json` (`validate`, `gate:review`, `audit:ux:strict`), fallando con código 1 en downstream projects.
+   - `scripts/sync-playbook.mjs` crashea con `TypeError: pack is not iterable` al usar `--stack` o `--list-stacks` porque `.playbook-manifest.json` define cada stack como un objeto `{ description, files }` en vez de array.
+   - `npm run playbook:check` falla con exit code 1 en modo `--dry-run` por la presencia de archivos modificados legítimamente en `lock.customizations`.
+   - `.playbook-lock.json:3` contiene commiteada una ruta local absoluta (`C:\Users\Pablo\...`).
+5. **Prefijos Heterogéneos en Tareas:**
+   - 101 archivos históricos (`dev-001` a `dev-101`) preservan el prefijo en minúscula `dev-` en su nombre de archivo en disco mientras su YAML frontmatter declara `DEV-XXX`.
+
+### Solución Arquitectónica Profunda:
+
+- **Reescritura de `docs/ARCHITECTURE.md`:** Reflejar con precisión milimétrica la arquitectura actual del producto (servidor HTTP nativo en `bin/gripm.js`, capa `server/`, standalone MCP, módulos de Timeline/Metrics y adaptadores Sandbox).
+- **Formalización de ADR-0006:** Registrar la arquitectura de servidor estático desacoplado de Vite para producción y marcar `ADR-0002` como `Reemplazado`.
+- **Resolución Normativa:** Alinear `AGENTS.md` Gotcha 12 y `ADR-0005` al token estándar `text-xs`.
+- **Adaptabilidad de `gate-qa.mjs` y `sync-playbook.mjs`:**
+  - Hacer que `gate-qa.mjs` detecte dinámicamente los scripts de verificación disponibles en el `package.json` del host (`tsc`, `test`, `backlog:check`, `audit:ux`, `publish:check`, `build`).
+  - Normalizar `const packFiles = Array.isArray(pack) ? pack : (pack?.files ?? []);` en `sync-playbook.mjs` y no salir con código 1 en `--dry-run` ante archivos en `customizations`.
+  - Sanitizar `.playbook-lock.json` usando ruta relativa `../gripm-playbook`.
+- **Normalización de Tareas:** Estandarizar los 101 nombres de archivo a mayúsculas canónicas `DEV-XXX`.
+
+**Criterios de Aceptación:**
+- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
+- [x] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
+- [x] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
+- [x] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
+- [x] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
+- [x] #6 `.playbook-lock.json` no contiene rutas locales absolutas
+- [x] #7 Descartado por instrucción explícita del PO: preservación de nombres de archivo históricos pre-v1 sin churn innecesario de disco
+
+---
+
+#### [DEV-316] Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura
+- **Prioridad**: `low` | **Tipo**: `debt`
+**Criterios de Aceptación:**
+- [x] #1 Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
+- [x] #2 Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
+- [x] #3 Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
+- [x] #4 Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
+- [x] #5 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
+
+---
 
 #### [DEV-318] Verificador de actualizaciones: consulta directa a npm Registry, ajuste de TTL y resiliencia de caché
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -111,7 +190,7 @@ El sistema de verificación de actualizaciones (`scripts/updateChecker.js`) noti
 
 ---
 
-### 📋 Backlog / Draft (28)
+### 📋 Backlog / Draft (26)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -654,52 +733,6 @@ Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestió
 
 ---
 
-#### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Actualización y sincronización exhaustiva de la documentación técnica de arquitectura, registro formal de ADRs pendientes, resolución de contradicciones normativas en `AGENTS.md` y reparación de las herramientas de integración del framework Gripm Playbook (`gate-qa.mjs`, `sync-playbook.mjs`, `.playbook-lock.json`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **`docs/ARCHITECTURE.md` Desfasado:**
-   - Afirma que el backend corre dentro de `vite.config.ts` (desacoplado a `server/` en `v1.1.0` y servido por servidor HTTP nativo en `DEV-290`).
-   - Describe un servidor inexistente llamado `"CodeGraph MCP"` (`lines 99-108`) que nunca formó parte del repositorio.
-   - Omite componentes y módulos actuales de primera clase: `TimelineView` (Roadmap), `MetricsView` (Analytics), `universalImporter`, `atomicWrite.ts`, etc.
-2. **Desincronización de Registros de Arquitectura (`docs/adr/`):**
-   - `docs/adr/0002-backend-embebido-como-plugin-de-vite.md` sigue figurando con estado `Aceptado`. Tras `DEV-290`, el servidor de producción es un ejecutable HTTP nativo desacoplado de Vite. Falta marcar `ADR-0002` como `Reemplazado` y formalizar `ADR-0006`.
-3. **Contradicción Normativa en `AGENTS.md`:**
-   - Gotcha 12 y `ADR-0005:53` exigen usar `text-[11px]` en advertencias y confirmaciones.
-   - Gotcha 21 (`UX-011`) prohíbe terminantemente usar `text-[11px]` en cualquier componente de UI.
-4. **Herramientas de Playbook Desalineadas:**
-   - `scripts/gate-qa.mjs` busca scripts inexistentes en `package.json` (`validate`, `gate:review`, `audit:ux:strict`), fallando con código 1 en downstream projects.
-   - `scripts/sync-playbook.mjs` crashea con `TypeError: pack is not iterable` al usar `--stack` o `--list-stacks` porque `.playbook-manifest.json` define cada stack como un objeto `{ description, files }` en vez de array.
-   - `npm run playbook:check` falla con exit code 1 en modo `--dry-run` por la presencia de archivos modificados legítimamente en `lock.customizations`.
-   - `.playbook-lock.json:3` contiene commiteada una ruta local absoluta (`C:\Users\Pablo\...`).
-5. **Prefijos Heterogéneos en Tareas:**
-   - 101 archivos históricos (`dev-001` a `dev-101`) preservan el prefijo en minúscula `dev-` en su nombre de archivo en disco mientras su YAML frontmatter declara `DEV-XXX`.
-
-### Solución Arquitectónica Profunda:
-
-- **Reescritura de `docs/ARCHITECTURE.md`:** Reflejar con precisión milimétrica la arquitectura actual del producto (servidor HTTP nativo en `bin/gripm.js`, capa `server/`, standalone MCP, módulos de Timeline/Metrics y adaptadores Sandbox).
-- **Formalización de ADR-0006:** Registrar la arquitectura de servidor estático desacoplado de Vite para producción y marcar `ADR-0002` como `Reemplazado`.
-- **Resolución Normativa:** Alinear `AGENTS.md` Gotcha 12 y `ADR-0005` al token estándar `text-xs`.
-- **Adaptabilidad de `gate-qa.mjs` y `sync-playbook.mjs`:**
-  - Hacer que `gate-qa.mjs` detecte dinámicamente los scripts de verificación disponibles en el `package.json` del host (`tsc`, `test`, `backlog:check`, `audit:ux`, `publish:check`, `build`).
-  - Normalizar `const packFiles = Array.isArray(pack) ? pack : (pack?.files ?? []);` en `sync-playbook.mjs` y no salir con código 1 en `--dry-run` ante archivos en `customizations`.
-  - Sanitizar `.playbook-lock.json` usando ruta relativa `../gripm-playbook`.
-- **Normalización de Tareas:** Estandarizar los 101 nombres de archivo a mayúsculas canónicas `DEV-XXX`.
-
-**Criterios de Aceptación:**
-- [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
-- [ ] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
-- [ ] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
-- [ ] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
-- [ ] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
-- [ ] #6 `.playbook-lock.json` no contiene rutas locales absolutas
-- [ ] #7 Los nombres de archivo de tareas con prefijo en minúscula (`dev-XXX`) se normalizan al formato canónico `DEV-XXX`
-
----
-
 #### [DEV-307] Packaging de Producción Limpio: Adelgazamiento del Tarball npm y Exclusión de Fuentes
 - **Prioridad**: `medium` | **Tipo**: `tech_debt`
 
@@ -877,17 +910,6 @@ Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `
 - [ ] #4 Auditar y corregir las excepciones de UI listadas en `tests/audit-ux-baseline.json`.
 - [ ] #5 Verificar que no se introducen regresiones funcionales ni visuales en la navegación, atajos ni modales.
 - [ ] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run test:ui`) pasa con 0 errores.
-
----
-
-#### [DEV-316] Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura
-- **Prioridad**: `low` | **Tipo**: `debt`
-**Criterios de Aceptación:**
-- [ ] #1 Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
-- [ ] #2 Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
-- [ ] #3 Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
-- [ ] #4 Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
-- [ ] #5 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
 
 ---
 
@@ -1993,7 +2015,7 @@ Evolución integral del sistema de filtrado de DevBoard hacia un modelo limpio, 
 
 ---
 
-#### [DEV-068] Fix: devboard_list_tasks — Filtro por Sprint Retorna Todos los Tasks
+#### [DEV-068] Fix: devboard_list_tasks - Filtro por Sprint Retorna Todos los Tasks
 - **Prioridad**: `medium` | **Tipo**: `bug`
 - **Sprint / Milestone**: 0.4.0
 
@@ -2012,7 +2034,7 @@ El filtro `{ "sprint": "Sprint 3" }` en `devboard_list_tasks` no filtra por spri
 
 ---
 
-#### [DEV-069] Fix: devboard_update_task — Ignorar status dentro del objeto updates silenciosamente
+#### [DEV-069] Fix: devboard_update_task - Ignorar status dentro del objeto updates silenciosamente
 - **Prioridad**: `high` | **Tipo**: `bug`
 - **Sprint / Milestone**: 0.4.0
 
@@ -2030,7 +2052,7 @@ Esto genera un bug silencioso muy difícil de detectar: el agente cree que actua
 
 ---
 
-#### [DEV-070] Feature: Retro Automática al Cerrar Sprint — Template y Checklist Integrado
+#### [DEV-070] Feature: Retro Automática al Cerrar Sprint - Template y Checklist Integrado
 - **Prioridad**: `medium` | **Tipo**: `feature`
 - **Sprint / Milestone**: 0.4.0
 
@@ -2463,7 +2485,7 @@ Causa raíz:
 - **Prioridad**: `high` | **Tipo**: `bug`
 - **Sprint / Milestone**: 0.5.0
 
-Al crear o leer tareas pertenecientes a un sprint (como Sprint 5), se producía una sobrecarga semántica ("label smuggling") donde el valor del sprint se propagaba indebidamente a las propiedades `milestone` y `release`. Esto provocaba que en la UI (tablas de `SprintView`, badges de `ItemCard` y selectores de `ItemModal`) apareciera una versión falsa `vSprint 5` / `vSprint5` como si fuera un release oficial, en lugar de dejar la versión vacía (`—`) hasta que el usuario decida formalmente en qué versión se liberará la tarea.
+Al crear o leer tareas pertenecientes a un sprint (como Sprint 5), se producía una sobrecarga semántica ("label smuggling") donde el valor del sprint se propagaba indebidamente a las propiedades `milestone` y `release`. Esto provocaba que en la UI (tablas de `SprintView`, badges de `ItemCard` y selectores de `ItemModal`) apareciera una versión falsa `vSprint 5` / `vSprint5` como si fuera un release oficial, en lugar de dejar la versión vacía (` - `) hasta que el usuario decida formalmente en qué versión se liberará la tarea.
 
 Causa raíz:
 1. En `backlog/tasks/dev-096*.md` y `dev-097*.md`, el agente escribió `milestone: "Sprint 5"` en el frontmatter, violando la ortogonalidad entre Sprint y Release.
@@ -2473,7 +2495,7 @@ Causa raíz:
 **Criterios de Aceptación:**
 - [x] #1 Corregir `vite.config.ts` eliminando cualquier fallback de `sprintVal` a `milestone` o `releaseVal`, y garantizando que valores que contengan "sprint" nunca sean interpretados ni guardados como versiones de release.
 - [x] #2 Limpiar `milestone: "Sprint 5"` de los archivos de tareas en `backlog/tasks/` (`DEV-096`, `DEV-097`, etc.) dejando sus campos de release vacíos.
-- [x] #3 Asegurar que las tarjetas en `ItemCard`, la columna Release en `SprintView` y el selector de `ItemModal` muestren `—` (sin versión asignada) cuando un ítem no tenga release formal.
+- [x] #3 Asegurar que las tarjetas en `ItemCard`, la columna Release en `SprintView` y el selector de `ItemModal` muestren ` - ` (sin versión asignada) cuando un ítem no tenga release formal.
 - [x] #4 Validar compilación (`npx tsc --noEmit`), suite de pruebas (`npm test`) y sincronización (`npm run backlog:check`).
 
 ---
@@ -2857,16 +2879,16 @@ Resolver la confusión estructural entre el nombre del directorio en el sistema 
 Eliminar todas las rutas absolutas hardcodeadas (`/Users/<usuario>/<ruta-personal>`), referencias a proyectos privados y directorios locales de todos los archivos rastreados por Git. Garantizar que ningún dato personal o de proyectos privados se filtre al hacer público el repositorio.
 
 Archivos afectados:
-- `scripts/migrate-to-target-repo.js` — eliminar (script personal)
-- `scripts/import-docs.js` — eliminar (script de migración personal)
-- `vite.config.ts` L113 — ruta hardcodeada `/Users/<usuario>/<ruta-personal>`
-- `data/projects-registry.json` — destrackear de Git (ya en .gitignore)
-- `.agents/rules/codebase-navigation.md` — links `file:///Users/<usuario>/<ruta-personal>` → rutas relativas
+- `scripts/migrate-to-target-repo.js` - eliminar (script personal)
+- `scripts/import-docs.js` - eliminar (script de migración personal)
+- `vite.config.ts` L113 - ruta hardcodeada `/Users/<usuario>/<ruta-personal>`
+- `data/projects-registry.json` - destrackear de Git (ya en .gitignore)
+- `.agents/rules/codebase-navigation.md` - links `file:///Users/<usuario>/<ruta-personal>` → rutas relativas
 
 **Criterios de Aceptación:**
-- [x] #1 Eliminar `scripts/migrate-to-target-repo.js` del repositorio (script de uso personal, no del producto) — verificado que nada lo importa
+- [x] #1 Eliminar `scripts/migrate-to-target-repo.js` del repositorio (script de uso personal, no del producto) - verificado que nada lo importa
 - [x] #3 Limpiar `vite.config.ts`: se eliminó el bloque `if (project.id === 'dom')` con la ruta absoluta hardcodeada. La función `getProjectDocsPath` vuelve a devolver `null` cuando no encuentra docs
-- [x] #4 `data/projects-registry.json` destrackear de Git — **ya cumplido de facto**: el archivo está en `.gitignore` (línea 30) y nunca fue trackeado. `git ls-files --error-unmatch` lo confirma. No había nada que ejecutar
+- [x] #4 `data/projects-registry.json` destrackear de Git - **ya cumplido de facto**: el archivo está en `.gitignore` (línea 30) y nunca fue trackeado. `git ls-files --error-unmatch` lo confirma. No había nada que ejecutar
 - [x] #5 Reescribir los links `file:///` a rutas relativas
 - [x] #6 Verificar con grep sobre archivos rastreados que no queda ninguna ruta absoluta personal (verificación ejecutada con el patrón completo, y el propio criterio redactado para que la comprobación sea satisfacible)
 - [x] #7 Verificar que `npx tsc --noEmit` y `npm test` pasan correctamente post-limpieza
@@ -2934,7 +2956,7 @@ Crear los archivos comunitarios estándar que todo proyecto open-source de calid
 - [x] #6 Verificar que todos los archivos tienen formato Markdown válido y links internos correctos
 - [x] #7 El CHANGELOG se genera con `npm run changelog` (script declarado `scripts/generate-changelog.cjs`) y es idempotente: no puede desviarse de `releases.json` por edición manual
 - [x] #8 El generador normaliza los `markdownContent` que traen la secuencia literal `\n` en lugar de saltos de línea reales, sin lo cual 3 de las 6 releases se renderizaban como un único párrafo
-- [x] #9 El encabezado `## [x.y.z] — fecha` usa el formato que el servidor MCP ya sabe releer de `CHANGELOG.md` como fuente alternativa (`scripts/mcp-server.ts`, fallback de notas de release), de modo que el archivo nuevo no rompe ese fallback
+- [x] #9 El encabezado `## [x.y.z] - fecha` usa el formato que el servidor MCP ya sabe releer de `CHANGELOG.md` como fuente alternativa (`scripts/mcp-server.ts`, fallback de notas de release), de modo que el archivo nuevo no rompe ese fallback
 - [x] #10 `SECURITY.md` usa el canal privado de reporte de vulnerabilidades del repositorio en lugar de un correo personal, y no incluye URLs personales (coherente con el AC #2 parcial de DEV-121, que espera la identidad canónica del repo)
 - [x] #11 `npx tsc --noEmit` finishes con código 0
 - [x] #12 `npm test` finishes con código 0
@@ -3075,10 +3097,10 @@ Los controles de la sidebar usan `text-xs` sans de forma mayoritaria (Estado,
 Prioridad, Tipo, Módulo, Proyecto), pero cuatro de ellos rompen el patrón con
 `font-mono`:
 
-- `ItemModal.tsx:1133` — `<select>` de Release
-- `ItemModal.tsx:1401` — input de Código
-- `ItemModal.tsx:947` — input manual de Sprint (modo "Escribir manual")
-- `ItemModal.tsx:1414` — input de Archivo Impactado
+- `ItemModal.tsx:1133` - `<select>` de Release
+- `ItemModal.tsx:1401` - input de Código
+- `ItemModal.tsx:947` - input manual de Sprint (modo "Escribir manual")
+- `ItemModal.tsx:1414` - input de Archivo Impactado
 
 El resultado es que dos campos visualmente contiguos (Release y Código) se leen
 con una tipografía distinta a la de sus vecinos, lo que rompe la percepción de
@@ -3088,7 +3110,7 @@ rejilla unificada.
 
 `ItemModal.tsx:848-852` muestra un contador junto al encabezado de la sidebar
 que se calcula sobre una lista hardcodeada de 8 campos (`module`, `impactedFile`,
-`sprint`, `release`, `risk`, `fix`, `labels`, `assignees`) — ver
+`sprint`, `release`, `risk`, `fix`, `labels`, `assignees`) - ver
 `ItemModal.tsx:336-345`. La sidebar renderiza muchos más campos que eso
 (proyecto, tipo, prioridad, estado, etiquetas, asignados, plan, criterios...),
 por lo que el número mostrado no representa la cantidad real de atributos del
@@ -3104,7 +3126,7 @@ depende de `isOpen` e `item`.
 Los `useEffect` se ejecutan **después** del paint del navegador. Al abrir el
 modal, React renderiza y pinta un primer frame con el estado residual de la
 sesión anterior del modal (el último ítem editado) o con valores vacíos, y sólo
-en el frame siguiente —tras el efecto— se repinta con los datos reales del ítem
+en el frame siguiente - tras el efecto - se repinta con los datos reales del ítem
 o los defaults de creación. El usuario percibe un salto de contenido de ~1s al
 abrir cualquier modal.
 
@@ -3156,7 +3178,7 @@ resuelve cualquier tipo personalizado del usuario hacia `AC_EXAMPLE_FALLBACK`.
 - [x] #3 El uso de `font-mono` se conserva (y sólo se conserva) donde el valor es genuinamente código: textarea del plan de implementación, índice de criterios de aceptación, badges de código/versión, etc.
 - [x] #4 El badge "N atributos" se elimina del encabezado de la sidebar junto con el cálculo `contextCount` que lo alimentaba
 - [x] #5 La población del formulario al abrir el modal ocurre antes del primer paint: el modal ya se renderiza con los datos del ítem (o los defaults de creación) en su primer frame visible
-- [x] #6 No existen saltos de contenido ni parpadeos al abrir el modal en modo edición ni en modo creación — **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO** (el navegador de escritorio no estaba conectado a la sesión; la garantía de no-flash proviene del orden de fases de React, pero el gate exige confirmación visual)
+- [x] #6 No existen saltos de contenido ni parpadeos al abrir el modal en modo edición ni en modo creación - **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO** (el navegador de escritorio no estaba conectado a la sesión; la garantía de no-flash proviene del orden de fases de React, pero el gate exige confirmación visual)
 - [x] #7 El modal sigue re-sincronizándose correctamente al cambiar de ítem objetivo sin arrastrar estado residual del ítem anterior
 - [x] #8 `npx tsc --noEmit` finishes con código 0
 - [x] #9 `npm test` finishes con código 0
@@ -3291,7 +3313,7 @@ escapar. Subirlo a `z-[9999]` no cambia absolutamente nada.
 > `ItemCard` renderiza inline dentro de la tarjeta, y se corrigió aparte en
 > **DEV-130**. La moraleja: un `transform` en hover es un generador de bugs
 > silenciosos y hay que auditar los dos efectos por separado, porque se
-> manifiestan con síntomas opuestos — "quedó atrás" frente a "se dibuja en el
+> manifiestan con síntomas opuestos - "quedó atrás" frente a "se dibuja en el
 > lugar equivocado".
 
 **Solución: portal a `document.body` con posicionamiento `fixed`.** Es el patrón
@@ -3314,7 +3336,7 @@ como del recorte del `overflow`.
 - [x] #10 `npx tsc --noEmit` finishes con código 0
 - [x] #11 `npm test` finishes con código 0
 - [x] #12 `npm run backlog:check` finishes con código 0
-- [x] #13 Validación visual en navegador: abrir el menú de una tarjeta que tenga al menos una tarjeta debajo, en tema claro y oscuro — **VERIFICADO POR EL USUARIO** ("ahí puedo ver el menu ok")
+- [x] #13 Validación visual en navegador: abrir el menú de una tarjeta que tenga al menos una tarjeta debajo, en tema claro y oscuro - **VERIFICADO POR EL USUARIO** ("ahí puedo ver el menu ok")
 
 ---
 
@@ -3385,14 +3407,14 @@ una vez a todos, sin depender de que cada consumidor recuerde la regla.
 - [x] #7 `npx tsc --noEmit` finishes con código 0
 - [x] #8 `npm test` finishes con código 0
 - [x] #9 `npm run backlog:check` finishes con código 0
-- [x] #10 Validación visual: abrir el menú de una tarjeta → Papelera y comprobar que el diálogo aparece centrado, estable y sin parpadeo, en tema claro y oscuro — **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO**
+- [x] #10 Validación visual: abrir el menú de una tarjeta → Papelera y comprobar que el diálogo aparece centrado, estable y sin parpadeo, en tema claro y oscuro - **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO**
 
 ---
 
 #### [DEV-131] Definición del Goal de Sprint 7 y Ampliación de Alcance del Sprint en Curso
 - **Prioridad**: `medium` | **Tipo**: `tech_debt`
 
-El usuario señaló —en sarcasmo, y con razón— que **el Sprint 7 se había creado sin
+El usuario señaló - en sarcasmo, y con razón - que **el Sprint 7 se había creado sin
 `goal`**, a diferencia de los otros siete sprints del proyecto, que sí lo tienen
 definido desde su creación. Es decir: el campo no es opcional en la práctica, se
 respeta en todos los casos salvo en este, y su ausencia era un defecto de
@@ -3447,8 +3469,8 @@ renderiza como un solo bloque corrido en la UI. Corregido.
 
 El parser de archivos de tarea extrae las secciones delimitadas tomando la
 **primera coincidencia** de cada marcador, en orden de documento. Consecuencia: si
-la descripción de una tarea contiene los marcadores literales del formato —algo
-perfectamente natural en una tarea que **documenta el propio formato**— el parser
+la descripción de una tarea contiene los marcadores literales del formato - algo
+perfectamente natural en una tarea que **documenta el propio formato** - el parser
 lee esa copia como si fuera la sección real, y la tarea se parsea con datos
 equivocados, **sin ningún error visible**.
 
@@ -3503,8 +3525,8 @@ proyecto atravesó las versiones 0.2.0, 0.3.0, 0.4.0, 0.5.0, 0.6.0 y 0.6.1.
 `0.1.0`, la única referencia a esa versión en todo el repositorio apareció en el
 lockfile. La evidencia de que `0.1.0` fue un bump real pero informal: los commits
 `e0029b7` y `ed91943` (ambos del 16/09) tienen `version=0.1.0` en `package.json`,
-y horas después `f4ce6ae` ya sube a `0.2.0`. No hay tag `v0.1.0` — el más antiguo
-es `v0.2.0` — ni entrada en `releases.json` ni tarea asignada a esa versión.
+y horas después `f4ce6ae` ya sube a `0.2.0`. No hay tag `v0.1.0` - el más antiguo
+es `v0.2.0` - ni entrada en `releases.json` ni tarea asignada a esa versión.
 
 **Por qué importa, aunque no rompa nada hoy**: npm reconcilia el desfase en el
 momento de instalar, así que el proyecto funciona. El problema es de higiene del
@@ -3586,9 +3608,9 @@ resultados de 105 tareas completadas.
 #### [DEV-135] El Motor de Importación está Hardcodeado a un Proyecto Privado: Genericizar import-docs.js
 - **Prioridad**: `high` | **Tipo**: `bug`
 
-El motor de importación de documentación —`runMigration` en
+El motor de importación de documentación - `runMigration` en
 `scripts/import-docs.js`, invocado por el endpoint de importación del dev
-server en `vite.config.ts:2324` y `:2353`— está **hardcodeado a un proyecto de
+server en `vite.config.ts:2324` y `:2353` - está **hardcodeado a un proyecto de
 finanzas personales concreto**. No es un script personal descartable: es código de
 producto con un supuesto privado incrustado.
 
@@ -4164,7 +4186,7 @@ Un alias público no es código descartable: es un **contrato que ya no puede qu
 
 Este es el mismo análisis que ya quedó registrado en `BACKLOG.md:3117` al decidir la bifurcación de repositorio, y que nunca se ejecutó sobre el código.
 
-### Qué se elimina (identidad instalada — lo que el usuario ve y escribe)
+### Qué se elimina (identidad instalada - lo que el usuario ve y escribe)
 
 1. **Entradas `bin` redundantes en `package.json`.** Hoy hay seis: `gripm`, `gripm-mcp`, `devboard`, `devboard-mcp`, `dev-board`, `dev-board-mcp`. Solo deben sobrevivir las dos canónicas.
 2. **Alias de herramientas MCP.** `scripts/mcp-server.ts:442` normaliza `devboard_*` → `gripm_*` en la entrada. Eliminar esa línea.
@@ -4173,7 +4195,7 @@ Este es el mismo análisis que ya quedó registrado en `BACKLOG.md:3117` al deci
 5. **Fallbacks `devboard 2>/dev/null ||` en los scripts scaffoldeados** por `scripts/initScaffold.js`.
 6. **Menciones del nombre anterior en documentación** (README, README.es, CONTRIBUTING, AGENTS, docs, templates de skills), reemplazadas por el nombre canónico o por formulación neutra.
 
-### Qué se conserva (compatibilidad de lectura — invisible y protectora)
+### Qué se conserva (compatibilidad de lectura - invisible y protectora)
 
 **No tocar** las lecturas de rutas legacy. Son costo cero (el nombre no se muestra al usuario) y valor real: Protegen los proyectos locales del autor que aún tengan datos en directorios anteriores.
 
@@ -4191,7 +4213,7 @@ Merece justificación propia porque es el más costoso y el menos útil.
 - **No se anuncia.** `tools/list` expone únicamente las 12 herramientas `gripm_*`. Ningún agente puede descubrir que el alias existe.
 - **Pero sí funciona.** `scripts/verify-mcp-binary.js` lo valida explícitamente (`✅ [6/6] Alias retrocompatible devboard_get_stats OK`).
 
-Es decir: código que se mantiene y tests que lo cubren, a cambio de **cero beneficio descubrible**. Y si se anunciara, el costo sería peor: el catálogo pasaría de **12 a 24 herramientas**, duplicando el contexto de schemas que cada agente LLM carga en cada sesión — exactamente lo contrario del objetivo de eficiencia con agentes que declara el producto.
+Es decir: código que se mantiene y tests que lo cubren, a cambio de **cero beneficio descubrible**. Y si se anunciara, el costo sería peor: el catálogo pasaría de **12 a 24 herramientas**, duplicando el contexto de schemas que cada agente LLM carga en cada sesión - exactamente lo contrario del objetivo de eficiencia con agentes que declara el producto.
 
 ### Impacto esperado
 
@@ -4314,7 +4336,7 @@ Reducir el trabajo de transformación en el arranque en frío de la interfaz med
 **Criterios de Aceptación:**
 - [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
 - [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
-- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
+- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados - sin ese registro el AC no es verificable
 - [x] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
 - [x] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
 - [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
@@ -4457,7 +4479,7 @@ Que el bind real coincida con la allowlist de loopback, sin abrir exposição de
 **Criterios de Aceptación:**
 - [x] #1 `grep -n "let host" bin/gripm.js` devuelve una línea cuyo default resuelve a una dirección que cubre explícitamente el loopback IPv4 (`127.0.0.1`) y no a `localhost`
 - [x] #2 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://localhost:<puerto>/` devuelve `200` (no `000`)
-- [x] #3 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://127.0.0.1:<puerto>/` devuelve `200` (no `000`) — este es el AC que hoy falla
+- [x] #3 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://127.0.0.1:<puerto>/` devuelve `200` (no `000`) - este es el AC que hoy falla
 - [x] #4 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" "http://[::1]:<puerto>/"` devuelve `200` o, si la decisión es hacer bind solo IPv4, la allowlist de `vite.config.ts:1159` y `:1175` se reduce a los hosts realmente escuchados
 - [x] #5 La advertencia de seguridad de `bin/gripm.js:110-112` para `--host 0.0.0.0` se conserva sin cambios
 - [x] #6 El middleware anti-DNS-rebinding sigue rechazando un header `Host` no loopback: un request con `Host: evil.example.com` recibe rechazo
@@ -4486,13 +4508,13 @@ $ cat .gripm/config.json
 
 Dos lugares fijan español:
 
-1. **`scripts/initScaffold.js:58`** — default del modo no interactivo:
+1. **`scripts/initScaffold.js:58`** - default del modo no interactivo:
    ```js
    let language = (options.language || options.lang || 'es').toLowerCase();
    ```
    Con `-y` no se pregunta, así que siempre cae en `'es'`.
 
-2. **`scripts/initScaffold.js:90`** — la opción por defecto del prompt interactivo es `[1]` (Español), y `scripts/initScaffold.js:14` y `:37` usan `language = 'es'` como default de las plantillas.
+2. **`scripts/initScaffold.js:90`** - la opción por defecto del prompt interactivo es `[1]` (Español), y `scripts/initScaffold.js:14` y `:37` usan `language = 'es'` como default de las plantillas.
 
 ### Relación con la regla de gobernanza
 
@@ -4509,7 +4531,7 @@ Que el idioma por defecto del scaffolding sea coherente con la configuración ca
 - [x] #2 `scripts/initScaffold.js:14` y `:37` usan `'en'` como default de `getSkillTemplate` y `getAgentsMdTemplate`
 - [x] #3 El prompt interactivo de `scripts/initScaffold.js:90` ofrece English como opción por defecto (la que se aplica con Enter vacío)
 - [x] #4 `gripm --init -y` en un repositorio limpio genera `.gripm/config.json` con `"language": "en"` (verificación: `grep '"language"' .gripm/config.json` devuelve `"en"`)
-- [x] #5 `gripm --init -y --language es` sigue produciendo `"language": "es"`, skill y AGENTS.md en español — la override explícita se respeta
+- [x] #5 `gripm --init -y --language es` sigue produciendo `"language": "es"`, skill y AGENTS.md en español - la override explícita se respeta
 - [x] #6 `.gripm/config.json` del propio repositorio sigue cumpliendo `AGENTS.md` §6.17: `grep -E '"language"|"sprint"' .gripm/config.json` devuelve `"en"` y `"sprint": true`
 - [x] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
 
@@ -4561,7 +4583,7 @@ Después de `npx gripm --init`, el agente recibe una línea vacía y **no conoce
 
 - **Pre-existente**: `files` nunca incluyó `.agents` (verificado contra `HEAD`). No es regresión de DEV-161/169/170.
 - **`publish:check` no lo detecta**: el guard audita fugas de datos y rutas personales, no archivos faltantes. Pasó en verde.
-- **DEV-161 pasó sus ACs igual**: el AC #6 ("`initScaffold.js` instala solo `.agents/skills/gripm/`") se verificó contra el repo fuente, donde el archivo existe — no contra el tarball. Es la misma clase de fallo que el guard de DEV-159: **una aserción ejecutada contra la realidad equivocada**.
+- **DEV-161 pasó sus ACs igual**: el AC #6 ("`initScaffold.js` instala solo `.agents/skills/gripm/`") se verificó contra el repo fuente, donde el archivo existe - no contra el tarball. Es la misma clase de fallo que el guard de DEV-159: **una aserción ejecutada contra la realidad equivocada**.
 
 ### Ítem secundario en la misma causa raíz
 
@@ -4577,9 +4599,9 @@ Que el tarball contenga los artefactos que el producto promete instalar, y que l
 - [x] #1 `node -e "const f=require('./package.json').files; console.log(f.includes('.agents'), f.includes('.githooks'))"` devuelve `true true`
 - [x] #2 Tras `npm run build`, `tar -tzf <tarball> | grep -c "\.agents/skills/gripm/SKILL"` devuelve un valor `>= 2` (SKILL.md y SKILL.en.md)
 - [x] #3 `tar -tzf <tarball> | grep -c "\.githooks/pre-commit"` devuelve `1`
-- [x] #4 Instalando el tarball en un directorio temporal y ejecutando `gripm --init -y`, `wc -c <repo>/.agents/skills/gripm/SKILL.md` devuelve un valor `>= 1000` — este es el AC que hoy falla con 20
+- [x] #4 Instalando el tarball en un directorio temporal y ejecutando `gripm --init -y`, `wc -c <repo>/.agents/skills/gripm/SKILL.md` devuelve un valor `>= 1000` - este es el AC que hoy falla con 20
 - [x] #5 En esa misma instalación, `wc -c <repo>/AGENTS.md` devuelve un valor `>= 1000` y **no** contiene la cadena `Bienvenido a` de los stubs
-- [x] #6 Con `--language en` el `SKILL.md` instalado es el contenido de `.agents/skills/gripm/SKILL.en.md`; con `--language es` es el de `SKILL.md` — verificación por contenido, no por nombre de archivo (el scaffolder siempre escribe en `SKILL.md`)
+- [x] #6 Con `--language en` el `SKILL.md` instalado es el contenido de `.agents/skills/gripm/SKILL.en.md`; con `--language es` es el de `SKILL.md` - verificación por contenido, no por nombre de archivo (el scaffolder siempre escribe en `SKILL.md`)
 - [x] #7 `npm run publish:check` falla si `.agents` o `.githooks` desaparecen del array `files`, en lugar de pasar en verde
 - [x] #8 Existe un script de verificación de distribución (p. ej. `npm run verify:dist`) que empaqueta, instala en un directorio temporal efímero y valida los artefactos de onboarding, y está conectado a `npm test`
 - [x] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0 y `npm run build` sin errores
@@ -4625,7 +4647,7 @@ Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar 
 - [x] #2 La lógica de derivación de columnas y agrupación del Kanban está extraída a un módulo puro en `src/utils/` y cubierta por tests: una entrada conocida que produce una salida incorrecta hace fallar el test
 - [x] #3 La normalización de estados legacy→canónico de `src/utils/statusMeta.ts` tiene test que ejercita los 4 aliases (`backlog`, `in_progress`, `testing_qa`, `finish`) contra `normalizeStatus()`
 - [x] #4 Existe un test que verifica que las etiquetas de estado provienen de `status.*` y no de literales: ante una locale alternativa, la etiqueta cambia
-- [x] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón — **no se deja implícito**
+- [x] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón - **no se deja implícito**
 - [x] #6 No se introduce un framework para render de componentes React en esta etapa, así que no hace falta cambiar la decisión zero-deps en `AGENTS.md`
 - [x] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0, `npm run test:linux` con exit 0 y `npm run build` sin errores
 
@@ -4634,7 +4656,7 @@ Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar 
 #### [DEV-173] Auditoría de Accesibilidad del Cockpit: Foco, Navegación por Teclado y Contraste
 - **Prioridad**: `high` | **Tipo**: `chore`
 
-La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
+La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad - **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
 
 ### El proyecto ya tiene la herramienta y no la usó
 
@@ -4645,7 +4667,7 @@ La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un anál
 El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
 
 1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
-2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
+2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse - y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
 3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
 
 ### Objetivo
@@ -4653,11 +4675,11 @@ El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamie
 Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo que se encuentre, y decidir si queda incorporateda al gate de CI o es una tarea recurrente de release.
 
 **Criterios de Aceptación:**
-- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
+- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados - la tarea no se cierra sin evidencia de ejecución
 - [x] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
 - [x] #3 El cambio de estado de un ítem en el Kanban y la reordenación son alcanzables por teclado, no solo por drag-and-drop
 - [x] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
-- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
+- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro - el valor se registra en la nota de la tarea
 - [x] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
 - [x] #7 Existe `prefers-reduced-motion` respetado en las animaciones existentes (splash, transiciones de tema, dots de estado)
 - [x] #8 La decisión queda registrada: la accesibilidad se incorpora como paso de `npm run audit:ux` y CI, o se declara como tarea recurrente de release con la razón
@@ -4687,7 +4709,7 @@ package.json engines  → node >=22.6.0
 
 ### Dos consecuencias concretas
 
-**1. La versión mínima soportada nunca se testea.** CI corre `22.x`, que es la última 22.x disponible, no `22.6.0`. Una regresión que rompa en la mínima — por ejemplo, usando una API o sintaxis disponible recién en una 22.x posterior — pasaría la suite en verde mientras el producto declara soportar algo que no funciona.
+**1. La versión mínima soportada nunca se testea.** CI corre `22.x`, que es la última 22.x disponible, no `22.6.0`. Una regresión que rompa en la mínima - por ejemplo, usando una API o sintaxis disponible recién en una 22.x posterior - pasaría la suite en verde mientras el producto declara soportar algo que no funciona.
 
 **2. Solo se verifica un SO, y ya hay un bug que lo demuestra.** El bug de bind de red registrado en DEV-169 (el servidor escuchaba solo en IPv6, por lo que `127.0.0.1` daba connection refused) fue encontrado probando manualmente en macOS. Windows y Linux nunca fueron ejercitados en CI. En un lanzamiento público, los issues de otros sistemas operativos son la primera fuente de reportes.
 
@@ -4736,7 +4758,7 @@ $ find .github -type f
 
 ### Riesgo específico de este proyecto
 
-`SECURITY.md` describe un producto que **ejecuta binarios con permisos del usuario y escribe en su disco**. Una vulnerabilidad transitiva en `vite` —que es el servidor HTTP que corre en cada sesión— es un vector de ataque real, no teórico. `vite` es la dependencia más expuesto del stack.
+`SECURITY.md` describe un producto que **ejecuta binarios con permisos del usuario y escribe en su disco**. Una vulnerabilidad transitiva en `vite` - que es el servidor HTTP que corre en cada sesión - es un vector de ataque real, no teórico. `vite` es la dependencia más expuesto del stack.
 
 ### Objetivo
 
@@ -6350,7 +6372,7 @@ Fuera de alcance (se mantienen sin cambio): el agrupamiento `GroupBy = 'epic'` /
 
 El proyecto **no** lleva footer en el lienzo de trabajo: el tablero Kanban necesita el 100 % del alto disponible, la barra inferior móvil ya ocupa la zona táctil crítica y un footer tradicional es un anti-patrón de UX en un cockpit local. Pero la marca (versión) y los enlaces de soporte (repositorio, documentación, reporte de bug) siguen sin ningún lugar natural donde vivir.
 
-Decisión de diseño (sesión Antigravity `4252e537-78f4-4e59-bf91-6290a45fec59`, "Opción 1"): alojar el pie en el diálogo de ayuda de atajos (`KeyboardShortcutsModal`, tecla `?`), que es un modal de **0 % de recurrencia** — abrirlo ya implica que el usuario busca información — y por lo tanto no compite jamás con el flujo de trabajo.
+Decisión de diseño (sesión Antigravity `4252e537-78f4-4e59-bf91-6290a45fec59`, "Opción 1"): alojar el pie en el diálogo de ayuda de atajos (`KeyboardShortcutsModal`, tecla `?`), que es un modal de **0 % de recurrencia** - abrirlo ya implica que el usuario busca información - y por lo tanto no compite jamás con el flujo de trabajo.
 
 Alcance:
 1. Línea de pie hiper discreta dentro de `KeyboardShortcutsModal`: `gripm v<versión>` + enlaces `GitHub`, `Documentación` y `Reportar bug`, en micro-tipografía `text-[11px]`, con separación por `gap` (sin caracteres separadores que se rompan al envolver) y sin iconografía que añada ruido.
@@ -6384,7 +6406,7 @@ Problemas concretos que corrige:
 2. **Peso visual y jerarquía.** El botón era el elemento de mayor peso tipográfico del pie (`font-semibold` sobre `bg-slate-200`), es decir, el pie destacaba la acción de salir por encima de la información. Justo lo contrario de un pie informativo.
 3. **Ocupación vertical.** El `min-h-[44px]` del botón forzaba `py-3` (68 px de alto). Sin él, el alto lo fija el `min-h-[44px]` de los enlaces y el pie baja a `py-2` (60 px), liberando espacio para el cuerpo del modal en pantallas bajas.
 4. **Hint de reapertura inline.** El texto "Presiona ? en cualquier momento para abrir esta guía" pasa a compartir la fila con la marca y los enlaces, en el extremo opuesto (`justify-between`), en lugar de ocupar un bloque propio. Por debajo de `sm` se oculta, de modo que en móvil la fila queda en una sola línea con `marca + enlaces`.
-5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real —el pie nunca puede superponerse porque el cuerpo scrollea—, sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
+5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real - el pie nunca puede superponerse porque el cuerpo scrollea - , sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
 
 Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
 
@@ -6409,11 +6431,11 @@ Divergencias detectadas al contrastar disco contra documentación:
 | Clave | En HEAD | Canónico (gotcha 17) | Motivo del cambio |
 | :--- | :--- | :--- | :--- |
 | `methodology` | `scrum` | `kanban` | El repo opera bajo flujo Kanban continuo (gotcha 16); `scrum` contradecía la propia metodología declarada |
-| `mode` | `single` | — | Estado real del entorno de trabajo, sin efecto en la distribución |
+| `mode` | `single` | - | Estado real del entorno de trabajo, sin efecto en la distribución |
 | `enabledTabs.sprint` | `true` | `false` | Alineación con el canónico documentado |
-| `modules.calendar` | ausente | — | Default de esquema |
-| `estimation` | ausente | — | Default de esquema (DEV-137/DEV-139) |
-| `visibleCardMetadata` | ausente | — | Default de esquema (8 claves) |
+| `modules.calendar` | ausente | - | Default de esquema |
+| `estimation` | ausente | - | Default de esquema (DEV-137/DEV-139) |
+| `visibleCardMetadata` | ausente | - | Default de esquema (8 claves) |
 
 Alcance:
 1. `enabledTabs.sprint` pasa a `false` para respetar el canónico documentado.
@@ -6545,7 +6567,7 @@ pública no tiene ninguno.
 Lo verificado en runtime fue de extremo a extremo en un navegador real, lo cual **no es
 lo mismo**: una prueba manual sobre un recorrido feliz no encuentra la colisión de un
 correlativo ni el sprint que queda activo sin querer. Un bug acá no filtra datos ni rompe
-instalaciones — se manifiesta como una demo visiblemente rota — pero es producto público.
+instalaciones - se manifiesta como una demo visiblemente rota - pero es producto público.
 
 **Criterios de Aceptación:**
 - [x] #1 Caso de regresión que falle si `nextCode()` no genera el correlativo esperado al crear ítems sobre el seed real
@@ -6599,7 +6621,7 @@ archivo que abre `<!-\- AC:BEGIN ->` y no lo cierra:
 
 **Verde sobre datos que nunca leyó.** Siete archivos estaban en ese estado, arrastrando el
 defecto desde v1.3.0: todos cerraban su bloque de ACs con `<!-\- SECTION:DESCRIPTION:END ->`
-—un marcador duplicado del que ya usan correctamente más arriba— en vez del de cierre de ACs.
+ - un marcador duplicado del que ya usan correctamente más arriba - en vez del de cierre de ACs.
 Dos de los siete son de la sesión del 2026-10-14 (DEV-258 y DEV-259, ambos en `ready`).
 
 Esto es peor que un falso positivo: un falso positivo detiene el flujo con un diagnóstico
@@ -7716,7 +7738,7 @@ La división es por **naturaleza del trabajo**, no por tamaño:
 - [ ] #7 El estado vacío es sereno y ofrece el siguiente paso; **cero** estados vacíos que usen alerta, color de error o el texto "no hay nada"
 - [ ] #8 Focus ring siempre visible para navegación por teclado en toda acción interactiva de escritorio, con `disabled` recordando el motivo
 - [ ] #9 Respuesta en el mismo frame a toda acción interactiva (`active:scale-[0.98]` o cambio de fondo equivalente)
-- [ ] #10 Transiciones de 150–250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
+- [ ] #10 Transiciones de 150 - 250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
 - [ ] #11 Cero CLS a 1366×768 en las cinco transiciones: carga inicial, cambio de idioma, cambio de filtro, cambio de vista y movimiento de tarjeta entre columnas
 - [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
 - [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`

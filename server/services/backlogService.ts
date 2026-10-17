@@ -272,7 +272,7 @@ export function validateGatekeeperTransition(
     const unchecked = acs.filter((ac: any) => !ac.checked);
     if (unchecked.length > 0) {
       const taskId = task.code || task.id || 'desconocida';
-      const uncheckedList = unchecked.map((ac: any) => `  - [ ] #${ac.index} ${ac.text}`).join('\n');
+      const uncheckedList = unchecked.map((ac: any) => ` - [ ] #${ac.index} ${ac.text}`).join('\n');
       throw new Error(
         `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${taskId}' a '${normTarget}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
         `${uncheckedList}\n\n` +
@@ -389,7 +389,7 @@ export function parseReleaseNotesMd(repoPath: string, projectPrefix?: string, kn
     const headerLine = firstLineEnd > 0 ? trimmed.substring(0, firstLineEnd) : trimmed;
     const bodyContent = firstLineEnd > 0 ? trimmed.substring(firstLineEnd + 1) : '';
 
-    const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\]—–-]+)?)\]?/);
+    const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\] - - -]+)?)\]?/);
     if (!vMatch) continue;
 
     const rawVersion = vMatch[1].trim();
@@ -402,7 +402,7 @@ export function parseReleaseNotesMd(repoPath: string, projectPrefix?: string, kn
     if (date) {
       title = title.replace(date, '').trim();
     }
-    title = title.replace(/^[-—–:🚀 ]+/, '').trim();
+    title = title.replace(/^[-:\u2014\u2013🚀 ]+/, '').trim();
     if (!title) title = `Release ${version}`;
 
     let summary = '';
@@ -467,7 +467,7 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
     for (const f of files) {
       try {
         const raw = fs.readFileSync(path.join(tasksDir, f), 'utf8');
-        const fallbackId = f.split(' - ')[0] || f.replace(/\.md$/, '');
+        const fallbackId = f.split('-')[0] || f.replace(/\.md$/, '');
         const parsed = parseBacklogMd(raw, fallbackId);
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
           found = f;
@@ -481,7 +481,7 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
   const filePath = path.join(tasksDir, found);
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    const fallbackId = found.split(' - ')[0] || found.replace(/\.md$/, '');
+    const fallbackId = found.split('-')[0] || found.replace(/\.md$/, '');
     const task = parseBacklogMd(raw, fallbackId);
     return { filePath, filename: found, task };
   } catch {
@@ -504,7 +504,7 @@ function mapMarkdownTaskToCanonical(
   const sprintVal = task.sprint || task.targetSprint || rawFm.sprint || rawFm.targetSprint || undefined;
   const releaseVal = task.milestone || rawFm.release || rawFm.targetRelease || rawFm.releases || undefined;
 
-  const id = task.id || filename.split(' - ')[0] || filename.replace(/\.md$/, '');
+  const id = task.id || filename.split('-')[0] || filename.replace(/\.md$/, '');
   const mtime = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
 
   const canonical: any = {
@@ -582,7 +582,7 @@ export class BacklogService {
           try {
             const fullPath = path.join(tasksDir, file);
             const raw = fs.readFileSync(fullPath, 'utf8');
-            const fallbackId = file.split(' - ')[0] || file.replace(/\.md$/, '');
+            const fallbackId = file.split('-')[0] || file.replace(/\.md$/, '');
             const parsed = parseBacklogMd(raw, fallbackId);
             const stat = fs.statSync(fullPath);
             const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
@@ -1403,7 +1403,7 @@ export class BacklogService {
           const statusMatch = fm.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
           const idMatch = fm.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
           const rawStatus = (statusMatch ? statusMatch[1] : '').toLowerCase();
-          const taskId = idMatch ? idMatch[1] : file.split(' - ')[0];
+          const taskId = idMatch ? idMatch[1] : file.split('-')[0];
 
           const acBlockMatch = content.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
           if (!acBlockMatch) continue;
@@ -1569,7 +1569,7 @@ export class BacklogService {
           const detectedSprintNames = new Set<string>();
           for (const it of items) {
             const sp = it.sprint || it.targetSprint;
-            if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '—') {
+            if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '-') {
               detectedSprintNames.add(sp.trim());
             }
           }
@@ -1886,7 +1886,7 @@ export class BacklogService {
                   title: `v${targetVersion}`,
                   summary: `Versión ${targetVersion} creada para planificación.`,
                   itemCodes: [taskData.id],
-                  markdownContent: `## [${targetVersion}] — Unreleased\n\n### 🎯 Resumen\n*Versión ${targetVersion} en planificación.*`,
+                  markdownContent: `## [${targetVersion}] - Unreleased\n\n### 🎯 Resumen\n*Versión ${targetVersion} en planificación.*`,
                   createdAt: now.toISOString()
                 });
                 changed = true;

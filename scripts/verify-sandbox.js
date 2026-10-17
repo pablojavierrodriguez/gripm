@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * scripts/verify-sandbox.js — DEV-262
+ * scripts/verify-sandbox.js - DEV-262
  *
  * Cobertura de tests para el adaptador en memoria (sandboxAdapter),
  * el detector de entorno (detect.ts), la paridad del contrato GripmApi
@@ -135,7 +135,7 @@ try {
   const prevActiveId = initialActive[0].id;
 
   // 3.1 Crear nuevo sprint con status: 'active'
-  const newActiveSprint = await sandboxAdapter.createSprint({ name: 'Sprint 3 — Expansión', status: 'active' });
+  const newActiveSprint = await sandboxAdapter.createSprint({ name: 'Sprint 3 - Expansión', status: 'active' });
   assert(newActiveSprint.status === 'active', 'AC #3: el sprint creado debe ser active');
 
   sprints = await sandboxAdapter.fetchSprints();
@@ -170,17 +170,17 @@ try {
   // AC #4: deleteSprint() desasocia ítems limpiando sprint, targetSprint y sprints
   // -------------------------------------------------------------------------
   resetSandbox();
-  // DEMO-002 tiene sprint: 'Sprint 2 — Resiliencia'
+  // DEMO-002 tiene sprint: 'Sprint 2 - Resiliencia'
   board = await sandboxAdapter.fetchBoardData();
-  const itemsInSprint2 = board.items.filter((it) => it.sprint === 'Sprint 2 — Resiliencia');
+  const itemsInSprint2 = board.items.filter((it) => it.sprint === 'Sprint 2 - Resiliencia');
   assert(itemsInSprint2.length > 0, 'AC #4: deben existir ítems asignados a Sprint 2 en el seed');
 
   await sandboxAdapter.deleteSprint('sprint-demo-2');
   board = await sandboxAdapter.fetchBoardData();
   
-  // Ningún ítem debe apuntar a 'Sprint 2 — Resiliencia'
+  // Ningún ítem debe apuntar a 'Sprint 2 - Resiliencia'
   const lingeringItems = board.items.filter(
-    (it) => it.sprint === 'Sprint 2 — Resiliencia' || it.targetSprint === 'Sprint 2 — Resiliencia' || it.sprints?.includes('Sprint 2 — Resiliencia'),
+    (it) => it.sprint === 'Sprint 2 - Resiliencia' || it.targetSprint === 'Sprint 2 - Resiliencia' || it.sprints?.includes('Sprint 2 - Resiliencia'),
   );
   assert(lingeringItems.length === 0, `AC #4: quedaron ${lingeringItems.length} ítems con referencias muertas al sprint borrado`);
 
@@ -194,7 +194,7 @@ try {
 
   // Ítems de otro sprint no deben ser modificados
   const itemInSprint1 = board.items.find((it) => it.code === 'DEMO-001');
-  assert(itemInSprint1.sprint === 'Sprint 1 — Onboarding', 'AC #4: ítems de otros sprints no deben alterarse');
+  assert(itemInSprint1.sprint === 'Sprint 1 - Onboarding', 'AC #4: ítems de otros sprints no deben alterarse');
 
   ok('AC #4: deleteSprint() desasocia ítems limpiando sprint, targetSprint y sprints sin punteros muertos');
 

@@ -5,9 +5,9 @@ status: done
 created_date: '2026-10-13'
 updated_date: '2026-10-15'
 labels:
-  - "chore"
-  - "config"
-  - "governance"
+ - "chore"
+ - "config"
+ - "governance"
 dependencies: []
 priority: low
 type: chore
@@ -23,11 +23,11 @@ Divergencias detectadas al contrastar disco contra documentación:
 | Clave | En HEAD | Canónico (gotcha 17) | Motivo del cambio |
 | :--- | :--- | :--- | :--- |
 | `methodology` | `scrum` | `kanban` | El repo opera bajo flujo Kanban continuo (gotcha 16); `scrum` contradecía la propia metodología declarada |
-| `mode` | `single` | — | Estado real del entorno de trabajo, sin efecto en la distribución |
+| `mode` | `single` | - | Estado real del entorno de trabajo, sin efecto en la distribución |
 | `enabledTabs.sprint` | `true` | `false` | Alineación con el canónico documentado |
-| `modules.calendar` | ausente | — | Default de esquema |
-| `estimation` | ausente | — | Default de esquema (DEV-137/DEV-139) |
-| `visibleCardMetadata` | ausente | — | Default de esquema (8 claves) |
+| `modules.calendar` | ausente | - | Default de esquema |
+| `estimation` | ausente | - | Default de esquema (DEV-137/DEV-139) |
+| `visibleCardMetadata` | ausente | - | Default de esquema (8 claves) |
 
 Alcance:
 1. `enabledTabs.sprint` pasa a `false` para respetar el canónico documentado.

@@ -1,9 +1,9 @@
-# 0001 — Markdown como fuente de verdad del backlog
+# 0001 - Markdown como fuente de verdad del backlog
 
 - **Estado:** `Aceptado`
 - **Fecha:** 2026-10-13
 - **Tareas:** `dev-001`, `dev-012`, `dev-013`, `DEV-102`, `DEV-110`
-- **Reemplaza:** —
+- **Reemplaza:** - 
 
 ---
 
@@ -22,19 +22,19 @@ Al inicio el backlog podía guardarse en un JSON monolítico (`.devboard/backlog
 
 ## Opciones consideradas
 
-### Opción A — JSON monolítico como fuente de verdad
+### Opción A - JSON monolítico como fuente de verdad
 
 - **A favor:** formato simple, un solo archivo, parseo trivial.
 - **En contra:** diffs ilegibles, sin reviewer humano posible, atávica al producto a su propio formato y obliga a los agentes a mutar estado con comandos ad-hoc.
 - **Veredicto:** descartada. Rompe los drivers 1 y 2, que son la premise del producto.
 
-### Opción B — Base de datos local (SQLite u otra)
+### Opción B - Base de datos local (SQLite u otra)
 
 - **A favor:** consultas, integridad referencial, migraciones.
 - **En contra:** agrega un binario a la dependencia, una capa de migración y un estado fuera del control de versiones. El archivo `.db` no es mergeable.
 - **Veredicto:** descartada. Contradice el driver 3 y hace el repo ilegible fuera de gripm.
 
-### Opción C — Markdown distribuido (`backlog-md`)
+### Opción C - Markdown distribuido (`backlog-md`)
 
 - **A favor:** diffs y code review nativos, edición manual, formato que un agente LLM ya sabe leer.
 - **En contra:** hay que escribir un parser y un serializador bidireccional que preserven el contenido no modelado.
@@ -71,6 +71,6 @@ El modo `json` se conserva únicamente como compatibilidad para proyectos existe
 
 ## Referencias
 
-- [`docs/ARCHITECTURE.md` §6](../ARCHITECTURE.md) — Modelo de datos canónico.
-- [`AGENTS.md`](../../AGENTS.md) §6 — Ortogonalidad del modelo de datos y reglas de sincronización inmediata.
+- [`docs/ARCHITECTURE.md` §6](../ARCHITECTURE.md) - Modelo de datos canónico.
+- [`AGENTS.md`](../../AGENTS.md) §6 - Ortogonalidad del modelo de datos y reglas de sincronización inmediata.
 - `backlog/tasks/dev-001 - interoperabilidad-nativa-con-backlogmd-y-motor-mar.md`.

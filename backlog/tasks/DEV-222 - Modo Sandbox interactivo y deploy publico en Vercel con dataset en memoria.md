@@ -5,11 +5,11 @@ status: done
 created_date: '2026-10-09'
 updated_date: '2026-10-15'
 labels:
-  - "web"
-  - "demo"
-  - "vercel"
-  - "sandbox"
-  - "ui"
+ - "web"
+ - "demo"
+ - "vercel"
+ - "sandbox"
+ - "ui"
 priority: high
 type: feature
 ---
@@ -32,7 +32,7 @@ Preparar una versión web autónoma de Gripm Board para desplegar en Vercel, ori
 - [x] #2 Deteccion automatica de entorno sin daemon que monta de inmediato dataset de prueba en memoria sin errores de red
 <!-- AC #3 retirado: "adaptar la interfaz a moviles de 360px a 430px" salio de este item
      por decision del PO (ver nota de alcance), y la evidencia de escritorio que se llevo
-     consigo — la columna Completado cortada a 1280px — quedo registrada en DEV-264.
+     consigo - la columna Completado cortada a 1280px - quedo registrada en DEV-264.
      Un AC transferido a su propio item no debe seguir abierto en el de origen: lo
      convierte en algo que nunca cierra. -->
 <!-- AC #4 retirado: "selector de formato dual Markdown/JSON" es un afordance de pitch, no
@@ -78,7 +78,7 @@ Es exactamente la pantalla vacía que este ítem viene a eliminar. Encima corre 
 infinito de SSE cada 3 s (`api.ts:313-328`): en una demo pública serían 20 reintentos por
 minuto por sesión.
 
-### Decisión 1 — Interfaz de adaptador, no interceptor de fetch
+### Decisión 1 - Interfaz de adaptador, no interceptor de fetch
 
 Se crea la capa `src/data/` con una interfaz explícita y dos implementaciones. No se
 parchea `fetch` con un interceptor: interceptar no cubre escrituras, no tipa las firmas y
@@ -110,7 +110,7 @@ que mantener sincronizados.
 `subscribeToBoardEvents` **debe quedar inerte en modo sandbox**: devuelve un no-op que no
 abre `EventSource`. Es el que garantiza AC #2 ("sin errores de red").
 
-### Decisión 2 — El dataset se reutiliza, no se duplica
+### Decisión 2 - El dataset se reutiliza, no se duplica
 
 Existe `data/demo-backlog.json` y es la única fuente de verdad: lo lee el server en
 `server/services/registry.ts:11` (`DEMO_FILE`) y lo escribe `writeProjectBacklog()`
@@ -136,7 +136,7 @@ import demoBacklog from '../../data/demo-backlog.json';
 No crear un fixture nuevo: reutilizar y ampliar. Beneficio colateral: el proyecto demo
 local (`gripm` corriendo en tu máquina) también mejora.
 
-### Decisión 3 — El detector es un probe, y su decisión se cachea
+### Decisión 3 - El detector es un probe, y su decisión se cachea
 
 `detect.ts` hace `GET /api/data` con **timeout explícito y corto** (~1.5 s). Si responde
 con JSON válido → `httpAdapter`. Si falla, da timeout o responde no-JSON → `sandbox`.
@@ -147,7 +147,7 @@ Se ejecuta **dentro de `fetchBoardData()`**, no en un useEffect aparte, para que
 nunca llegue a renderizar con `boardData === null` en modo sandbox. Esa es la diferencia
 entre "sandbox que funciona" y "sandbox que se ve vacía un instante".
 
-### Decisión 4 — `vercel.json` con el `/api` explícitamente fuera del rewrite
+### Decisión 4 - `vercel.json` con el `/api` explícitamente fuera del rewrite
 
 Falta el archivo. Sin `base` en Vite (default `'/'`) Vercel sirve en root sin problema.
 El detalle que hay que acertar es el **negative lookahead**: si el rewrite a
@@ -172,16 +172,16 @@ leer.
 5. `src/data/detect.ts` con el probe y la decisión cacheada.
 6. `vercel.json` + guardar el modo sandbox en la config visible (badge en `Header.tsx`,
    que ya tiene slots de demo en las líneas 111/158/161/179).
-7. AC #3: pasada de responsive 360–430 px con touch targets ≥ 44 px usando la skill
+7. AC #3: pasada de responsive 360 - 430 px con touch targets ≥ 44 px usando la skill
    `code-level-ux-auditor`. `ItemModal.tsx:2016/2024` ya cumple (44 px en móvil);
    hay que auditar el resto del árbol, no asumirlo.
 8. Pirámide de Verificación completa y cierre en `ready`.
 
 ### Fuera de alcance (sección separada, no se pierden)
 
-- **AC #4** — selector dual Markdown/JSON. Requiere exponer `serializeBacklogMd()` de
+- **AC #4** - selector dual Markdown/JSON. Requiere exponer `serializeBacklogMd()` de
   `scripts/backlogMdParser.ts` al cliente; es trabajo propio.
-- **AC #5** — badge y enlace a la demo en `README.md`/`README.es.md`. Ojo: DEV-251 (que
+- **AC #5** - badge y enlace a la demo en `README.md`/`README.es.md`. Ojo: DEV-251 (que
   está en `done`) **borró** justamente ese badge y el enlace a `gripm.vercel.app` por
   apuntaba a un deploy inexistente. Reintroducirlo es un revert consciente y sólo se
   justifica cuando exista una URL viva. Hoy no la hay.
@@ -206,7 +206,7 @@ leer.
 <!-- SECTION:NOTES:BEGIN -->
 - Mantener la premisa local-first: el deploy en Vercel es una sandbox interactiva de demostración, no un servicio SaaS remoto.
 
-### Pasos 1 y 2 — Extracción de la capa de datos (hechos)
+### Pasos 1 y 2 - Extracción de la capa de datos (hechos)
 
 Mover `src/api.ts` a la arquitectura de adaptador **sin cambio de comportamiento**. La
 superficie real resultó ser de **30 funciones**, no las 35 que se habían estimado en la
@@ -222,7 +222,7 @@ que ve el usuario), `src/data/runtime.ts` (punto único de decisión del adaptad
 
 `scripts/test-api-security.js` Test 12 (DEV-237) leía `src/api.ts` por path hardcodeado y
 afirmaba que "debe haber llamadas fetch mutantes". Al vaciarse el archivo, el assert de
-existencia pasó a fallar y **`npm test` se cayó en el paso `api-security`** — el gate
+existencia pasó a fallar y **`npm test` se cayó en el paso `api-security`** - el gate
 funcionó.
 
 La corrección fue **mover el check, no relajarlo**: ahora escanea todo `src/data/`
@@ -240,7 +240,7 @@ Pendiente para el siguiente paso: `src/data/sandbox.ts` y `src/data/detect.ts`, 
 los que le dan sentido a la fachada. Hasta entonces `runtime.ts` devuelve siempre
 `httpAdapter` y la app se comporta exactamente como antes.
 
-### Paso 3 — Dataset ampliado (`data/demo-backlog.json`)
+### Paso 3 - Dataset ampliado (`data/demo-backlog.json`)
 
 Ampliado el fixture existente, sin crear un dataset paralelo. Antes tenía 4 ítems, **0
 sprints y 0 ACs**; ahora:
@@ -266,7 +266,7 @@ sprint en otros.
 
 `npm test` sigue en 16/16 tras el cambio.
 
-### Bug encontrado de paso — DEV-261
+### Bug encontrado de paso - DEV-261
 
 Al verificar **dónde** persisten los sprints en modo JSON encontré un defecto preexistente
 que **no bloquea la sandbox** (el adaptador lee el JSON en el navegador y no pasa por el
@@ -295,7 +295,7 @@ cierre**. Los sprints del dataset funcionan hoy en la sandbox (lectura cliente) 
 en el proyecto demo local servido por el daemon. La premisa del plan de que ampliar el
 dataset mejoraría también el demo local queda en suspenso hasta ese cierre.
 
-### Pasos 4, 5 y 6 — Adaptador en memoria, detector y `vercel.json`
+### Pasos 4, 5 y 6 - Adaptador en memoria, detector y `vercel.json`
 
 #### `src/data/sandbox.ts`
 
@@ -352,12 +352,12 @@ HTML, que es la señal que el detector ya sabe leer.
 `tsc` 0 · `npm test` 17/17 · `npm run build` OK · `npm run publish:check` 0.
 
 **El seed entra al bundle de producción, verificado por inspección del artefacto:** en
-`dist/assets/index-*.js` aparecen `Sprint 2 — Resiliencia`, `acceptanceCriteriaList`,
+`dist/assets/index-*.js` aparecen `Sprint 2 - Resiliencia`, `acceptanceCriteriaList`,
 `gripm_sandbox_board` y `/api/data`. Esto era un riesgo abierto del plan (el `data/` está
 en `watch.ignored` de `vite.config.ts`): `watch.ignored` afecta al dev server, no al
 bundle, y el JSON importado desde `src/` queda correctamente embebido.
 
-### Paso 7 — El Header no puede confundir "sandbox" con "proyecto demo"
+### Paso 7 - El Header no puede confundir "sandbox" con "proyecto demo"
 
 El gap más serio que dejó la arquitectura: **`data/demo-backlog.json` cumple dos roles** y
 `isDemo: true` viaja en el seed, así que en la web la UI cree estar mirando un proyecto
@@ -401,7 +401,7 @@ supresiones que nadie revisó, que es justo lo que DEV-188 prohíbe.
 
 `tsc` 0 · `npm test` **17/17** · `npm run backlog:sync` 0.
 
-### AC #3 — Auditoría estática de mobile (resultado parcial; el AC **no** se puede tildar)
+### AC #3 - Auditoría estática de mobile (resultado parcial; el AC **no** se puede tildar)
 
 Pasada con la skill `code-level-ux-auditor`. **El AC #3 NO se tilda todavía**, y el motivo
 es el hallazgo, no una formalidad.
@@ -449,9 +449,9 @@ pregunta de CSS computado, no de tokens.
 
 El AC queda partido en dos:
 
-- **AC #3a — verificable por auditoría estática:** cero regresiones de touch target y de
+- **AC #3a - verificable por auditoría estática:** cero regresiones de touch target y de
   oclusión inferior. **Cumplido**, con el conteo del baseline como aserción.
-- **AC #3b — requiere render:** el layout real entra en 360–430px y los targets medidos
+- **AC #3b - requiere render:** el layout real entra en 360 - 430px y los targets medidos
   dan ≥44px. Delegado a verificación visual en viewport móvil, que es el uso sancionado de
   navegador porque no es deducible estáticamente.
 
@@ -462,7 +462,7 @@ Mientras 3b no vuelva, el ítem **no pasa a `ready`**.
 - Verificación visual de AC #3b (en curso).
 - Pirámide de Verificación completa y cierre en `ready`.
 
-### `test:ui` y `test:linux` — los dos checks que la Pirámide exige y no son los de siempre
+### `test:ui` y `test:linux` - los dos checks que la Pirámide exige y no son los de siempre
 
 **`npm run test:ui`** es obligatorio cuando se toca `Header` o navegación (`AGENTS.md` §6.18)
 y lo había pasado por alto. Corrido: verde.
@@ -490,8 +490,8 @@ Resultado: **`SUITE_EXIT=0`, 17/17 pasos en `node:22.6.0-bookworm`**, con
 > ```
 >
 > Dos auditorías lo confirmaron de forma independiente. **La causa real del fallo inicial era
-> Docker apagado** —el primer punto de esta misma lista, que el diagnóstico de abajo
-> contradecía— y se atribuyó a un defecto del script que no existe.
+> Docker apagado** - el primer punto de esta misma lista, que el diagnóstico de abajo
+> contradecía - y se atribuyó a un defecto del script que no existe.
 
 Lo que **sí** es un defecto real, y sobrevive a la corrección:
 
@@ -506,8 +506,8 @@ en dirección a DEV-190. El `-v` del script funciona; el diagnóstico estaba equ
 recomendación habría enviado a alguien a arreglar algo que ya está bien.
 
 > [!NOTE]
-> La forma `--mount` sí es preferible si vas a montar el repo desde Git Bash por comfort —
-> evita el quoting de rutas con espacios en `C:\Users\...` — pero **no es un workaround
+> La forma `--mount` sí es preferible si vas a montar el repo desde Git Bash por comfort - 
+> evita el quoting de rutas con espacios en `C:\Users\...` - pero **no es un workaround
 > necesario**. La afirmación de que `-v` se rompe era incorrecta.
 
 #### Estado de la Pirámide de Verificación
@@ -525,7 +525,7 @@ recomendación habría enviado a alguien a arreglar algo que ya está bien.
 
 Lo único abierto es el **AC #3b**, que depende de render.
 
-### AC #3b — Verificación visual en viewport móvil (resultado: **FALLA**)
+### AC #3b - Verificación visual en viewport móvil (resultado: **FALLA**)
 
 Delegada a navegador (Playwright + Chromium), con `dist/` servido por un **servidor
 estático puro** que devuelve 404 de texto plano para todo `/api/*`. Se evitó
@@ -536,13 +536,13 @@ invalidarían la prueba. Viewports 390x844, 360x800 y 430x932, con `isMobile` y 
 > La app renderiza en **inglés** porque `.gripm/config.json` fija `"language": "en"`. Los
 > rótulos del AC ("Reiniciar demo", "Modo demo") aparecen como "Reset demo" y "Demo mode".
 
-#### Lo que sí funciona — la capa de datos de DEV-222 queda probada en runtime
+#### Lo que sí funciona - la capa de datos de DEV-222 queda probada en runtime
 
 | # | Ítem | Resultado |
 | :--- | :--- | :--- |
-| 1 | La app carga con datos | **OK** — 7 ítems, 3 columnas pobladas, badge `Demo` |
-| 7 | Vistas Sprint y Releases | **OK** — 2 sprints con progreso, 2 releases con scope |
-| 8 | Toggle de AC y mover tarjeta persisten | **OK** — verificado en `localStorage` tras recargar |
+| 1 | La app carga con datos | **OK** - 7 ítems, 3 columnas pobladas, badge `Demo` |
+| 7 | Vistas Sprint y Releases | **OK** - 2 sprints con progreso, 2 releases con scope |
+| 8 | Toggle de AC y mover tarjeta persisten | **OK** - verificado en `localStorage` tras recargar |
 
 Ese bloque confirma lo que el ítem vino a construir: **detección de entorno, seed en
 memoria, adaptadores y persistencia en LocalStorage funcionan de verdad.** El probe de
@@ -553,14 +553,14 @@ loop de reconexión del SSE. Cero excepciones no capturadas.
 
 | # | Ítem | Resultado |
 | :--- | :--- | :--- |
-| 2 | Cero scroll horizontal | **FALLA** — desborde de 127px recortado por `overflow-x: hidden` |
-| 3 | Touch targets ≥44px | **FALLA** — 9 controles no llegan |
-| 4 | "Reiniciar demo" funciona | **FALLA** — el tap se hijackea hacia Sprints |
-| 5 | Indicador "Modo demo" accesible | **PARCIAL** — valor correcto, inalcanzable en móvil |
-| 6 | Sin errores de red | **PARCIAL** — sin loop, pero `/api/retros` escapaba del adaptador |
+| 2 | Cero scroll horizontal | **FALLA** - desborde de 127px recortado por `overflow-x: hidden` |
+| 3 | Touch targets ≥44px | **FALLA** - 9 controles no llegan |
+| 4 | "Reiniciar demo" funciona | **FALLA** - el tap se hijackea hacia Sprints |
+| 5 | Indicador "Modo demo" accesible | **PARCIAL** - valor correcto, inalcanzable en móvil |
+| 6 | Sin errores de red | **PARCIAL** - sin loop, pero `/api/retros` escapaba del adaptador |
 
 **Causa raíz de 2, 3, 4 y 5: una sola.** El Header en móvil es una fila
-`grid-cols-[1fr_auto_1fr]` cuyo cluster derecho **no refluye** y queda fijo en x 397–487,
+`grid-cols-[1fr_auto_1fr]` cuyo cluster derecho **no refluye** y queda fijo en x 397 - 487,
 fuera del viewport. El `nav` tiene `min-w` hardcoded (88+145+98 = 331px) que desborda y
 **pinta por encima** del botón de reset: `elementFromPoint` sobre el centro del botón
 devuelve el tab "Sprints". Un tap real en (272, 29) navegó a Sprints en 6 corridas
@@ -603,19 +603,19 @@ Header y **es preexistente**, no introducido por DEV-222: pertenece a **DEV-207*
 
 Lo que sí es de DEV-222 y quedó corregido: la fuga de `/api/retros` y la colocación del
 reset. Lo que no: el reflujo del Header, los 9 touch targets y la alcanzabilidad del
-indicador de modo demo — todos dependientes de DEV-207.
-### Nota de alcance — móvil sale del sandbox (decisión del PO, 2026-10-13)
+indicador de modo demo - todos dependientes de DEV-207.
+### Nota de alcance - móvil sale del sandbox (decisión del PO, 2026-10-13)
 
 El AC #3 se reescribió para acotar la demostración a **desktop**. La auditoría móvil se
 conserva íntegra arriba como **evidencia**, no como bloqueo.
 
 Motivo: hacer la demo pública inutilizable en teléfono es un mundo muy completo para
-bloquear un lanzamiento. Y el defecto de raíz —el Header en `grid-cols-[1fr_auto_1fr]` sin
-reflujo— es **preexistente**, no introducido por DEV-222.
+bloquear un lanzamiento. Y el defecto de raíz - el Header en `grid-cols-[1fr_auto_1fr]` sin
+reflujo - es **preexistente**, no introducido por DEV-222.
 
 **Lo que hereda DEV-207**, sin que este ítem lo resuelva:
 
-- El cluster derecho del Header fijo en x 397–487 y el `nav` con `min-w` 331px que
+- El cluster derecho del Header fijo en x 397 - 487 y el `nav` con `min-w` 331px que
   desborda y secuestra taps.
 - Los 9 controles con target < 44px (checkbox de AC 13x13, acciones de tarjeta 22x22,
   tabs del header con 28px de alto).
@@ -630,7 +630,7 @@ haga sobre una base que funciona en web y no sobre una vista local.
 > se enlaza desde el README, el texto tiene que decirlo, o el primer visitante desde un
 > teléfono se va a llevar una impresión rota.
 
-### Journey de entrada — decidido: opción A, sandbox que se explica sola
+### Journey de entrada - decidido: opción A, sandbox que se explica sola
 
 Decisión del PO: **una sola URL, la raíz es la sandbox, y la app se explica a sí misma.**
 No hay landing por ahora; queda como decisión de presencia pública para cuando exista una
@@ -647,7 +647,7 @@ Lo que faltaba y quedó resuelto:
 Antes de esto el recorrido era literalmente *nadie → nadie*: el único enlace a GitHub de la
 app era el de "hay actualización", que solo aparece con `updateAvailable.hasUpdate`.
 
-#### `.vercelignore` — hallazgo de seguridad previo al deploy
+#### `.vercelignore` - hallazgo de seguridad previo al deploy
 
 Vercel sube el repositorio entero al contenedor de build. **No existía `.vercelignore`**, y
 con eso cada deploy habría arrastrado **258 archivos de `backlog/tasks/` (868 KB)** con
@@ -707,7 +707,7 @@ y deliberado; ver **DEV-263**.
 
 | AC original | Destino | Motivo |
 | :--- | :--- | :--- |
-| #3 adaptación a móvil | **DEV-264** (+ DEV-207) | Descope del PO. La evidencia de escritorio que se llevó consigo —la columna `Completado` cortada a 1280×800— quedó registrada |
+| #3 adaptación a móvil | **DEV-264** (+ DEV-207) | Descope del PO. La evidencia de escritorio que se llevó consigo - la columna `Completado` cortada a 1280×800 - quedó registrada |
 | #4 selector de formato dual | **DEV-265** | Es un afordance de **pitch**, no parte del entregable de la sandbox. El objetivo de este ítem es que la app funcione sin daemon; que la demo comunique mejor es otro objetivo, y atarlos al mismo criterio de cierre mezclaba dos cosas de naturaleza distinta |
 
 | AC vigente | Aserción |
@@ -722,7 +722,7 @@ y deliberado; ver **DEV-263**.
 > que corresponde: `ready` lo mueve la certificación, no el desarrollo. Que el código esté
 > commiteado en `main`, desplegado y verificado no sustituye esa certificación: son capas
 > distintas. La certificación cubrió los AC #1, #2, #5 y #6; **el AC #3 (mobile) sigue
-> withdrawn y sin verificar** — la tabla de arriba no lo lista porque no hay aserción que lo
+> withdrawn y sin verificar** - la tabla de arriba no lo lista porque no hay aserción que lo
 > sostenga.
 
 ### Lo que NO se resolvió acá, y quedó en el backlog

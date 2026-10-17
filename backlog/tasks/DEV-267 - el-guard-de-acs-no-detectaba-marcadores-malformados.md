@@ -29,7 +29,7 @@ archivo que abre `<!-\- AC:BEGIN ->` y no lo cierra:
 
 **Verde sobre datos que nunca leyó.** Siete archivos estaban en ese estado, arrastrando el
 defecto desde v1.3.0: todos cerraban su bloque de ACs con `<!-\- SECTION:DESCRIPTION:END ->`
-—un marcador duplicado del que ya usan correctamente más arriba— en vez del de cierre de ACs.
+ - un marcador duplicado del que ya usan correctamente más arriba - en vez del de cierre de ACs.
 Dos de los siete son de la sesión del 2026-10-14 (DEV-258 y DEV-259, ambos en `ready`).
 
 Esto es peor que un falso positivo: un falso positivo detiene el flujo con un diagnóstico

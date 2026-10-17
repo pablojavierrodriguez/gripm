@@ -5,32 +5,32 @@ date: "2026-09-24"
 author: "Antigravity Agentic Team & Pablo"
 status: completed
 tasksCompleted:
-  - DEV-077
-  - DEV-079
-  - DEV-080
-  - DEV-081
-  - DEV-082
-  - DEV-083
-  - DEV-084
-  - DEV-085
-  - DEV-086
-  - DEV-087
-  - DEV-088
-  - DEV-089
-  - DEV-090
-  - DEV-091
-  - DEV-092
-  - DEV-093
-  - DEV-094
-  - DEV-095
-  - DEV-096
-  - DEV-097
-  - DEV-098
-  - DEV-099
-  - DEV-100
+ - DEV-077
+ - DEV-079
+ - DEV-080
+ - DEV-081
+ - DEV-082
+ - DEV-083
+ - DEV-084
+ - DEV-085
+ - DEV-086
+ - DEV-087
+ - DEV-088
+ - DEV-089
+ - DEV-090
+ - DEV-091
+ - DEV-092
+ - DEV-093
+ - DEV-094
+ - DEV-095
+ - DEV-096
+ - DEV-097
+ - DEV-098
+ - DEV-099
+ - DEV-100
 ---
 
-# Retrospectiva de Cierre — Sprint 5
+# Retrospectiva de Cierre - Sprint 5
 
 **Objetivo del Sprint:** Resolución de errores críticos de UX/UI, coherencia de backlog, mejoras de configuración y robustecimiento de MCP.  
 **Resultado:** 100% de los 23 items completados y en estado `Ready` (Ready for Release).

@@ -1,4 +1,4 @@
-# Auditoría Integral de gripm — 2026-10-10
+# Auditoría Integral de gripm - 2026-10-10
 
 > **Estado:** informe de revisión. **Nada de lo que está aquí fue implementado todavía.**
 > **Alcance:** `@gripm/board@1.1.0`, commit `f9dadc3`, rama `main`.
@@ -18,10 +18,10 @@ commits y las revisiones puedan referirse a algo concreto.
 
 | Prefijo | Significado | Fase de resolución |
 |---|---|---|
-| `SEC-xx` | Seguridad | Fase 2 — antes de la siguiente release |
-| `BUG-xx` | Defecto funcional | Fase 0 — P0 |
+| `SEC-xx` | Seguridad | Fase 2 - antes de la siguiente release |
+| `BUG-xx` | Defecto funcional | Fase 0 - P0 |
 | `GATE-xx` | El gate de calidad no cumple su contrato | Fase 1 |
-| `TOOL-xx` | Defecto de tooling / scripts | Fase 1–3 |
+| `TOOL-xx` | Defecto de tooling / scripts | Fase 1 - 3 |
 | `PROC-xx` | Proceso, datos o trazabilidad | Fase 3 |
 | `DOC-xx` | Documentación y reglas | Fase 3 |
 | `ARCH-xx` | Deuda técnica estructural | Fase 4 |
@@ -29,9 +29,9 @@ commits y las revisiones puedan referirse a algo concreto.
 
 ### 0.2 Niveles de confianza
 
-- **CONFIRMADO** — verificado leyendo el código, ejecutando el comando, o comparando
+- **CONFIRMADO** - verificado leyendo el código, ejecutando el comando, o comparando
   bytes/hashes. Incluye la referencia `archivo:línea`.
-- **SOSPECHA** — el patrón está presente pero el resultado en runtime depende de
+- **SOSPECHA** - el patrón está presente pero el resultado en runtime depende de
   condiciones no ejecutadas en esta auditoría.
 
 Un hallazgo `CONFIRMADO` puede estar equivocado si el razonamiento es incorrecto; por eso
@@ -58,7 +58,7 @@ en el resto que un informe que nunca admite fallar.**
 
 **Causa del error.** El hallazgo surgió leyendo
 `Get-Content .nvmrc, .node-version, .editorconfig, .prettierrc, .prettierignore, .gitignore`
-— un solo comando sobre seis archivos. PowerShell concatena varios paths **sin separador y
+ - un solo comando sobre seis archivos. PowerShell concatena varios paths **sin separador y
 sin encabezado de nombre**, y el bloque `node_modules/ dist/ bin/ backlog/ .devboard/
 *.local* package-lock.json` que se atribuyó a `.gitignore` era en realidad
 **`.prettierignore`** (línea 4), el archivo inmediatamente anterior en la lista.
@@ -73,17 +73,17 @@ reglas sobre archivos ya trackeados es `git check-ignore -v --no-index <path>`.
 
 **Estado real verificado.** `.gitignore` tiene 42 líneas y **no** contiene `backlog/`,
 `bin/` ni `package-lock.json`. `git check-ignore -v --no-index` devuelve vacío para
-`backlog/tasks/DEV-233 — …md`, `package-lock.json`, `bin/gripm.js` y
+`backlog/tasks/DEV-233 - …md`, `package-lock.json`, `bin/gripm.js` y
 `backlog/releases.json`. No hay tal mina.
 
 **Lección operativa.** Un hallazgo marcado `CONFIRMADO` cuyo comando de verificación fue
-escrito —y mal escrito— por el mismo auditor no es evidencia: es una afirmación con
+escrito - y mal escrito - por el mismo auditor no es evidencia: es una afirmación con
 decoración. La contra-medida adoptada para el resto del informe: **todo hallazgo de
 configuración se verificó releyendo el archivo con número de línea**, no encadenando
 lecturas.
 
 **Hallazgo menor que sí sobrevivió y que este error ayudó a encontrar.**
-`.gitignore:32` declara `data/dev-board.json` — marca pre-1.0. Corrobora `DOC-16`
+`.gitignore:32` declara `data/dev-board.json` - marca pre-1.0. Corrobora `DOC-16`
 (`bug_report.yml:45` apunta a `.devboard/backlog.json`): la marca vieja sobrevive en tres
 archivos visibles para el usuario final.
 
@@ -96,18 +96,18 @@ comportamiento.**
 
 `npm test` corre 16 pasos en 31.8 s y pasa. Mientras tanto, cinco modales lanzan un error
 de React y matan la aplicación al abrirse. El verificador que debía detectarlo existe,
-tiene el chequeo correcto — y lo aplicó **únicamente al único archivo que ya complyía**.
+tiene el chequeo correcto - y lo aplicó **únicamente al único archivo que ya complyía**.
 
 Hay tres fallos estructurales en cascada:
 
 1. **Se documentó la regla sin construir el mecanismo.** `test:linux` está declarado
-   obligatorio y no corre en ningún workflow. `verify-changes.js` —el gate que cubre las
-   clases de defecto que la pirámide no cubre— solo corre en el hook local. `audit:ux`
+   obligatorio y no corre en ningún workflow. `verify-changes.js` - el gate que cubre las
+   clases de defecto que la pirámide no cubre - solo corre en el hook local. `audit:ux`
    no puede fallar en Windows. La regla escrita más el gate ausente se contaron como
    cumplimiento.
 
 2. **Se certificó por inspección, no por aserción.** `AGENTS.md §4` exige que cada AC
-   tildado tenga un comando ejecutable — y desde `DEV-134` se cumple. Pero los
+   tildado tenga un comando ejecutable - y desde `DEV-134` se cumple. Pero los
    *verificadores* se escribieron como `assert(src.includes(...))` sobre el texto del
    archivo. Resultado: un gate que detecta renombres y no bugs.
 
@@ -152,7 +152,7 @@ npm run audit:ux && npm run build && npm run publish:check`.
 
 ---
 
-## 3. P0 — Defectos funcionales que llegan a producción
+## 3. P0 - Defectos funcionales que llegan a producción
 
 ### BUG-01 · React lanza y la app muere al abrir cinco modales
 
@@ -170,8 +170,8 @@ render anterior. El resultado es un throw, no un render vacío.
 | `src/components/SprintModal.tsx` | L100 | **L127** | `src/components/SprintView.tsx:1245` incondicional |
 | `src/components/FolderPickerModal.tsx` | L58 | **L78** | `src/components/ProjectModal.tsx:266` incondicional |
 | `src/components/CompleteSprintModal.tsx` | L59 | **L100** | `src/components/SprintView.tsx:1266` incondicional |
-| `src/components/ItemModal.tsx` | L414 | L229 ✅ correcto | — |
-| `src/components/ConfirmModal.tsx` | L53 | L34 ✅ correcto | — |
+| `src/components/ItemModal.tsx` | L414 | L229 ✅ correcto | - |
+| `src/components/ConfirmModal.tsx` | L53 | L34 ✅ correcto | - |
 
 **Reproducir:** abrir "Nuevo proyecto" desde el header. Pantalla en blanco hasta que el
 error boundary de `src/main.tsx:15` la captura.
@@ -195,8 +195,8 @@ foreach($f in @('ProjectModal','PlanGuardModal','ImportWizardModal','SprintModal
 ### BUG-02 · Rama SSE muerta: `settings_changed` nunca se despacha
 
 **CONFIRMADO.**
-- `src/api.ts:277` — `BoardEventType` no incluye `'settings_changed'`.
-- `src/api.ts:298` — solo se registra `es.addEventListener('backlog_changed', …)`. Los
+- `src/api.ts:277` - `BoardEventType` no incluye `'settings_changed'`.
+- `src/api.ts:298` - solo se registra `es.addEventListener('backlog_changed', …)`. Los
   eventos SSE con nombre **no** llegan a `onmessage`.
 - El servidor sí lo emite: `vite.config.ts:1428`.
 
@@ -209,14 +209,14 @@ nunca llega a la UI.
 ### BUG-03 · Enter sobre "Cancelar" ejecuta la acción destructiva
 
 **CONFIRMADO.** `src/components/ConfirmModal.tsx`:
-- L44-46 — un listener `window` de keydown dispara `handleConfirm()` ante **cualquier**
+- L44-46 - un listener `window` de keydown dispara `handleConfirm()` ante **cualquier**
   Enter. Si el usuario tabulariza hasta "Cancelar" y pulsa Enter, se borra.
   No hay chequeo de target, al contrario que en `src/App.tsx:350-358` que sí distingue
   `INPUT/TEXTAREA/SELECT`.
-- L55-63 — `try { await onConfirm() } finally { setLoading(false); onClose() }` **sin
+- L55-63 - `try { await onConfirm() } finally { setLoading(false); onClose() }` **sin
   `catch`**. Si `onConfirm` rechaza, la excepción escapa como unhandled rejection *y*
   el modal se cierra igual, ocultando el fallo.
-- L51 — deps `[isOpen, loading, onClose]`; `onConfirm` ausente. Los callers pasan
+- L51 - deps `[isOpen, loading, onClose]`; `onConfirm` ausente. Los callers pasan
   lambdas inline (`ItemCard.tsx:658`, `TrashView.tsx`, `Header.tsx:663`), así que Enter
   puede borrar el `item.id` capturado antes.
 
@@ -224,7 +224,7 @@ nunca llega a la UI.
 
 ### BUG-04 · El formulario del release se borra por cambios no relacionados
 
-**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:118` — el efecto de sincronización
+**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:118` - el efecto de sincronización
 del drawer tiene `items` entre sus deps. `items` cambia en cada drag, cambio de estado o
 evento SSE. Cada uno de esos cambios re-ejecuta el efecto y **resetea los siete campos de
 edición**, destruyendo cambios sin guardar del usuario a mitad de edición.
@@ -234,7 +234,7 @@ concurrente.
 
 ### BUG-05 · Rollback optimista desde estado obsoleto
 
-**CONFIRMADO.** `src/App.tsx:502` — `setBoardData({ ...boardData, items: prevItems })`
+**CONFIRMADO.** `src/App.tsx:502` - `setBoardData({ ...boardData, items: prevItems })`
 captura `boardData` del momento de creación del callback. Si otra actualización llegó
 entre la escritura optimista y el rechazo, **se descarta**.
 
@@ -243,41 +243,41 @@ El patrón correcto ya existe 100 líneas más abajo, en `handleReorderBacklogIt
 
 ### BUG-06 · Closure obsoleta en el handler global de teclado
 
-**CONFIRMADO.** `src/App.tsx:342-378` — el efecto tiene deps `[]` (L378) pero lee
+**CONFIRMADO.** `src/App.tsx:342-378` - el efecto tiene deps `[]` (L378) pero lee
 `config?.defaultView` en L346. El atajo `⌘,` queda clavado en el valor del primer render.
 
 ### BUG-07 · Fetch sin `res.ok` y sin cancelación, con `any[]`
 
-**CONFIRMADO.** `src/components/SprintView.tsx:122-130` — `fetch('/api/retros')` con:
+**CONFIRMADO.** `src/components/SprintView.tsx:122-130` - `fetch('/api/retros')` con:
 - sin chequeo de `res.ok` (un 500 devuelve HTML, `.json()` lanza dentro de un `.catch` mudo),
 - sin `AbortController` (cambios rápidos de `projectId` compiten),
-- `useState<any[]>([])` en L119 — fuga de tipos en un archivo estrictamente tipado,
+- `useState<any[]>([])` en L119 - fuga de tipos en un archivo estrictamente tipado,
 - salteando `src/api.ts` por completo, lo que lo hace invisible a `test-api-security.js`.
 
 Es el **único** `fetch` directo a `/api` fuera de `src/api.ts` en todo `src/`.
 
 ### BUG-08 · Número mágico `0.2.0` usado como sentinel de estado
 
-**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:155,159` — una release realmente
+**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:155,159` - una release realmente
 numerada `0.2.0` queda clasificada como `released` para siempre, y cualquier otra release
 legacy como `unreleased`. Datos de dominio hardcodeados en un filtro genérico.
 
 ### BUG-09 · Escape cierra el drawer desde dentro de un textarea
 
-**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:142-151` — sin guard de target,
+**CONFIRMADO.** `src/components/ReleaseAssembler.tsx:142-151` - sin guard de target,
 a diferencia de `src/App.tsx:350-358` e `src/components/ItemModal.tsx:294`.
 
 ### BUG-10 · Toast de "copiado" sin verificar la escritura
 
 **CONFIRMADO.** `src/components/ItemCard.tsx:353` y `src/components/PlanGuardModal.tsx:60`
-— `navigator.clipboard.writeText(prompt)` sin `.catch` ni `await`, y el toast de éxito se
+ - `navigator.clipboard.writeText(prompt)` sin `.catch` ni `await`, y el toast de éxito se
 dispara igual. `navigator.clipboard` rechaza en orígenes no seguros, que es el caso
 normal de un dev server servido por IP de LAN. El patrón correcto existe en
 `src/components/ReleaseAssembler.tsx:359-366`.
 
 ### BUG-11 · Carrera en `loadData`
 
-**CONFIRMADO.** `src/App.tsx:285-320` — `loadData` se recrea en cada cambio de proyecto
+**CONFIRMADO.** `src/App.tsx:285-320` - `loadData` se recrea en cada cambio de proyecto
 (deps `[selectedProjectId, showToast]`), y el efecto que lo dispara no tiene
 `AbortController`, ni token de secuencia, ni guarda de desmontaje. `new AbortController`
 aparece **0 veces** en todo `src/`. Dos cambios rápidos de proyecto pueden resolver fuera
@@ -285,13 +285,13 @@ de orden y pintar los ítems del proyecto equivocado.
 
 ### BUG-12 · Timers de toast sin cleanup
 
-**CONFIRMADO.** `src/App.tsx:247-249` — los timers de auto-cierre nunca se limpian al
+**CONFIRMADO.** `src/App.tsx:247-249` - los timers de auto-cierre nunca se limpian al
 desmontar ni cuando el usuario descarta antes. `setToasts` se invoca sobre un componente
 desmontado.
 
 ### BUG-13 · Alias de estado legacy en el atajo `N`
 
-**CONFIRMADO.** `src/App.tsx:363` — `setDefaultNewStatus('backlog')`. Todos los demás
+**CONFIRMADO.** `src/App.tsx:363` - `setDefaultNewStatus('backlog')`. Todos los demás
 paths usan `'draft'` (`App.tsx:1212`, `KanbanBoard.tsx:1099`). `backlog` es un alias
 deprecado (`types.ts:24`, `statusMeta.ts:35`). Pulsar `N` persiste un estado legacy.
 
@@ -303,13 +303,13 @@ los parámetros de una llave.
 
 ### BUG-15 · Los toasts son invisibles para lectores de pantalla
 
-**CONFIRMADO.** `src/components/Toast.tsx:19` — sin `role="status"`, sin `aria-live`, sin
+**CONFIRMADO.** `src/components/Toast.tsx:19` - sin `role="status"`, sin `aria-live`, sin
 `role="alert"`. Los toasts de error son el **único** canal de feedback de ~20 rutas de
 fallo (`App.tsx:503,538,610,637,658,679,703,774,798`, `SettingsView.tsx:539`).
 
 ### BUG-16 · `createPortal` ausente en 10 de 13 overlays
 
-**CONFIRMADO** — contradice directamente `AGENTS.md` regla 11 (`DEV-129`, `DEV-130`).
+**CONFIRMADO** - contradice directamente `AGENTS.md` regla 11 (`DEV-129`, `DEV-130`).
 Solo existen 3 call sites: `ConfirmModal.tsx:114`, `ItemCard.tsx:414`,
 `ReleaseAssembler.tsx:660,1087`.
 
@@ -324,28 +324,28 @@ El número real de `fixed inset-0` en `src/` es 13.
 ### BUG-17 · Sin safe-area en elementos fijos
 
 **CONFIRMADO.** `grep -n "env(safe-area" src/` → **0 coincidencias**.
-- `src/App.tsx:1452` — navegación inferior móvil `fixed bottom-0` sin
+- `src/App.tsx:1452` - navegación inferior móvil `fixed bottom-0` sin
   `padding-bottom: env(safe-area-inset-bottom)`. Con indicador de inicio en iOS, la
   última tab queda parcialmente oculta.
-- `src/components/Toast.tsx:19` — `fixed bottom-5` con `z-50`, **por encima** de la nav
+- `src/components/Toast.tsx:19` - `fixed bottom-5` con `z-50`, **por encima** de la nav
   (`z-40`): los toasts tapan la navegación móvil.
-- `src/components/Header.tsx:122` — `sticky top-0` sin `env(safe-area-inset-top)`.
+- `src/components/Header.tsx:122` - `sticky top-0` sin `env(safe-area-inset-top)`.
 
 ### BUG-18 · Botones de solo icono sin nombre accesible
 
 **CONFIRMADO.** `PlanGuardModal.tsx:117-122`, `SprintModal.tsx:154-160`,
-`Toast.tsx:37-42`, `FilterBar.tsx:185` — sin `aria-label`. Contradice lo que sí hacen
+`Toast.tsx:37-42`, `FilterBar.tsx:185` - sin `aria-label`. Contradice lo que sí hacen
 `Header.tsx:499,533` e `ItemCard.tsx:408`: la aplicación es inconsistente consigo misma.
 
 ### BUG-19 · Labels sin `htmlFor`
 
-**CONFIRMADO.** `ItemModal.tsx:144-146` y `PlanGuardModal.tsx:144-146` — `<label>` sin
+**CONFIRMADO.** `ItemModal.tsx:144-146` y `PlanGuardModal.tsx:144-146` - `<label>` sin
 `htmlFor` y campos sin `id`. También `KanbanBoard.tsx:901-922` (el `<select>` de sprint
 no tiene label ni `aria-label`).
 
 ---
 
-## 4. P0 — Seguridad
+## 4. P0 - Seguridad
 
 ### SEC-01 · Ejecución de comandos persistida en el backlog versionado
 
@@ -369,7 +369,7 @@ a nada**, ni `tools/list`.
 
 ### SEC-02 · El agente muta el backlog del usuario y tilda ACs no verificados
 
-**CONFIRMADO.** `scripts/mcp-server.ts:1181` — `const autoFix = args.autoFix !== false;`
+**CONFIRMADO.** `scripts/mcp-server.ts:1181` - `const autoFix = args.autoFix !== false;`
 El default es **`true`**. Con `autoFix` activo (`:1222-1223`) el servidor convierte
 `- [ ]` en `- [x]` en toda tarea `done` con ACs pendientes: **fabrica evidencia de
 verificación**.
@@ -381,7 +381,7 @@ Peor: el único test del tool, `scripts/verify-mcp-binary.js:82-84`, lo invoca c
 
 **CONFIRMADO.** `scripts/mcp-server.ts:99-104` acepta `--repo <ruta arbitraria>` y lo usa
 como base de lectura **y escritura** de `backlog/tasks/*.md` (`getTasksDir`, L136-139).
-No hay `isAllowedBrowsePath` — la función que el dev server HTTP **sí** aplica
+No hay `isAllowedBrowsePath` - la función que el dev server HTTP **sí** aplica
 (`vite.config.ts:160-176`).
 
 **Asimetría:** el servidor HTTP, con menos privilegios, valida containment de rutas. El
@@ -389,7 +389,7 @@ servidor MCP, que además ejecuta shell, no lo hace.
 
 ### SEC-04 · `gripm_list_projects` expone el filesystem de otros proyectos
 
-**CONFIRMADO.** `scripts/mcp-server.ts:475-486` — `getRegistry()` (`:90-134`) lee
+**CONFIRMADO.** `scripts/mcp-server.ts:475-486` - `getRegistry()` (`:90-134`) lee
 `~/.gripm/registry.json` y expone el `repoPath` de **todos** los proyectos registrados.
 Un agente conectado ve las rutas del disco de los demás proyectos del usuario.
 
@@ -401,11 +401,11 @@ Un agente conectado ve las rutas del disco de los demás proyectos del usuario.
 Casos concretos:
 - `gripm_list_tasks` con `limit: "abc"` → `tasks.slice(0, "abc")` sin crashear ni validar.
 - `gripm_update_task` con `toggleAcIndex: 0` o `-1` → **no-op silencioso**. `AGENTS.md`
-  gotcha 2 dice "secuencial, nunca paralelizar" — el código no lo fuerza, solo lo documenta.
+  gotcha 2 dice "secuencial, nunca paralelizar" - el código no lo fuerza, solo lo documenta.
 
 ### SEC-06 · `--host 0.0.0.0` expone el backlog completo a la LAN
 
-**CONFIRMADO, y es un trade-off documentado.** `vite.config.ts:1239-1240` — `isIpHost`
+**CONFIRMADO, y es un trade-off documentado.** `vite.config.ts:1239-1240` - `isIpHost`
 acepta cualquier IPv4. Con `GRIPM_HOST=0.0.0.0`, **cualquier IP de la LAN pasa el check
 de Host sin Origin**. `test-api-security.js:146-156` lo testea y lo acepta como correcto.
 
@@ -415,7 +415,7 @@ ni warning en la respuesta, ni límite de permisos.
 
 ### SEC-07 · El home directory es una raíz válida para el file browser
 
-**CONFIRMADO, y testeado como correcto.** `vite.config.ts:119` — `roots.push(
+**CONFIRMADO, y testeado como correcto.** `vite.config.ts:119` - `roots.push(
 path.resolve(homedir))`. `/api/fs/browse` puede listar **el home entero**.
 `test-api-security.js:199-212` lo verifica. No es un bug de containment; es una raíz
 demasiado amplia para un endpoint de navegación de archivos.
@@ -439,7 +439,7 @@ defecto que `DEV-118` y `DEV-120` fueron creados para eliminar, ambos `done`.
 
 ### SEC-09 · `force: true` salta el gate sin dejar rastro
 
-**CONFIRMADO.** `scripts/mcp-server.ts:985,1090` — `force` desactiva la verificación sin
+**CONFIRMADO.** `scripts/mcp-server.ts:985,1090` - `force` desactiva la verificación sin
 loguear nada. Ni en el archivo, ni en la respuesta.
 
 ### SEC-10 · No hay autenticación, y no está declarado como superficie de riesgo
@@ -475,7 +475,7 @@ detectado por el gate que motivó su creación. Se descubrieron a mano, después
 
 ### GATE-03 · El baseline de `audit:ux` no puede absorber nada en Windows
 
-**CONFIRMADO — mecanismo exacto.** `audit-ux-code.cjs` y `ux-rules.json` son copias
+**CONFIRMADO - mecanismo exacto.** `audit-ux-code.cjs` y `ux-rules.json` son copias
 **byte-idénticas** de `@gripm/playbook@2.2.2` (vendorizado; `sync-playbook.mjs:76` los
 incluye en `FALLBACK_CORE_FILES`).
 
@@ -514,15 +514,15 @@ desaparecer reglas enteras:
 | Línea | Qué desaparece |
 |---|---|
 | `:262-264` | Las 3 reglas de documentación (versión de README, conteo de tools MCP, refs a `legacyParser.ts`) |
-| `:287-289` | **REGLA 4** — todo ítem de un release `released` debe estar en `done` |
-| `:305-307` | **REGLA 5** — integridad de `backlog/sprints.json` |
+| `:287-289` | **REGLA 4** - todo ítem de un release `released` debe estar en `done` |
+| `:305-307` | **REGLA 5** - integridad de `backlog/sprints.json` |
 
 Si `releases.json` o `sprints.json` se corrompen, **la Invariante Fundamental de
 `AGENTS.md §1` no se verifica y el gate sale verde**.
 
 ### GATE-06 · El MCP devuelve `ok: true` tras un fallo de escritura
 
-**CONFIRMADO.** `scripts/mcp-server.ts:723` — `} catch {}` en el bulk update. Un
+**CONFIRMADO.** `scripts/mcp-server.ts:723` - `} catch {}` en el bulk update. Un
 `writeFileSync` fallido (permisos, disco lleno, archivo bloqueado en Windows) se traga;
 `updatedCount` no se incrementa, el tool responde `{ ok: true, ... }` y **el agente cree
 que la mutación se aplicó**.
@@ -555,9 +555,9 @@ Un refactor cosmético los rompe; un bug semántico real los pasa.
 
 ### GATE-09 · El checker correcto se aplicó al único archivo que ya complyía
 
-**CONFIRMADO — y es el corazón de `BUG-01`.** `scripts/verify-focus-trap.js:80-86`
+**CONFIRMADO - y es el corazón de `BUG-01`.** `scripts/verify-focus-trap.js:80-86`
 implementa la verificación de orden de hooks (comparar el índice del hook contra el del
-early return). El autor identificó exactamente el invariante correcto — **y lo aplicó
+early return). El autor identificó exactamente el invariante correcto - **y lo aplicó
 solo a `ItemModal`**, el único de los ocho que ya pasaba. Los cinco violaciones quedaron
 al lado, sin marcar, durante 8 releases.
 
@@ -602,11 +602,11 @@ lógica de pipeline llegaron a producción. `hubot/actions` usa `actionlint` des
 
 ### GATE-14 · `run-tests.js` parsea `--timeout` sin validar
 
-**CONFIRMADO.** `scripts/run-tests.js:52-53` — `Number(args[timeoutArg + 1])` sin
+**CONFIRMADO.** `scripts/run-tests.js:52-53` - `Number(args[timeoutArg + 1])` sin
 validar. Con `--timeout` sin valor, o `--timeout foo`: `NaN` → `setTimeout(fn, NaN)`
 dispara en ~1 ms → el backstop mata el primer paso instantáneamente con un mensaje que no
 menciona el flag. Mismo bug en `scripts/watchdog.js:23`:
-`Number(process.env.GRIPM_WATCHDOG_MS || 90_000)` — una variable de entorno vacía da
+`Number(process.env.GRIPM_WATCHDOG_MS || 90_000)` - una variable de entorno vacía da
 `Number('') === 0`, timer en 0 ms.
 
 ### GATE-15 · `--bail` está documentado y no implementado
@@ -642,7 +642,7 @@ input.
 
 ### TOOL-01 · `npm run lint` no es un linter
 
-**CONFIRMADO.** `package.json:87` — `"lint": "tsc --noEmit"`. **No hay ESLint ni Prettier
+**CONFIRMADO.** `package.json:87` - `"lint": "tsc --noEmit"`. **No hay ESLint ni Prettier
 instalados** (`grep '"eslint"' package.json` → sin match). El proyecto tuvo ESLint flat
 config (`DEV-140`) y fue saneado después (`DEV-152`, que declara en su AC #1 borrar el
 `eslint.config.js` muerto).
@@ -653,7 +653,7 @@ comparaciones que el compilador no detecta.
 
 ### TOOL-02 · `npm run format` no formatea
 
-**CONFIRMADO.** `package.json:88` — `"format": "node scripts/verify-backlog-sync.js --fix"`.
+**CONFIRMADO.** `package.json:88` - `"format": "node scripts/verify-backlog-sync.js --fix"`.
 Ejecuta **`backlog:sync`**: regenera `BACKLOG.md`. El nombre es engañoso y el paso en
 una wiki o CONTRIBUTING podría disparar una reescritura de 406 KB.
 
@@ -684,7 +684,7 @@ hook):
 | Helper duplicado | Copias | Líneas redundantes |
 |---|---|---|
 | `MockRequest`/`MockResponse`/`dispatch` | 4 suites | ~120 |
-| `fallbackId = f.split(' - ')[0] \|\| …` | 11 sitios en 5 archivos | 11 copias de una regla no trivial |
+| `fallbackId = f.split('-')[0] \|\| …` | 11 sitios en 5 archivos | 11 copias de una regla no trivial |
 | `closedStatuses = ['done','dismissed','released','cancelled']` | 4 | 4 |
 | Lectura de `backlog/tasks/*.md` → items | `mcp-server.ts`, `gripm-cli.ts`, `vite.config.ts` | ~150, **3 implementaciones divergentes** |
 | Bootstrap del plugin Vite en tests | 5 | 5 copias |
@@ -705,7 +705,7 @@ Upstream trae **33 bloques de test** (`tests/audit-ux.test.mjs`) cubriendo exact
 lo que el copy local sufre (`onlyFile`, `exclude` con globs, `UX-010`, `needsContent`,
 invariantes del API, exit codes). Local hay **4**, uno desactivado en Windows (`GATE-04`).
 
-**El archivo no se puede testear sin divergir del upstream** — que es exactamente lo que
+**El archivo no se puede testear sin divergir del upstream** - que es exactamente lo que
 `DEV-188` terminó resolviendo después de 270/358 líneas de divergencia.
 
 Aparte: el commit `6159972` afirma verificar identidad byte a byte con el shasum
@@ -717,12 +717,12 @@ gate de integridad está basado en una afirmación no reproducible.
 
 **CONFIRMADO.** `package.json:38` declara `">=20.0.0"`. **6 de los 16 pasos de la suite**
 usan `--experimental-strip-types`, que requiere Node ≥ 22.6. En Node 20 la suite no
-arranca. Además CI solo prueba `22.6.0` y `22.x` — la versión que se promete nunca se
+arranca. Además CI solo prueba `22.6.0` y `22.x` - la versión que se promete nunca se
 ejercita. `DEV-223` ya está creada para esto, en `draft`.
 
 ### TOOL-10 · `test-package-smoke.js` concatena rutas sin comillas
 
-**CONFIRMADO.** `:15` — `'npm pack --pack-destination ' + tempDir` dentro de `execSync`
+**CONFIRMADO.** `:15` - `'npm pack --pack-destination ' + tempDir` dentro de `execSync`
 con shell. Con un nombre de usuario que tenga espacios rompe. `verify-dist.js:29` lo hace
 bien (`--pack-destination "${tmp}"`): inconsistencia entre dos scripts que hacen lo mismo.
 
@@ -734,7 +734,7 @@ try/catch. Ambos usan `process.cwd()` para la raíz mientras el resto usa `__dir
 
 ### TOOL-12 · `updateChecker.js` no maneja prereleases
 
-**CONFIRMADO.** `scripts/updateChecker.js:12-23` — `parseInt('1.2.0-beta.1', 10)` → `1`.
+**CONFIRMADO.** `scripts/updateChecker.js:12-23` - `parseInt('1.2.0-beta.1', 10)` → `1`.
 Una beta se trata como la release final; el banner puede ofrecer "actualizar" a una beta.
 
 ---
@@ -749,7 +749,7 @@ que existiera el repositorio.
 
 `backlog/sprints.json` declara 9 sprints completados entre el 16-sep y el 4-oct. Las 4
 retrospectivas son de esa ventana. `backlog/releases.json` declara 7 releases
-(`0.2.0`–`0.7.0`) íntegramente previos.
+(`0.2.0` - `0.7.0`) íntegramente previos.
 
 **Lectura correcta:** es perfectamente válido haber desarrollado localmente antes de
 abrir el repo público. La consecuencia no es deshonrosa, es operativa: **para 137 tareas,
@@ -786,7 +786,7 @@ observada tiene un salto de `draft` a `done`.
 ### PROC-05 · El pipeline se comiteó sin correr nunca
 
 **CONFIRMADO.** `.github/workflows/publish.yml` se agregó en `8733c12` (10-05 22:40).
-El 10-06 entre 15:05 y 16:18 — **73 minutos** — hubo seis correcciones:
+El 10-06 entre 15:05 y 16:18 - **73 minutos** - hubo seis correcciones:
 
 ```
 15:05  890ac46  annotated tag: consultaba el ref local en vez del remoto
@@ -801,12 +801,12 @@ Una clase de defecto, seis veces, en una hora. El tag v1.0.3 se cortó **en medi
 incendio** (16:10).
 
 Además `v1.0.0` (10:20) y `v1.0.1` (16:37) se publicaron **antes** de que existiera
-`publish.yml` (22:40) — es decir, a mano.
+`publish.yml` (22:40) - es decir, a mano.
 
 ### PROC-06 · La invariante fundamental está violada tres veces
 
 **CONFIRMADO.** Tareas en `done` sin release: **DEV-025, DEV-026, DEV-179**. Además
-DEV-025 y DEV-026 llevan `release: "v1.2.0"` en frontmatter — **una versión que no existe
+DEV-025 y DEV-026 llevan `release: "v1.2.0"` en frontmatter - **una versión que no existe
 en `releases.json`**. Es el modo de fallo de "versiones fantasma" que `DEV-099` fue creado
 para eliminar y que `AGENTS.md` regla 6 prohíbe. Recurrió.
 
@@ -833,7 +833,7 @@ timeboxes secuenciales.
 - §2: "Timebox: el sprint finaliza cuando vence su plazo programado (duración fija)".
 - §16: "evitando la sobrecarga artificial de timeboxes de sprint".
 
-Y `.gripm/config.json` tiene `"methodology": "kanban"` con `enabledTabs.sprint: false` —
+Y `.gripm/config.json` tiene `"methodology": "kanban"` con `enabledTabs.sprint: false` - 
 **la tab de Sprint está desactivada mientras existen 9 sprints y 4 retros en disco.** La
 regla 17 declara que el valor canónico es `sprint: true`: una regla que afirma el estado
 del repo y se equivoca.
@@ -841,7 +841,7 @@ del repo y se equivoca.
 ### PROC-09 · Preferencia personal commiteada en configuración
 
 **CONFIRMADO.** `.gripm/config.json` está trackeada (`.gitignore` no la referencia) y
-contiene `"autoSave": true` y `"rankingEnabled": true` — preferencias de UI por
+contiene `"autoSave": true` y `"rankingEnabled": true` - preferencias de UI por
 desarrollador, sin significado de proyecto. La regla 17 lo prohíbe explícitamente.
 
 ### PROC-10 · ACs no verificables en el 42% de los casos
@@ -860,7 +860,7 @@ umbral.
 
 **El gradiente de calidad es temporal, no aleatorio:** desde `DEV-134` (30-sep) los ACs
 cierran con `npx tsc --noEmit finishes con código 0`. Antes de eso son prosa. La regla se
-escribió y se aplicó — **nunca se aplicó retroactivamente**. 126 tareas (55%) se cerraron
+escribió y se aplicó - **nunca se aplicó retroactivamente**. 126 tareas (55%) se cerraron
 bajo el régimen viejo y nunca se reexaminaron.
 
 ### PROC-11 · Integridad del AC ya regresó una vez sin re-verificación
@@ -879,7 +879,7 @@ invalida.** Es la razón por la que este informe existe.
 ### PROC-12 · Tareas cerradas sin evidencia de completitud
 
 **CONFIRMADO.**
-- **DEV-127** — `status: done` con **cero ACs**. Es la tarea sobre contenido fabricado, y
+- **DEV-127** - `status: done` con **cero ACs**. Es la tarea sobre contenido fabricado, y
   se cerró sin un solo criterio.
 - **23 tareas** en `done` con el `## Implementation Plan` **vacío**, lo que anula el Plan
   Guard que `DEV-152` documenta como activo.
@@ -887,7 +887,7 @@ invalida.** Es la razón por la que este informe existe.
   `<\!-- SECTION:DESCRIPTION:BEGIN -->` que `DEV-127` existe para eliminar. El AC de
   `DEV-132` prohíbe escribirlo; ambos archivos lo hacen.
 - **Ninguna tarea** cita `npm run test:linux` en sus ACs, pese a que `AGENTS.md §4` lo
-  declara obligatorio para cambios en CI — incluidos `DEV-189`, `DEV-190`, `DEV-197`,
+  declara obligatorio para cambios en CI - incluidos `DEV-189`, `DEV-190`, `DEV-197`,
   `DEV-217`.
 
 ### PROC-13 · Clusters de retrabajo: 67 de 229 tareas (29.2%)
@@ -915,14 +915,14 @@ regla CSS", no "dejar de crear una tarjeta por síntoma CSS".
 
 **CONFIRMADO.** Existen 4 de 9. **Falta la de sprint-8**, que fue el sprint de launch
 open-source (CI/CD, i18n total, linting, branding, assets de README), cerrado el 4-oct.
-Sus salidas obligatorias —actualizar `AGENTS.md`, actualizar skills, crear tareas— no
+Sus salidas obligatorias - actualizar `AGENTS.md`, actualizar skills, crear tareas - no
 quedan registradas en ningún lado.
 
 Además las retrospectivas de sprint-4/5/6 cierran citando **"la Sección 8 de AGENTS.md"**,
 y `AGENTS.md` tiene **6 secciones**. Se escribieron contra una revisión del documento que
 ya no existe. Sprint-7 sí cita correctamente "Sección 2".
 
-Lo bueno, y hay que decirlo: las acciones de sprint-4, 5 y 7 **sí se ejecutaron** —
+Lo bueno, y hay que decirlo: las acciones de sprint-4, 5 y 7 **sí se ejecutaron** - 
 `AGENTS.md` gotchas 11 y 12 y la regla 4 son consecuencia literal de ellas.
 
 ### PROC-15 · Fuga de esquema en el frontmatter de tareas
@@ -942,7 +942,7 @@ de datos**, no solo en la interfaz.
 
 **CONFIRMADO.** 411 KB, 229 IDs, 229 archivos, **0 desalineación**. `dev-187` está
 ausente en disco **y** en `BACKLOG.md`: consistente, no drift. `backlog:sync` se ha
-corrido con fidelidad — `AGENTS.md §1` se cumple.
+corrido con fidelidad - `AGENTS.md §1` se cumple.
 
 El costo: **21 de 32 commits (65.6%) tocan `BACKLOG.md`**, y el commit de release 1.1.0
 reescribió 142 archivos de los cuales 111 eran tareas con `+1/-1` puro.
@@ -988,25 +988,25 @@ y derivan en silencio.
 `SPRINT_SPEC_TEMPLATE.md` es el peor caso: **está trackeado por el lock**, así que un
 `playbook sync` va a **restaurar** el vocabulario equivocado. El fix es upstream.
 
-### 8.3 Qué borrar sin discusión — ~72 KB, riesgo cero
+### 8.3 Qué borrar sin discusión - ~72 KB, riesgo cero
 
 | Archivo | KB | Motivo |
 |---|---|---|
 | `docs/informe-auditoria.md` | **50** | Auditoría externa de la v1.0.0/playbook 2.0.0. Hoy el repo es 1.1.0/2.2.2, sus hallazgos P0 están cerrados, sus datos son falsos (dice 10 tests, engines ≥22.6.0). Incluye un censo social del autor y prosa motivacional. **Es basura de auditoría, no documentación.** Si el rastro importa, ya vive en `DEV-181` y en el CHANGELOG de v1.0.1. |
-| `.agents/skills/ui-radix-tailwind/` | **17.1** | Cero contenido aplicable: 0 imports de `@radix-ui`, `react-hook-form`, `zod`, `recharts`, `date-fns`, `framer-motion`, `cva` en `src/` ni en `package.json`. **Todos** los archivos que nombra no existen. Afirma que `date-fns` y `react-day-picker` "ya están en package.json" — **falso**. Mayor borrado individual. |
+| `.agents/skills/ui-radix-tailwind/` | **17.1** | Cero contenido aplicable: 0 imports de `@radix-ui`, `react-hook-form`, `zod`, `recharts`, `date-fns`, `framer-motion`, `cva` en `src/` ni en `package.json`. **Todos** los archivos que nombra no existen. Afirma que `date-fns` y `react-day-picker` "ya están en package.json" - **falso**. Mayor borrado individual. |
 | `.agents/skills/mobile-ux-design/` | **11.8** | App ajena: `@capacitor/haptics`, "banner en pantallas de autenticación" (gripm no tiene auth), sidebar layout inexistente, `chrome://flags`. |
 | `.agents/skills/forms-rhf-zod/` | 5.6 | Sin `zod` ni RHF. Referencia una skill `i18next-namespaces` que no existe. |
 | `.agents/skills/recharts-reporting/` | 3.5 | Sin `recharts` ni un solo chart en `src/`. |
 | `.agents/skills/pwa-assets-audit/` | 1.0 | Su script (`validate-manifest.mjs`) y `public/manifest.webmanifest` **no existen**. gripm no es PWA. |
 | `.agents/AGENTS.en.md` + `.es.md` | 3.3 | Templates con `{{projectName}}` literal. Deben vivir en `scripts/templates/`, no en el árbol que lee el agente. |
-| `scripts/probe-handles.js`, `probe-linux-handles.sh`, `test-legacy-parser.js` | — | Huérfanos (`TOOL-04`) |
+| `scripts/probe-handles.js`, `probe-linux-handles.sh`, `test-legacy-parser.js` | - | Huérfanos (`TOOL-04`) |
 
 **Confirma el diseño del propio repo:** `.playbook-lock.json` dice `"stacks": []`. El
 upstream clasifica esas cinco como *stack packs* opcionales (`react`, `mobile`, `pwa`),
-que se instalan bajo demanda. Están aplanadas en `.agents/skills/` — residuos de antes
+que se instalan bajo demanda. Están aplanadas en `.agents/skills/` - residuos de antes
 del refactor de stacks.
 
-### 8.4 Qué comprimir — ~40 KB
+### 8.4 Qué comprimir - ~40 KB
 
 **`AGENTS.md`: 111 → ~45 líneas.** Eliminar:
 
@@ -1016,7 +1016,7 @@ del refactor de stacks.
 | §1 líneas 22-23 | Duplican `STATE_MACHINE.md:65,76-78` |
 | §1 línea 25 (`npm run backlog:sync`) | **Mecánicamente aplicado**: `.githooks/pre-commit:16` aborta el commit |
 | §2 completo | Ceremonia. **Conservar solo la línea 34** (retro → actualizar reglas), que es lo que hace crecer este archivo |
-| §3 línea 42 | **Afirmación falsa** — ver `DOC-05` |
+| §3 línea 42 | **Afirmación falsa** - ver `DOC-05` |
 | §4 líneas 60-61 (`TCPConnectWrap`) | Anécdota de un bug de 2026-09. `watchdog.js` hace el trabajo |
 | §4 líneas 66-67 (anti-browser) | Ya está en 4 archivos más |
 | §5 completo | Lista **4 de 12** herramientas. El servidor MCP se autodescribe |
@@ -1027,34 +1027,34 @@ del refactor de stacks.
 | §6 gotchas 10-13 | Reglas reales de UI, pero pertenecen a `docs/ARCHITECTURE.md` |
 
 **Conservar sin cambios:** §4 (pirámide, comprimida), §5 CAUTION anti-scripts, y los
-gotchas **1, 2, 5, 6, 7, 8, 14, 15, 17** — son la mayor densidad de valor del archivo.
+gotchas **1, 2, 5, 6, 7, 8, 14, 15, 17** - son la mayor densidad de valor del archivo.
 
 **Oraciones a borrar literalmente:**
-- `AGENTS.md:3` — "Bienvenido a **gripm**. Este documento establece las normas
-  operativas…" — repite el título.
-- `AGENTS.md:32` — "Si los ítems se entregan antes del vencimiento del timebox, el PO
-  amplía el alcance incorporando nuevos ítems refinados…" — describe qué hace un PO.
+- `AGENTS.md:3` - "Bienvenido a **gripm**. Este documento establece las normas
+  operativas…" - repite el título.
+- `AGENTS.md:32` - "Si los ítems se entregan antes del vencimiento del timebox, el PO
+  amplía el alcance incorporando nuevos ítems refinados…" - describe qué hace un PO.
   Ningún comportamiento de agente, ninguna aserción.
-- `AGENTS.md:61` — "Un `TCPConnectWrap` vivo parecía la causa del cuelgue, y era 1 handle
-  de ~200." — anécdota pura.
-- `.agents/rules/git-approval.md:4` — `> **REGLA DE CUMPLIMIENTO OBLIGATORIO — SIN
+- `AGENTS.md:61` - "Un `TCPConnectWrap` vivo parecía la causa del cuelgue, y era 1 handle
+  de ~200." - anécdota pura.
+- `.agents/rules/git-approval.md:4` - `> **REGLA DE CUMPLIMIENTO OBLIGATORIO - SIN
   EXCEPCIONES**` sobre un título que ya dice "Regla de Oro: Prohibición Estricta". Dos
   titulares para una regla. El archivo entero (18 líneas) es duplicado de
   `git-workflow.md:10-14`.
-- `.agents/skills/rigorous-qa-auditor/SKILL.md:108` — "Un rechazo sin findings accionables
-  es un rechazo inválido…" — cola motivacional sobre una regla ya enunciada 4 líneas antes.
+- `.agents/skills/rigorous-qa-auditor/SKILL.md:108` - "Un rechazo sin findings accionables
+  es un rechazo inválido…" - cola motivacional sobre una regla ya enunciada 4 líneas antes.
 
 **`docs/AGENTIC_PLAYBOOK.md` (17.8 KB):** fork escrito a mano del playbook de upstream,
 en español, sin lock, sin generación, sin validación. **Borrar** (o reducir a un puntero
 de 30 líneas a `.agents/TEAM_PLAYBOOK.md`).
 
 **`CHANGELOG.md` (29 KB):** es generado correctamente y está sincronizado con
-`releases.json` — **acierto**. Pero cada release repite un `### 🎯 Resumen` que
+`releases.json` - **acierto**. Pero cada release repite un `### 🎯 Resumen` que
 prosa-repite la lista de bullets inmediatamente debajo. Ejemplo `:19` son 700 caracteres
 que resumen 4 líneas. 29 KB → ~14 KB borrando ese bloque en
 `scripts/generate-changelog.cjs:74-78`.
 
-### 8.5 Falsos positivos concretos — corrigibles hoy
+### 8.5 Falsos positivos concretos - corrigibles hoy
 
 | ID | Ubicación | Afirmación | Realidad |
 |---|---|---|---|
@@ -1077,13 +1077,13 @@ que resumen 4 líneas. 29 KB → ~14 KB borrando ese bloque en
 **"VS Code & Cursor Webview Integration"** con tres bullets, dentro de
 "Modular Cockpit & Settings", como capacidad disponible.
 
-La única implementación es `backlog/tasks/DEV-225 — Extension Webview para VS Code y
+La única implementación es `backlog/tasks/DEV-225 - Extension Webview para VS Code y
 Cursor`, **`status: draft`**. Cero código de webview en el repo.
 
 Es el defecto más dañino para un consumidor: no es documentación incorrecta, es una
 afirmación comercial sobre algo que no existe.
 
-### 8.7 Cuts de README — 483 → ~230 líneas
+### 8.7 Cuts de README - 483 → ~230 líneas
 
 El README sirve hoy a **tres** audiencias (usuario npx, integrador de agentes,
 colaborador) en vez de dos, y el tercio del medio es la mayor parte del bloat. La
@@ -1091,21 +1091,21 @@ sección de quickstart (líneas 40-131) **es excelente y no se toca**.
 
 | Líneas | Sección | Acción |
 |---|---|---|
-| 177-224 | Arquitectura del ecosistema (diagrama ASCII, tablas, `playbook sync` vs `npm install`) | **Borrar** — describe otro paquete npm; pertenece al README del playbook, donde ya está |
-| 228-253 | Tabla de 12 tools MCP | **Borrar** — `bin/gripm-mcp.js` se autodescribe. Cuarta copia |
+| 177-224 | Arquitectura del ecosistema (diagrama ASCII, tablas, `playbook sync` vs `npm install`) | **Borrar** - describe otro paquete npm; pertenece al README del playbook, donde ya está |
+| 228-253 | Tabla de 12 tools MCP | **Borrar** - `bin/gripm-mcp.js` se autodescribe. Cuarta copia |
 | 256-308 | Privacy & Git Strategies (3 estrategias) | Comprimir → mover a `SECURITY.md` |
-| 311-316 | "Backlog History & Git" ("el storage local no es backup") | **Borrar** — consejo genérico |
+| 311-316 | "Backlog History & Git" ("el storage local no es backup") | **Borrar** - consejo genérico |
 | 339-395 | Módulos + **Webview** + Worktrees | **Borrar la webview** (inexistente), comprimir worktrees |
 | 399-429 | Core Developers Guide | Mover a `CONTRIBUTING.md` (conservar tabla de flags) |
-| 433-441 | "✨ Features" | **Borrar** — restatea el quickstart y los screenshots |
-| 445-447 | "🐶 Dogfooding" | 1 línea — inferible de 229 archivos en `backlog/tasks/` |
-| 451-457 | Atajos de teclado | **Conservar** — útil, no está en otro lado |
-| 461-465 | Ecosistema / atribución Backlog.md | **Conservar** — legalmente importante |
+| 433-441 | "✨ Features" | **Borrar** - restatea el quickstart y los screenshots |
+| 445-447 | "🐶 Dogfooding" | 1 línea - inferible de 229 archivos en `backlog/tasks/` |
+| 451-457 | Atajos de teclado | **Conservar** - útil, no está en otro lado |
+| 461-465 | Ecosistema / atribución Backlog.md | **Conservar** - legalmente importante |
 
 ### 8.8 Perfil de las skills: qué conserva el producto
 
 **Dogfooded (el producto las usa):** `gripm/SKILL.es.md` (12 tools, rutas correctas,
-gotchas reales — **la skill más valiosa del repo**, sus §8 gotchas son insustituibles),
+gotchas reales - **la skill más valiosa del repo**, sus §8 gotchas son insustituibles),
 `list-views-filters` (maps a `FilterBar` y `AdvancedFiltersPopover` reales),
 `code-level-ux-auditor` (aplicada por `audit-ux-code.cjs` + `ux-rules.json` +
 `audit-ux-baseline.json`).
@@ -1120,7 +1120,7 @@ gotchas reales — **la skill más valiosa del repo**, sus §8 gotchas son insus
 
 **Corte recomendado en `principal-engineer`:** conservar `:18-39`, `:67-73`, `:87-94`
 (~40%). **Eliminar `:41-52`** (tabla de invariantes *fintech*: "un pasivo nunca suma al
-patrimonio", "mezclar monedas y sumar" — en una herramienta kanban sin dominio financiero),
+patrimonio", "mezclar monedas y sumar" - en una herramienta kanban sin dominio financiero),
 `:54-59` (RLS / `search_path` / Supabase), `:61-65` (migraciones de base de datos).
 
 **No hay `.mcp.json` commiteado.** `AGENTS.md §5` ("usar el servidor MCP de gripm") es
@@ -1153,13 +1153,13 @@ servidor MCP no autodescriba.
 |---|---|
 | 26-298 | Detección de proyecto, registry, rutas, config |
 | 360-1135 | Lectura/escritura del backlog en Markdown: `readProjectBacklog`, `saveBacklogMdItem`, `findBacklogMdFile`, soft delete / restore / purge |
-| 1140-2663 | **`devBoardApi()`** — el plugin de Vite: SSE, watchers, middleware de seguridad, **API REST completa (~1.400 líneas)** |
-| 2664-2711 | **`export default defineConfig`** — la configuración de Vite propiamente dicha |
+| 1140-2663 | **`devBoardApi()`** - el plugin de Vite: SSE, watchers, middleware de seguridad, **API REST completa (~1.400 líneas)** |
+| 2664-2711 | **`export default defineConfig`** - la configuración de Vite propiamente dicha |
 
 **El archivo se llama `vite.config.ts` y el 1.7% de su contenido es configuración de
 Vite.** El resto es la capa de servidor de la aplicación.
 
-`DEV-165 — Modularizacion de vite.config.ts y Extraccion de Capa de Servidor a server.md`
+`DEV-165 - Modularizacion de vite.config.ts y Extraccion de Capa de Servidor a server.md`
 identificó esto el 4-oct y sigue en **`draft`**. Es la fuente de `DEV-189` (sondeo de
 puertos) y `DEV-190` (207 watchers): bugs que nacen de que la lógica de ciclo de vida del
 servidor está embebida en el archivo de build.
@@ -1202,7 +1202,7 @@ revertir ediciones en vuelo.
 
 | Ubicación | Forma |
 |---|---|
-| `src/utils/statusMeta.ts:23-32` | `CANONICAL_STATUSES` — **la fuente de verdad** |
+| `src/utils/statusMeta.ts:23-32` | `CANONICAL_STATUSES` - **la fuente de verdad** |
 | `src/App.tsx:151-153` | arrays inline |
 | `src/App.tsx:1097-1105` | **reimplementación inline de `normalizeStatus`**, cadena ternaria de 9 líneas |
 | `src/components/ItemCard.tsx:455` | array inline |
@@ -1216,7 +1216,7 @@ tiene test.
 
 ### ARCH-05 · Lógica de columnas duplicada y ya divergida
 
-**CONFIRMADO.** `src/utils/kanbanColumnItems.ts` es la versión extraída y testeada — y
+**CONFIRMADO.** `src/utils/kanbanColumnItems.ts` es la versión extraída y testeada - y
 **no la usa la ruta de conteo**. `KanbanBoard.tsx:1124-1135` reimplementa el filtro inline
 para los pills móviles, usando `status === 'ideas'` en vez del predicado `isIdea` (que
 también matchea `labels: ['idea']`).
@@ -1225,7 +1225,7 @@ también matchea `labels: ['idea']`).
 `test-ui-logic.js:30-34` asserta el comportamiento del util para un ítem con
 `labels:['idea']` + `status:'draft'`; la ruta de conteo lo clasificaría como draft.
 
-### ARCH-06 · No existe un primitivo `<Modal>` — causa raíz de `BUG-01` y `BUG-16`
+### ARCH-06 · No existe un primitivo `<Modal>` - causa raíz de `BUG-01` y `BUG-16`
 
 **CONFIRMADO.** El bloque `fixed inset-0 → panel(role=dialog, aria-modal, tabIndex=-1)
 → header/footer` está copiado a mano en **8 diálogos**. No hay primitivo. `useFocusTrap`
@@ -1236,7 +1236,7 @@ está ausente en 10 de 13 overlays.
 
 ### ARCH-07 · Multiselect triplicado
 
-**CONFIRMADO.** `AdvancedFiltersPopover.tsx` — `toggleType` (`:93-108`),
+**CONFIRMADO.** `AdvancedFiltersPopover.tsx` - `toggleType` (`:93-108`),
 `togglePriority` (`:111-126`), `toggleStatus` (`:129+`): tres cuerpos de ~18 líneas casi
 idénticos, distintos solo en la clave del array. Inlinado otra vez en `App.tsx:1287-1293`.
 
@@ -1264,7 +1264,7 @@ que arranque el servidor, en vez de assertar corrección de locale.
 
 ---
 
-## 10. Aciertos — no romper esto
+## 10. Aciertos - no romper esto
 
 Esta sección es normativa. Los siguientes comportamientos **funcionan** y cualquier
 refactor debe preservarlos. Documentados porque un informe de auditoría que solo enumera
@@ -1281,7 +1281,7 @@ defectos produce el efecto contrario: invita a "simplificar" lo que está bien.
 | `OK-07` | **Cero corrupción de codificación**: 365 archivos, round-trip UTF-8 limpio, 0 caracteres de reemplazo (U+FFFD). Los signos de interrogación que aparecen al leer los `.md` con `Get-Content` en consola Windows son un artefacto del code page, no del archivo. | scan completo |
 | `OK-08` | **Path traversal mitigado en el parser**: `generateTaskFilename` (`backlogMdParser.ts:699-712`) sanea separadores, colapsa whitespace, clampea a 200 chars. No escapable. Igual para `sprintKey` (`mcp-server.ts:1406`). | prueba directa |
 | `OK-09` | **Defensa del dev server bien diseñada y testeada contra el middleware real** (`test-api-security.js` extrae y ejercita el middleware de `vite.config.ts`, no un mock del mock): host allowlist, origin allowlist con `Vary: Origin`, `Content-Type` obligatorio, containment con `path.relative` + `realpathSync`. Incluye la regresión de `DEV-190`. | 11 casos |
-| `OK-10` | **`scripts/verify-port-probe.js:88-101` se testea a sí mismo** — el único archivo del repo que lo hace, y corrige exactamente el bug de `DEV-189`. | lectura |
+| `OK-10` | **`scripts/verify-port-probe.js:88-101` se testea a sí mismo** - el único archivo del repo que lo hace, y corrige exactamente el bug de `DEV-189`. | lectura |
 | `OK-11` | **Desde `DEV-134` (30-sep) el rigor de proceso es excelente y real**: diagnósticos cuantificados, tests de regresión nombrados, los comandos de la pirámide escritos como ACs, admisiones honestas de sobre-promesa previa (`DEV-152` AC #1 declara borrar un `eslint.config.js` muerto que el propio `DEV-140` había creado). | 15 tareas muestreadas |
 | `OK-12` | **Las retrospectivas no fueron ceremoniales.** Tres de sus acciones están literalmente hoy en `AGENTS.md` (gotchas 11 y 12, regla 4). | cross-check |
 | `OK-13` | **`CHANGELOG.md` es generado y verificado**: `generate-changelog.cjs` lo escribe, `publish.yml:138-145` aborta el release si no coincide con `releases.json`. 15 releases sincronizados. | verificación |
@@ -1300,91 +1300,91 @@ La auditoría previa (`DEV-181`) cerró con sus recomendaciones ejecutadas pero 
 forma de saber, meses después, si un hallazgo seguía abierto**. Este informe corrige eso
 con tres mecanismos:
 
-1. **IDs estables** — cada hallazgo tiene un identificador que sobrevive al documento.
-2. **Comandos de verificación** — cada hallazgo incluye cómo comprobar que sigue abierto
+1. **IDs estables** - cada hallazgo tiene un identificador que sobrevive al documento.
+2. **Comandos de verificación** - cada hallazgo incluye cómo comprobar que sigue abierto
    o que se cerró.
-3. **Estado explícito** — nada se marca cerrado sin aserción que lo demuestre.
+3. **Estado explícito** - nada se marca cerrado sin aserción que lo demuestre.
 
 **Regla de cierre:** un hallazgo pasa a cerrado cuando su comando de verificación deja de
 detectar el problema **y** un comando de regresión lo impediría volver a aparecer.
 
 ### 11.2 Fases
 
-#### Fase 0 — P0 funcional (1 día)
+#### Fase 0 - P0 funcional (1 día)
 
 | # | Hallazgo | Verificación de cierre |
 |---|---|---|
-| 0.1 | `BUG-01` — hooks tras early return (5 modales) | El script de §3/BUG-01 reporta `trap < early` en los 8 modales |
-| 0.2 | `ARCH-06` — extraer primitivo `<Modal>` | El andamiaje aparece **una vez**; `grep -c 'role="dialog"' src/components/` ≤ 1 por primitivo |
-| 0.3 | `BUG-03` — Enter global ejecuta destructivo | Sin listener global de Enter en `ConfirmModal`; `onConfirm` con `catch` |
-| 0.4 | `BUG-15` + `BUG-18` — a11y de toasts y botones | `role="status"` + `aria-live` en `Toast.tsx`; 0 botones de icono sin `aria-label` |
-| 0.5 | `BUG-17` — safe-area | `grep -c 'env(safe-area' src/` ≥ 3 |
+| 0.1 | `BUG-01` - hooks tras early return (5 modales) | El script de §3/BUG-01 reporta `trap < early` en los 8 modales |
+| 0.2 | `ARCH-06` - extraer primitivo `<Modal>` | El andamiaje aparece **una vez**; `grep -c 'role="dialog"' src/components/` ≤ 1 por primitivo |
+| 0.3 | `BUG-03` - Enter global ejecuta destructivo | Sin listener global de Enter en `ConfirmModal`; `onConfirm` con `catch` |
+| 0.4 | `BUG-15` + `BUG-18` - a11y de toasts y botones | `role="status"` + `aria-live` en `Toast.tsx`; 0 botones de icono sin `aria-label` |
+| 0.5 | `BUG-17` - safe-area | `grep -c 'env(safe-area' src/` ≥ 3 |
 
 > Orden importante: **0.2 antes que cualquier otro fix de modal.** Sin el primitivo,
 > `BUG-01` reaparece con el primer modal nuevo que escriba un agente.
 
-#### Fase 1 — Recuperar el gate (2 días)
+#### Fase 1 - Recuperar el gate (2 días)
 
 | # | Hallazgo | Verificación de cierre |
 |---|---|---|
-| 1.1 | `GATE-03` — `toPosixPath` en el fingerprint | Las 278 entradas del baseline absorben en Windows; el JSON reporta `absorbed: 278` |
-| 1.2 | `GATE-04` — el verificador ya no se auto-desactiva | Sin rama `isWindows` que salte aserciones |
-| 1.3 | `GATE-01` — `verify:changes` en CI | Paso presente en `ci.yml`; falla si se introduce YAML inválido |
-| 1.4 | `GATE-02` — `test:linux` en CI | Paso presente en `ci.yml` |
-| 1.5 | `GATE-13` — `actionlint` | Sin findings en ambos workflows |
-| 1.6 | `GATE-05` — `catch` mudos → `errorsFound++` | Un `releases.json` corrupto **falla** el gate |
-| 1.7 | `GATE-06` — `catch {}` del bulk update | Un `writeFileSync` fallido devuelve `ok: false` |
-| 1.8 | `GATE-11` — `try/finally` en los 2 tests | Un fallo a mitad no deja archivos en `backlog/tasks/` |
-| 1.9 | `GATE-08` + `GATE-09` — tests reales, no greps | `verify-focus-trap` **ejecuta** los hooks; la comprobación de orden cubre los 8 diálogos, no 1 |
-| 1.10 | `GATE-07` — smoke de navegador en `npm test` o en un `npm run verify` único | `npm test` cubre lo mismo que CI |
-| 1.11 | `GATE-10` — `npm pack --ignore-scripts` | `publish:check` no muta `.git/config` (assert explícito) |
-| 1.12 | `GATE-17` — unificar `ready` / `Done` | `backlog:sync` y `gripm_sync_backlog` producen el mismo frontmatter |
-| 1.13 | `GATE-14,15,16` — `--timeout` validado, `--bail` implementado, margen de CI | `--timeout foo` no rompe la suite; el job tiene margen realista |
+| 1.1 | `GATE-03` - `toPosixPath` en el fingerprint | Las 278 entradas del baseline absorben en Windows; el JSON reporta `absorbed: 278` |
+| 1.2 | `GATE-04` - el verificador ya no se auto-desactiva | Sin rama `isWindows` que salte aserciones |
+| 1.3 | `GATE-01` - `verify:changes` en CI | Paso presente en `ci.yml`; falla si se introduce YAML inválido |
+| 1.4 | `GATE-02` - `test:linux` en CI | Paso presente en `ci.yml` |
+| 1.5 | `GATE-13` - `actionlint` | Sin findings en ambos workflows |
+| 1.6 | `GATE-05` - `catch` mudos → `errorsFound++` | Un `releases.json` corrupto **falla** el gate |
+| 1.7 | `GATE-06` - `catch {}` del bulk update | Un `writeFileSync` fallido devuelve `ok: false` |
+| 1.8 | `GATE-11` - `try/finally` en los 2 tests | Un fallo a mitad no deja archivos en `backlog/tasks/` |
+| 1.9 | `GATE-08` + `GATE-09` - tests reales, no greps | `verify-focus-trap` **ejecuta** los hooks; la comprobación de orden cubre los 8 diálogos, no 1 |
+| 1.10 | `GATE-07` - smoke de navegador en `npm test` o en un `npm run verify` único | `npm test` cubre lo mismo que CI |
+| 1.11 | `GATE-10` - `npm pack --ignore-scripts` | `publish:check` no muta `.git/config` (assert explícito) |
+| 1.12 | `GATE-17` - unificar `ready` / `Done` | `backlog:sync` y `gripm_sync_backlog` producen el mismo frontmatter |
+| 1.13 | `GATE-14,15,16` - `--timeout` validado, `--bail` implementado, margen de CI | `--timeout foo` no rompe la suite; el job tiene margen realista |
 
-#### Fase 2 — Seguridad (1 día)
-
-| # | Hallazgo | Verificación de cierre |
-|---|---|---|
-| 2.1 | `SEC-01` — `verifyCommand` fuera del `.md` | Un `verifyCommand` en frontmatter no se persiste ni se re-ejecuta |
-| 2.2 | `SEC-02` — `autoFix` default `false` | `gripm_sync_backlog {}` no muta el backlog |
-| 2.3 | `SEC-03` — containment en `--repo` del MCP | Reusa `isAllowedBrowsePath` |
-| 2.4 | `SEC-05` — validar `inputSchema` | `limit: "abc"` y `toggleAcIndex: -1` devuelven error, no no-op |
-| 2.5 | `SEC-08` — quitar la ruta del autor, agregar Windows/Linux | `verify-publish-surface` detecta `C:\Users\x\` y `/home/x/` |
-| 2.6 | `SEC-09` — `force` deja rastro | Log de auditoría |
-| 2.7 | `SEC-06,07,10` — declarar la superficie de riesgo | Sección de seguridad en `AGENTS.md` y `SECURITY.md`: sin auth, `--host 0.0.0.0`, home como raíz, y **el Gatekeeper ejecuta comandos** |
-
-#### Fase 3 — Proceso y documentación (2 días)
+#### Fase 2 - Seguridad (1 día)
 
 | # | Hallazgo | Verificación de cierre |
 |---|---|---|
-| 3.1 | `DOC-01` — borrar `informe-auditoria.md` (−50 KB) | No existe |
-| 3.2 | `DOC-02` — borrar 5 skills de stack (−38.9 KB) | `.agents/skills/` = 7 dirs |
-| 3.3 | `DOC-03` — mover `AGENTS.{en,es}.md` a `scripts/templates/` | Actualizado `initScaffold.js` y `verify-publish-surface.js` |
-| 3.4 | `DOC-11` — **quitar la sección de webview del README** | No se anuncia `DEV-225` |
-| 3.5 | `DOC-04` — `AGENTS.md` 111 → ~45 líneas | Solo sobreviven las reglas de §8.4 |
-| 3.6 | `DOC-05,06,07,09,14,15,16,12,13` — falsos positivos | Cada fila de §8.5 verificada |
-| 3.7 | `DOC-17,18,19,20` — unificar pirámide, estados, borrar flag `Refined:` y ceremonia de sprint spec | Una sola fuente de verdad por tema |
-| 3.8 | `DOC-21` — quitar `### 🎯 Resumen` del changelog generado | `CHANGELOG.md` ~14 KB |
-| 3.9 | `DOC-22` — borrar `docs/AGENTIC_PLAYBOOK.md` o reducirlo a puntero | 17.8 KB menos |
-| 3.10 | `TOOL-01` — ESLint real | `"lint"` ejecuta ESLint, no `tsc` |
-| 3.11 | `TOOL-02,03` — `format` real; borrar `.prettierrc` muerto | `npm run format` formatea código |
-| 3.12 | `TOOL-04` — borrar huérfanos o testear el legacy parser | `grep` sin referencias = 0 |
-| 3.13 | `DOC-16` — limpiar la marca pre-1.0 de `.gitignore:32` (`data/dev-board.json`) | Corroborado por `bug_report.yml:45` (`.devboard/backlog.json`): la marca vieja sobrevive en tres archivos visibles para el usuario |
-| 3.14 | `PROC-09` — limpiar preferencias personales de `.gripm/config.json` | Solo identidad de proyecto |
-| 3.15 | `PROC-06` — resolver las 3 tareas `done` sin release y las 2 versiones fantasma | Invariante fundamental en verde |
-| 3.16 | `PROC-08` — resolver la contradicción §2 vs §16 y `sprint: false` vs regla 17 | Una sola metodología declarada |
-| 3.17 | `TOOL-09` — `engines` honesto | O se prueba Node 20 en CI, o `engines` dice `>=22.6.0` |
+| 2.1 | `SEC-01` - `verifyCommand` fuera del `.md` | Un `verifyCommand` en frontmatter no se persiste ni se re-ejecuta |
+| 2.2 | `SEC-02` - `autoFix` default `false` | `gripm_sync_backlog {}` no muta el backlog |
+| 2.3 | `SEC-03` - containment en `--repo` del MCP | Reusa `isAllowedBrowsePath` |
+| 2.4 | `SEC-05` - validar `inputSchema` | `limit: "abc"` y `toggleAcIndex: -1` devuelven error, no no-op |
+| 2.5 | `SEC-08` - quitar la ruta del autor, agregar Windows/Linux | `verify-publish-surface` detecta `C:\Users\x\` y `/home/x/` |
+| 2.6 | `SEC-09` - `force` deja rastro | Log de auditoría |
+| 2.7 | `SEC-06,07,10` - declarar la superficie de riesgo | Sección de seguridad en `AGENTS.md` y `SECURITY.md`: sin auth, `--host 0.0.0.0`, home como raíz, y **el Gatekeeper ejecuta comandos** |
 
-#### Fase 4 — Deuda estructural (a dimensionar)
+#### Fase 3 - Proceso y documentación (2 días)
+
+| # | Hallazgo | Verificación de cierre |
+|---|---|---|
+| 3.1 | `DOC-01` - borrar `informe-auditoria.md` (−50 KB) | No existe |
+| 3.2 | `DOC-02` - borrar 5 skills de stack (−38.9 KB) | `.agents/skills/` = 7 dirs |
+| 3.3 | `DOC-03` - mover `AGENTS.{en,es}.md` a `scripts/templates/` | Actualizado `initScaffold.js` y `verify-publish-surface.js` |
+| 3.4 | `DOC-11` - **quitar la sección de webview del README** | No se anuncia `DEV-225` |
+| 3.5 | `DOC-04` - `AGENTS.md` 111 → ~45 líneas | Solo sobreviven las reglas de §8.4 |
+| 3.6 | `DOC-05,06,07,09,14,15,16,12,13` - falsos positivos | Cada fila de §8.5 verificada |
+| 3.7 | `DOC-17,18,19,20` - unificar pirámide, estados, borrar flag `Refined:` y ceremonia de sprint spec | Una sola fuente de verdad por tema |
+| 3.8 | `DOC-21` - quitar `### 🎯 Resumen` del changelog generado | `CHANGELOG.md` ~14 KB |
+| 3.9 | `DOC-22` - borrar `docs/AGENTIC_PLAYBOOK.md` o reducirlo a puntero | 17.8 KB menos |
+| 3.10 | `TOOL-01` - ESLint real | `"lint"` ejecuta ESLint, no `tsc` |
+| 3.11 | `TOOL-02,03` - `format` real; borrar `.prettierrc` muerto | `npm run format` formatea código |
+| 3.12 | `TOOL-04` - borrar huérfanos o testear el legacy parser | `grep` sin referencias = 0 |
+| 3.13 | `DOC-16` - limpiar la marca pre-1.0 de `.gitignore:32` (`data/dev-board.json`) | Corroborado por `bug_report.yml:45` (`.devboard/backlog.json`): la marca vieja sobrevive en tres archivos visibles para el usuario |
+| 3.14 | `PROC-09` - limpiar preferencias personales de `.gripm/config.json` | Solo identidad de proyecto |
+| 3.15 | `PROC-06` - resolver las 3 tareas `done` sin release y las 2 versiones fantasma | Invariante fundamental en verde |
+| 3.16 | `PROC-08` - resolver la contradicción §2 vs §16 y `sprint: false` vs regla 17 | Una sola metodología declarada |
+| 3.17 | `TOOL-09` - `engines` honesto | O se prueba Node 20 en CI, o `engines` dice `>=22.6.0` |
+
+#### Fase 4 - Deuda estructural (a dimensionar)
 
 | # | Hallazgo | Nota |
 |---|---|---|
-| 4.1 | `ARCH-01` — extraer la capa de servidor de `vite.config.ts` | `DEV-165` ya existe, en `draft`. **Es la fuente de `DEV-189` y `DEV-190`.** Es la mayor deuda del repo. |
-| 4.2 | `ARCH-02` — dividir los 6 monolitos | Por debajo de 800 líneas cada uno |
-| 4.3 | `ARCH-03` — eliminar estado derivado por efecto | `useReducer` o remount con key en `SettingsView` e `ItemModal` |
-| 4.4 | `ARCH-04,05` — usar los utils canónicos | El test de `ARCH-05` debe cubrir ambas rutas |
-| 4.5 | `ARCH-07,08` — `useMultiSelect`, context/reducer | — |
-| 4.6 | `ARCH-09` — cobertura de tests de UI | Subir del 0.8%; el smoke debe abrir cada diálogo |
+| 4.1 | `ARCH-01` - extraer la capa de servidor de `vite.config.ts` | `DEV-165` ya existe, en `draft`. **Es la fuente de `DEV-189` y `DEV-190`.** Es la mayor deuda del repo. |
+| 4.2 | `ARCH-02` - dividir los 6 monolitos | Por debajo de 800 líneas cada uno |
+| 4.3 | `ARCH-03` - eliminar estado derivado por efecto | `useReducer` o remount con key en `SettingsView` e `ItemModal` |
+| 4.4 | `ARCH-04,05` - usar los utils canónicos | El test de `ARCH-05` debe cubrir ambas rutas |
+| 4.5 | `ARCH-07,08` - `useMultiSelect`, context/reducer | - |
+| 4.6 | `ARCH-09` - cobertura de tests de UI | Subir del 0.8%; el smoke debe abrir cada diálogo |
 
 ### 11.3 Lo que queda deliberadamente sin resolver
 

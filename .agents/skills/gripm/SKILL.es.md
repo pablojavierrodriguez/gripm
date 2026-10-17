@@ -210,22 +210,22 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 
 ---
 
-## 8. Gotchas Conocidos del MCP — Errores Detectados en Producción
+## 8. Gotchas Conocidos del MCP - Errores Detectados en Producción
 
 > [!CAUTION]
-> **`gripm_update_task` — El campo `status` DEBE ser top-level, nunca dentro de `updates`**
+> **`gripm_update_task` - El campo `status` DEBE ser top-level, nunca dentro de `updates`**
 >
 > El wrapper `updates: { status: "ready" }` se ignora silenciosamente. El task mantiene su estado anterior sin error visible.
 > ```json
-> // ❌ ROTO — el status NO cambia
+> // ❌ ROTO - el status NO cambia
 > { "taskId": "DEV-001", "updates": { "status": "ready" } }
 >
-> // ✅ CORRECTO — el status SÍ cambia
+> // ✅ CORRECTO - el status SÍ cambia
 > { "taskId": "DEV-001", "status": "ready" }
 > ```
 
 > [!WARNING]
-> **`toggleAcIndex` — No paralelizar sobre el mismo task**
+> **`toggleAcIndex` - No paralelizar sobre el mismo task**
 >
 > Si se lanzan múltiples llamadas `toggleAcIndex` al mismo task en paralelo (mismo `taskId`),
 > ocurren race conditions en la escritura del archivo Markdown y solo algunos ACs quedan tildados.
@@ -242,7 +242,7 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 > o parsear manualmente el resultado de `gripm_list_tasks` buscando el campo `sprint` en el output.
 
 > [!TIP]
-> **Browser subagent tiene cuota separada — usar con moderación**
+> **Browser subagent tiene cuota separada - usar con moderación**
 >
 > El browser subagent consume una cuota distinta a la del LLM principal y puede agotarse (429).
 > Preferir verificación determinista vía código:
@@ -255,7 +255,7 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 >
 > Toda dimensión de datos (Estado, Sprint, Release, Módulo, Prioridad, Tipo) debe ser 100% ortogonal:
 > - **Prohibido sobrecargar términos**: Nunca usar un concepto global o de otra dimensión (como *"Backlog"*, *"General"*, *"Default"*) para representar valores ausentes.
-> - Si un campo no tiene asignación, su valor canónico es transparente: `Sin Sprint`, `Sin Módulo`, `Sin Épica`, `Sin Asignar` o `—`.
+> - Si un campo no tiene asignación, su valor canónico es transparente: `Sin Sprint`, `Sin Módulo`, `Sin Épica`, `Sin Asignar` o ` - `.
 > - En la UI, cada columna o selector es independiente: ocultar una columna nunca debe ocultar o afectar datos de otra.
 
 > [!CAUTION]
@@ -265,13 +265,13 @@ Si no tienes acceso a herramientas MCP en tu entorno, puedes manipular directame
 > 2. **Alcance 100% en Producción**: Antes de promover una versión a `released` en `releases.json`, verificar que todas las tareas con ese `milestone`/`targetRelease` estén en `done`. Las tareas incompletas deben reasignarse a la siguiente versión planificada antes de sellar el release.
 
 > [!CAUTION]
-> **Soberanía Estricta de Releases — Cero Releases Deducidos o Inventados**
+> **Soberanía Estricta de Releases - Cero Releases Deducidos o Inventados**
 >
 > Pertenecer a un Sprint NO implica tener una versión asignada.
 > - **Prohibido asociar nombres de Sprint a Release o Milestone**: El agente NUNCA debe escribir `milestone: "Sprint X"` ni inventar versiones artificiales (`vSprint 5`).
-> - **Valor por Defecto**: Si una tarea no fue formalmente agregada a una versión en `backlog/releases.json` o asignada explícitamente por el usuario, sus campos de release (`release`, `targetRelease`, `releases`, `milestone`) DEBEN permanecer estrictamente vacíos / `undefined`, mostrándose como `—` en la interfaz.
+> - **Valor por Defecto**: Si una tarea no fue formalmente agregada a una versión en `backlog/releases.json` o asignada explícitamente por el usuario, sus campos de release (`release`, `targetRelease`, `releases`, `milestone`) DEBEN permanecer estrictamente vacíos / `undefined`, mostrándose como ` - ` en la interfaz.
 
 > [!TIP]
-> **Taxonomía Canónica de Tipos — bug vs bugfix**
+> **Taxonomía Canónica de Tipos - bug vs bugfix**
 >
 > El tipo canónico universal para anomalías y defectos en Gripm es `bug`. Aunque el parser normaliza automáticamente alias como `bugfix`, los archivos Markdown de tareas en `backlog/tasks/` deben crearse y mantenerse siempre con el valor canónico `type: bug`.

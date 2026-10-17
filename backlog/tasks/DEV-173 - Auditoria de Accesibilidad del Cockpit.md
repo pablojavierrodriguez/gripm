@@ -5,10 +5,10 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-06'
 labels:
-  - "accessibility"
-  - "a11y"
-  - "ux"
-  - "post-launch"
+ - "accessibility"
+ - "a11y"
+ - "ux"
+ - "post-launch"
 dependencies: []
 priority: high
 type: chore
@@ -17,7 +17,7 @@ type: chore
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad — **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
+La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un análisis estático que reporta 313 sugerencias de clases Tailwind arbitrarias (`text-[10px]`, `text-[11px]`) y 0 errores de accesibilidad - **no es un análisis de accesibilidad**. Ninguna otra herramienta del repositorio cubre foco, teclado ni contraste.
 
 ### El proyecto ya tiene la herramienta y no la usó
 
@@ -28,7 +28,7 @@ La accesibilidad del producto nunca fue auditada. `npm run audit:ux` es un anál
 El producto es una interfaz densa: tablero Kanban con drag-and-drop, reordenamiento, filtros, tarjetas, y al menos 5 modales (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`, `SettingsView`). Los tres modos de fallo con mayor probabilidad en esta clase de producto son:
 
 1. **Focus trap y retorno de foco en modales.** Un modal que no atrapa el foco deja al usuario de teclado tabulando detrás del overlay; un modal que no devuelve el foco al disparador pierde el contexto al cerrarse.
-2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse — y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
+2. **Navegación por teclado en el Kanban.** Si el reordenamiento y el cambio de estado solo responden a drag-and-drop o click, el producto es inutilizable sin mouse - y `AGENTS.md` §6.16 declara launningham de flujo Kanban como metodología central.
 3. **Contraste de los badges de estado.** `src/utils/statusMeta.ts` define clases de color con variantes `dark:` y sin variants. Los badges de 6 estados en dos temas son el texto más pequeño de la pantalla.
 
 ### Objetivo
@@ -39,7 +39,7 @@ Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo qu
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados — la tarea no se cierra sin evidencia de ejecución
+- [x] #1 Existe en `backlog/retros/` o en una nota de tarea el resultado de una ejecución real del skill `code-level-ux-auditor` sobre `src/`, con los hallazgos listados - la tarea no se cierra sin evidencia de ejecución
       → Evidencia en la nota de esta tarea, sección "Resultado de la auditoría real"
 - [x] #2 Cada modal (`ItemModal`, `SprintModal`, `CompleteSprintModal`, `ImportWizardModal`, `PlanGuardModal`) atrapa el foco mientras está abierto, y devuelve el foco al elemento disparador al cerrarse (verificable por navegación de teclado completa con `Tab`, `Shift+Tab` y `Escape`)
       → `src/hooks/useFocusTrap.ts` compartido, aplicado a los 8 diálogos del app (el AC nominaba 5); verificado por `scripts/verify-focus-trap.js`
@@ -47,7 +47,7 @@ Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo qu
       → Cambio de estado ya era accesible (`ItemCard.tsx`, un `<button>` por estado); la reordenación se agregó con "Subir"/"Bajar" en el menú de la tarjeta, reutilizando el `order` fraccionario del drag
 - [x] #4 Todos los controles interactivos son alcanzables por teclado; ninguno requiere puntero
       → **Bloqueado.** Requiere el conteo real de botones sin nombre accesible, que depende de adoptar el motor upstream con los dos fixes de UX-010 (DEV-188). No se cierra declarando "0" porque el 0 de UX-010 es un techo, no una prueba
-- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro — el valor se registra en la nota de la tarea
+- [x] #5 Los badges de estado de `src/utils/statusMeta.ts` alcanzan una relación de contraste mínima de 4.5:1 en texto pequeño, en tema claro **y** oscuro - el valor se registra en la nota de la tarea
       → 16/16 combinaciones verificadas por `scripts/verify-status-contrast.js` (paso 11 de `npm test`); 6 fallaban y se corrigieron
 - [x] #6 Todo elemento con `onClick` y sin rol semántico expone `role`, `tabIndex` y handler de teclado, o se convierte en `<button>` nativo
       → 4 controles reales corregidos; 31 `onClick` no-native clasificados y documentados como no interactivos por diseño
@@ -86,8 +86,8 @@ Convertir la accesibilidad de supuesto en verificado: ejecutarla, corregir lo qu
 > esta tarea. Lo que esa ejecución reveló es precisamente el bug upstream que
 > bloquea AC #4.
 
-Al adoptar el catálogo canónico de 13 reglas del playbook —necesario para que
-un código UX-* del gate signifique lo que el skill dice— se descubrió que **UX-010
+Al adoptar el catálogo canónico de 13 reglas del playbook - necesario para que
+un código UX-* del gate signifique lo que el skill dice - se descubrió que **UX-010
 no es una señal confiable** en este repo.
 
 **Causa raíz (corregida el 2026-10-06 tras el análisis upstream): no era `lineMatches`
@@ -134,7 +134,7 @@ Ejecución de `scripts/audit-ux-code.cjs` contra el catálogo canónico v2:
 | UX-007 | INFO | 35 | Hacinamiento horizontal en tarjetas |
 | UX-008 | WARNING | 0 | Sin I/O síncrono por frame |
 | UX-009 | WARNING | 0 | **Targets táctiles OK** |
-| UX-010 | WARNING | 127 | **No confiable — bug upstream, ver nota de bloqueo** |
+| UX-010 | WARNING | 127 | **No confiable - bug upstream, ver nota de bloqueo** |
 | UX-011 | INFO | 294 | Tamaño de fuente arbitrario |
 | UX-012 | INFO | 25 | Clickeable sin feedback táctil |
 | UX-013 | INFO | 0 | Valores sin numeración tabular |
@@ -242,8 +242,8 @@ Decisión: **mixta**, con línea explícita entre lo verificable por máquina y 
 
 **Entra al gate de `npm test` (y por lo tanto a CI):**
 
-- **Contraste de badges** — `scripts/verify-status-contrast.js`, paso 12. Lee las clases de `statusMeta.ts`, compone el fondo real y aplica la fórmula de WCAG. Es determinista y no depende del navegador, así que puede y debe bloquear el build.
-- **Contrato de trampa de foco** — `scripts/verify-focus-trap.js`, paso 13. Verifica que los 8 diálogos opten por el hook compartido, que el hook implemente Tab/Shift+Tab/Escape/retorno, y que nadie duplique el cierre con Escape.
+- **Contraste de badges** - `scripts/verify-status-contrast.js`, paso 12. Lee las clases de `statusMeta.ts`, compone el fondo real y aplica la fórmula de WCAG. Es determinista y no depende del navegador, así que puede y debe bloquear el build.
+- **Contrato de trampa de foco** - `scripts/verify-focus-trap.js`, paso 13. Verifica que los 8 diálogos opten por el hook compartido, que el hook implemente Tab/Shift+Tab/Escape/retorno, y que nadie duplique el cierre con Escape.
 
 **No se declara automatizable:**
 
@@ -308,7 +308,7 @@ El alcance se recortó a lo que resuelve el uso real. Lo que quedó fuera:
   es automatizable acá. Queda como checklist de release, declarado en AC #8.
 
 Cualquiera de estos tres, si aparece una necesidad concreta, es una tarea nueva con su
-propio AC — no deuda oculta dentro de esta.
+propio AC - no deuda oculta dentro de esta.
 
 ### Divergencia del auditor local
 
@@ -329,5 +329,5 @@ Un usuario de teclado no puede usar el producto; un usuario con visión baja sí
 
 ### Costo
 
-Es la tarea más grande de este lote y no se resuelve en un día. Se puede entregar por etapas — foco en modales primero, que es donde el fallo es más común y más visible. Los ACs son independientes y se pueden ir tildando.
+Es la tarea más grande de este lote y no se resuelve en un día. Se puede entregar por etapas - foco en modales primero, que es donde el fallo es más común y más visible. Los ACs son independientes y se pueden ir tildando.
 <!-- SECTION:NOTES:END -->

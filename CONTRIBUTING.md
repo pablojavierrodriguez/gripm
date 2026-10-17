@@ -156,7 +156,7 @@ Enforced in [`AGENTS.md`](AGENTS.md), which serves as the reference guide for AI
 
 - **Every code change requires a task.** Including incidental refinements: an unmapped change is indistinguishable from an unintended bug.
 - **Linters are never suppressed to mask symptoms.** The root cause must be resolved.
-- **Dimensions are orthogonal.** A sprint is not a release, and releases are not deduced from sprint membership. Empty fields render as empty (`—`), never populated with external terms.
+- **Dimensions are orthogonal.** A sprint is not a release, and releases are not deduced from sprint membership. Empty fields render as empty (` - `), never populated with external terms.
 - **Release management is PO sovereignty.** The agent never invents versions or assigns `milestone: "Sprint X"`.
 
 ## Pull Requests
@@ -369,7 +369,7 @@ de IA. Las más importantes:
 - **No se silencia un linter para tapar un síntoma.** Se entiende la causa raíz.
 - **Las dimensiones son ortogonales.** Un sprint no es un release, y un release no
   se deduce de pertenecer a un sprint. Si un campo no tiene valor, se muestra
-  vacío (`—`), nunca se rellena con un término ajeno.
+  vacío (` - `), nunca se rellena con un término ajeno.
 - **La asignación de releases es soberanía del usuario.** El agente no inventa
   versiones ni escribe `milestone: "Sprint X"`.
 

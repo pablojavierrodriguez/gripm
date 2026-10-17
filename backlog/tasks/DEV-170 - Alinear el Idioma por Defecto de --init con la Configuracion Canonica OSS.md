@@ -5,9 +5,9 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-05 01:00'
 labels:
-  - "i18n"
-  - "onboarding"
-  - "scaffolding"
+ - "i18n"
+ - "onboarding"
+ - "scaffolding"
 dependencies: []
 priority: low
 type: chore
@@ -34,13 +34,13 @@ $ cat .gripm/config.json
 
 Dos lugares fijan español:
 
-1. **`scripts/initScaffold.js:58`** — default del modo no interactivo:
+1. **`scripts/initScaffold.js:58`** - default del modo no interactivo:
    ```js
    let language = (options.language || options.lang || 'es').toLowerCase();
    ```
    Con `-y` no se pregunta, así que siempre cae en `'es'`.
 
-2. **`scripts/initScaffold.js:90`** — la opción por defecto del prompt interactivo es `[1]` (Español), y `scripts/initScaffold.js:14` y `:37` usan `language = 'es'` como default de las plantillas.
+2. **`scripts/initScaffold.js:90`** - la opción por defecto del prompt interactivo es `[1]` (Español), y `scripts/initScaffold.js:14` y `:37` usan `language = 'es'` como default de las plantillas.
 
 ### Relación con la regla de gobernanza
 
@@ -60,7 +60,7 @@ Que el idioma por defecto del scaffolding sea coherente con la configuración ca
 - [x] #2 `scripts/initScaffold.js:14` y `:37` usan `'en'` como default de `getSkillTemplate` y `getAgentsMdTemplate`
 - [x] #3 El prompt interactivo de `scripts/initScaffold.js:90` ofrece English como opción por defecto (la que se aplica con Enter vacío)
 - [x] #4 `gripm --init -y` en un repositorio limpio genera `.gripm/config.json` con `"language": "en"` (verificación: `grep '"language"' .gripm/config.json` devuelve `"en"`)
-- [x] #5 `gripm --init -y --language es` sigue produciendo `"language": "es"`, skill y AGENTS.md en español — la override explícita se respeta
+- [x] #5 `gripm --init -y --language es` sigue produciendo `"language": "es"`, skill y AGENTS.md en español - la override explícita se respeta
 - [x] #6 `.gripm/config.json` del propio repositorio sigue cumpliendo `AGENTS.md` §6.17: `grep -E '"language"|"sprint"' .gripm/config.json` devuelve `"en"` y `"sprint": true`
 - [x] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores y `npm test` con exit 0
 <!-- AC:END -->
@@ -80,7 +80,7 @@ Que el idioma por defecto del scaffolding sea coherente con la configuración ca
 <!-- SECTION:NOTES:BEGIN -->
 ### Por qué el AC #5 importa tanto como el #4
 
-Cambiar el default sin preservar la override por flag sería una regresión silenciosa: quien quiera español debe poder pedirlo explícitamente. Por eso el AC #5 es negativo en la dirección correcta — verifica que el override explícito se respetó.
+Cambiar el default sin preservar la override por flag sería una regresión silenciosa: quien quiera español debe poder pedirlo explícitamente. Por eso el AC #5 es negativo en la dirección correcta - verifica que el override explícito se respetó.
 
 ### Nota de alcance
 

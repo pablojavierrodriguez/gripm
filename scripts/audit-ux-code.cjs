@@ -12,10 +12,10 @@
  * .agents/skills/code-level-ux-auditor/SKILL.md.
  *
  * Design constraints:
- *  - Stack agnostic. Rules that depend on a library (date-fns, framer-motion)
+ * - Stack agnostic. Rules that depend on a library (date-fns, framer-motion)
  *    declare `requires.deps` and are skipped when the dependency is absent.
- *  - Project agnostic. No file names, no project names, no hardcoded paths.
- *  - Never crashes on a missing source directory or a non-JS project.
+ * - Project agnostic. No file names, no project names, no hardcoded paths.
+ * - Never crashes on a missing source directory or a non-JS project.
  *
  * Usage:
  *   node scripts/audit-ux-code.cjs [options]
@@ -666,7 +666,7 @@ function buildUnits(lines) {
   }
 
   // An element's own content: its source minus the source of every nested
-  // element. Without this level a wrapper inherits its child's signature — a
+  // element. Without this level a wrapper inherits its child's signature - a
   // `<div>` around `<span>{format(date, "MMMM")}</span>` would report the date
   // leak and point at the wrapper instead of the element rendering the value.
   // Renderable text, bottom-up: an element's own text plus the text its
@@ -676,7 +676,7 @@ function buildUnits(lines) {
   //
   // Descendant text has to be included. A control labelled `<Icon /><span>
   // Guardar</span>` shows "Guardar" to the user, so counting only the element's
-  // direct text nodes would call it unlabelled — which is how `unlessVisibleText`
+  // direct text nodes would call it unlabelled - which is how `unlessVisibleText`
   // ended up inert for the most common button shape there is.
   for (const frame of allFrames) {
     const segments = [];
@@ -731,7 +731,7 @@ function ruleAppliesToProject(rule, relPath, deps) {
   if ((check.unlessFile || []).some((token) => relPath.includes(token))) return false;
 
   // The positive counterpart of `unlessFile`. Without it a rule scoped by
-  // context — "`truncate` inside a dialog" — cannot be expressed at all, because
+  // context - "`truncate` inside a dialog" - cannot be expressed at all, because
   // a file filter can only ever switch a rule off.
   if ((check.onlyFile || []).length
     && !(check.onlyFile || []).some((token) => relPath.includes(token))) return false;
@@ -769,8 +769,8 @@ function hasVisibleText(unit) {
  *
  *   `needsContent`, `unlessContent`  →  `unit.scopeText`, the element plus every
  *       descendant. "Does this button contain an icon?" is a question about the
- *       subtree, so evaluating it against the whole file — as an earlier version
- *       did — made one `Icon` declaration turn every button in the file into an
+ *       subtree, so evaluating it against the whole file - as an earlier version
+ *       did - made one `Icon` declaration turn every button in the file into an
  *       icon-only button.
  *
  * `unlessVisibleText` reads that same subtree but semantically, for rules about
@@ -977,7 +977,7 @@ function printRuleCatalog(catalog) {
   const local = (catalog.localRules || []).length;
   console.log('');
   console.log(
-    `Rule catalog v${catalog.version} — ${catalog.rules.length} signatures`
+    `Rule catalog v${catalog.version} - ${catalog.rules.length} signatures`
     + (local ? ` (${catalog.rules.length - local} canonical, ${local} local)` : ''),
   );
   if (catalog.localPath) console.log(`Local catalog: ${path.basename(catalog.localPath)}`);

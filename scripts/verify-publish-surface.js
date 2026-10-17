@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * gripm — Publish Surface Guard
+ * gripm - Publish Surface Guard
  *
  * Verifica que el tarball de npm NO contenga archivos de datos locales del usuario.
  *
@@ -11,8 +11,8 @@
  * (ver DEV-118 AC #4 y DEV-151).
  *
  * Los dos canales de distribución tienen modelos de amenaza distintos:
- *   - Git   → lo commiteado es público e inmutable.
- *   - npm   → lo listado en `files` se publica, sin importar `.gitignore`.
+ * - Git   → lo commiteado es público e inmutable.
+ * - npm   → lo listado en `files` se publica, sin importar `.gitignore`.
  *
  * Este guard empaqueta de verdad y escanea el CONTENIDO (no solo el listado), que
  * es la única verificación que cubre ambos canales.
@@ -116,7 +116,7 @@ try {
     failed = true;
   }
 
-  // 4. Chequeo A — archivos prohibidos por nombre.
+  // 4. Chequeo A - archivos prohibidos por nombre.
   for (const file of allFiles) {
     const base = path.basename(file);
     if (FORBIDDEN_BASENAMES.includes(base)) {
@@ -126,7 +126,7 @@ try {
     }
   }
 
-  // 4b. Chequeo A2 — archivos del framework Gripm Playbook prohibidos en Gripm Board (DEV-250).
+  // 4b. Chequeo A2 - archivos del framework Gripm Playbook prohibidos en Gripm Board (DEV-250).
   for (const forbidden of FORBIDDEN_PLAYBOOK_ENTRIES) {
     if (allFiles.includes(forbidden)) {
       console.error(`   ❌ CONTENIDO DE PLAYBOOK FILTRADO EN GRIPM BOARD: ${forbidden}`);
@@ -135,7 +135,7 @@ try {
     }
   }
 
-  // 5. Chequeo B — contenido que revela entorno privado (solo texto).
+  // 5. Chequeo B - contenido que revela entorno privado (solo texto).
   for (const file of allFiles) {
     if (/\.(png|jpe?g|gif|webp|ico|woff2?|ttf|zip|gz)$/i.test(file)) continue;
     const abs = path.join(pkgRoot, file);
@@ -152,7 +152,7 @@ try {
     }
   }
 
-  // 6. Chequeo C — allowlist: lo esencial debe estar presente.
+  // 6. Chequeo C - allowlist: lo esencial debe estar presente.
   for (const required of REQUIRED_ENTRIES) {
     if (!allFiles.includes(required)) {
       console.error(`   ❌ FALTA EN EL TARBALL (esperado por allowlist): ${required}`);

@@ -192,7 +192,7 @@ function parseQualityLog(content, itemsMap, ctx) {
           priority,
           status,
           module: area,
-          impactedFile: impactedFile !== '—' && impactedFile !== '-' ? impactedFile : undefined,
+          impactedFile: impactedFile !== '-' && impactedFile !== '-' ? impactedFile : undefined,
           fix: fixNote,
           targetRelease: '1.0.0',
           targetSprint: 'Integridad Financiera',
@@ -228,8 +228,8 @@ function parseBacklog(content, itemsMap, ctx) {
     }
   }
 
-  // Parse detailed sections: ### BUG-C1 — Race Condition...
-  const sectionRegex = /###\s+([A-Z0-9_-]+)\s+[—-]\s+([^\n]+)([\s\S]*?)(?=\n###\s+[A-Z0-9_-]+\s+[—-]|## |$)/g;
+  // Parse detailed sections: ### BUG-C1 - Race Condition...
+  const sectionRegex = /###\s+([A-Z0-9_-]+)\s+[-]\s+([^\n]+)([\s\S]*?)(?=\n###\s+[A-Z0-9_-]+\s+[-]|## |$)/g;
   let match;
   while ((match = sectionRegex.exec(content)) !== null) {
     const rawId = match[1].trim();
@@ -332,7 +332,7 @@ function parseSpecs(specsDir, itemsMap, ctx) {
 
     // Extract title (first # Heading)
     const titleMatch = content.match(/^#\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1].replace(/—.*$/, '').replace(/–.*$/, '').trim() : file.replace('.md', '');
+    const title = titleMatch ? titleMatch[1].replace(/[- - - ].*$/, '').trim() : file.replace('.md', '');
 
     // Extract summary or first paragraph
     const paras = content.split('\n\n').map(p => p.trim()).filter(p => p && !p.startsWith('#'));
@@ -378,8 +378,8 @@ function parseSpecs(specsDir, itemsMap, ctx) {
 
 function parseReleaseNotes(content, itemsMap, ctx) {
   const releases = [];
-  // Parse ## [0.5.0] — 2026-09-15 🚀 <Title>
-  const releaseMatch = content.match(/##\s+\[([0-9.]+)\]\s+[—-]\s+([0-9-]+)\s+(?:🚀\s+)?([^\n]+)/);
+  // Parse ## [0.5.0] - 2026-09-15 🚀 <Title>
+  const releaseMatch = content.match(/##\s+\[([0-9.]+)\]\s+[-]\s+([0-9-]+)\s+(?:🚀\s+)?([^\n]+)/);
   if (releaseMatch) {
     const version = releaseMatch[1];
     const date = releaseMatch[2];

@@ -17,7 +17,7 @@ function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> 
 }
 
 /**
- * DEV-222 — Implementación HTTP de la capa de datos.
+ * DEV-222 - Implementación HTTP de la capa de datos.
  *
  * Es el código que vivía en `src/api.ts`, movido sin cambios de comportamiento:
  * esta es la ruta con daemon local y es la que debe seguir siendo la referencia.

@@ -1,6 +1,6 @@
 ---
 id: DEV-068
-title: "Fix: devboard_list_tasks — Filtro por Sprint Retorna Todos los Tasks"
+title: "Fix: devboard_list_tasks - Filtro por Sprint Retorna Todos los Tasks"
 status: done
 created_date: '2026-09-19'
 updated_date: '2026-09-24 12:14'
@@ -10,9 +10,9 @@ priority: medium
 type: bug
 milestone: "0.4.0"
 sprints:
-  - "Sprint 4"
+ - "Sprint 4"
 releases:
-  - "0.4.0"
+ - "0.4.0"
 sprint: "Sprint 4"
 targetSprint: "Sprint 4"
 order: 60

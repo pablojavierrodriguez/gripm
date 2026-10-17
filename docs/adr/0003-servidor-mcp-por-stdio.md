@@ -1,9 +1,9 @@
-# 0003 — Servidor MCP sobre stdio con núcleo de persistencia compartido
+# 0003 - Servidor MCP sobre stdio con núcleo de persistencia compartido
 
 - **Estado:** `Aceptado`
 - **Fecha:** 2026-10-13
 - **Tareas:** `dev-023`, `dev-025`, `DEV-102`, `DEV-249`
-- **Reemplaza:** —
+- **Reemplaza:** - 
 
 ---
 
@@ -22,19 +22,19 @@ El riesgo principal de este diseño es la **divergencia de reglas**: si la UI y 
 
 ## Opciones consideradas
 
-### Opción A — Exponer el backlog como endpoints HTTP y que cada agente escriba su propio cliente
+### Opción A - Exponer el backlog como endpoints HTTP y que cada agente escriba su propio cliente
 
 - **A favor:** cero trabajo de servidor MCP, reutilización de la API existente.
 - **En contra:** cada cliente reinventa validaciones y manejo de errores; los contratos son implícitos y divergen; el agente depende de que haya un servidor levantado.
 - **Veredicto:** descartada. Es exactamente la fuente de divergencia que el driver 1 busca eliminar.
 
-### Opción B — Servidor MCP sobre HTTP/SSE
+### Opción B - Servidor MCP sobre HTTP/SSE
 
 - **A favor:** puede compartir proceso con la UI, útil para clientes remotos o multiusuario.
 - **En contra:** requiere puerto, gestión de sesiones y autenticación; agrega superficie de red a una herramienta local monousuario.
 - **Veredicto:** descartada. El producto es monousuario local (ver [ADR-0004](0004-daemon-local-sin-autenticacion-http.md)); el transporte HTTP no aporta nada aquí.
 
-### Opción C — Servidor MCP JSON-RPC 2.0 sobre `stdio`
+### Opción C - Servidor MCP JSON-RPC 2.0 sobre `stdio`
 
 - **A favor:** es el transporte nativo del protocolo y lo soporta el ciclo de vida del proceso del cliente; no requiere puertos ni sesiones; valida entradas de forma estricta en el borde.
 - **En contra:** no es consultable desde un navegador ni desde otro proceso salvo por el spawn del binario.
@@ -78,6 +78,6 @@ Reglas que quedan fijadas por esta decisión:
 
 ## Referencias
 
-- [`README.md`](../../README.md) — tabla de herramientas MCP.
-- [`AGENTS.md`](../../AGENTS.md) §7 — gotchas de MCP (validación estricta, `autoFix: false`, prohibición de leer comandos del frontmatter).
+- [`README.md`](../../README.md) - tabla de herramientas MCP.
+- [`AGENTS.md`](../../AGENTS.md) §7 - gotchas de MCP (validación estricta, `autoFix: false`, prohibición de leer comandos del frontmatter).
 - `backlog/tasks/dev-023 - gestin-e-inspeccin-de-releases-en-mcp-devboardlist.md`.

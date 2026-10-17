@@ -4,7 +4,7 @@ import type { GripmApi } from './types';
 import { getStoredJSON, removeStoredItem, setStoredJSON, STORAGE_KEYS } from '../utils/storage.ts';
 
 /**
- * DEV-222 — Adaptador en memoria de la sandbox web.
+ * DEV-222 - Adaptador en memoria de la sandbox web.
  *
  * Gripm es local-first: el tablero habla con un daemon por HTTP. Desplegado como
  * estático en Vercel no hay daemon, así que `dist/` sirve y **todos** los `/api/*`
@@ -115,7 +115,7 @@ function demoteOtherActiveSprints(sprintId: string): void {
 }
 
 /**
- * DEV-222 — Restablece la demo al dataset semilla y borra la persistencia.
+ * DEV-222 - Restablece la demo al dataset semilla y borra la persistencia.
  * Es lo que tiene que pasar detrás del botón "Reset demo".
  */
 export function resetSandbox(): void {
@@ -427,7 +427,7 @@ export const sandboxAdapter: GripmApi = {
     const lines = [`# ${project?.name ?? 'Backlog'}`, ''];
     for (const it of items) {
       const sprint = it.sprint || it.targetSprint || 'Sin Sprint';
-      lines.push(`## ${it.code} — ${it.title}`, '');
+      lines.push(`## ${it.code} - ${it.title}`, '');
       lines.push(`- **Estado:** ${it.status}`);
       lines.push(`- **Prioridad:** ${it.priority}`);
       lines.push(`- **Tipo:** ${it.type}`);

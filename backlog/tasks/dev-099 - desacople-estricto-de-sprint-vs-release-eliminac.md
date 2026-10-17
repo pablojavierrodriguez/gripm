@@ -10,9 +10,9 @@ priority: high
 type: bug
 milestone: "0.5.0"
 sprints:
-  - "Sprint 5"
+ - "Sprint 5"
 releases:
-  - "0.5.0"
+ - "0.5.0"
 sprint: "Sprint 5"
 targetSprint: "Sprint 5"
 release: "0.5.0"
@@ -23,7 +23,7 @@ created: "2026-09-24"
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Al crear o leer tareas pertenecientes a un sprint (como Sprint 5), se producía una sobrecarga semántica ("label smuggling") donde el valor del sprint se propagaba indebidamente a las propiedades `milestone` y `release`. Esto provocaba que en la UI (tablas de `SprintView`, badges de `ItemCard` y selectores de `ItemModal`) apareciera una versión falsa `vSprint 5` / `vSprint5` como si fuera un release oficial, en lugar de dejar la versión vacía (`—`) hasta que el usuario decida formalmente en qué versión se liberará la tarea.
+Al crear o leer tareas pertenecientes a un sprint (como Sprint 5), se producía una sobrecarga semántica ("label smuggling") donde el valor del sprint se propagaba indebidamente a las propiedades `milestone` y `release`. Esto provocaba que en la UI (tablas de `SprintView`, badges de `ItemCard` y selectores de `ItemModal`) apareciera una versión falsa `vSprint 5` / `vSprint5` como si fuera un release oficial, en lugar de dejar la versión vacía (` - `) hasta que el usuario decida formalmente en qué versión se liberará la tarea.
 
 Causa raíz:
 1. En `backlog/tasks/dev-096*.md` y `dev-097*.md`, el agente escribió `milestone: "Sprint 5"` en el frontmatter, violando la ortogonalidad entre Sprint y Release.
@@ -36,7 +36,7 @@ Causa raíz:
 <!-- AC:BEGIN -->
 - [x] #1 Corregir `vite.config.ts` eliminando cualquier fallback de `sprintVal` a `milestone` o `releaseVal`, y garantizando que valores que contengan "sprint" nunca sean interpretados ni guardados como versiones de release.
 - [x] #2 Limpiar `milestone: "Sprint 5"` de los archivos de tareas en `backlog/tasks/` (`DEV-096`, `DEV-097`, etc.) dejando sus campos de release vacíos.
-- [x] #3 Asegurar que las tarjetas en `ItemCard`, la columna Release en `SprintView` y el selector de `ItemModal` muestren `—` (sin versión asignada) cuando un ítem no tenga release formal.
+- [x] #3 Asegurar que las tarjetas en `ItemCard`, la columna Release en `SprintView` y el selector de `ItemModal` muestren ` - ` (sin versión asignada) cuando un ítem no tenga release formal.
 - [x] #4 Validar compilación (`npx tsc --noEmit`), suite de pruebas (`npm test`) y sincronización (`npm run backlog:check`).
 <!-- AC:END -->
 

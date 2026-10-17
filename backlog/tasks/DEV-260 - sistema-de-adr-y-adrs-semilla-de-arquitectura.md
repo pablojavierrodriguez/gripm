@@ -5,9 +5,9 @@ status: done
 created_date: '2026-10-13'
 updated_date: '2026-10-15'
 labels:
-  - "docs"
-  - "architecture"
-  - "governance"
+ - "docs"
+ - "architecture"
+ - "governance"
 dependencies: []
 priority: medium
 type: chore
@@ -74,7 +74,7 @@ Fuera de alcance: validación mecánica de la convención en `scripts/verify-cha
 | 5 | Auditoría estática de UX | `node scripts/audit-ux-code.cjs --strict` | ⚠️ 0 errores, 12 warnings `UX-010` **preexistentes** en `ReleaseAssembler.tsx` y `SettingsView.tsx` |
 | 5b | Gate de clases de defecto | `node scripts/verify-changes.js --all` | ✅ exit 0, 416 archivos |
 | 5c | Superficie de distribución | `npm run publish:check` | ✅ exit 0, 115 archivos en tarball, sin `docs/adr/` |
-| 6 | Navegador real | — | No aplica: el cambio es 100% documental Markdown (`AGENTS.md`, `docs/`), sin superficie de UI. |
+| 6 | Navegador real | - | No aplica: el cambio es 100% documental Markdown (`AGENTS.md`, `docs/`), sin superficie de UI. |
 
 **Sobre el paso 5:** `audit-ux-code.cjs --strict` devuelve exit 1 por 12 warnings `UX-010` (botones sólo-icono sin nombre accesible) en `src/components/ReleaseAssembler.tsx` y `src/components/SettingsView.tsx`. Verificado con `git status` que DEV-260 no toca `src/`: la salida es idéntica a la de HEAD y el debt es preexistente. No bloquea esta certificación documental, pero **queda como deuda abierta** a trackedear en una tarea propia.
 <!-- SECTION:NOTES:END -->

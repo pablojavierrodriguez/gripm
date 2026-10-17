@@ -10,7 +10,7 @@ priority: high
 type: docs
 milestone: "1.0.4"
 releases:
-  - "1.0.4"
+ - "1.0.4"
 release: "1.0.4"
 targetRelease: "1.0.4"
 ---
@@ -44,5 +44,5 @@ Para una herramienta visual e interactiva como Gripm, la presencia de capturas d
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Se capturaron cuatro PNG optimizados (81–134 KB) desde una instancia temporal en modo multi-proyecto con un `GRIPM_HOME` aislado y el fixture `data/demo-backlog.json`. Se añadieron hero, badge, galería y mensaje local-first a ambos README. `npm run backlog:check` y `git diff --check` pasan; todas las rutas de imagen referenciadas existen. Se eliminaron las ramas locales ya fusionadas o sin código vivo pendiente.
+Se capturaron cuatro PNG optimizados (81 - 134 KB) desde una instancia temporal en modo multi-proyecto con un `GRIPM_HOME` aislado y el fixture `data/demo-backlog.json`. Se añadieron hero, badge, galería y mensaje local-first a ambos README. `npm run backlog:check` y `git diff --check` pasan; todas las rutas de imagen referenciadas existen. Se eliminaron las ramas locales ya fusionadas o sin código vivo pendiente.
 <!-- SECTION:NOTES:END -->

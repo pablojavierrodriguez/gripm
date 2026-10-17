@@ -5,12 +5,12 @@ status: done
 created_date: '2026-10-04'
 updated_date: '2026-10-12'
 labels:
-  - "performance"
-  - "bundling"
-  - "vite"
-  - "post-launch"
+ - "performance"
+ - "bundling"
+ - "vite"
+ - "post-launch"
 dependencies:
-  - "DEV-162"
+ - "DEV-162"
 priority: medium
 type: refactor
 ---
@@ -58,7 +58,7 @@ Reducir el trabajo de transformación en el arranque en frío de la interfaz med
 <!-- AC:BEGIN -->
 - [x] #1 Implementar carga diferida (`React.lazy` y `<Suspense fallback={...}>`) en `src/App.tsx` para `SettingsView` y `ReleaseAssembler`
 - [x] #2 Verificar que el arranque en frío transforma menos módulos que antes: el conteo de módulos bajo demanda servidos en la carga inicial disminuye respecto de la línea de base medida al inicio de la tarea
-- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados — sin ese registro el AC no es verificable
+- [x] #3 Medir y registrar la línea de base y el resultado del AC #2 en las notas de la tarea, con los comandos usados - sin ese registro el AC no es verificable
 - [x] #4 ~~Configurar `manualChunks`~~ **retirado**: no afecta el artefacto que el producto sirve (ver la corrección de premisa)
 - [x] #5 ~~El chunk principal se reduce por debajo de 450 kB~~ **retirado**: mide `dist/`, que no se sirve
 - [x] #6 La suite de pruebas `npm test` y el check de publicación `npm run publish:check` pasan con exit code 0
@@ -87,18 +87,18 @@ Comando utilizado para suite unificada: `npm test`
 Comando utilizado para superficie de publicación: `npm run publish:check`
 
 1. **Línea de base previa (Monolito sin carga diferida):**
-   - Chunk principal monolítico: `dist/assets/index-DPvY8Udi.js` = `675.95 kB` (gzip: `161.23 kB`).
-   - `SettingsView` (~2.100 líneas) y `ReleaseAssembler` (~1.200 líneas) se importaban estáticamente en el bundle de arranque.
-   - Cero chunks secundarios de vistas diferidas.
+ - Chunk principal monolítico: `dist/assets/index-DPvY8Udi.js` = `675.95 kB` (gzip: `161.23 kB`).
+ - `SettingsView` (~2.100 líneas) y `ReleaseAssembler` (~1.200 líneas) se importaban estáticamente en el bundle de arranque.
+ - Cero chunks secundarios de vistas diferidas.
 
 2. **Resultado post-implementación (`React.lazy` + `Suspense`):**
-   - Chunk principal de entrada: `dist/assets/index-qmMWqsMx.js` = `562.71 kB` (gzip: `143.66 kB`).
-   - **Delta de reducción en chunk de entrada:** `-113.24 kB` (-16.7%).
-   - Chunk diferido `SettingsView`: `dist/assets/SettingsView-CBF9QzQc.js` = `80.04 kB` (gzip: `13.46 kB`).
-   - Chunk diferido `ReleaseAssembler`: `dist/assets/ReleaseAssembler-B8jsD2mk.js` = `35.11 kB` (gzip: `7.24 kB`).
-   - Fallback de `<Suspense>` implementado con `ViewLoadingFallback` (`min-h-[300px]`, spinner suave de Tailwind con Zero-CLS).
-   - `npm test`: 16/16 pasos en verde (31.3s).
-   - `npm run publish:check`: 126 archivos en tarball, cero fugas, exit 0.
+ - Chunk principal de entrada: `dist/assets/index-qmMWqsMx.js` = `562.71 kB` (gzip: `143.66 kB`).
+ - **Delta de reducción en chunk de entrada:** `-113.24 kB` (-16.7%).
+ - Chunk diferido `SettingsView`: `dist/assets/SettingsView-CBF9QzQc.js` = `80.04 kB` (gzip: `13.46 kB`).
+ - Chunk diferido `ReleaseAssembler`: `dist/assets/ReleaseAssembler-B8jsD2mk.js` = `35.11 kB` (gzip: `7.24 kB`).
+ - Fallback de `<Suspense>` implementado con `ViewLoadingFallback` (`min-h-[300px]`, spinner suave de Tailwind con Zero-CLS).
+ - `npm test`: 16/16 pasos en verde (31.3s).
+ - `npm run publish:check`: 126 archivos en tarball, cero fugas, exit 0.
 
 ### Antecedente de la corrección
 

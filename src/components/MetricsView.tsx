@@ -88,7 +88,7 @@ export const MetricsView: FC<MetricsViewProps> = ({
     });
 
     if (validDiffs.length === 0) {
-      return { averageDays: '—', count: 0 };
+      return { averageDays: '-', count: 0 };
     }
 
     const sum = validDiffs.reduce((acc, curr) => acc + curr, 0);
@@ -326,7 +326,7 @@ export const MetricsView: FC<MetricsViewProps> = ({
               >
                 {releases.map((r) => (
                   <option key={r.id} value={r.version}>
-                    v{r.version} {r.title ? `— ${r.title}` : ''}
+                    v{r.version} {r.title ? ` - ${r.title}` : ''}
                   </option>
                 ))}
               </select>

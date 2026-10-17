@@ -5,13 +5,13 @@ status: done
 created_date: '2026-10-14'
 updated_date: '2026-10-15'
 labels:
-  - "cli"
-  - "runtime"
-  - "distribution"
-  - "packaging"
+ - "cli"
+ - "runtime"
+ - "distribution"
+ - "packaging"
 dependencies:
-  - "DEV-223"
-  - "DEV-141"
+ - "DEV-223"
+ - "DEV-141"
 priority: high
 type: fix
 ---
@@ -125,7 +125,7 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   `initialize` + `gripm_list_tasks` del servidor MCP (263 tareas, `storageType: markdown`) y
   el arranque del cockpit sirviendo en un puerto, todos con salida 0.
   **El floor de 18 sigue sin medirse y no se afirma en ningún lado del repo.**
-- **El enforcement de `devEngines` depende de npm ≥ 11 — medido en las dos direcciones.**
+- **El enforcement de `devEngines` depende de npm ≥ 11 - medido en las dos direcciones.**
   En la raíz del repo con Node 20.20.2 y npm 11.21.0, `npm install` falla con
   `EBADDEVENGINES`. Instalando el tarball, el mismo Node con el mismo npm sale 0. Con el
   npm 10.8.2 que trae Node 20, el campo se **ignora en silencio**. Irrelevante para el
@@ -146,8 +146,8 @@ Con esto el badge del README **deja de necesitar corrección**: dice `>=20.0.0` 
   las dos direcciones: npm 10.8.2 lo ignora en silencio, npm 11.21.0 rechaza la raíz del repo
   y acepta el tarball.
 - **Lo que esa certificación encontró y quedó corregido en el mismo movimiento:**
-  `CONTRIBUTING.md` declaraba *"16 pasos secuenciales"* cuando la suite corre 17 — le faltaba
-  `json-sprint-persistence`—, y `scripts/build-binaries.js:17` seguía comentando
+  `CONTRIBUTING.md` declaraba *"16 pasos secuenciales"* cuando la suite corre 17 - le faltaba
+  `json-sprint-persistence` - , y `scripts/build-binaries.js:17` seguía comentando
   *"Node 18+ native"*, que es exactamente la afirmación que este ítem afirma no hacer. Las dos
   derivas viven en los archivos que el AC #5 certifica: certificar un archivo que todavía
   miente sería repetir el defecto que motivó el rechazo.

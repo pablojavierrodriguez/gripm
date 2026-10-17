@@ -5,12 +5,12 @@ status: draft
 created_date: '2026-10-06'
 updated_date: '2026-10-06'
 labels:
-  - "security"
-  - "dependencies"
-  - "decision"
+ - "security"
+ - "dependencies"
+ - "decision"
 dependencies:
-  - DEV-113
-  - DEV-121
+ - DEV-113
+ - DEV-121
 priority: high
 type: chore
 ---
@@ -92,5 +92,5 @@ El banner de GitHub Security al pushear a `dev` reporta **7 vulnerabilidades (3 
 
 Lo que sí coincide en ambas fuentes, y es lo que decide esta tarea: **ninguna vulnerabilidad alcanza el runtime del consumidor** y **todas son toolchain de build**. Es la misma conclusión que ya sustentan DEV-175 (superficie vigilada) y DEV-246 (bloqueo de críticas en CI).
 
-El escaneo local del 2026-10-13 reproduce exactamente la tabla de la Description — mismos 2 directos, mismos 8 transitivos, misma severidad—, así que la tabla sigue vigente y no requiere actualización.
+El escaneo local del 2026-10-13 reproduce exactamente la tabla de la Description - mismos 2 directos, mismos 8 transitivos, misma severidad - , así que la tabla sigue vigente y no requiere actualización.
 <!-- SECTION:NOTES:END -->

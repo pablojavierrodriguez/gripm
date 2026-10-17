@@ -1,9 +1,9 @@
-# 0002 — Backend embebido como plugin de middleware de Vite
+# 0002 - Backend embebido como plugin de middleware de Vite
 
-- **Estado:** `Aceptado`
+- **Estado:** `Reemplazado` (por [ADR-0006](0006-servidor-estatico-produccion-desacoplado-de-vite.md))
 - **Fecha:** 2026-10-13
 - **Tareas:** `dev-043`, `DEV-102`, `DEV-155`, `DEV-190`, `DEV-243`
-- **Reemplaza:** —
+- **Reemplazado por:** [ADR-0006](0006-servidor-estatico-produccion-desacoplado-de-vite.md)
 
 ---
 
@@ -22,19 +22,19 @@ El producto se distribuye como un binario (`npx @gripm/board`, `bin/gripm.js`) y
 
 ## Opciones consideradas
 
-### Opción A — Servidor HTTP propio (Express/Fastify) + Vite separado
+### Opción A - Servidor HTTP propio (Express/Fastify) + Vite separado
 
 - **A favor:** separados, el backend se despliega de forma independiente, límites de red explícitos.
 - **En contra:** dos procesos, dos puertos, CORS o proxy obligatorios, dos comandos para el usuario y un runtime adicional en el tarball.
 - **Veredicto:** descartada. Empeora los drivers 1, 2 y 3 sin ganancia real para una herramienta monousuario local.
 
-### Opción B — Servidor estático (`vite preview` o `express.static`) sirviendo un bundle precompilado
+### Opción B - Servidor estático (`vite preview` o `express.static`) sirviendo un bundle precompilado
 
 - **A favor:** arranque en runtime más liviano, artefacto de producción real.
 - **En contra:** obliga a compilar antes de usar, pierde HMR y source maps en desarrollo.
 - **Veredicto:** **diferida**, no descartada. El trade-off (cold start y tarball vs. HMR) es real y quedó explícitamente fuera del alcance de `DEV-164` para no mezclarse con un refactor de code-splitting. Candidato natural a un ADR propio.
 
-### Opción C — Plugin de Vite que sirve la API dentro del mismo ciclo de vida
+### Opción C - Plugin de Vite que sirve la API dentro del mismo ciclo de vida
 
 - **A favor:** un proceso, un origen, cero CORS, `pnpm dev` / `npx gripm` indistinguibles para el usuario; y como plugin, el servidor se apaga solo.
 - **En contra:** mezcla el runtime de desarrollo con el de la API; obliga a exponer y liberar handles de `fs.watch` de forma explícita para que el proceso pueda morir.
@@ -76,6 +76,6 @@ Dos consecuencias operativas quedan fijadas como regla:
 
 ## Referencias
 
-- [`docs/ARCHITECTURE.md` §2 y §3](../ARCHITECTURE.md) — mapa de capas y catálogo de archivos.
-- `backlog/tasks/DEV-190 - *` — cierres de handles y validación en Linux.
-- `backlog/tasks/DEV-164 - Code-Splitting del Bundle de Produccion con React.lazy y manualChunks en Rollup.md` — decisión explícitamente diferida sobre estáticos vs. dev server.
+- [`docs/ARCHITECTURE.md` §2 y §3](../ARCHITECTURE.md) - mapa de capas y catálogo de archivos.
+- `backlog/tasks/DEV-190 - *` - cierres de handles y validación en Linux.
+- `backlog/tasks/DEV-164 - Code-Splitting del Bundle de Produccion con React.lazy y manualChunks en Rollup.md` - decisión explícitamente diferida sobre estáticos vs. dev server.

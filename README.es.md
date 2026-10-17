@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://gripm.vercel.app">Probala en <strong>gripm.vercel.app</strong></a> — una instancia
+  <a href="https://gripm.vercel.app">Probala en <strong>gripm.vercel.app</strong></a> - una instancia
   pública con datos de ejemplo. Sin instalar y sin servidor: creá, mové y tildá tareas en tu
   navegador. Los cambios se quedan en ese navegador y nunca salen de ahí. <em>Optimizada para escritorio.</em>
 </p>
@@ -135,7 +135,7 @@ gripm playbook sync
 
 Explora el tablero local-first, la planificación por iteraciones y las notas de versión con un proyecto de demostración limpio:
 
-| Kanban — Modo oscuro | Kanban — Modo claro |
+| Kanban - Modo oscuro | Kanban - Modo claro |
 | :---: | :---: |
 | <img src="docs/screenshots/01-kanban-dark.png" alt="Tablero Kanban de Gripm en modo oscuro" width="100%" /> | <img src="docs/screenshots/02-kanban-light.png" alt="Tablero Kanban de Gripm en modo claro" width="100%" /> |
 | Iteraciones y backlog | Notas de versión |
@@ -223,14 +223,14 @@ Para usuarios avanzados, integraciones en pipelines de CI y equipos de ingenier�
 ### 2. Diferencia Clave: `gripm playbook sync` vs. `npm install @gripm/playbook`
 
 - **`gripm playbook sync` (Enfoque ligero y habitual):**
-  - No agrega dependencias a `node_modules` ni altera tu `package.json`.
-  - Descarga directamente los archivos Markdown (`.agents/skills/*.md`, `TEAM_PLAYBOOK.md`) en tu repositorio para que tus agentes los lean de inmediato.
-  - Es el flujo recomendado para proyectos que gestionan su trabajo con Gripm Board.
+ - No agrega dependencias a `node_modules` ni altera tu `package.json`.
+ - Descarga directamente los archivos Markdown (`.agents/skills/*.md`, `TEAM_PLAYBOOK.md`) en tu repositorio para que tus agentes los lean de inmediato.
+ - Es el flujo recomendado para proyectos que gestionan su trabajo con Gripm Board.
 
 - **`npm install -D @gripm/playbook` (Enfoque para CI o proyectos sin Board):**
-  - Instala Playbook como dependencia de desarrollo formal en tu `package.json`.
-  - Brinda acceso al script ejecutable de auditoría de UX (`playbook audit` o `scripts/audit-ux-code.cjs`) para integrarlo en comandos de CI (`npm test`).
-  - Proporciona versionado SemVer estricto y reproducibilidad determinista a través de `package-lock.json`.
+ - Instala Playbook como dependencia de desarrollo formal en tu `package.json`.
+ - Brinda acceso al script ejecutable de auditoría de UX (`playbook audit` o `scripts/audit-ux-code.cjs`) para integrarlo en comandos de CI (`npm test`).
+ - Proporciona versionado SemVer estricto y reproducibilidad determinista a través de `package-lock.json`.
 
 > **Nota sobre Gripm Suite:** "Suite" describe la visión a futuro de un instalador unificado del ecosistema. Actualmente no existe como paquete instalador; Board y Playbook se distribuyen y utilizan como herramientas independientes y modulares.
 
@@ -474,11 +474,11 @@ Este diseño permite a los equipos de ingeniería combinar libremente herramient
 
 Las contribuciones son bienvenidas. gripm se dogfoodea a sí mismo: **cada cambio de código se asocia a una tarea en `backlog/tasks/`**.
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — requisitos de entorno, instalación, pirámide de verificación de calidad (`tsc`, `npm test`, `backlog:check`) y convenciones de ramas.
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Contributor Covenant v2.1.
-- **[SECURITY.md](SECURITY.md)** — reporte responsable de vulnerabilidades.
-- **[CHANGELOG.md](CHANGELOG.md)** — historial de versiones generado desde `backlog/releases.json`.
-- **[AGENTS.md](AGENTS.md)** — guía operativa para desarrolladores y agentes de IA.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - requisitos de entorno, instalación, pirámide de verificación de calidad (`tsc`, `npm test`, `backlog:check`) y convenciones de ramas.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - Contributor Covenant v2.1.
+- **[SECURITY.md](SECURITY.md)** - reporte responsable de vulnerabilidades.
+- **[CHANGELOG.md](CHANGELOG.md)** - historial de versiones generado desde `backlog/releases.json`.
+- **[AGENTS.md](AGENTS.md)** - guía operativa para desarrolladores y agentes de IA.
 
 ---
 

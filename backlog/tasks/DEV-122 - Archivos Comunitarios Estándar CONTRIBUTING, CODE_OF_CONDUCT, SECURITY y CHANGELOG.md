@@ -9,7 +9,7 @@ dependencies: []
 priority: high
 type: docs
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 ---
 
@@ -30,7 +30,7 @@ Crear los archivos comunitarios estándar que todo proyecto open-source de calid
 - [x] #6 Verificar que todos los archivos tienen formato Markdown válido y links internos correctos
 - [x] #7 El CHANGELOG se genera con `npm run changelog` (script declarado `scripts/generate-changelog.cjs`) y es idempotente: no puede desviarse de `releases.json` por edición manual
 - [x] #8 El generador normaliza los `markdownContent` que traen la secuencia literal `\n` en lugar de saltos de línea reales, sin lo cual 3 de las 6 releases se renderizaban como un único párrafo
-- [x] #9 El encabezado `## [x.y.z] — fecha` usa el formato que el servidor MCP ya sabe releer de `CHANGELOG.md` como fuente alternativa (`scripts/mcp-server.ts`, fallback de notas de release), de modo que el archivo nuevo no rompe ese fallback
+- [x] #9 El encabezado `## [x.y.z] - fecha` usa el formato que el servidor MCP ya sabe releer de `CHANGELOG.md` como fuente alternativa (`scripts/mcp-server.ts`, fallback de notas de release), de modo que el archivo nuevo no rompe ese fallback
 - [x] #10 `SECURITY.md` usa el canal privado de reporte de vulnerabilidades del repositorio en lugar de un correo personal, y no incluye URLs personales (coherente con el AC #2 parcial de DEV-121, que espera la identidad canónica del repo)
 - [x] #11 `npx tsc --noEmit` finishes con código 0
 - [x] #12 `npm test` finishes con código 0

@@ -12,7 +12,7 @@
     {
       "id": "sprint-demo-1",
       "projectId": "demo",
-      "name": "Sprint 1 — Onboarding",
+      "name": "Sprint 1 - Onboarding",
       "goal": "Que un equipo nuevo pueda levantar el tablero y publicar su primer release.",
       "startDate": "2026-09-01",
       "endDate": "2026-09-14",
@@ -24,7 +24,7 @@
     {
       "id": "sprint-demo-2",
       "projectId": "demo",
-      "name": "Sprint 2 — Resiliencia",
+      "name": "Sprint 2 - Resiliencia",
       "goal": "Blindar la ingesta de datos y eliminar la deuda técnica que bloquea el escalado.",
       "startDate": "2026-09-21",
       "endDate": "2026-10-04",
@@ -45,10 +45,10 @@
       "status": "done",
       "module": "Design System",
       "fix": "Se configuró paleta Slate y acentos Indigo/Violeta.",
-      "sprint": "Sprint 1 — Onboarding",
-      "targetSprint": "Sprint 1 — Onboarding",
+      "sprint": "Sprint 1 - Onboarding",
+      "targetSprint": "Sprint 1 - Onboarding",
       "sprints": [
-        "Sprint 1 — Onboarding"
+        "Sprint 1 - Onboarding"
       ],
       "targetRelease": "1.0.0",
       "releases": [
@@ -83,10 +83,10 @@
       "status": "doing",
       "module": "Performance",
       "impactedFile": "src/components/FilterBar.tsx",
-      "sprint": "Sprint 2 — Resiliencia",
-      "targetSprint": "Sprint 2 — Resiliencia",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
       "sprints": [
-        "Sprint 2 — Resiliencia"
+        "Sprint 2 - Resiliencia"
       ],
       "acceptanceCriteriaList": [
         {
@@ -126,10 +126,10 @@
       "module": "Ingesta CSV",
       "risk": "Falla silenciosa en importación masiva: el archivo se acepta y queda vacío.",
       "fix": "Detección heurística del delimitador observando la primera línea.",
-      "sprint": "Sprint 2 — Resiliencia",
-      "targetSprint": "Sprint 2 — Resiliencia",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
       "sprints": [
-        "Sprint 2 — Resiliencia"
+        "Sprint 2 - Resiliencia"
       ],
       "acceptanceCriteriaList": [
         {
@@ -167,10 +167,10 @@
       "priority": "p2",
       "status": "ready",
       "module": "Notificaciones",
-      "sprint": "Sprint 2 — Resiliencia",
-      "targetSprint": "Sprint 2 — Resiliencia",
+      "sprint": "Sprint 2 - Resiliencia",
+      "targetSprint": "Sprint 2 - Resiliencia",
       "sprints": [
-        "Sprint 2 — Resiliencia"
+        "Sprint 2 - Resiliencia"
       ],
       "acceptanceCriteriaList": [
         {
@@ -230,10 +230,10 @@
       "priority": "p3",
       "status": "done",
       "module": "Documentación",
-      "sprint": "Sprint 1 — Onboarding",
-      "targetSprint": "Sprint 1 — Onboarding",
+      "sprint": "Sprint 1 - Onboarding",
+      "targetSprint": "Sprint 1 - Onboarding",
       "sprints": [
-        "Sprint 1 — Onboarding"
+        "Sprint 1 - Onboarding"
       ],
       "acceptanceCriteriaList": [
         {
@@ -298,7 +298,7 @@
         "DEMO-006"
       ],
       "status": "released",
-      "markdownContent": "## [1.0.0] — 2026-09-16 🚀 Lanzamiento Inicial Demo\n\n### 🎯 Resumen\nPrimer release de demostración con arquitectura desacoplada.\n\n### ✨ Mejoras\n- Paleta de diseño y modo oscuro verificados en pantallas OLED\n- Documentación del flujo de importación desde la plataforma anterior",
+      "markdownContent": "## [1.0.0] - 2026-09-16 🚀 Lanzamiento Inicial Demo\n\n### 🎯 Resumen\nPrimer release de demostración con arquitectura desacoplada.\n\n### ✨ Mejoras\n- Paleta de diseño y modo oscuro verificados en pantallas OLED\n- Documentación del flujo de importación desde la plataforma anterior",
       "createdAt": "2026-09-16T10:00:00.000Z"
     },
     {
@@ -314,7 +314,7 @@
         "DEMO-004"
       ],
       "status": "unreleased",
-      "markdownContent": "## [1.1.0] — 2026-10-04 🚧 Resiliencia de la ingesta\n\n### 🎯 Resumen\nCierra la deuda crítica del sprint en curso y prepara la base para el escalado.\n\n### 🐛 Fixes\n- El parser de CSV ya no falla en silencio con delimitador de punto y coma",
+      "markdownContent": "## [1.1.0] - 2026-10-04 🚧 Resiliencia de la ingesta\n\n### 🎯 Resumen\nCierra la deuda crítica del sprint en curso y prepara la base para el escalado.\n\n### 🐛 Fixes\n- El parser de CSV ya no falla en silencio con delimitador de punto y coma",
       "createdAt": "2026-09-21T10:00:00.000Z"
     }
   ],

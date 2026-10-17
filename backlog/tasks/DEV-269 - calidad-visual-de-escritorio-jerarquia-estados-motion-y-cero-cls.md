@@ -5,14 +5,14 @@ status: dismissed
 created_date: '2026-10-14'
 updated_date: '2026-10-15'
 labels:
-  - "ux"
-  - "ui"
-  - "desktop"
-  - "design-system"
-  - "a11y"
-  - "performance"
+ - "ux"
+ - "ui"
+ - "desktop"
+ - "design-system"
+ - "a11y"
+ - "performance"
 dependencies:
-  - DEV-264
+ - DEV-264
 priority: high
 type: ux
 ---
@@ -49,7 +49,7 @@ promueve el valor a token o a la escala. Además:
 
 - **Cifras tabulares** (`tabular-nums` o token monoespaciado de datos) en toda columna
   numérica y en todo valor que cambia en vivo. Sin esto los dígitos bailan y el tablero
-  "tembla" en cada mutación — el efecto se percibe como lentitud aunque el cálculo sea
+  "tembla" en cada mutación - el efecto se percibe como lentitud aunque el cálculo sea
   instantáneo.
 - Tokens semánticos (`primary`, `accent`, `muted-foreground`) para que el tema cambie sin
   tocar componentes, y **sin hex hardcodeado** en las superficies de escritorio.
@@ -68,13 +68,13 @@ El alcance son las superficies que **definen el escritorio**: `ItemCard`, `ItemM
 `Header`, barra de filtros, `Toast` y vistas.
 
 El **estado cero** es el que más se subestima: ante 0 registros no se emite alerta ni color
-de error. Un estado vacío es un estado **válido** — se comunica con serenidad y ofrece el
+de error. Un estado vacío es un estado **válido** - se comunica con serenidad y ofrece el
 siguiente paso. "No hay nada" es el antipatrón.
 
 ### 3. Feedback y motion con propósito
 
 - **Respuesta en el mismo frame** a toda acción (`active:scale-[0.98]`, cambio de fondo).
-- Transiciones de **150–250ms** para cambio de estado; más largas solo para entrada y salida
+- Transiciones de **150 - 250ms** para cambio de estado; más largas solo para entrada y salida
   de superficies.
 - Entrada de sheets y modales con curvas que comuniquen origen. Nada de animación decorativa
   que retrase la respuesta.
@@ -119,7 +119,7 @@ trabajo de UI de escritorio.
 - [ ] #7 El estado vacío es sereno y ofrece el siguiente paso; **cero** estados vacíos que usen alerta, color de error o el texto "no hay nada"
 - [ ] #8 Focus ring siempre visible para navegación por teclado en toda acción interactiva de escritorio, con `disabled` recordando el motivo
 - [ ] #9 Respuesta en el mismo frame a toda acción interactiva (`active:scale-[0.98]` o cambio de fondo equivalente)
-- [ ] #10 Transiciones de 150–250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
+- [ ] #10 Transiciones de 150 - 250ms para cambio de estado, más largas solo para entrada/salida de superficies, y `prefers-reduced-motion` respetado
 - [ ] #11 Cero CLS a 1366×768 en las cinco transiciones: carga inicial, cambio de idioma, cambio de filtro, cambio de vista y movimiento de tarjeta entre columnas
 - [ ] #12 Ninguna de las correcciones reintroduce scroll horizontal ni desborde: se reverifica el presupuesto de densidad de DEV-264
 - [ ] #13 Verificado en ambos idiomas, sin literales sueltos fuera de `es.json` / `en.json`

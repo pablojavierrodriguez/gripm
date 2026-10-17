@@ -2,7 +2,7 @@ import { httpAdapter } from './httpAdapter.ts';
 import type { GripmApi } from './types';
 
 /**
- * DEV-222 — Selección del adaptador activo.
+ * DEV-222 - Selección del adaptador activo.
  *
  * Existe un único lugar en toda la app donde se decide contra qué almacenamiento se
  * trabaja. Hoy arranca siempre en HTTP; el detector de disponibilidad (paso 5 del

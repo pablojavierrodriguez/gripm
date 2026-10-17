@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * scripts/run-tests.js — runs the verification suite with per-step timing.
+ * scripts/run-tests.js - runs the verification suite with per-step timing.
  *
  * The suite used to be a single `a && b && c` chain inside one CI step, which
  * cost diagnosability: when the job stalled nobody could tell which script was
@@ -9,11 +9,11 @@
  *
  * This runner keeps the exact same order and the same fail-fast semantics, and
  * adds what was missing:
- *   - a line per step, so a slow or hanging script is visible while it happens
- *   - a summary table sorted by duration at the end
- *   - a per-step timeout, so a stuck step fails with its name instead of
+ * - a line per step, so a slow or hanging script is visible while it happens
+ * - a summary table sorted by duration at the end
+ * - a per-step timeout, so a stuck step fails with its name instead of
  *     burning the entire job budget
- *   - hard CI hygiene: git must never block waiting for credentials, which is
+ * - hard CI hygiene: git must never block waiting for credentials, which is
  *     how an interactive `git commit` turns into a silent hang on a runner
  *
  * Usage:

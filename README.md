@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://gripm.vercel.app">Try it at <strong>gripm.vercel.app</strong></a> — a public instance
+  <a href="https://gripm.vercel.app">Try it at <strong>gripm.vercel.app</strong></a> - a public instance
   running on sample data. No install, no server: create, move and tick tasks in your browser.
   Changes stay in that browser and never leave it. <em>Optimized for desktop.</em>
 </p>
@@ -135,7 +135,7 @@ gripm playbook sync
 
 Explore the local-first board, iterative planning, and release changelogs using a clean demo project:
 
-| Kanban — Dark Mode | Kanban — Light Mode |
+| Kanban - Dark Mode | Kanban - Light Mode |
 | :---: | :---: |
 | <img src="docs/screenshots/01-kanban-dark.png" alt="Gripm Board Kanban in dark mode" width="100%" /> | <img src="docs/screenshots/02-kanban-light.png" alt="Gripm Board Kanban in light mode" width="100%" /> |
 | Iterative Planning & Backlog | Release Changelog |
@@ -223,14 +223,14 @@ For advanced developers, CI pipelines, and engineering teams, the Gripm ecosyste
 ### 2. Key Distinction: `gripm playbook sync` vs. `npm install @gripm/playbook`
 
 - **`gripm playbook sync` (Lightweight & standard workflow):**
-  - Does not add dependencies to `node_modules` or modify `package.json`.
-  - Downloads canonical Markdown files (`.agents/skills/*.md`, `TEAM_PLAYBOOK.md`) directly into your repository for your agents to read.
-  - Recommended for all projects managing tasks with Gripm Board.
+ - Does not add dependencies to `node_modules` or modify `package.json`.
+ - Downloads canonical Markdown files (`.agents/skills/*.md`, `TEAM_PLAYBOOK.md`) directly into your repository for your agents to read.
+ - Recommended for all projects managing tasks with Gripm Board.
 
 - **`npm install -D @gripm/playbook` (CI engine & non-Board projects):**
-  - Installs Playbook as a formal devDependency in `package.json`.
-  - Provides direct access to the executable UX auditing script (`playbook audit` or `scripts/audit-ux-code.cjs`) for CI pipelines (`npm test`).
-  - Ensures strict SemVer versioning and deterministic reproducibility via `package-lock.json`.
+ - Installs Playbook as a formal devDependency in `package.json`.
+ - Provides direct access to the executable UX auditing script (`playbook audit` or `scripts/audit-ux-code.cjs`) for CI pipelines (`npm test`).
+ - Ensures strict SemVer versioning and deterministic reproducibility via `package-lock.json`.
 
 > **Note on Gripm Suite:** "Suite" refers to the future vision of a unified installer. It does not exist as a package today; Board and Playbook are modular, independent tools.
 
@@ -474,11 +474,11 @@ This design allows engineering teams to freely combine terminal CLIs with Gripm'
 
 Contributions are welcome. gripm dogfoods itself: **every code change is tracked in `backlog/tasks/`**.
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — setup, verification pyramid (`tsc`, `npm test`, `backlog:check`), and branch conventions.
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Contributor Covenant v2.1.
-- **[SECURITY.md](SECURITY.md)** — responsible vulnerability reporting.
-- **[CHANGELOG.md](CHANGELOG.md)** — version changelog generated from `backlog/releases.json`.
-- **[AGENTS.md](AGENTS.md)** — operational guide for developers and AI agents.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - setup, verification pyramid (`tsc`, `npm test`, `backlog:check`), and branch conventions.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - Contributor Covenant v2.1.
+- **[SECURITY.md](SECURITY.md)** - responsible vulnerability reporting.
+- **[CHANGELOG.md](CHANGELOG.md)** - version changelog generated from `backlog/releases.json`.
+- **[AGENTS.md](AGENTS.md)** - operational guide for developers and AI agents.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: DEV-316
 title: "Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura"
-status: draft
+status: ready
 priority: low
 type: debt
 owner: Antigravity
@@ -26,11 +26,11 @@ Esta tarea erradica todos los caracteres em-dash / en-dash restantes en el repos
 ## Criterios de Aceptacion
 
 <!-- AC:BEGIN -->
-- [ ] Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
-- [ ] Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
-- [ ] Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
-- [ ] Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
-- [ ] La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
+- [x] Escanear el repositorio en busca de caracteres em-dash y en-dash en código, plantillas y documentación Markdown.
+- [x] Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
+- [x] Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
+- [x] Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
+- [x] La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
 <!-- AC:END -->
 
 ## Notas Tecnicas

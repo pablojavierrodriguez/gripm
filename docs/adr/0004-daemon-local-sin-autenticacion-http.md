@@ -1,9 +1,9 @@
-# 0004 — Daemon local monousuario sin autenticación HTTP
+# 0004 - Daemon local monousuario sin autenticación HTTP
 
 - **Estado:** `Aceptado`
 - **Fecha:** 2026-10-13
 - **Tareas:** `DEV-243`, `DEV-190`
-- **Reemplaza:** —
+- **Reemplaza:** - 
 
 ---
 
@@ -24,19 +24,19 @@ El riesgo real no es la autenticación, sino que un proceso del navegador de **o
 
 ## Opciones consideradas
 
-### Opción A — Autenticación por token en todas las mutaciones
+### Opción A - Autenticación por token en todas las mutaciones
 
 - **A favor:** modelo familiar, permite una futura capa multiusuario o remota.
 - **En contra:** el usuario debe generar, almacenar y rotar un secreto; la UI tiene que inyectarlo en cada request; el agente MCP también; y el secreto no agrega protección real contra un atacante local, que ya tiene acceso al repositorio.
 - **Veredicto:** descartada. Fricción permanente a cambio de una garantía vacía en este modelo.
 
-### Opción B — Bind exclusivo a loopback, sin ningún control adicional
+### Opción B - Bind exclusivo a loopback, sin ningún control adicional
 
 - **A favor:** mínimo código; ninguna otra máquina alcanza el puerto.
 - **En contra:** `--host 0.0.0.0` sigue siendo una opción soportada para uso en LAN; y aun en loopback, una página maliciosa de otro origen puede intentar pegarle al puerto.
 - **Veredicto:** insuficiente por sí sola. La opción elegida incluye el bind a loopback, pero además valida `Host` y `Origin`.
 
-### Opción C — Sin autenticación, con mitigaciones de transporte y exposición
+### Opción C - Sin autenticación, con mitigaciones de transporte y exposición
 
 - **A favor:** arranque sin fricción, y los vectores de ataque relevantes quedan cubiertos: validación de `Host` (anti DNS rebinding), validación de `Origin` (anti CSRF), exigir `Content-Type: application/json` en métodos mutantes, límite de 10 MB de body y cabeceras de seguridad (CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`).
 - **En contra:** sigue siendo un endpoint sin credenciales; quien pueda alcanzar el puerto y pasar las validaciones opera el backlog.
@@ -76,6 +76,6 @@ Uso en LAN: `--host 0.0.0.0` abre el servidor a cualquier dispositivo de la red 
 
 ## Referencias
 
-- [`AGENTS.md`](../../AGENTS.md) §7 — `SEC-01`, `SEC-06`, `SEC-07`, `SEC-10`.
-- [`server/middleware/security.ts`](../../server/middleware/security.ts) — implementación de las mitigaciones.
-- `backlog/tasks/DEV-243 - *` — cabeceras de seguridad y protección anti-DoS.
+- [`AGENTS.md`](../../AGENTS.md) §7 - `SEC-01`, `SEC-06`, `SEC-07`, `SEC-10`.
+- [`server/middleware/security.ts`](../../server/middleware/security.ts) - implementación de las mitigaciones.
+- `backlog/tasks/DEV-243 - *` - cabeceras de seguridad y protección anti-DoS.

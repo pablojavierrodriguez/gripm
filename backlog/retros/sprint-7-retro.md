@@ -5,32 +5,32 @@ date: "2026-10-02"
 author: "Antigravity Agentic Team & Pablo"
 status: completed
 tasksCompleted:
-  - DEV-101
-  - DEV-114
-  - DEV-115
-  - DEV-116
-  - DEV-117
-  - DEV-118
-  - DEV-120
-  - DEV-121
-  - DEV-122
-  - DEV-124
-  - DEV-125
-  - DEV-126
-  - DEV-127
-  - DEV-128
-  - DEV-129
-  - DEV-130
-  - DEV-131
-  - DEV-132
-  - DEV-133
-  - DEV-135
-  - DEV-145
+ - DEV-101
+ - DEV-114
+ - DEV-115
+ - DEV-116
+ - DEV-117
+ - DEV-118
+ - DEV-120
+ - DEV-121
+ - DEV-122
+ - DEV-124
+ - DEV-125
+ - DEV-126
+ - DEV-127
+ - DEV-128
+ - DEV-129
+ - DEV-130
+ - DEV-131
+ - DEV-132
+ - DEV-133
+ - DEV-135
+ - DEV-145
 tasksDismissed:
-  - DEV-119
+ - DEV-119
 ---
 
-# Retrospectiva de Cierre — Sprint 7
+# Retrospectiva de Cierre - Sprint 7
 
 **Objetivo del Sprint:** Integridad del dato y corrección de fallos silenciosos: hooks de verificación que no mutan el repositorio, paridad de temas, identidad de proyecto, y eliminación de los defectos que no fallaban de forma visible (contenido fabricado en los .md, stacking context y containing block en overlays, y pulido de ItemModal).  
 **Resultado:** 21 ítems completados exitosamente al 100% y 1 ítem descartado de forma controlada (`DEV-119`). Todo el valor empaquetado y liberado formalmente en el Release `v0.7.0`.

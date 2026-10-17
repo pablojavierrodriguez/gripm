@@ -1,5 +1,5 @@
 /**
- * scripts/verify-changes.js — gate on staged files, runs in the pre-commit hook.
+ * scripts/verify-changes.js - gate on staged files, runs in the pre-commit hook.
  *
  * Why this exists: the verification pyramid passed on macOS while four separate
  * defects shipped to main. Each one was invisible locally for a structural
@@ -16,12 +16,12 @@
  * them. Only checks aimed at those specific classes do.
  *
  * Design constraints:
- *   - Runs on **staged** content only, so it never blocks unrelated work.
- *   - Cheap: no test run, no build. It must stay under a second.
- *   - No new dependencies. YAML validation shells out to python3+PyYAML and
+ * - Runs on **staged** content only, so it never blocks unrelated work.
+ * - Cheap: no test run, no build. It must stay under a second.
+ * - No new dependencies. YAML validation shells out to python3+PyYAML and
  *     degrades to a warning when unavailable, because a gate that fails closed
  *     on a missing interpreter is a gate people disable.
- *   - A check that cannot run is reported as SKIPPED, never as PASSED.
+ * - A check that cannot run is reported as SKIPPED, never as PASSED.
  */
 
 import { execSync } from 'node:child_process';
@@ -201,7 +201,24 @@ function checkCorruption(file, content) {
   });
 }
 
-// --- 4. Backlog task frontmatter matches its filename ------------------------
+// --- 4. Anti-Em-Dash & Anti-En-Dash guardrail (Anti-AI Rule) -----------------
+//
+// Prohibits literal U+2014 (em-dash) and U+2013 (en-dash) characters in
+// staged text files. Standard hyphen `-` with spaces (` - `) must be used.
+function checkAntiEmDash(file, content) {
+  content.split('\n').forEach((rawLine, i) => {
+    const line = rawLine.replace(/\r$/, '');
+    if (/[\u2013\u2014]/.test(line)) {
+      fail(
+        file,
+        `Línea ${i + 1}: contiene em-dash o en-dash prohibido por la regla canónica Anti-AI`,
+        'Reemplazá por el guión estándar ` - ` con espacios o el guión simple `-`.'
+      );
+    }
+  });
+}
+
+// --- 5. Backlog task frontmatter matches its filename ------------------------
 
 function checkTaskSlug(file, content) {
   const base = path.basename(file);
@@ -364,8 +381,9 @@ for (const file of files) {
   if (CODE.has(e)) {
     checkEsmPaths(file, content);
   }
-  if (CODE.has(e) || e === '.md' || e === '.json' || e === '.sh') {
+  if (CODE.has(e) || e === '.md' || e === '.json' || e === '.sh' || e === '.yml' || e === '.yaml' || e === '.html' || e === '.css') {
     checkCorruption(file, content);
+    checkAntiEmDash(file, content);
   }
   if (file.includes('backlog/tasks/') && e === '.md') {
     checkTaskSlug(file, content);

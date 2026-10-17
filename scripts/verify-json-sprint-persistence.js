@@ -54,7 +54,7 @@ try {
   }
   steps++; ok('El backlog inicial de un proyecto JSON se materializa con `sprints: []`');
 
-  // 2. AC #5 — el ciclo escribir y volver a leer en modo JSON, el que nunca estuvo cubierto.
+  // 2. AC #5 - el ciclo escribir y volver a leer en modo JSON, el que nunca estuvo cubierto.
   const seededSprints = [
     { id: 'sprint-1', projectId: serviceProject.id, name: 'Onboarding', status: 'completed', createdAt: '2026-09-01T09:00:00.000Z' },
     { id: 'sprint-2', projectId: serviceProject.id, name: 'Resiliencia', status: 'active', createdAt: '2026-09-21T09:00:00.000Z' }
@@ -80,7 +80,7 @@ try {
   }
   steps++; ok('AC #5 · escribir → releer en modo JSON devuelve los sprints intactos');
 
-  // 3. AC #1 — el guard Array.isArray en los tres puntos de retorno (normal, initial, error).
+  // 3. AC #1 - el guard Array.isArray en los tres puntos de retorno (normal, initial, error).
   fs.writeFileSync(serviceFile, JSON.stringify({ items: [], releases: [], sprints: 'no-es-un-array' }), 'utf8');
   if (JSON.stringify(readProjectBacklog(serviceProject).sprints) !== '[]') {
     throw new Error('Un `sprints` no-array en disco debe normalizarse a [], no propagarse como valor.');
@@ -177,7 +177,7 @@ try {
       throw new Error(`Error registrando el fixture JSON: ${regRes.status} ${regRes.raw}`);
     }
 
-    // 4. AC #3 — dos sprints consecutivos en modo JSON no pueden compartir ID.
+    // 4. AC #3 - dos sprints consecutivos en modo JSON no pueden compartir ID.
     const firstRes = await dispatch('POST', '/api/sprints', { projectId: 'test-fixture-json-sprint', name: 'Onboarding' });
     if (firstRes.status !== 201 || !firstRes.body?.sprint?.id) {
       throw new Error(`POST /api/sprints devolvió ${firstRes.status} ${firstRes.raw}`);
@@ -193,7 +193,7 @@ try {
     }
     steps++; ok(`AC #3 · dos sprints consecutivos en JSON producen IDs distintos (${firstId}, ${secondId})`);
 
-    // 5. AC #2 — GET devuelve lo escrito y sobrevive a un proceso totalmente nuevo.
+    // 5. AC #2 - GET devuelve lo escrito y sobrevive a un proceso totalmente nuevo.
     const listRes = await dispatch('GET', '/api/sprints?projectId=test-fixture-json-sprint');
     const servedIds = (listRes.body?.sprints || []).map((s) => s.id).sort();
     if (JSON.stringify(servedIds) !== JSON.stringify([firstId, secondId].sort())) {
@@ -219,7 +219,7 @@ process.stdout.write(JSON.stringify((backlog.sprints || []).map((s) => s.id)));
     }
     steps++; ok(`AC #2 · GET /api/sprints devuelve los 2 sprints y sobrevive a un proceso nuevo (${coldRead})`);
 
-    // 6. AC #4 — el proyecto demo vive en modo JSON y ahora sí expone sus sprints.
+    // 6. AC #4 - el proyecto demo vive en modo JSON y ahora sí expone sus sprints.
     const demoHashBefore = sha256(DEMO_FILE);
     const demoBacklog = readProjectBacklog({ id: 'demo', name: 'Demo', codePrefix: 'DEMO', isDemo: true, createdAt: new Date().toISOString() });
     const demoSprints = demoBacklog.sprints || [];

@@ -5,10 +5,10 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-05 10:00'
 labels:
-  - "ci"
-  - "portability"
-  - "testing"
-  - "post-launch"
+ - "ci"
+ - "portability"
+ - "testing"
+ - "post-launch"
 dependencies: []
 priority: medium
 type: chore
@@ -36,7 +36,7 @@ package.json engines  → node >=22.6.0
 
 ### Dos consecuencias concretas
 
-**1. La versión mínima soportada nunca se testea.** CI corre `22.x`, que es la última 22.x disponible, no `22.6.0`. Una regresión que rompa en la mínima — por ejemplo, usando una API o sintaxis disponible recién en una 22.x posterior — pasaría la suite en verde mientras el producto declara soportar algo que no funciona.
+**1. La versión mínima soportada nunca se testea.** CI corre `22.x`, que es la última 22.x disponible, no `22.6.0`. Una regresión que rompa en la mínima - por ejemplo, usando una API o sintaxis disponible recién en una 22.x posterior - pasaría la suite en verde mientras el producto declara soportar algo que no funciona.
 
 **2. Solo se verifica un SO, y ya hay un bug que lo demuestra.** El bug de bind de red registrado en DEV-169 (el servidor escuchaba solo en IPv6, por lo que `127.0.0.1` daba connection refused) fue encontrado probando manualmente en macOS. Windows y Linux nunca fueron ejercitados en CI. En un lanzamiento público, los issues de otros sistemas operativos son la primera fuente de reportes.
 

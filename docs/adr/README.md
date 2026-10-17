@@ -67,7 +67,7 @@ Ejemplos: `0001-markdown-como-fuente-de-verdad.md`, `0002-backend-embebido-como-
 Cada registro sigue el formato derivado de **MADR** (*Markdown Any Decision Records*), adaptado al idioma y a la trazabilidad del backlog. La plantilla completa está en [`0000-plantilla.md`](0000-plantilla.md).
 
 ```markdown
-# NNNN — Título de la decisión
+# NNNN - Título de la decisión
 
 - **Estado:** Aceptado
 - **Fecha:** YYYY-MM-DD
@@ -95,10 +95,11 @@ Reglas de redacción:
 | # | Decisión | Estado | Fecha |
 | :--- | :--- | :--- | :--- |
 | [0001](0001-markdown-como-fuente-de-verdad.md) | Markdown como fuente de verdad del backlog | Aceptado | 2026-10-13 |
-| [0002](0002-backend-embebido-como-plugin-de-vite.md) | Backend embebido como plugin de middleware de Vite | Aceptado | 2026-10-13 |
+| [0002](0002-backend-embebido-como-plugin-de-vite.md) | Backend embebido como plugin de middleware de Vite | Reemplazado | 2026-10-13 |
 | [0003](0003-servidor-mcp-por-stdio.md) | Servidor MCP sobre stdio con núcleo de persistencia compartido | Aceptado | 2026-10-13 |
 | [0004](0004-daemon-local-sin-autenticacion-http.md) | Daemon local monousuario sin autenticación HTTP | Aceptado | 2026-10-13 |
 | [0005](0005-overlays-via-portales-y-layout-estable.md) | Overlays montados vía portales y layout raíz estable (cero CLS) | Aceptado | 2026-10-13 |
+| [0006](0006-servidor-estatico-produccion-desacoplado-de-vite.md) | Servidor estático HTTP desacoplado de Vite para producción | Aceptado | 2026-10-15 |
 
 ---
 
@@ -106,6 +107,5 @@ Reglas de redacción:
 
 Decisiones vivas del backlog que **todavía** no tienen registro y son candidatas naturales a un ADR:
 
-- Servir estáticos de producción (`vite preview`) en lugar del dev server (trade-off cold start vs. HMR y source maps), diferido explícitamente por `DEV-164`.
 - Migración a React 19 y tooling core (`DEV-180`).
 - Empaquetado de binarios standalone en `bin/` y su efecto en el tarball de npm (`DEV-155`).

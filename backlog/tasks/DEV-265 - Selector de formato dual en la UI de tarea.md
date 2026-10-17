@@ -5,13 +5,13 @@ status: draft
 created_date: '2026-10-14'
 updated_date: '2026-10-14'
 labels:
-  - "ux"
-  - "demo"
-  - "pitch"
-  - "markdown"
+ - "ux"
+ - "demo"
+ - "pitch"
+ - "markdown"
 dependencies:
-  - DEV-222
-  - DEV-264
+ - DEV-222
+ - DEV-264
 priority: medium
 type: improvement
 ---
@@ -44,7 +44,7 @@ visible en el lugar exacto donde alguien se pregunta "¿qué hay realmente acá?
 
 ## Por qué cuesta poco
 
-Medido: `scripts/backlogMdParser.ts` son **722 líneas sin una sola dependencia** — sin
+Medido: `scripts/backlogMdParser.ts` son **722 líneas sin una sola dependencia** - sin
 imports, sin `require`, sin `fs`, sin `process`, sin `path`. Es un módulo de funciones
 puras, que hoy se importa solo desde el server (`server/services/storage.ts:12` y
 `server/routes/api.ts:34`).

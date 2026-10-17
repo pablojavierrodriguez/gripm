@@ -1281,7 +1281,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           const sprintKey = String(updatedSprint.id || newName).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
           const retroFile = path.join(retrosDir, `${sprintKey}-retro.md`);
           const r = body.retro;
-          const md = `# Retrospectiva — ${newName}
+          const md = `# Retrospectiva - ${newName}
 
 **Fecha:** ${todayStr}  
 **Sprint:** ${newName}  

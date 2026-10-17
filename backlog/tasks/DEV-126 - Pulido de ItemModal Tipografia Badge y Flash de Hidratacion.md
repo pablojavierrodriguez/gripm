@@ -5,16 +5,16 @@ status: done
 created_date: '2026-09-29'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "ux"
-  - "ui"
-  - "itemmodal"
-  - "polish"
-  - "devboard-core"
+ - "ux"
+ - "ui"
+ - "itemmodal"
+ - "polish"
+ - "devboard-core"
 dependencies: []
 priority: medium
 type: ux
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 order: "14"
 ---
@@ -31,10 +31,10 @@ Los controles de la sidebar usan `text-xs` sans de forma mayoritaria (Estado,
 Prioridad, Tipo, Módulo, Proyecto), pero cuatro de ellos rompen el patrón con
 `font-mono`:
 
-- `ItemModal.tsx:1133` — `<select>` de Release
-- `ItemModal.tsx:1401` — input de Código
-- `ItemModal.tsx:947` — input manual de Sprint (modo "Escribir manual")
-- `ItemModal.tsx:1414` — input de Archivo Impactado
+- `ItemModal.tsx:1133` - `<select>` de Release
+- `ItemModal.tsx:1401` - input de Código
+- `ItemModal.tsx:947` - input manual de Sprint (modo "Escribir manual")
+- `ItemModal.tsx:1414` - input de Archivo Impactado
 
 El resultado es que dos campos visualmente contiguos (Release y Código) se leen
 con una tipografía distinta a la de sus vecinos, lo que rompe la percepción de
@@ -44,7 +44,7 @@ rejilla unificada.
 
 `ItemModal.tsx:848-852` muestra un contador junto al encabezado de la sidebar
 que se calcula sobre una lista hardcodeada de 8 campos (`module`, `impactedFile`,
-`sprint`, `release`, `risk`, `fix`, `labels`, `assignees`) — ver
+`sprint`, `release`, `risk`, `fix`, `labels`, `assignees`) - ver
 `ItemModal.tsx:336-345`. La sidebar renderiza muchos más campos que eso
 (proyecto, tipo, prioridad, estado, etiquetas, asignados, plan, criterios...),
 por lo que el número mostrado no representa la cantidad real de atributos del
@@ -60,7 +60,7 @@ depende de `isOpen` e `item`.
 Los `useEffect` se ejecutan **después** del paint del navegador. Al abrir el
 modal, React renderiza y pinta un primer frame con el estado residual de la
 sesión anterior del modal (el último ítem editado) o con valores vacíos, y sólo
-en el frame siguiente —tras el efecto— se repinta con los datos reales del ítem
+en el frame siguiente - tras el efecto - se repinta con los datos reales del ítem
 o los defaults de creación. El usuario percibe un salto de contenido de ~1s al
 abrir cualquier modal.
 
@@ -115,7 +115,7 @@ resuelve cualquier tipo personalizado del usuario hacia `AC_EXAMPLE_FALLBACK`.
 - [x] #3 El uso de `font-mono` se conserva (y sólo se conserva) donde el valor es genuinamente código: textarea del plan de implementación, índice de criterios de aceptación, badges de código/versión, etc.
 - [x] #4 El badge "N atributos" se elimina del encabezado de la sidebar junto con el cálculo `contextCount` que lo alimentaba
 - [x] #5 La población del formulario al abrir el modal ocurre antes del primer paint: el modal ya se renderiza con los datos del ítem (o los defaults de creación) en su primer frame visible
-- [x] #6 No existen saltos de contenido ni parpadeos al abrir el modal en modo edición ni en modo creación — **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO** (el navegador de escritorio no estaba conectado a la sesión; la garantía de no-flash proviene del orden de fases de React, pero el gate exige confirmación visual)
+- [x] #6 No existen saltos de contenido ni parpadeos al abrir el modal en modo edición ni en modo creación - **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO** (el navegador de escritorio no estaba conectado a la sesión; la garantía de no-flash proviene del orden de fases de React, pero el gate exige confirmación visual)
 - [x] #7 El modal sigue re-sincronizándose correctamente al cambiar de ítem objetivo sin arrastrar estado residual del ítem anterior
 - [x] #8 `npx tsc --noEmit` finishes con código 0
 - [x] #9 `npm test` finishes con código 0

@@ -1,4 +1,4 @@
-# Auditoría Técnica Integral y Forense de Arquitectura — gripm (`@gripm/board`)
+# Auditoría Técnica Integral y Forense de Arquitectura - gripm (`@gripm/board`)
 
 > **Fecha:** 2026-10-15  
 > **Perfil Auditor:** Staff Systems Architect & Principal Software Engineer (+25 años en sistemas distribuidos, motores locales y herramientas CLI/Web)  
@@ -179,7 +179,7 @@ const resolved = path.resolve('backlog/tasks', filename);
 console.log('Ruta resuelta:', resolved); // -> "C:\Users\Pablo\Proyectos\DANGER - Mi Tarea.md" (FUERA DE TASKS)
 
 // 2. Pérdida de campos YAML
-const md = `---\nid: DEV-999\ntitle: Test\nreviewers:\n  - alice\ntags:\n  - security\n---\n## Description\nTest.`;
+const md = `---\nid: DEV-999\ntitle: Test\nreviewers:\n - alice\ntags:\n - security\n---\n## Description\nTest.`;
 const s = serializeBacklogMd(parseBacklogMd(md, 'DEV-999'));
 console.log('¿Conserva alice?:', s.includes('alice')); // -> false (BORRADO)
 console.log('¿Conserva tags?:', s.includes('tags')); // -> false (BORRADO)

@@ -49,6 +49,10 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 - **Cadencia Limpia (1 Tarea = 1 Commit Consolidado):** Durante la exploración y el desarrollo no se generan micro-commits ruidosos. Al certificar la tarea y dejarla en `ready` con la Pirámide de Verificación en verde, se realiza un único commit consolidado que incluye el código y el archivo `.md` de la tarea.
 - **Soberanía y Confirmación del Usuario:** El commit se ejecuta con confirmación o pedido explícito del usuario (`feat(DEV-XXX): ...` o `fix(DEV-XXX): ...`), manteniendo trazabilidad unívoca con el ID de la tarea.
 - **Hooks Pre-Commit como Salvaguarda Mecánica:** Los hooks (`verify-backlog-sync.js` y `verify-changes.js`) actúan como barrera física de calidad: abortan mecánicamente cualquier commit si el backlog está desincronizado, si hay archivos sin trackear o inconsistencias en tareas, sin imponer burocracia manual adicional al desarrollador.
+- **Multi-Agent Parallelism & Dynamic Peer Discovery:**
+ - Prohibido `git checkout` o `git restore` en el working tree principal cuando otro agente está trabajando en el repositorio.
+ - **Pre-Flight Concurrency Probe:** Antes de modificar archivos o ejecutar comandos de Git, consultar el backlog (`status: doing`) y `git status --porcelain`. Si hay un ítem en `doing` con `claimed_by` ajeno (formato `<provider>:<id>`, ej. `antigravity:<id>`, `cursor:<id>`, `human:<id>`), prohibido revertir o limpiar el árbol de trabajo.
+ - **Handshake Autónomo & Protocolo Cross-Harness:** Si comparten runtime (ej. `antigravity:`), contactar al par directamente vía `send_message(Recipient: claimed_by)`. Si son de proveedores heterogéneos, respetar el lease, evitar RPC fallido y auto-aislarse de inmediato en `git worktree` (`git worktree add -b <branch> ../<repo>-<task>`) informando al usuario en chat.
 
 ---
 
@@ -110,7 +114,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 9. **Sandbox de Terminal (Prohibido `curl http://localhost:4100`):** El sandbox bloquea peticiones HTTP locales. Para validar si el servidor escucha en el puerto 4100, verificar el bind local en terminal o logs sin emitir peticiones de red directas. Para interactuar con la UI, usar `browser_subagent`.
 10. **Estabilidad de layout (Zero-CLS):** El elemento raíz `html` debe declarar siempre `overflow-y: scroll; scrollbar-gutter: stable;` en `index.css`.
 11. **Portales para modales y menús (DEV-129, DEV-130):** Renderizar overlays (`ConfirmModal`, dropdowns) vía `createPortal(..., document.body)` para evitar bugs de stacking context y containing block (`transform`, `backdrop-filter`).
-12. **Cero `truncate` en confirmaciones:** En cajas de advertencia o confirmación, usar siempre `break-words text-[11px] leading-relaxed` para nunca cortar texto crítico con elipsis (`…`).
+12. **Cero `truncate` en confirmaciones:** En cajas de advertencia o confirmación, usar siempre `break-words text-xs leading-relaxed` para nunca cortar texto crítico con elipsis (`…`).
 13. **Tipos de ítem dinámicos:** Emplear Proxy defensivo o `getItemTypeInfo` para renderizar cualquier clave personalizada sin provocar fallas.
 14. **Anti-Suppression:** NUNCA apagar linters o ignorar tipos (`@ts-ignore`, `eslint-disable`) para tapar síntomas.
 15. **Resolución absoluta de rutas:** Usar siempre `root: PKG_ROOT` y rutas absolutas en binarios CLI y plugins para ejecución global.
@@ -123,7 +127,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 22. **Semántica de filtros de estado (Anti-Ambigüedad, DEV-287):** En selectores y chips de filtro, nombrar el conjunto de trabajo en curso como **"Estados activos"** (ES) / **"Active statuses"** (EN). Prohibido usar "Todos los estados" para referirse a estados no terminales, reservando "Todos" únicamente cuando la consulta incluya exhaustivamente `done`, `cancelled` y `dismissed`.
 23. **Visibilidad de versión en entornos Sandbox (DEV-288):** Todo despliegue web/sandbox debe exponer su versión canónica visiblemente (ej. en el modal de atajos de teclado o cabecera) para permitir la certificación inmediata por parte de usuarios y QA sin recurrir a la consola de desarrollo.
 24. **Documentación bilingüe en un único archivo (DEV-309):** Para documentos comunitarios y de gobernanza (`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, etc.), se unifican ambos idiomas en el mismo archivo: versión en inglés arriba, versión en español debajo, con selector de anclajes de navegación rápida en la cabecera (`🌐 [English](#...) | [Español](#...)`). Queda prohibido bifurcar la documentación en archivos paralelos `*.es.md` (exceptuando temporalmente `README.md` / `README.es.md`).
-25. **Cero guiones largos artificiales (Anti-Em-Dash / Anti-IA):** Queda terminantemente prohibido el uso de guiones largos (em-dash `—` o en-dash `–`) en títulos de navegador, interfaces de usuario, opciones de select, nombres de releases, notas de versión, `CHANGELOG.md`, `releases.json`, `BACKLOG.md` y documentación. Utilizar **siempre y exclusivamente** el guión simple estándar `-` con espacios (` - `). El uso de `—` es un cliché estilístico artificial que degrada la identidad y calidad del producto.
+25. **Cero guiones largos artificiales (Anti-Em-Dash / Anti-IA):** Queda terminantemente prohibido el uso de guiones largos (em-dash ` - ` o en-dash ` - `) en títulos de navegador, interfaces de usuario, opciones de select, nombres de releases, notas de versión, `CHANGELOG.md`, `releases.json`, `BACKLOG.md` y documentación. Utilizar **siempre y exclusivamente** el guión simple estándar `-` con espacios (` - `). El uso de ` - ` es un cliché estilístico artificial que degrada la identidad y calidad del producto.
 
 ---
 

@@ -5,17 +5,17 @@ status: done
 created_date: '2026-09-29'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "bug"
-  - "parser"
-  - "data-integrity"
-  - "observability"
-  - "devboard-core"
+ - "bug"
+ - "parser"
+ - "data-integrity"
+ - "observability"
+ - "devboard-core"
 dependencies:
-  - "DEV-127"
+ - "DEV-127"
 priority: high
 type: bug
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 ---
 
@@ -24,8 +24,8 @@ sprint: "Sprint 7"
 <!-- SECTION:DESCRIPTION:BEGIN -->
 El parser de archivos de tarea extrae las secciones delimitadas tomando la
 **primera coincidencia** de cada marcador, en orden de documento. Consecuencia: si
-la descripción de una tarea contiene los marcadores literales del formato —algo
-perfectamente natural en una tarea que **documenta el propio formato**— el parser
+la descripción de una tarea contiene los marcadores literales del formato - algo
+perfectamente natural en una tarea que **documenta el propio formato** - el parser
 lee esa copia como si fuera la sección real, y la tarea se parsea con datos
 equivocados, **sin ningún error visible**.
 

@@ -5,16 +5,16 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-07 23:29'
 labels:
-  - "testing"
-  - "ui"
-  - "react"
-  - "post-launch"
+ - "testing"
+ - "ui"
+ - "react"
+ - "post-launch"
 dependencies: []
 priority: high
 type: chore
 milestone: "1.0.4"
 releases:
-  - "1.0.4"
+ - "1.0.4"
 release: "1.0.4"
 targetRelease: "1.0.4"
 ---
@@ -60,7 +60,7 @@ Que una regresión en la lógica que alimenta la UI falle la suite, sin adoptar 
 - [x] #2 La lógica de derivación de columnas y agrupación del Kanban está extraída a un módulo puro en `src/utils/` y cubierta por tests: una entrada conocida que produce una salida incorrecta hace fallar el test
 - [x] #3 La normalización de estados legacy→canónico de `src/utils/statusMeta.ts` tiene test que ejercita los 4 aliases (`backlog`, `in_progress`, `testing_qa`, `finish`) contra `normalizeStatus()`
 - [x] #4 Existe un test que verifica que las etiquetas de estado provienen de `status.*` y no de literales: ante una locale alternativa, la etiqueta cambia
-- [x] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón — **no se deja implícito**
+- [x] #5 Si la Etapa 2 queda fuera de alcance, la tarea documenta explícitamente en sus notas que la cobertura de render no existe y cuál fue la razón - **no se deja implícito**
 - [x] #6 No se introduce un framework para render de componentes React en esta etapa, así que no hace falta cambiar la decisión zero-deps en `AGENTS.md`
 - [x] #7 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0, `npm run test:linux` con exit 0 y `npm run build` sin errores
 <!-- AC:END -->

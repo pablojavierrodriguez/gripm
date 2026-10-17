@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
  *
  * `isPortAvailable` probes a port by connecting to it. `socket.setTimeout()` only
  * starts once the socket is *established*, so when the SYN is dropped rather than
- * refused — what a Linux CI runner does to a filtered port — nothing ever settles
+ * refused - what a Linux CI runner does to a filtered port - nothing ever settles
  * the promise. The pending connect keeps the event loop alive and the process
  * never exits, which is why `npm test` hit the job timeout on ubuntu-latest while
  * every assertion had already passed.

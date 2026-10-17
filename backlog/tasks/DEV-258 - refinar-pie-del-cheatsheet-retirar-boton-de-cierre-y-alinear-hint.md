@@ -5,12 +5,12 @@ status: done
 created_date: '2026-10-13'
 updated_date: '2026-10-15'
 labels:
-  - "ux"
-  - "accessibility"
-  - "shortcuts"
-  - "ui"
+ - "ux"
+ - "accessibility"
+ - "shortcuts"
+ - "ui"
 dependencies:
-  - DEV-257
+ - DEV-257
 priority: low
 type: chore
 ---
@@ -27,7 +27,7 @@ Problemas concretos que corrige:
 2. **Peso visual y jerarquía.** El botón era el elemento de mayor peso tipográfico del pie (`font-semibold` sobre `bg-slate-200`), es decir, el pie destacaba la acción de salir por encima de la información. Justo lo contrario de un pie informativo.
 3. **Ocupación vertical.** El `min-h-[44px]` del botón forzaba `py-3` (68 px de alto). Sin él, el alto lo fija el `min-h-[44px]` de los enlaces y el pie baja a `py-2` (60 px), liberando espacio para el cuerpo del modal en pantallas bajas.
 4. **Hint de reapertura inline.** El texto "Presiona ? en cualquier momento para abrir esta guía" pasa a compartir la fila con la marca y los enlaces, en el extremo opuesto (`justify-between`), en lugar de ocupar un bloque propio. Por debajo de `sm` se oculta, de modo que en móvil la fila queda en una sola línea con `marca + enlaces`.
-5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real —el pie nunca puede superponerse porque el cuerpo scrollea—, sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
+5. **Corte duro de scroll (hallazgo de verificación visual).** Al retirar el botón y bajar el pie, el borde inferior del cuerpo scrolleable quedó pegado a la línea del pie. Cuando un header de sección caía justo sobre ese borde se leía como texto pisado o partido. No era solapamiento real - el pie nunca puede superponerse porque el cuerpo scrollea - , sino un corte abrupto que se resuelve con un `mask-image` degradado en los últimos 28 px más `pb-7` de aire.
 
 Fuera de alcance: cualquier cambio en la X del header, en el primitivo `Modal` o en la semántica de la trampa de foco.
 <!-- SECTION:DESCRIPTION:END -->

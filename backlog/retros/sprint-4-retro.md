@@ -5,21 +5,21 @@ date: "2026-09-23"
 author: "Antigravity Agentic Team & Pablo"
 status: completed
 tasksCompleted:
-  - DEV-040
-  - DEV-041
-  - DEV-042
-  - DEV-048
-  - DEV-056
-  - DEV-059
-  - DEV-068
-  - DEV-069
-  - DEV-070
-  - DEV-072
-  - DEV-073
-  - DEV-074
+ - DEV-040
+ - DEV-041
+ - DEV-042
+ - DEV-048
+ - DEV-056
+ - DEV-059
+ - DEV-068
+ - DEV-069
+ - DEV-070
+ - DEV-072
+ - DEV-073
+ - DEV-074
 ---
 
-# Retrospectiva de Cierre — Sprint 4
+# Retrospectiva de Cierre - Sprint 4
 
 **Objetivo del Sprint:** Empaquetado standalone, relaciones jerárquicas y settings avanzados.  
 **Resultado:** 100% de los items completados y en estado `Ready` / `Done`.

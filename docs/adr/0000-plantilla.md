@@ -1,4 +1,4 @@
-# NNNN — Título de la decisión en una frase imperativa
+# NNNN - Título de la decisión en una frase imperativa
 
 - **Estado:** `Propuesta` (valores canónicos: `Propuesta`, `Aceptado`, `Reemplazado`, `Obsoleto`)
 - **Fecha:** `YYYY-MM-DD`
@@ -26,13 +26,13 @@ tensionados entre sí, decilo explícitamente.
 
 ## Opciones consideradas
 
-### Opción A — `<nombre>`
+### Opción A - `<nombre>`
 
 - **A favor:** `<beneficio concreto>`
 - **En contra:** `<costo o límite concreto>`
 - **Veredicto:** `<por qué se descarta>`
 
-### Opción B — `<nombre>`
+### Opción B - `<nombre>`
 
 - **A favor:** `<beneficio concreto>`
 - **En contra:** `<costo o límite concreto>`

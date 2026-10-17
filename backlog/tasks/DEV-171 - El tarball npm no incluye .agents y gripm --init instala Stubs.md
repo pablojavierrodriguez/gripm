@@ -5,12 +5,12 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-05 01:15'
 labels:
-  - "packaging"
-  - "onboarding"
-  - "agents"
-  - "critical"
+ - "packaging"
+ - "onboarding"
+ - "agents"
+ - "critical"
 dependencies:
-  - "DEV-161"
+ - "DEV-161"
 priority: high
 type: bug
 ---
@@ -61,7 +61,7 @@ Después de `npx gripm --init`, el agente recibe una línea vacía y **no conoce
 
 - **Pre-existente**: `files` nunca incluyó `.agents` (verificado contra `HEAD`). No es regresión de DEV-161/169/170.
 - **`publish:check` no lo detecta**: el guard audita fugas de datos y rutas personales, no archivos faltantes. Pasó en verde.
-- **DEV-161 pasó sus ACs igual**: el AC #6 ("`initScaffold.js` instala solo `.agents/skills/gripm/`") se verificó contra el repo fuente, donde el archivo existe — no contra el tarball. Es la misma clase de fallo que el guard de DEV-159: **una aserción ejecutada contra la realidad equivocada**.
+- **DEV-161 pasó sus ACs igual**: el AC #6 ("`initScaffold.js` instala solo `.agents/skills/gripm/`") se verificó contra el repo fuente, donde el archivo existe - no contra el tarball. Es la misma clase de fallo que el guard de DEV-159: **una aserción ejecutada contra la realidad equivocada**.
 
 ### Ítem secundario en la misma causa raíz
 
@@ -80,9 +80,9 @@ Que el tarball contenga los artefactos que el producto promete instalar, y que l
 - [x] #1 `node -e "const f=require('./package.json').files; console.log(f.includes('.agents'), f.includes('.githooks'))"` devuelve `true true`
 - [x] #2 Tras `npm run build`, `tar -tzf <tarball> | grep -c "\.agents/skills/gripm/SKILL"` devuelve un valor `>= 2` (SKILL.md y SKILL.en.md)
 - [x] #3 `tar -tzf <tarball> | grep -c "\.githooks/pre-commit"` devuelve `1`
-- [x] #4 Instalando el tarball en un directorio temporal y ejecutando `gripm --init -y`, `wc -c <repo>/.agents/skills/gripm/SKILL.md` devuelve un valor `>= 1000` — este es el AC que hoy falla con 20
+- [x] #4 Instalando el tarball en un directorio temporal y ejecutando `gripm --init -y`, `wc -c <repo>/.agents/skills/gripm/SKILL.md` devuelve un valor `>= 1000` - este es el AC que hoy falla con 20
 - [x] #5 En esa misma instalación, `wc -c <repo>/AGENTS.md` devuelve un valor `>= 1000` y **no** contiene la cadena `Bienvenido a` de los stubs
-- [x] #6 Con `--language en` el `SKILL.md` instalado es el contenido de `.agents/skills/gripm/SKILL.en.md`; con `--language es` es el de `SKILL.md` — verificación por contenido, no por nombre de archivo (el scaffolder siempre escribe en `SKILL.md`)
+- [x] #6 Con `--language en` el `SKILL.md` instalado es el contenido de `.agents/skills/gripm/SKILL.en.md`; con `--language es` es el de `SKILL.md` - verificación por contenido, no por nombre de archivo (el scaffolder siempre escribe en `SKILL.md`)
 - [x] #7 `npm run publish:check` falla si `.agents` o `.githooks` desaparecen del array `files`, en lugar de pasar en verde
 - [x] #8 Existe un script de verificación de distribución (p. ej. `npm run verify:dist`) que empaqueta, instala en un directorio temporal efímero y valida los artefactos de onboarding, y está conectado a `npm test`
 - [x] #9 `npm run backlog:sync && npm run backlog:check` en verde, `npx tsc --noEmit` con 0 errores, `npm test` con exit 0 y `npm run build` sin errores
@@ -105,7 +105,7 @@ Que el tarball contenga los artefactos que el producto promete instalar, y que l
 <!-- SECTION:NOTES:BEGIN -->
 ### Por qué el fix durable es un test, no el `files`
 
-Agregar `.agents` a `files` cierra **este** bug. Lo que evita que reaparezca es el AC #8: un ciclo de empaquetar-instalar-probar en `npm test`. El mismo razonamiento que impulsó el guard de DEV-159 — un hook que valida el índice real en vez del disco — aplica aquí: hay que verificar contra el artefacto que se distribuye, no contra el repo de trabajo donde todo existe.
+Agregar `.agents` a `files` cierra **este** bug. Lo que evita que reaparezca es el AC #8: un ciclo de empaquetar-instalar-probar en `npm test`. El mismo razonamiento que impulsó el guard de DEV-159 - un hook que valida el índice real en vez del disco - aplica aquí: hay que verificar contra el artefacto que se distribuye, no contra el repo de trabajo donde todo existe.
 
 ### Por qué los AC se formulan como "hoy falla"
 

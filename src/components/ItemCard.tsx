@@ -112,7 +112,7 @@ export const getIconByName = (name?: string): React.FC<{ className?: string }> =
 export const cleanParentTitle = (rawTitle: string): string => {
   if (!rawTitle) return '';
   return rawTitle
-    .replace(/^(?:(?:[a-z]{2,8}-\d+)\s*[:\-–—]\s*)?(?:épica|epica|iniciativa|epic|initiative)\s*[:\-–—]\s*/i, '')
+    .replace(/^(?:(?:[a-z]{2,8}-\d+)\s*[:\- - - ]\s*)?(?:épica|epica|iniciativa|epic|initiative)\s*[:\- - - ]\s*/i, '')
     .trim();
 };
 

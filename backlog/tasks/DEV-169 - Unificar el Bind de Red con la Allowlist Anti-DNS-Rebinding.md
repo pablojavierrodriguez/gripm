@@ -5,9 +5,9 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-05 01:00'
 labels:
-  - "networking"
-  - "security"
-  - "portability"
+ - "networking"
+ - "security"
+ - "portability"
 dependencies: []
 priority: medium
 type: bug
@@ -57,7 +57,7 @@ Que el bind real coincida con la allowlist de loopback, sin abrir exposição de
 <!-- AC:BEGIN -->
 - [x] #1 `grep -n "let host" bin/gripm.js` devuelve una línea cuyo default resuelve a una dirección que cubre explícitamente el loopback IPv4 (`127.0.0.1`) y no a `localhost`
 - [x] #2 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://localhost:<puerto>/` devuelve `200` (no `000`)
-- [x] #3 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://127.0.0.1:<puerto>/` devuelve `200` (no `000`) — este es el AC que hoy falla
+- [x] #3 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" http://127.0.0.1:<puerto>/` devuelve `200` (no `000`) - este es el AC que hoy falla
 - [x] #4 Con el servidor levantado, `curl -o /dev/null -w "%{http_code}" "http://[::1]:<puerto>/"` devuelve `200` o, si la decisión es hacer bind solo IPv4, la allowlist de `vite.config.ts:1159` y `:1175` se reduce a los hosts realmente escuchados
 - [x] #5 La advertencia de seguridad de `bin/gripm.js:110-112` para `--host 0.0.0.0` se conserva sin cambios
 - [x] #6 El middleware anti-DNS-rebinding sigue rechazando un header `Host` no loopback: un request con `Host: evil.example.com` recibe rechazo

@@ -5,17 +5,17 @@ status: done
 created_date: '2026-09-29'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "bug"
-  - "ui"
-  - "stacking-context"
-  - "itemcard"
-  - "kanban"
-  - "devboard-core"
+ - "bug"
+ - "ui"
+ - "stacking-context"
+ - "itemcard"
+ - "kanban"
+ - "devboard-core"
 dependencies: []
 priority: medium
 type: bug
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 order: "29"
 ---
@@ -73,7 +73,7 @@ escapar. Subirlo a `z-[9999]` no cambia absolutamente nada.
 > `ItemCard` renderiza inline dentro de la tarjeta, y se corrigió aparte en
 > **DEV-130**. La moraleja: un `transform` en hover es un generador de bugs
 > silenciosos y hay que auditar los dos efectos por separado, porque se
-> manifiestan con síntomas opuestos — "quedó atrás" frente a "se dibuja en el
+> manifiestan con síntomas opuestos - "quedó atrás" frente a "se dibuja en el
 > lugar equivocado".
 
 **Solución: portal a `document.body` con posicionamiento `fixed`.** Es el patrón
@@ -99,7 +99,7 @@ como del recorte del `overflow`.
 - [x] #10 `npx tsc --noEmit` finishes con código 0
 - [x] #11 `npm test` finishes con código 0
 - [x] #12 `npm run backlog:check` finishes con código 0
-- [x] #13 Validación visual en navegador: abrir el menú de una tarjeta que tenga al menos una tarjeta debajo, en tema claro y oscuro — **VERIFICADO POR EL USUARIO** ("ahí puedo ver el menu ok")
+- [x] #13 Validación visual en navegador: abrir el menú de una tarjeta que tenga al menos una tarjeta debajo, en tema claro y oscuro - **VERIFICADO POR EL USUARIO** ("ahí puedo ver el menu ok")
 <!-- AC:END -->
 
 ## Implementation Plan

@@ -5,13 +5,13 @@ status: draft
 created_date: '2026-10-06'
 updated_date: '2026-10-13'
 labels:
-  - "ux-audit"
-  - "upstream"
-  - "@gripm/playbook"
-  - "technical-debt"
+ - "ux-audit"
+ - "upstream"
+ - "@gripm/playbook"
+ - "technical-debt"
 dependencies:
-  - DEV-166
-  - DEV-173
+ - DEV-166
+ - DEV-173
 priority: high
 type: tech_debt
 ---
@@ -244,7 +244,7 @@ Aun así, **el 0 no es totalmente confiable**. Aislados contra el tarball:
 | `<button>` multilínea + `<span>Eliminar</span>` | no reportar | ❌ **reporta** |
 | `<div role="button" tabIndex={0}>` + solo `<Settings/>` | **reportar** | ❌ **no reporta** |
 
-**Defecto A — `unlessVisibleText` no cubre el caso multilínea.** El escape existe pero
+**Defecto A - `unlessVisibleText` no cubre el caso multilínea.** El escape existe pero
 no lee el texto cuando el elemento ocupa varias líneas. Réplica mínima:
 
 ```tsx
@@ -254,7 +254,7 @@ no lee el texto cuando el elemento ocupa varias líneas. Réplica mínima:
 </button>
 ```
 
-**Defecto B — no detecta icon-only en elementos que no son `<button>`.** `role="button"`
+**Defecto B - no detecta icon-only en elementos que no son `<button>`.** `role="button"`
 está en la lista `line` de UX-010, pero un `div` con `role="button"` y solo un icono
 como hijo pasa limpio. Réplica mínima:
 
@@ -360,9 +360,9 @@ Recibimos la carta. Coincidimos con el diagnóstico y aceptamos las dos correcci
 **Aceptamos la corrección sobre el `break`.** Nuestro reporte decía "2 hallazgos,
 ambos falsos" sin aclarar contra qué copia, y eso fue impreciso. Era contra nuestra
 copia local, que ya no tenía el `break`. Contra upstream reporta 1, porque el `break`
-cortaba el recorrido antes del segundo caso. La lectura que hacen — que el `break`
+cortaba el recorrido antes del segundo caso. La lectura que hacen - que el `break`
 era lo que ocultaba el bug de `needsContent`, y que por eso nuestro fixture de 2
-casos era incomprobable — es correcta y no la habíamos visto.
+casos era incomprobable - es correcta y no la habíamos visto.
 
 **Aceptamos la corrección sobre la causa raíz.** Apuntamos a `lineMatches`. La causa
 era `buildUnits`. El rediseño con `text` / `ownContent` / `scopeText` resuelve el

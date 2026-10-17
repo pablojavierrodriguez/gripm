@@ -1,9 +1,9 @@
-# 0005 — Overlays montados vía portales y layout raíz estable (cero CLS)
+# 0005 - Overlays montados vía portales y layout raíz estable (cero CLS)
 
 - **Estado:** `Aceptado`
 - **Fecha:** 2026-10-13
 - **Tareas:** `DEV-129`, `DEV-130`, `DEV-124`, `DEV-190`, `DEV-254`
-- **Reemplaza:** —
+- **Reemplaza:** - 
 
 ---
 
@@ -26,19 +26,19 @@ Ambos problemas son de la misma familia: **el punto de montaje del overlay y la 
 
 ## Opciones consideradas
 
-### Opción A — Overlays `position: fixed` montados en el árbol del componente
+### Opción A - Overlays `position: fixed` montados en el árbol del componente
 
 - **A favor:** cero trabajo extra, el overlay queda junto a su disparador en el árbol de React.
 - **En contra:** queda rehén de cualquier ancestro con `transform` o `filter`; el bug reaparece cada vez que un componente toma un estilo nuevo.
 - **Veredicto:** descartada. Es la causa raíz de `DEV-129` y `DEV-130`.
 
-### Opción B — Portales a un nodo contenedor dedicado, sin `document.body`
+### Opción B - Portales a un nodo contenedor dedicado, sin `document.body`
 
 - **A favor:** desacopla del ancestro problemático y permite concentrar el stacking en un solo nodo.
 - **En contra:** exige mantener un nodo raíz de overlays con su propio contexto de stacking y su ciclo de vida; no resuelve el `position: fixed` si el nodo tiene `transform`.
 - **Veredicto:** descartada. `document.body` ya es el nodo de overlays natural y no necesita mantenimiento propio.
 
-### Opción C — `createPortal` a `document.body` + reserva estable de scrollbar
+### Opción C - `createPortal` a `document.body` + reserva estable de scrollbar
 
 - **A favor:** el overlay vive en el nodo de más alto nivel del documento, inmune a *containing block* y *stacking context* heredados; y el layout raíz se declara estable una sola vez.
 - **En contra:** hay que ser explícito con el `z-index` y con el foco (el portal rompe la intuición de árbol de React para foco y para tests).
@@ -50,7 +50,7 @@ Ambos problemas son de la misma familia: **el punto de montaje del overlay y la 
 
 1. **Portales para overlays** (`AGENTS.md` §6.10): modales (`src/components/Modal.tsx`), `ConfirmModal`, menús contextuales (`src/components/ItemCard.tsx`), drawers y modales de release (`src/components/ReleaseAssembler.tsx`). El primitivo `Modal` monta incondicionalmente sobre `document.body`.
 2. **Cero CLS en la raíz** (`AGENTS.md` §6.9): `index.css` declara en `html` `overflow-y: scroll; scrollbar-gutter: stable;`. El gutter se reserva siempre: la barra de scroll aparece y desaparece sin desplazar el contenido.
-3. **Cero `truncate` en cajas de confirmación** (`AGENTS.md` §6.11): el texto de advertencia o confirmación usa `break-words text-[11px] leading-relaxed`, nunca ellipsis, para no cortar texto crítico.
+3. **Cero `truncate` en cajas de confirmación** (`AGENTS.md` §6.12): el texto de advertencia o confirmación usa `break-words text-xs leading-relaxed`, nunca ellipsis, para no cortar texto crítico.
 4. **Accesibilidad como parte del primitivo, no del uso:** `role="dialog"`, `aria-modal`, `useFocusTrap` con retorno de foco al disparador y cierre con `Esc`. Un overlay sin esas cuatro propiedades no es un overlay válido.
 
 ## Consecuencias
@@ -73,7 +73,7 @@ Ambos problemas son de la misma familia: **el punto de montaje del overlay y la 
 
 ## Referencias
 
-- [`AGENTS.md`](../../AGENTS.md) §6.9, §6.10 y §6.11 — gotchas permanentes derivadas de esta decisión.
+- [`AGENTS.md`](../../AGENTS.md) §6.9, §6.10 y §6.11 - gotchas permanentes derivadas de esta decisión.
 - `backlog/tasks/DEV-129 - Menu Contextual de ItemCard se Monta Detras de la Tarjeta Siguiente.md`.
 - `backlog/tasks/DEV-130 - ConfirmModal Roto en ItemCard Popup Duplicado y Parpadeo.md`.
-- `backlog/retros/sprint-7-retro.md` — acción "montar todo modal y menú flotante vía `createPortal`".
+- `backlog/retros/sprint-7-retro.md` - acción "montar todo modal y menú flotante vía `createPortal`".

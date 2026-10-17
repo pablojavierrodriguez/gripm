@@ -3,7 +3,7 @@ import { ensureAdapter } from './data/detect';
 import type { BoardEvent, BoardEventType, FsBrowseResult, GripmApi as GripmApiShape } from './data/types';
 
 /**
- * DEV-222 — Fachada pública de la capa de datos.
+ * DEV-222 - Fachada pública de la capa de datos.
  *
  * Antes de DEV-222 este archivo contenía la implementación HTTP completa. Ahora es
  * una re-exportación con nombre desde el adaptador activo, de modo que la UI siga

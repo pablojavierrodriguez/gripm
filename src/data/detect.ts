@@ -5,7 +5,7 @@ import { getStoredToken } from '../utils/token.ts';
 import type { GripmApi } from './types';
 
 /**
- * DEV-222 — Detección de disponibilidad del daemon.
+ * DEV-222 - Detección de disponibilidad del daemon.
  *
  * Gripm es local-first: el tablero habla con un daemon por HTTP. Desplegado como
  * estático en Vercel no hay daemon, así que `dist/` sirve y todos los `/api/*` dan

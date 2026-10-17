@@ -5,12 +5,12 @@ status: done
 created_date: '2026-10-14'
 updated_date: '2026-10-15'
 labels:
-  - "testing"
-  - "sandbox"
-  - "quality"
-  - "@gripm/playbook"
+ - "testing"
+ - "sandbox"
+ - "quality"
+ - "@gripm/playbook"
 dependencies:
-  - "DEV-222"
+ - "DEV-222"
 priority: medium
 type: tech_debt
 ---
@@ -30,7 +30,7 @@ pública no tiene ninguno.
 Lo verificado en runtime fue de extremo a extremo en un navegador real, lo cual **no es
 lo mismo**: una prueba manual sobre un recorrido feliz no encuentra la colisión de un
 correlativo ni el sprint que queda activo sin querer. Un bug acá no filtra datos ni rompe
-instalaciones — se manifiesta como una demo visiblemente rota — pero es producto público.
+instalaciones - se manifiesta como una demo visiblemente rota - pero es producto público.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -63,11 +63,11 @@ instalaciones — se manifiesta como una demo visiblemente rota — pero es prod
   verificación runtime de la demo fue 10/10 sobre un recorrido feliz, y que eso no
   reemplaza una aserción por invariante.
 - **Implementación (DEV-262):**
-  - Creado `scripts/verify-sandbox.js` con suite completa de 12 pasos verificando las 12
+ - Creado `scripts/verify-sandbox.js` con suite completa de 12 pasos verificando las 12
     reglas e invariantes del adaptador sandbox y detector de entorno.
-  - Registrado como paso 18 en `scripts/run-tests.js`.
-  - Actualizado `CONTRIBUTING.md` y `AGENTS.md` a 18 pasos secuenciales en la suite unificada.
-  - Tipado Node ESM completado con extensiones `.ts` relativas en `src/data/detect.ts`,
+ - Registrado como paso 18 en `scripts/run-tests.js`.
+ - Actualizado `CONTRIBUTING.md` y `AGENTS.md` a 18 pasos secuenciales en la suite unificada.
+ - Tipado Node ESM completado con extensiones `.ts` relativas en `src/data/detect.ts`,
     `src/data/runtime.ts` y soporte de `item.projectId` en `sandbox.ts:createItem()`.
-  - Suite unificada ejecutada en verde (`npm test`, 18/18 pasos, 26.9s).
+ - Suite unificada ejecutada en verde (`npm test`, 18/18 pasos, 26.9s).
 <!-- SECTION:NOTES:END -->

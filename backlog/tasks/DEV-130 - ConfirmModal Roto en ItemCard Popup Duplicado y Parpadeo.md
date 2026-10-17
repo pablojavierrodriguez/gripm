@@ -5,18 +5,18 @@ status: done
 created_date: '2026-09-29'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "bug"
-  - "ui"
-  - "containing-block"
-  - "portal"
-  - "itemcard"
-  - "devboard-core"
+ - "bug"
+ - "ui"
+ - "containing-block"
+ - "portal"
+ - "itemcard"
+ - "devboard-core"
 dependencies:
-  - "DEV-129"
+ - "DEV-129"
 priority: high
 type: bug
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 order: "29"
 ---
@@ -91,7 +91,7 @@ una vez a todos, sin depender de que cada consumidor recuerde la regla.
 - [x] #7 `npx tsc --noEmit` finishes con código 0
 - [x] #8 `npm test` finishes con código 0
 - [x] #9 `npm run backlog:check` finishes con código 0
-- [x] #10 Validación visual: abrir el menú de una tarjeta → Papelera y comprobar que el diálogo aparece centrado, estable y sin parpadeo, en tema claro y oscuro — **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO**
+- [x] #10 Validación visual: abrir el menú de una tarjeta → Papelera y comprobar que el diálogo aparece centrado, estable y sin parpadeo, en tema claro y oscuro - **PENDIENTE DE VALIDACIÓN VISUAL DEL USUARIO**
 <!-- AC:END -->
 
 ## Implementation Plan

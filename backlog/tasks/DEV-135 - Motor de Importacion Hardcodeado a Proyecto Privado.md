@@ -5,25 +5,25 @@ status: done
 created_date: '2026-09-30'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "bug"
-  - "architecture"
-  - "hardening"
-  - "devboard-core"
+ - "bug"
+ - "architecture"
+ - "hardening"
+ - "devboard-core"
 dependencies:
-  - "DEV-118"
+ - "DEV-118"
 priority: high
 type: bug
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-El motor de importación de documentación —`runMigration` en
+El motor de importación de documentación - `runMigration` en
 `scripts/import-docs.js`, invocado por el endpoint de importación del dev
-server en `vite.config.ts:2324` y `:2353`— está **hardcodeado a un proyecto de
+server en `vite.config.ts:2324` y `:2353` - está **hardcodeado a un proyecto de
 finanzas personales concreto**. No es un script personal descartable: es código de
 producto con un supuesto privado incrustado.
 

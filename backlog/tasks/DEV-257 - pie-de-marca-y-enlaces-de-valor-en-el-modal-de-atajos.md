@@ -5,12 +5,12 @@ status: done
 created_date: '2026-10-12'
 updated_date: '2026-10-12'
 labels:
-  - "ux"
-  - "branding"
-  - "i18n"
-  - "accessibility"
+ - "ux"
+ - "branding"
+ - "i18n"
+ - "accessibility"
 dependencies:
-  - DEV-254
+ - DEV-254
 priority: low
 type: feature
 ---
@@ -20,7 +20,7 @@ type: feature
 <!-- SECTION:DESCRIPTION:BEGIN -->
 El proyecto **no** lleva footer en el lienzo de trabajo: el tablero Kanban necesita el 100 % del alto disponible, la barra inferior móvil ya ocupa la zona táctil crítica y un footer tradicional es un anti-patrón de UX en un cockpit local. Pero la marca (versión) y los enlaces de soporte (repositorio, documentación, reporte de bug) siguen sin ningún lugar natural donde vivir.
 
-Decisión de diseño (sesión Antigravity `4252e537-78f4-4e59-bf91-6290a45fec59`, "Opción 1"): alojar el pie en el diálogo de ayuda de atajos (`KeyboardShortcutsModal`, tecla `?`), que es un modal de **0 % de recurrencia** — abrirlo ya implica que el usuario busca información — y por lo tanto no compite jamás con el flujo de trabajo.
+Decisión de diseño (sesión Antigravity `4252e537-78f4-4e59-bf91-6290a45fec59`, "Opción 1"): alojar el pie en el diálogo de ayuda de atajos (`KeyboardShortcutsModal`, tecla `?`), que es un modal de **0 % de recurrencia** - abrirlo ya implica que el usuario busca información - y por lo tanto no compite jamás con el flujo de trabajo.
 
 Alcance:
 1. Línea de pie hiper discreta dentro de `KeyboardShortcutsModal`: `gripm v<versión>` + enlaces `GitHub`, `Documentación` y `Reportar bug`, en micro-tipografía `text-[11px]`, con separación por `gap` (sin caracteres separadores que se rompan al envolver) y sin iconografía que añada ruido.

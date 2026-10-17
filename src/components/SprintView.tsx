@@ -372,7 +372,7 @@ export const SprintView: FC<SprintViewProps> = ({
     const sprintGroups = new Map<string, BacklogItem[]>();
     for (const it of items) {
       const sp = it.sprint || it.targetSprint;
-      if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '—') {
+      if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '-') {
         const k = sp.trim().toLowerCase();
         if (!sprintGroups.has(k)) sprintGroups.set(k, []);
         sprintGroups.get(k)!.push(it);
@@ -1647,7 +1647,7 @@ export const SprintView: FC<SprintViewProps> = ({
                               {/* Module */}
                               {visibleCols.has('modulo') && (
                                 <td className="py-2.5 px-4 whitespace-nowrap text-slate-600 dark:text-slate-400 text-[11px]">
-                                  {item.module || '—'}
+                                  {item.module || '-'}
                                 </td>
                               )}
 
@@ -1659,7 +1659,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       {releaseVal.startsWith('v') ? releaseVal : `v${releaseVal}`}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600"> - </span>
                                   )}
                                 </td>
                               )}
@@ -1722,7 +1722,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       {item.acProgress}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs"> - </span>
                                   )}
                                 </td>
                               )}
@@ -1740,7 +1740,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       ))}
                                     </div>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs"> - </span>
                                   )}
                                 </td>
                               )}
@@ -1760,7 +1760,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs"> - </span>
                                   )}
                                 </td>
                               )}
@@ -1774,7 +1774,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       {parentItem ? `${parentItem.code || parentItem.id} · ${cleanParentTitle(parentItem.title)}` : cleanParentTitle(item.epic || '')}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs"> - </span>
                                   )}
                                 </td>
                               )}
@@ -1788,7 +1788,7 @@ export const SprintView: FC<SprintViewProps> = ({
                                       <span>{item.estimate}</span>
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                                    <span className="text-slate-400 dark:text-slate-600 text-xs"> - </span>
                                   )}
                                 </td>
                               )}
@@ -2224,7 +2224,7 @@ export const SprintView: FC<SprintViewProps> = ({
                 {isEs ? 'Release...' : 'Release...'}
               </option>
               <option value="" className="bg-slate-900 text-slate-200">
-                {isEs ? '— Sin Release' : '— No Release'}
+                {isEs ? ' - Sin Release' : ' - No Release'}
               </option>
               {allAvailableReleases.map((rel) => (
                 <option key={rel} value={rel} className="bg-slate-900 text-slate-200">

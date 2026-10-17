@@ -1,7 +1,7 @@
 import type { BacklogItem, BoardData, Project, Release, StorageType, GripmConfig, Sprint } from '../types';
 
 /**
- * DEV-222 — Contrato de la capa de datos.
+ * DEV-222 - Contrato de la capa de datos.
  *
  * Esta interfaz es la frontera entre el tablero y el almacenamiento. Hay dos
  * implementaciones: `httpAdapter` (daemon local) y `sandboxAdapter` (memoria +

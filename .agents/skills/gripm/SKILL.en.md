@@ -49,7 +49,7 @@ Gripm includes a standalone MCP server over `stdio` (`bin/gripm-mcp.js`). To int
 }
 ```
 
-The MCP server is included in the `@gripm/board` package. It exposes Board's backlog to agents over `stdio` and can run without opening the web UI; it is not a separate product/package. `gripm playbook sync` only syncs Playbook materials into a project—it does not install Gripm Playbook.
+The MCP server is included in the `@gripm/board` package. It exposes Board's backlog to agents over `stdio` and can run without opening the web UI; it is not a separate product/package. `gripm playbook sync` only syncs Playbook materials into a project - it does not install Gripm Playbook.
 
 ---
 

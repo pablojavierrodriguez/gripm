@@ -5,10 +5,10 @@ status: ideas
 created_date: '2026-10-07'
 updated_date: '2026-10-07'
 labels:
-  - "ux"
-  - "ui"
-  - "responsive"
-  - "mobile"
+ - "ux"
+ - "ui"
+ - "responsive"
+ - "mobile"
 priority: medium
 type: improvement
 ---
@@ -32,7 +32,7 @@ Una auditoría con navegador real (Playwright + Chromium) sobre `dist/` servido 
 estático, en 360x800, 390x844 y 430x932, encontró que el problema **no es de densidad sino
 de reflujo**: el Header no se adapta.
 
-- El contenedor `grid-cols-[1fr_auto_1fr]` deja su cluster derecho **fijo en x 397–487**,
+- El contenedor `grid-cols-[1fr_auto_1fr]` deja su cluster derecho **fijo en x 397 - 487**,
   fuera del viewport. El contenido excede en **127px**.
 - El desborde **no se manifiesta como scroll** porque un ancestro con `overflow-x: hidden`
   lo recorta: `scrollWidth === clientWidth` mientras el contenido es 127px más ancho. Es

@@ -5,14 +5,14 @@ status: done
 created_date: '2026-10-04'
 updated_date: '2026-10-04 17:23'
 labels:
-  - "branding"
-  - "packaging"
-  - "breaking-change"
-  - "open-source-launch"
-  - "technical-debt"
+ - "branding"
+ - "packaging"
+ - "breaking-change"
+ - "open-source-launch"
+ - "technical-debt"
 dependencies:
-  - "DEV-144"
-  - "DEV-149"
+ - "DEV-144"
+ - "DEV-149"
 priority: high
 type: chore
 ---
@@ -30,7 +30,7 @@ Un alias público no es código descartable: es un **contrato que ya no puede qu
 
 Este es el mismo análisis que ya quedó registrado en `BACKLOG.md:3117` al decidir la bifurcación de repositorio, y que nunca se ejecutó sobre el código.
 
-### Qué se elimina (identidad instalada — lo que el usuario ve y escribe)
+### Qué se elimina (identidad instalada - lo que el usuario ve y escribe)
 
 1. **Entradas `bin` redundantes en `package.json`.** Hoy hay seis: `gripm`, `gripm-mcp`, `devboard`, `devboard-mcp`, `dev-board`, `dev-board-mcp`. Solo deben sobrevivir las dos canónicas.
 2. **Alias de herramientas MCP.** `scripts/mcp-server.ts:442` normaliza `devboard_*` → `gripm_*` en la entrada. Eliminar esa línea.
@@ -39,7 +39,7 @@ Este es el mismo análisis que ya quedó registrado en `BACKLOG.md:3117` al deci
 5. **Fallbacks `devboard 2>/dev/null ||` en los scripts scaffoldeados** por `scripts/initScaffold.js`.
 6. **Menciones del nombre anterior en documentación** (README, README.es, CONTRIBUTING, AGENTS, docs, templates de skills), reemplazadas por el nombre canónico o por formulación neutra.
 
-### Qué se conserva (compatibilidad de lectura — invisible y protectora)
+### Qué se conserva (compatibilidad de lectura - invisible y protectora)
 
 **No tocar** las lecturas de rutas legacy. Son costo cero (el nombre no se muestra al usuario) y valor real: Protegen los proyectos locales del autor que aún tengan datos en directorios anteriores.
 
@@ -57,7 +57,7 @@ Merece justificación propia porque es el más costoso y el menos útil.
 - **No se anuncia.** `tools/list` expone únicamente las 12 herramientas `gripm_*`. Ningún agente puede descubrir que el alias existe.
 - **Pero sí funciona.** `scripts/verify-mcp-binary.js` lo valida explícitamente (`✅ [6/6] Alias retrocompatible devboard_get_stats OK`).
 
-Es decir: código que se mantiene y tests que lo cubren, a cambio de **cero beneficio descubrible**. Y si se anunciara, el costo sería peor: el catálogo pasaría de **12 a 24 herramientas**, duplicando el contexto de schemas que cada agente LLM carga en cada sesión — exactamente lo contrario del objetivo de eficiencia con agentes que declara el producto.
+Es decir: código que se mantiene y tests que lo cubren, a cambio de **cero beneficio descubrible**. Y si se anunciara, el costo sería peor: el catálogo pasaría de **12 a 24 herramientas**, duplicando el contexto de schemas que cada agente LLM carga en cada sesión - exactamente lo contrario del objetivo de eficiencia con agentes que declara el producto.
 
 ### Impacto esperado
 

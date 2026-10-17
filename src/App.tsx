@@ -1178,7 +1178,7 @@ export function App() {
     });
     for (const it of allProjectItems) {
       const sp = it.sprint || it.targetSprint;
-      if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '—') {
+      if (sp && typeof sp === 'string' && sp.trim() && sp.toLowerCase() !== 'backlog' && !sp.toLowerCase().includes('sin sprint') && sp !== '-') {
         set.add(sp.trim());
       }
     }
@@ -1311,7 +1311,7 @@ export function App() {
         updateAvailable={boardData?.updateAvailable}
       />
 
-      {/* DEV-222 — Banner de demo. La URL raíz ES la sandbox, así que quien llega no
+      {/* DEV-222 - Banner de demo. La URL raíz ES la sandbox, así que quien llega no
           tiene contexto de qué está mirando ni salida hacia el repo o la instalación.
           Este banner resuelve las dos cosas sin agregar una landing que mantener.
           Se oculta cuando el detector encuentra daemon, o sea nunca en local. */}

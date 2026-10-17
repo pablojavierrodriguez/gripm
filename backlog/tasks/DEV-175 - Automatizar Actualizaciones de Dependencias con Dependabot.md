@@ -5,10 +5,10 @@ status: done
 created_date: '2026-10-05'
 updated_date: '2026-10-05 10:00'
 labels:
-  - "dependencies"
-  - "maintenance"
-  - "security"
-  - "post-launch"
+ - "dependencies"
+ - "maintenance"
+ - "security"
+ - "post-launch"
 dependencies: []
 priority: low
 type: chore
@@ -45,7 +45,7 @@ $ find .github -type f
 
 ### Riesgo específico de este proyecto
 
-`SECURITY.md` describe un producto que **ejecuta binarios con permisos del usuario y escribe en su disco**. Una vulnerabilidad transitiva en `vite` —que es el servidor HTTP que corre en cada sesión— es un vector de ataque real, no teórico. `vite` es la dependencia más expuesto del stack.
+`SECURITY.md` describe un producto que **ejecuta binarios con permisos del usuario y escribe en su disco**. Una vulnerabilidad transitiva en `vite` - que es el servidor HTTP que corre en cada sesión - es un vector de ataque real, no teórico. `vite` es la dependencia más expuesto del stack.
 
 ### Objetivo
 

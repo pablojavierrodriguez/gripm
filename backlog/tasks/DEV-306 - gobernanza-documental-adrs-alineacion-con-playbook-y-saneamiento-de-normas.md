@@ -1,7 +1,7 @@
 ---
 id: DEV-306
 title: "Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas"
-status: draft
+status: ready
 created_date: '2026-10-15'
 updated_date: '2026-10-15'
 labels:
@@ -56,12 +56,12 @@ Actualización y sincronización exhaustiva de la documentación técnica de arq
 
 <!-- AC:BEGIN -->
 - [x] #1 `docs/ARCHITECTURE.md` refleja la arquitectura real de `v1.5.0` (arquitectura de `server/`, servidor HTTP nativo sin Vite en producción, módulos Timeline/Metrics e Importador Universal), eliminando toda mención a CodeGraph
-- [ ] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
-- [ ] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
-- [ ] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
-- [ ] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
-- [ ] #6 `.playbook-lock.json` no contiene rutas locales absolutas
-- [ ] #7 Los nombres de archivo de tareas con prefijo en minúscula (`dev-XXX`) se normalizan al formato canónico `DEV-XXX`
+- [x] #2 Se formaliza `ADR-0006` para el servidor estático desacoplado de Vite en producción y `ADR-0002` queda marcado formalmente como `Reemplazado`
+- [x] #3 Se elimina la contradicción tipográfica en `AGENTS.md` y `ADR-0005`, consolidando el uso de `text-xs`
+- [x] #4 `scripts/gate-qa.mjs` ejecuta limpiamente adaptándose a los scripts definidos en `package.json`
+- [x] #5 `scripts/sync-playbook.mjs` procesa los comandos `--stack` y `--list-stacks` sin errores de tipo y no emite código 1 ante archivos en `customizations` bajo `--dry-run`
+- [x] #6 `.playbook-lock.json` no contiene rutas locales absolutas
+- [x] #7 Descartado por instrucción explícita del PO: preservación de nombres de archivo históricos pre-v1 sin churn innecesario de disco
 <!-- AC:END -->
 
 ## Implementation Plan

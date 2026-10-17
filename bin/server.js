@@ -1748,7 +1748,7 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
     const unchecked = acs.filter((ac) => !ac.checked);
     if (unchecked.length > 0) {
       const taskId = task.code || task.id || "desconocida";
-      const uncheckedList = unchecked.map((ac) => `  - [ ] #${ac.index} ${ac.text}`).join("\n");
+      const uncheckedList = unchecked.map((ac) => ` - [ ] #${ac.index} ${ac.text}`).join("\n");
       throw new Error(
         `[MCP Gatekeeper] Transici\xF3n rechazada: No se puede mover la tarea '${taskId}' a '${normTarget}' porque tiene ${unchecked.length} criterio(s) de aceptaci\xF3n sin cumplir:
 ${uncheckedList}
@@ -1848,7 +1848,7 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
     const firstLineEnd = trimmed.indexOf("\n");
     const headerLine = firstLineEnd > 0 ? trimmed.substring(0, firstLineEnd) : trimmed;
     const bodyContent = firstLineEnd > 0 ? trimmed.substring(firstLineEnd + 1) : "";
-    const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\]—–-]+)?)\]?/);
+    const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\] - - -]+)?)\]?/);
     if (!vMatch) continue;
     const rawVersion = vMatch[1].trim();
     const version = rawVersion.replace(/^v(?=\d)/i, "");
@@ -1858,7 +1858,7 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
     if (date) {
       title = title.replace(date, "").trim();
     }
-    title = title.replace(/^[-—–:🚀 ]+/, "").trim();
+    title = title.replace(/^[-:\u2014\u2013🚀 ]+/, "").trim();
     if (!title) title = `Release ${version}`;
     let summary = "";
     const summaryMatch = bodyContent.match(/###\s*(?:🎯\s*)?Resumen\s*\n+([^\n#]+)/i);
@@ -1908,7 +1908,7 @@ function findTaskFile(project, id) {
     for (const f of files) {
       try {
         const raw = fs5.readFileSync(path5.join(tasksDir, f), "utf8");
-        const fallbackId = f.split(" - ")[0] || f.replace(/\.md$/, "");
+        const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
         const parsed = parseBacklogMd(raw, fallbackId);
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
           found = f;
@@ -1922,7 +1922,7 @@ function findTaskFile(project, id) {
   const filePath = path5.join(tasksDir, found);
   try {
     const raw = fs5.readFileSync(filePath, "utf8");
-    const fallbackId = found.split(" - ")[0] || found.replace(/\.md$/, "");
+    const fallbackId = found.split("-")[0] || found.replace(/\.md$/, "");
     const task = parseBacklogMd(raw, fallbackId);
     return { filePath, filename: found, task };
   } catch {
@@ -1937,7 +1937,7 @@ function mapMarkdownTaskToCanonical(task, project, filename, fileStat) {
   const previousStatusVal = task.previousStatus || rawFm.previousstatus || rawFm.previousStatus || void 0;
   const sprintVal = task.sprint || task.targetSprint || rawFm.sprint || rawFm.targetSprint || void 0;
   const releaseVal = task.milestone || rawFm.release || rawFm.targetRelease || rawFm.releases || void 0;
-  const id = task.id || filename.split(" - ")[0] || filename.replace(/\.md$/, "");
+  const id = task.id || filename.split("-")[0] || filename.replace(/\.md$/, "");
   const mtime = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
   const canonical = {
     id,
@@ -2006,7 +2006,7 @@ var BacklogService = class _BacklogService {
           try {
             const fullPath = path5.join(tasksDir, file);
             const raw = fs5.readFileSync(fullPath, "utf8");
-            const fallbackId = file.split(" - ")[0] || file.replace(/\.md$/, "");
+            const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
             const parsed = parseBacklogMd(raw, fallbackId);
             const stat = fs5.statSync(fullPath);
             const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
@@ -2682,7 +2682,7 @@ previousStatus: "${previousStatus}"
           const statusMatch = fm.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
           const idMatch = fm.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
           const rawStatus = (statusMatch ? statusMatch[1] : "").toLowerCase();
-          const taskId = idMatch ? idMatch[1] : file.split(" - ")[0];
+          const taskId = idMatch ? idMatch[1] : file.split("-")[0];
           const acBlockMatch = content2.match(/<!-- AC:BEGIN -->([\s\S]*?)<!-- AC:END -->/);
           if (!acBlockMatch) continue;
           const acBlock = acBlockMatch[1];
@@ -2821,7 +2821,7 @@ previousStatus: "${previousStatus}"
           const detectedSprintNames = /* @__PURE__ */ new Set();
           for (const it of items) {
             const sp = it.sprint || it.targetSprint;
-            if (sp && typeof sp === "string" && sp.trim() && sp.toLowerCase() !== "backlog" && !sp.toLowerCase().includes("sin sprint") && sp !== "\u2014") {
+            if (sp && typeof sp === "string" && sp.trim() && sp.toLowerCase() !== "backlog" && !sp.toLowerCase().includes("sin sprint") && sp !== "-") {
               detectedSprintNames.add(sp.trim());
             }
           }
@@ -3107,7 +3107,7 @@ previousStatus: "${previousStatus}"
                   title: `v${targetVersion}`,
                   summary: `Versi\xF3n ${targetVersion} creada para planificaci\xF3n.`,
                   itemCodes: [taskData.id],
-                  markdownContent: `## [${targetVersion}] \u2014 Unreleased
+                  markdownContent: `## [${targetVersion}] - Unreleased
 
 ### \u{1F3AF} Resumen
 *Versi\xF3n ${targetVersion} en planificaci\xF3n.*`,
@@ -3479,7 +3479,7 @@ function parseQualityLog(content, itemsMap, ctx) {
           priority,
           status,
           module: area,
-          impactedFile: impactedFile !== "\u2014" && impactedFile !== "-" ? impactedFile : void 0,
+          impactedFile: impactedFile !== "-" && impactedFile !== "-" ? impactedFile : void 0,
           fix: fixNote,
           targetRelease: "1.0.0",
           targetSprint: "Integridad Financiera",
@@ -3512,7 +3512,7 @@ function parseBacklog(content, itemsMap, ctx) {
       }
     }
   }
-  const sectionRegex = /###\s+([A-Z0-9_-]+)\s+[—-]\s+([^\n]+)([\s\S]*?)(?=\n###\s+[A-Z0-9_-]+\s+[—-]|## |$)/g;
+  const sectionRegex = /###\s+([A-Z0-9_-]+)\s+[-]\s+([^\n]+)([\s\S]*?)(?=\n###\s+[A-Z0-9_-]+\s+[-]|## |$)/g;
   let match;
   while ((match = sectionRegex.exec(content)) !== null) {
     const rawId = match[1].trim();
@@ -3600,7 +3600,7 @@ function parseSpecs(specsDir, itemsMap, ctx) {
     const filePath = path7.join(specsDir, file);
     const content = fs7.readFileSync(filePath, "utf8");
     const titleMatch = content.match(/^#\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1].replace(/—.*$/, "").replace(/–.*$/, "").trim() : file.replace(".md", "");
+    const title = titleMatch ? titleMatch[1].replace(/[- - - ].*$/, "").trim() : file.replace(".md", "");
     const paras = content.split("\n\n").map((p) => p.trim()).filter((p) => p && !p.startsWith("#"));
     const description = paras.length > 0 ? paras.slice(0, 2).join("\n\n") : "Especificaci\xF3n t\xE9cnica y requerimientos.";
     let code = `${ctx.codePrefix}-${file.replace(".md", "").toUpperCase()}`;
@@ -3637,7 +3637,7 @@ function parseSpecs(specsDir, itemsMap, ctx) {
 }
 function parseReleaseNotes(content, itemsMap, ctx) {
   const releases = [];
-  const releaseMatch = content.match(/##\s+\[([0-9.]+)\]\s+[—-]\s+([0-9-]+)\s+(?:🚀\s+)?([^\n]+)/);
+  const releaseMatch = content.match(/##\s+\[([0-9.]+)\]\s+[-]\s+([0-9-]+)\s+(?:🚀\s+)?([^\n]+)/);
   if (releaseMatch) {
     const version = releaseMatch[1];
     const date = releaseMatch[2];
@@ -4976,7 +4976,7 @@ async function handleApiRequest(req, res) {
           const sprintKey = String(updatedSprint.id || newName).toLowerCase().replace(/[^a-z0-9_-]/g, "-");
           const retroFile = path9.join(retrosDir, `${sprintKey}-retro.md`);
           const r = body.retro;
-          const md = `# Retrospectiva \u2014 ${newName}
+          const md = `# Retrospectiva - ${newName}
 
 **Fecha:** ${todayStr}  
 **Sprint:** ${newName}  

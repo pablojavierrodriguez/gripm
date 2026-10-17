@@ -5,19 +5,19 @@ date: "2026-09-25"
 author: "Antigravity Agentic Team & Pablo"
 status: completed
 tasksCompleted:
-  - DEV-102
-  - DEV-103
-  - DEV-104
-  - DEV-105
-  - DEV-106
-  - DEV-107
-  - DEV-108
-  - DEV-109
-  - DEV-110
-  - DEV-111
+ - DEV-102
+ - DEV-103
+ - DEV-104
+ - DEV-105
+ - DEV-106
+ - DEV-107
+ - DEV-108
+ - DEV-109
+ - DEV-110
+ - DEV-111
 ---
 
-# Retrospectiva de Cierre — Sprint 6
+# Retrospectiva de Cierre - Sprint 6
 
 **Objetivo del Sprint:** Robustecimiento de CLI y Empaquetado: Estándar XDG, Aislamiento de Repositorios, Bundler de Tailwind, Scaffolding Interactivo y Notificador de Versiones.  
 **Resultado:** 100% de los 10 items completados y promovidos a `Done` para el Release formal `v0.6.0`.

@@ -8,7 +8,7 @@
  * script la proyecta a un archivo Markdown legible, de modo que el changelog no
  * pueda desviarse de las releases reales.
  *
- * Decisión de diseño: el encabezado usa el formato `## [x.y.z] — fecha`, que es
+ * Decisión de diseño: el encabezado usa el formato `## [x.y.z] - fecha`, que es
  * exactamente el que el servidor MCP ya sabe releer de CHANGELOG.md como fuente
  * alternativa cuando `releases.json` no está disponible
  * (`scripts/mcp-server.ts`, fallback de notas de release). Escribirlo con otro

@@ -5,15 +5,15 @@ status: done
 created_date: '2026-09-29'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "process"
-  - "governance"
-  - "sprint"
-  - "devboard-core"
+ - "process"
+ - "governance"
+ - "sprint"
+ - "devboard-core"
 dependencies: []
 priority: medium
 type: tech_debt
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 order: "29"
 ---
@@ -21,7 +21,7 @@ order: "29"
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-El usuario señaló —en sarcasmo, y con razón— que **el Sprint 7 se había creado sin
+El usuario señaló - en sarcasmo, y con razón - que **el Sprint 7 se había creado sin
 `goal`**, a diferencia de los otros siete sprints del proyecto, que sí lo tienen
 definido desde su creación. Es decir: el campo no es opcional en la práctica, se
 respeta en todos los casos salvo en este, y su ausencia era un defecto de

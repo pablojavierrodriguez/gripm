@@ -5,15 +5,15 @@ status: done
 created_date: '2026-09-30'
 updated_date: '2026-10-02 23:43'
 labels:
-  - "bug"
-  - "packaging"
-  - "hygiene"
-  - "devboard-core"
+ - "bug"
+ - "packaging"
+ - "hygiene"
+ - "devboard-core"
 dependencies: []
 priority: low
 type: bug
 sprints:
-  - "Sprint 7"
+ - "Sprint 7"
 sprint: "Sprint 7"
 order: "4"
 ---
@@ -29,8 +29,8 @@ proyecto atravesó las versiones 0.2.0, 0.3.0, 0.4.0, 0.5.0, 0.6.0 y 0.6.1.
 `0.1.0`, la única referencia a esa versión en todo el repositorio apareció en el
 lockfile. La evidencia de que `0.1.0` fue un bump real pero informal: los commits
 `e0029b7` y `ed91943` (ambos del 16/09) tienen `version=0.1.0` en `package.json`,
-y horas después `f4ce6ae` ya sube a `0.2.0`. No hay tag `v0.1.0` — el más antiguo
-es `v0.2.0` — ni entrada en `releases.json` ni tarea asignada a esa versión.
+y horas después `f4ce6ae` ya sube a `0.2.0`. No hay tag `v0.1.0` - el más antiguo
+es `v0.2.0` - ni entrada en `releases.json` ni tarea asignada a esa versión.
 
 **Por qué importa, aunque no rompa nada hoy**: npm reconcilia el desfase en el
 momento de instalar, así que el proyecto funciona. El problema es de higiene del

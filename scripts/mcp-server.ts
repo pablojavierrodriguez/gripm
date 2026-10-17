@@ -668,7 +668,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
               if (!trimmed.startsWith('##')) continue;
               const firstLineEnd = trimmed.indexOf('\n');
               const headerLine = firstLineEnd > 0 ? trimmed.substring(0, firstLineEnd) : trimmed;
-              const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\]—–-]+)?)\]?/);
+              const vMatch = headerLine.match(/^##\s*\[?([vV]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9.]+)?(?:[^\s\] - - -]+)?)\]?/);
               if (!vMatch) continue;
 
               const rawVersion = vMatch[1].trim();
@@ -678,7 +678,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
               let title = headerLine.replace(/^##\s*\[?[^\]]+\]?/, '').trim();
               if (date) title = title.replace(date, '').trim();
-              title = title.replace(/^[-—–:🚀 ]+/, '').trim();
+              title = title.replace(/^[-:\u2014\u2013🚀 ]+/, '').trim();
 
               const itemCodesSet = new Set<string>();
               const candidates = trimmed.match(/\b([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\b/g) || [];
@@ -772,7 +772,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
     const sprintTitle = args.sprintName || args.sprintId;
     const filePath = path.join(retrosDir, `${sprintKey}-retro.md`);
 
-    const mdContent = `# Retrospectiva — ${sprintTitle}
+    const mdContent = `# Retrospectiva - ${sprintTitle}
 
 **Fecha:** ${today}  
 **Sprint:** ${sprintTitle}  
