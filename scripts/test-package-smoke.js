@@ -10,6 +10,12 @@ const ROOT_DIR = path.resolve(process.cwd());
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-pack-test-'));
 
 try {
+  // Ensure dist/index.html is built if running standalone from a fresh git checkout
+  if (!fs.existsSync(path.join(ROOT_DIR, 'dist/index.html'))) {
+    console.log('🔨 dist/index.html no encontrado, ejecutando npm run build...');
+    execSync('npm run build', { cwd: ROOT_DIR, stdio: 'inherit' });
+  }
+
   // 1. Pack the current repository into the temporary directory
   console.log(`📦 Creando tarball con npm pack en ${tempDir}...`);
   const packOutput = execSync('npm pack --pack-destination ' + tempDir, {

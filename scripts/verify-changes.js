@@ -121,6 +121,19 @@ function checkYamlNoTabs(file, content) {
       fail(file, `Línea ${i + 1}: tabulación en la indentación`, 'En YAML la indentación es solo con espacios.');
     }
   });
+
+  if (file.replace(/\\/g, '/').endsWith('.github/workflows/ci.yml')) {
+    const verifyBlock = content.split(/^\s*ui-smoke:/m)[0] || content;
+    const buildIdx = verifyBlock.indexOf('run: npm run build');
+    const testIdx = verifyBlock.indexOf('run: npm test');
+    if (testIdx !== -1 && (buildIdx === -1 || buildIdx > testIdx)) {
+      fail(
+        file,
+        'En el job verify de ci.yml, "npm test" está antes que "npm run build"',
+        'En un checkout limpio de CI no existe dist/; npm run build debe ejecutarse antes de npm test.',
+      );
+    }
+  }
 }
 
 // --- 2. Dynamic import() must receive a file:// URL --------------------------

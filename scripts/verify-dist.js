@@ -25,6 +25,11 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-verify-dist-'));
 let tarballPath = null;
 
 try {
+  if (!fs.existsSync(path.join(ROOT, 'dist/index.html'))) {
+    console.log('🔨 dist/index.html no encontrado, ejecutando npm run build...');
+    execSync('npm run build', { cwd: ROOT, stdio: 'inherit' });
+  }
+
   // 1. Empaquetar
   const packOut = execSync(`npm pack --pack-destination "${tmp}" --json`, {
     cwd: ROOT,
