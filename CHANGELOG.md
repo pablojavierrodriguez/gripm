@@ -13,6 +13,19 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.6.1] - 2026-10-17 🛠️ Gobernanza de CI/CD en Pipeline de Publish y Compatibilidad macOS
+
+### 🎯 Resumen
+*Versión 1.6.1 de Gripm: incorporación del gate de verificación previa obligatoria en publish.yml asegurando que ningún paquete sea emitido a npm sin que la suite multi-plataforma de CI haya concluido exitosamente (DEV-298), y resolución de compatibilidad para entornos macOS excluyendo os.tmpdir() de la restricción de raíces de sistema en fsExplorer (DEV-317).*
+
+### 🛡️ Gobernanza de CI/CD y Calidad de Pipeline
+- **DEV-298 - Gate de verificación previa obligatoria en pipeline de publish a npm:** script de validación `scripts/verify-ci-status.js` integrado en `publish.yml` que consulta la API de GitHub Actions y verifica que todos los jobs de la suite de CI (matriz multi-OS de Windows, Linux y macOS, y smoke tests de navegador) hayan concluido con estado `success` antes de ejecutar `npm publish`, abortando de forma inmediata ante cualquier fallo.
+
+### 🍏 Compatibilidad de Sistema y Filesystem
+- **DEV-317 - Excepción de directorio temporal en isSystemRootDir para fsExplorer:** exclusión explícita de `os.tmpdir()` (`/var/folders/...` en macOS y `/var/tmp/` en Linux) en la verificación de directorios del sistema de `isSystemRootDir`, permitiendo la correcta creación y exploración de repositorios temporales y suites de prueba en plataformas Darwin.
+
+---
+
 ## [1.6.0] - 2026-10-16 🚀 Motor Unificado de Backlog, Parser Determinista, Blindaje de Seguridad y Concurrencia Optimista
 
 ### 🎯 Resumen

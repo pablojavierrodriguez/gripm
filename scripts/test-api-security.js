@@ -714,7 +714,12 @@ class MockRequest extends EventEmitter {
   await new Promise(r => resEscapeProject.once('finish', r));
   assert.strictEqual(resEscapeProject.statusCode, 400, 'POST /api/projects debe rechazar backlogDir con escape relativo ..');
 
-  console.log('✅ Blindaje Integral de Seguridad (DEV-302): IPv6 loopback, Gatekeeper hardened, ancestros symlink, pathname router y contención validados');
+  // DEV-317: isSystemRootDir does not flag paths in os.tmpdir() as system roots
+  const tempSubdir = path.join(os.tmpdir(), 'gripm-test-fixture-mac-safe');
+  assert.strictEqual(isSystemRootDir(tempSubdir), false, 'Subdirectorio en os.tmpdir() no debe considerarse raíz del sistema');
+  assert.strictEqual(isAllowedBrowsePath(tempSubdir), true, 'Subdirectorio en os.tmpdir() debe permitirse en isAllowedBrowsePath');
+
+  console.log('✅ Blindaje Integral de Seguridad (DEV-302, DEV-317): IPv6 loopback, Gatekeeper hardened, ancestros symlink, pathname router y contención validados');
 }
 
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');

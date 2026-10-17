@@ -3242,6 +3242,15 @@ function isSystemRootDir(targetPath) {
     const resolved = path6.resolve(targetPath);
     const parsed = path6.parse(resolved);
     if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
+    const tmp = os2.tmpdir();
+    if (tmp) {
+      if (isPathContained(resolved, path6.resolve(tmp))) return false;
+      try {
+        const realTmp = fs6.realpathSync(tmp);
+        if (realTmp && isPathContained(resolved, realTmp)) return false;
+      } catch {
+      }
+    }
     const lower = resolved.toLowerCase();
     const restrictedPrefixes = [
       "c:\\windows",

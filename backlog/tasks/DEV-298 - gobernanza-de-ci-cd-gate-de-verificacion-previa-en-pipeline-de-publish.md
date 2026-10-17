@@ -1,9 +1,9 @@
 ---
 id: DEV-298
 title: "Gobernanza de CI/CD: Gate de verificación previa obligatoria en pipeline de publish a npm"
-status: draft
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-17'
 labels:
   - "ci"
   - "cd"
@@ -37,10 +37,10 @@ Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) c
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
-- [ ] AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
-- [ ] AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
-- [ ] AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
+- [x] AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
+- [x] AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
+- [x] AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
+- [x] AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
 <!-- AC:END -->
 
 ## Notes

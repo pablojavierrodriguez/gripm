@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-16 por gripm
+> Consolidado generado el 2026-10-17 por gripm
 
 ## Resumen de Estados
 
@@ -85,7 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 📋 Backlog / Draft (23)
+### 📋 Backlog / Draft (28)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -581,32 +581,6 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 
 ---
 
-#### [DEV-298] Gobernanza de CI/CD: Gate de verificación previa obligatoria en pipeline de publish a npm
-- **Prioridad**: `p2` | **Tipo**: `tech_debt`
-
-Garantizar que el workflow de publicación en npm (`.github/workflows/publish.yml`) no emita ningún paquete al registro público sin que la suite integral de CI (`.github/workflows/ci.yml`, incluyendo la matriz multi-OS y los tests de navegador Playwright) haya finalizado exitosamente sobre el commit del release.
-
-### Diagnóstico del Defecto de Arquitectura:
-Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) corren en paralelo y de forma desacoplada:
-1. Al pushear el commit a `main`, se dispara `ci.yml`.
-2. Al pushear el tag `v*`, se dispara `publish.yml`.
-3. `publish.yml` ejecuta una pirámide local básica antes de publicar, pero **no incluye el smoke test de navegador de Playwright (`test:ui`) ni la matriz multiplataforma**.
-4. En caso de fallas que solo emergen en el smoke test o en runners de Windows/macOS, `publish.yml` publica el paquete a npm antes de que CI termine de detectar el problema, dejando a los usuarios con una versión inmutable defectuosa en npm.
-
-### Solución Técnica Propuesta:
-- **Validación de Check Suites en `publish.yml`:**
-  Antes de ejecutar `npm publish`, agregar un paso que consulte la API de GitHub (`gh api repos/:owner/:repo/commits/:sha/check-runs`) para certificar que todos los jobs de `ci.yml` asociados al commit taggeado estén en estado `completed` con conclusión `success`.
-- **Manejo de Reintentos / Espera:**
-  Si los checks de CI aún están `in_progress`, esperar con timeout configurable o utilizar el evento `workflow_run` para encadenar la publicación únicamente tras el éxito garantizado de CI en `main`.
-
-**Criterios de Aceptación:**
-- [ ] #1 AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
-- [ ] #2 AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
-- [ ] #3 AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
-- [ ] #4 AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
-
----
-
 #### [DEV-305] Ergonomía de Interacción: A11y Universal, Portales, Stack de Modales y Migración Completa a i18n
 - **Prioridad**: `medium` | **Tipo**: `ux`
 
@@ -780,7 +754,118 @@ Garantizar la soberanía, aislamiento y privacidad de proyectos locales configur
 
 ---
 
-### ✅ Done / Deployed (276)
+#### [DEV-311] Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `server/services/backlogService.ts`, haciendo que el router REST delegue el 100% de las mutaciones de tareas en `BacklogService` (`createTask`, `updateTask`, `bulkUpdateTasks`, `deleteTask`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Reimplementación de Mutaciones en el Router:**
+   Actualmente, `server/routes/api.ts` (1,457 líneas) manipula y muta directamente las entidades en memoria en `POST /api/items` (líneas 181-264), `POST /api/items/bulk` (líneas 267-352) y `PUT /api/items/:id` (líneas 355-452), llamando luego a la función de bajo nivel `saveBacklogMdItem` (`BacklogService.saveTask`) en vez de delegar en los métodos canónicos de dominio de `BacklogService`.
+   
+2. **Divergencias entre MCP y HTTP:**
+   - La asignación de IDs correlativos en `api.ts` usa una expresión regular distinta (`^${cleanPrefix}[-_]+(\\d+)`) a la de `BacklogService.createTask` (`^${cleanPrefix}-(\\d+)`).
+   - Las validaciones del Gatekeeper (`validateGatekeeperTransition`) corren en el MCP pero se omiten en el controlador REST de `PUT /api/items/:id`.
+   - Dentro de `BacklogService.updateTask`, el parseo y extracción de campos (`effectiveStatus`, `effectiveTitle`, etc.) se encuentra duplicado entre la rama de almacenamiento Markdown y la rama JSON.
+
+### Solución Técnica:
+
+- Hacer que `POST /api/items` invoque directamente `BacklogService.createTask(project, body)`.
+- Hacer que `PUT /api/items/:id` invoque `BacklogService.updateTask(project, id, body, { force: body.force, expectedMtime: body.expectedMtime })`.
+- Hacer que `POST /api/items/bulk` invoque `BacklogService.bulkUpdateTasks(project, { taskIds, filterPrefix, filterStatus }, updates)`.
+- Unificar la extracción y normalización de campos dentro de `BacklogService.updateTask` antes de bifurcar el almacenamiento en disco (`markdown` vs `json`).
+
+**Criterios de Aceptación:**
+- [ ] #1 `POST /api/items` delega la creación en `BacklogService.createTask` garantizando paridad de validación con MCP
+- [ ] #2 `PUT /api/items/:id` delega la actualización en `BacklogService.updateTask` preservando la detección de conflictos `409` por `expectedMtime`
+- [ ] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
+- [ ] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
+- [ ] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
+
+---
+
+#### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `@gripm/playbook` v2.3.0 (`.agents/STATE_MACHINE.md`), incorporando `blocked` (junto con el metadato obligatorio `blocked_reason`) y formalizando `dismissed` en el parser Markdown, el servidor MCP y la interfaz visual.
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Degradación Silenciosa de `blocked` a `draft`:**
+   En `scripts/backlogMdParser.ts`, el tipo `CanonicalStatus` omite `blocked`. En la función `normalizeStatus`, cualquier tarea con `status: blocked` cae en la rama `default: return 'draft'`. Si un agente o usuario marca una tarea como bloqueada conforme a la metodología Playbook, Gripm Board destruye el estado al leer o guardar el archivo.
+   
+2. **Falta del Campo `blocked_reason` y `dismissed_reason`:**
+   La máquina de estados del Playbook establece que `blocked` exige un motivo no vacío (`blocked_reason`) para evitar la inflación de WIP, y que `dismissed` exige `dismissed_reason`. Actualmente, `BacklogMdTask` y `BacklogItem` no modelan estos campos como propiedades formales de primer nivel.
+
+3. **Inconsistencia de `cancelled`:**
+   `CanonicalStatus` declara `'cancelled'` en su tipo unión, pero `normalizeStatus('cancelled')` devuelve `'dismissed'`, generando ambigüedad entre el tipado estático y el runtime.
+
+### Solución Técnica:
+
+- Incorporar `'blocked'` en `CanonicalStatus` (`scripts/backlogMdParser.ts`) y en `ItemStatus` (`src/types.ts`).
+- Actualizar `normalizeStatus` para que devuelva `'blocked'` cuando reciba `'blocked'` o `'impediment'`.
+- Añadir `blockedReason` y `dismissedReason` al modelo de datos de tareas y mapearlo en frontmatter (`blocked_reason` / `dismissed_reason`).
+- Integrar la columna / badge visual de tareas bloqueadas en `KanbanBoard` e `ItemCard`, y el campo de motivo en `ItemModal`.
+
+**Criterios de Aceptación:**
+- [ ] #1 `CanonicalStatus` e `ItemStatus` incluyen `'blocked'` como valor válido de primera clase
+- [ ] #2 `normalizeStatus('blocked')` devuelve `'blocked'` y nunca se degrada a `'draft'`
+- [ ] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
+- [ ] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
+- [ ] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
+
+---
+
+#### [DEV-313] Escalabilidad de I/O en disco: Cache incremental en memoria por mtime en BacklogService
+- **Prioridad**: `medium` | **Tipo**: `enhancement`
+**Criterios de Aceptación:**
+- [ ] #1 Implementar un mapa de caché en memoria dentro de `BacklogService` que almacene la tarea parseada, su ruta y su `mtimeMs`.
+- [ ] #2 En lecturas consecutivas sin cambios en disco, `getAllTasks` reutiliza los objetos cacheados sin invocar `fs.readFileSync` ni re-parsear YAML.
+- [ ] #3 Si un archivo `.md` es modificado externamente (por el usuario o un editor), la caché detecta el cambio en `mtimeMs` e invalida/re-lee únicamente dicho archivo.
+- [ ] #4 Si se eliminan archivos de `backlog/tasks/`, la caché remueve los ítems correspondientes.
+- [ ] #5 Operaciones de mutación internas (`saveTask`, `deleteTask`) actualizan atómicamente la entrada en caché y la metadata en memoria.
+- [ ] #6 Incorporar tests unitarios e integrados que certifiquen el comportamiento de la caché con archivos nuevos, modificados y eliminados.
+- [ ] #7 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
+
+---
+
+#### [DEV-314] Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas
+- **Prioridad**: `high` | **Tipo**: `enhancement`
+**Criterios de Aceptación:**
+- [ ] #1 Implementar un módulo utilitario de lockfile atómico (`src/server/utils/fs-lock.ts` o equivalente) con soporte de timeout y liberación garantizada en `finally`.
+- [ ] #2 La función de generación de próximo ID correlativo adquiere el lock antes de inspeccionar IDs y lo libera una vez creado el archivo en disco.
+- [ ] #3 Las mutaciones en `releases.json` y `retrospectives.json` están protegidas por locks atómicos por archivo durante la lectura y escritura.
+- [ ] #4 Manejo defensivo de stale locks huérfanos con verificación de timestamp de expiración (e.g. 5000ms de gracia máxima).
+- [ ] #5 Pruebas unitarias que simulen concurrencia entre dos operaciones simultáneas de creación de tarea demostrando que se asignan IDs consecutivos sin colisión ni error no controlado.
+- [ ] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
+
+---
+
+#### [DEV-315] Modularizacion de App.tsx en hooks de dominio y reduccion de deuda en audit-ux-baseline
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+**Criterios de Aceptación:**
+- [ ] #1 Extraer la lógica de fetching, mutación optimista y polling a hooks especializados en `src/hooks/` (e.g. `useBacklogData`).
+- [ ] #2 Extraer la gestión de atajos de teclado y modales a hooks desacoplados.
+- [ ] #3 Reducir la complejidad ciclomática y longitud de `src/App.tsx` a menos de 300 líneas.
+- [ ] #4 Auditar y corregir las excepciones de UI listadas en `tests/audit-ux-baseline.json`.
+- [ ] #5 Verificar que no se introducen regresiones funcionales ni visuales en la navegación, atajos ni modales.
+- [ ] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run test:ui`) pasa con 0 errores.
+
+---
+
+#### [DEV-316] Erradicacion de remanentes anti-em-dash en generadores automaticos y documentacion de arquitectura
+- **Prioridad**: `low` | **Tipo**: `debt`
+**Criterios de Aceptación:**
+- [ ] #1 Escanear el repositorio en busca de caracteres `\u2014` (em-dash) y `\u2013` (en-dash) en código, plantillas y documentación Markdown.
+- [ ] #2 Reemplazar todos los hallazgos por el guión estándar ` - ` con espacios o el guión simple `-`.
+- [ ] #3 Incorporar una verificación mecánica en `scripts/verify-changes.js` que falle si algún archivo stageado contiene em-dash o en-dash.
+- [ ] #4 Verificar que `npm run backlog:sync` y los generadores de releases y tareas no generen guiones largos bajo ninguna circunstancia.
+- [ ] #5 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `node scripts/verify-changes.js --all`) pasa con 0 errores.
+
+---
+
+### ✅ Done / Deployed (278)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -7172,6 +7257,32 @@ node bin/gripm.js --repo . mcp
 
 ---
 
+#### [DEV-298] Gobernanza de CI/CD: Gate de verificación previa obligatoria en pipeline de publish a npm
+- **Prioridad**: `p2` | **Tipo**: `tech_debt`
+
+Garantizar que el workflow de publicación en npm (`.github/workflows/publish.yml`) no emita ningún paquete al registro público sin que la suite integral de CI (`.github/workflows/ci.yml`, incluyendo la matriz multi-OS y los tests de navegador Playwright) haya finalizado exitosamente sobre el commit del release.
+
+### Diagnóstico del Defecto de Arquitectura:
+Actualmente, el pipeline de CI (`ci.yml`) y el de publicación (`publish.yml`) corren en paralelo y de forma desacoplada:
+1. Al pushear el commit a `main`, se dispara `ci.yml`.
+2. Al pushear el tag `v*`, se dispara `publish.yml`.
+3. `publish.yml` ejecuta una pirámide local básica antes de publicar, pero **no incluye el smoke test de navegador de Playwright (`test:ui`) ni la matriz multiplataforma**.
+4. En caso de fallas que solo emergen en el smoke test o en runners de Windows/macOS, `publish.yml` publica el paquete a npm antes de que CI termine de detectar el problema, dejando a los usuarios con una versión inmutable defectuosa en npm.
+
+### Solución Técnica Propuesta:
+- **Validación de Check Suites en `publish.yml`:**
+  Antes de ejecutar `npm publish`, agregar un paso que consulte la API de GitHub (`gh api repos/:owner/:repo/commits/:sha/check-runs`) para certificar que todos los jobs de `ci.yml` asociados al commit taggeado estén en estado `completed` con conclusión `success`.
+- **Manejo de Reintentos / Espera:**
+  Si los checks de CI aún están `in_progress`, esperar con timeout configurable o utilizar el evento `workflow_run` para encadenar la publicación únicamente tras el éxito garantizado de CI en `main`.
+
+**Criterios de Aceptación:**
+- [x] #1 AC #1: `publish.yml` verifica que el commit asociado al tag tenga todos los check runs de `ci.yml` aprobados (`conclusion: success`) antes de invocar `npm publish`.
+- [x] #2 AC #2: Si algún check de CI falla, `publish.yml` aborta inmediatamente con error descriptivo y no publica el paquete en npm.
+- [x] #3 AC #3: Si los checks de CI están en curso, `publish.yml` aguarda su finalización hasta un límite de tiempo razonable antes de proceder o abortar.
+- [x] #4 AC #4: El mecanismo soporta tanto la publicación por push de tag `v*` como por `workflow_dispatch`.
+
+---
+
 #### [DEV-299] Arquitectura de Persistencia: Motor Unificado de Backlog (BacklogService) y Erradicación de Duplicación
 - **Prioridad**: `urgent` | **Tipo**: `architecture`
 
@@ -7461,6 +7572,27 @@ Unificación bilingüe en un solo archivo (inglés primero, español debajo) par
 - [x] #2 `CONTRIBUTING.md` unifica en un solo archivo la guía de contribución completa en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
 - [x] #3 `SECURITY.md` unifica en un solo archivo la política de seguridad y modelo de amenazas en inglés arriba y la versión en español existente debajo, con selector de anclaje bilingüe.
 - [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js`).
+
+---
+
+#### [DEV-317] Compatibilidad macOS: Excepción de directorio temporal en isSystemRootDir para fsExplorer
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En sistemas operativos basados en Darwin/macOS, la ruta de directorios temporales asignada por el sistema (`os.tmpdir()`) se ubica bajo `/var/folders/...`, y en ciertas distribuciones Linux bajo `/var/tmp/`.
+
+En la implementación de `server/services/fsExplorer.ts`, la función de protección `isSystemRootDir` bloqueaba preventivamente cualquier ruta que comience con `/var`, catalogándola erróneamente como directorio raíz del sistema (`isSystemRootDir` -> `true`).
+
+Esto causaba que cualquier fixture de prueba o proyecto temporal creado dentro de `os.tmpdir()` fuera bloqueado con `403 Forbidden` en endpoints como `POST /api/projects`, provocando fallos sistemáticos en runners de CI sobre `macos-latest` (por ejemplo en `scripts/verify-optimistic-locking.js`).
+
+### Solución Implementada:
+- Incorporada una verificación explícita en `isSystemRootDir` que excluye del bloqueo de raíces de sistema cualquier ruta contenida dentro de `os.tmpdir()` (y su correspondiente `fs.realpathSync(os.tmpdir())`).
+- Preservado el bloqueo estricto de `/var`, `/etc`, `/usr`, `C:\Windows` y demás rutas protegidas del sistema operativo.
+
+**Criterios de Aceptación:**
+- [x] #1 AC #1: `isSystemRootDir` devuelve `false` para cualquier subdirectorio contenido dentro de `os.tmpdir()` tanto en Windows como en macOS y Linux.
+- [x] #2 AC #2: `isAllowedBrowsePath` autoriza la exploración y registro de repositorios temporales creados en `os.tmpdir()` (`POST /api/projects`).
+- [x] #3 AC #3: Rutas reales del sistema operativo (`/etc`, `/var`, `/usr`, `C:\Windows`) continúan estrictamente bloqueadas con `403 Forbidden`.
+- [x] #4 AC #4: La suite de pruebas de seguridad y concurrencia optimista pasa sin errores en todas las plataformas (`node scripts/test-api-security.js` y `node scripts/verify-optimistic-locking.js`).
 
 ---
 

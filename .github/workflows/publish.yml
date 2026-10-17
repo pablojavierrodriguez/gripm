@@ -48,6 +48,7 @@ jobs:
       # OIDC: obligatorio para que npm pueda verificar la identidad del workflow
       # y emitir la attestation de provenance (DEV-182).
       id-token: write
+      checks: read
 
     steps:
       - name: Checkout repository
@@ -147,6 +148,16 @@ jobs:
 
       - name: Dry-run the package
         run: npm pack --dry-run
+
+      # ─── GATE DE GOBERNANZA DE CI PREVIO A PUBLICAR (DEV-298) ───
+      - name: Verify CI checks passed on commit (DEV-298)
+        if: steps.already.outputs.already_published != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          node scripts/verify-ci-status.js --sha "$COMMIT_SHA" --timeout 1200
 
       # ─── PUBLICACION EN NPM CON PROVENANCE (DEV-221) ───
       - name: Publish to npm with provenance

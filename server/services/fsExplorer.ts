@@ -49,6 +49,18 @@ export function isSystemRootDir(targetPath: string): boolean {
     const resolved = path.resolve(targetPath);
     const parsed = path.parse(resolved);
     if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
+
+    // DEV-317: Temporary directory exception for macOS (/var/folders/...) and Linux (/var/tmp/...)
+    // Paths inside os.tmpdir() are isolated scratch/test spaces and must never be treated as system roots.
+    const tmp = os.tmpdir();
+    if (tmp) {
+      if (isPathContained(resolved, path.resolve(tmp))) return false;
+      try {
+        const realTmp = fs.realpathSync(tmp);
+        if (realTmp && isPathContained(resolved, realTmp)) return false;
+      } catch {}
+    }
+
     const lower = resolved.toLowerCase();
     const restrictedPrefixes = [
       'c:\\windows', 'c:\\program files', 'c:\\program files (x86)',
