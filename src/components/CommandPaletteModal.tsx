@@ -550,7 +550,7 @@ export const CommandPaletteModal: FC<CommandPaletteModalProps> = ({
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="flex-1 bg-transparent border-none text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:ring-0 px-0 min-w-0"
+            className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-0 px-0 min-w-0"
           />
 
           {query && (
@@ -562,15 +562,21 @@ export const CommandPaletteModal: FC<CommandPaletteModalProps> = ({
               }}
               aria-label={t('palette.clearSearch')}
               title={t('palette.clearSearch')}
-              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/[0.06] transition-colors mr-1 min-w-[28px] min-h-[28px] flex items-center justify-center"
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-colors mr-1.5 flex items-center justify-center"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
 
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-xs font-mono font-semibold rounded bg-white dark:bg-white/[0.08] border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 shadow-2xs shrink-0 ml-1">
-            Esc
-          </kbd>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('palette.footerClose')}
+            title={`${t('palette.footerClose')} (Esc)`}
+            className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shrink-0 ml-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Results Listbox */}
