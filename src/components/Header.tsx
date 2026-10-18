@@ -21,6 +21,7 @@ import {
   Sparkles,
   Globe,
   Keyboard,
+  Command,
   Calendar,
   BarChart2
 } from 'lucide-react';
@@ -48,6 +49,7 @@ interface HeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   onOpenShortcuts?: () => void;
+  onOpenCommandPalette?: () => void;
   onConvertToMd?: (projectId: string) => void;
   onConvertToJson?: (projectId: string) => void;
   onOpenImportWizard?: () => void;
@@ -74,6 +76,7 @@ export const Header: FC<HeaderProps> = ({
   isDarkMode,
   onToggleTheme,
   onOpenShortcuts,
+  onOpenCommandPalette,
   onDeleteProject,
   onRestoreDemo,
   onConvertToMd,
@@ -135,7 +138,7 @@ export const Header: FC<HeaderProps> = ({
   return (
     <>
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#090d15]/85 backdrop-blur-md transition-colors pt-[env(safe-area-inset-top,0px)]">
-        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2.5 sm:gap-4">
+        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           
           {/* Left: Brand + Project Selector */}
           <div className="flex items-center gap-2.5 sm:gap-4 shrink-0 min-w-0 max-w-xs xl:max-w-md">
@@ -159,7 +162,7 @@ export const Header: FC<HeaderProps> = ({
             {singleProject ? (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-200 min-w-0 max-w-full">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="font-semibold text-slate-800 dark:text-slate-100 max-w-[100px] xl:max-w-[170px] truncate">
+                <span className="font-semibold text-slate-800 dark:text-slate-100 max-w-[100px] lg:max-w-[130px] xl:max-w-[155px] truncate">
                   {currentProject?.name || currentProjectName}
                 </span>
                 {currentProject && (
@@ -168,12 +171,12 @@ export const Header: FC<HeaderProps> = ({
                   // "Demo" ya era lo correcto en los dos casos: sandbox no se distingue por
                   // el badge, se distingue por el indicador de live y por el reset, que son
                   // las señales que de verdad importan.
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+                  <span className="px-1.5 py-0.5 rounded text-xs font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
                     {isSandbox || currentProject.isDemo ? 'Demo' : 'Local'}
                   </span>
                 )}
                 {currentProject && !currentProject.isDemo && currentProject.storageType && (
-                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-semibold ${
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-mono uppercase font-semibold ${
                     currentProject.storageType === 'markdown'
                       ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                       : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -204,9 +207,9 @@ export const Header: FC<HeaderProps> = ({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="max-w-[110px] xl:max-w-[170px] truncate">{currentProjectName}</span>
+                <span className="max-w-[100px] lg:max-w-[130px] xl:max-w-[155px] truncate">{currentProjectName}</span>
                 {currentProject && !currentProject.isDemo && (
-                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-semibold ${
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-mono uppercase font-semibold ${
                     currentProject.storageType === 'markdown'
                       ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                       : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -244,11 +247,11 @@ export const Header: FC<HeaderProps> = ({
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium truncate">{p.name}</span>
                               {p.isDemo ? (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 font-mono">
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 font-mono">
                                   Demo
                                 </span>
                               ) : (
-                                <span className={`px-1 py-0.2 rounded text-[9px] font-mono font-semibold ${
+                                <span className={`px-1 py-0.5 rounded text-xs font-mono font-semibold ${
                                   p.storageType === 'markdown'
                                     ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                                     : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -373,70 +376,70 @@ export const Header: FC<HeaderProps> = ({
             {isKanbanEnabled && (
               <button
                 onClick={() => onSelectTab('kanban')}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[70px] lg:min-w-[74px] xl:min-w-[78px] rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeTab === 'kanban'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <Kanban className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('header.kanban')}</span>
+                <span className="whitespace-nowrap">{t('header.kanban')}</span>
               </button>
             )}
 
             {isSprintEnabled && (
               <button
                 onClick={() => onSelectTab('sprint')}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[70px] lg:min-w-[74px] xl:min-w-[78px] rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeTab === 'sprint'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <Target className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('header.sprints')}</span>
+                <span className="whitespace-nowrap">{t('header.sprints')}</span>
               </button>
             )}
 
             {isReleaseEnabled && (
               <button
                 onClick={() => onSelectTab('release')}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[70px] lg:min-w-[74px] xl:min-w-[78px] rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeTab === 'release'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <Rocket className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('header.releases')}</span>
+                <span className="whitespace-nowrap">{t('header.releases')}</span>
               </button>
             )}
 
             {isTimelineEnabled && (
               <button
                 onClick={() => onSelectTab('timeline')}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[70px] lg:min-w-[74px] xl:min-w-[78px] rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeTab === 'timeline'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <Calendar className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('header.timeline') || 'Roadmap'}</span>
+                <span className="whitespace-nowrap">{t('header.timeline') || 'Roadmap'}</span>
               </button>
             )}
 
             {isMetricsEnabled && (
               <button
                 onClick={() => onSelectTab('metrics')}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 min-w-[76px] lg:min-w-[82px] xl:min-w-[88px] rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[70px] lg:min-w-[74px] xl:min-w-[78px] rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeTab === 'metrics'
                     ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 <BarChart2 className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('header.metrics')}</span>
+                <span className="whitespace-nowrap">{t('header.metrics')}</span>
               </button>
             )}
           </nav>
@@ -453,7 +456,7 @@ export const Header: FC<HeaderProps> = ({
                 className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-medium transition-all group shadow-xs shrink-0"
               >
                 <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse group-hover:rotate-12 transition-transform shrink-0" />
-                <span className="font-mono text-[11px] font-semibold">v{updateAvailable.latestVersion}</span>
+                <span className="font-mono text-xs font-semibold whitespace-nowrap">v{updateAvailable.latestVersion}</span>
               </a>
             )}
 
@@ -509,6 +512,16 @@ export const Header: FC<HeaderProps> = ({
             >
               <Globe className="w-3.5 h-3.5 text-indigo-500" />
               <span className="font-mono text-[10px] font-bold tracking-wider">{language.toUpperCase()}</span>
+            </button>
+
+            {/* Command Palette Button (DEV-255) */}
+            <button
+              onClick={onOpenCommandPalette}
+              title={`${t('palette.title')} (⌘K)`}
+              aria-label={t('palette.title')}
+              className="hidden sm:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+            >
+              <Command className="w-3.5 h-3.5" />
             </button>
 
             {/* Keyboard Shortcuts Button */}
@@ -712,6 +725,17 @@ export const Header: FC<HeaderProps> = ({
                 >
                   <Settings className="w-4 h-4 text-indigo-500" />
                   <span>{t('settings.title')}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenCommandPalette?.();
+                  }}
+                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+                >
+                  <Command className="w-4 h-4 text-indigo-500" />
+                  <span>{t('palette.title')}</span>
                 </button>
 
                 <button

@@ -227,7 +227,7 @@ export const MetricsView: FC<MetricsViewProps> = ({
   }, [releases, activeItems]);
 
   return (
-    <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6 flex-1 flex flex-col min-h-0 space-y-6">
+    <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-4 sm:py-5 flex-1 flex flex-col min-h-0 space-y-4 sm:space-y-5">
       {/* Top Header & Scope Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
         <div className="flex items-center gap-3">

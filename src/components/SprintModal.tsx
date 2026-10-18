@@ -134,9 +134,10 @@ export const SprintModal: React.FC<SprintModalProps> = ({
       maxWidth="max-w-lg"
       align="center"
       showMobileHandle={false}
+      className="max-h-[90vh] flex flex-col"
     >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.06]">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-white/[0.06] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               <Sparkles className="w-5 h-5" />
@@ -161,8 +162,9 @@ export const SprintModal: React.FC<SprintModalProps> = ({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          {error && (
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
+            {error && (
             <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 text-xs">
               {error}
             </div>
@@ -256,9 +258,10 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               />
             </div>
           </div>
+          </div>
 
           {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
+          <div className="flex items-center justify-end gap-2.5 px-6 py-3 border-t border-slate-100 dark:border-white/[0.06] shrink-0 bg-slate-50/50 dark:bg-white/[0.02]">
             <button
               type="button"
               onClick={onClose}

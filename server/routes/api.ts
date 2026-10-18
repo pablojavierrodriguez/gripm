@@ -9,29 +9,21 @@ import {
   getProjectDocsPath,
   detectProjectStorage,
   isBacklogMdProject,
-  getBacklogTasksDir,
   PKG_ROOT
 } from '../services/registry.ts';
 import {
   readProjectBacklog,
   writeProjectBacklog,
-  saveBacklogMdItem,
-  findBacklogMdFile,
-  softDeleteBacklogMdItem,
-  restoreBacklogMdItem,
-  purgeBacklogMdItem,
   parseReleaseNotesMd
 } from '../services/storage.ts';
+import { BacklogService, ConflictError } from '../services/backlogService.ts';
 import { isAllowedBrowsePath, getSafeInitialBrowseDir } from '../services/fsExplorer.ts';
 import { atomicWriteFileSync } from '../services/atomicWrite.ts';
 import { broadcastSse } from '../sse/sseManager.ts';
 import { getBody, sendJson } from '../middleware/security.ts';
 import { runMigration } from '../../scripts/import-docs.js';
 import {
-  generateMonolithicBacklogMd,
-  normalizeStatus,
-  normalizePriority,
-  type BacklogMdTask
+  normalizePriority
 } from '../../scripts/backlogMdParser.ts';
 import { parseLegacyMarkdown, type ParsedLegacyItem } from '../../src/utils/legacyParser.ts';
 import { resolveProjectIdentity } from '../../scripts/registryConfig.js';
@@ -196,93 +188,25 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
     // POST /api/items
     if (req.method === 'POST' && pathname === '/api/items') {
       const body = await getBody(req, res);
-      const now = new Date().toISOString();
-
       const project = registry.projects.find(p => p.id === (body.projectId || registry.projects[0]?.id)) || registry.projects[0];
       if (!project) return sendJson(res, 400, { error: 'No active project found' });
 
-      const backlog = readProjectBacklog(project);
-      const cleanPrefix = (project.codePrefix || 'ITEM').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'ITEM';
-
-      let code = body.code;
-      if (!code) {
-        let maxNum = 0;
-        const regex = new RegExp(`^${cleanPrefix}[-_]+(\\d+)`, 'i');
-        for (const t of backlog.items) {
-          const m = (t.code || t.id || '').match(regex);
-          if (m) {
-            const n = parseInt(m[1], 10);
-            if (!isNaN(n) && n > maxNum) maxNum = n;
-          }
-        }
-        if (isBacklogMdProject(project)) {
-          const tasksDir = getBacklogTasksDir(project);
-          if (fs.existsSync(tasksDir)) {
-            const diskFiles = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
-            for (const f of diskFiles) {
-              const m = f.match(regex);
-              if (m) {
-                const n = parseInt(m[1], 10);
-                if (!isNaN(n) && n > maxNum) maxNum = n;
-              }
-            }
-          }
-        }
-        const nextNum = maxNum > 0 ? maxNum + 1 : backlog.items.length + 1;
-        code = `${cleanPrefix}-${String(nextNum).padStart(3, '0')}`;
+      try {
+        const result = BacklogService.createTask(project, body);
+        return sendJson(res, 201, {
+          ok: true,
+          item: result.task,
+          task: result.task,
+          savedFile: result.savedFile
+        });
+      } catch (err: any) {
+        return sendJson(res, 400, { error: err.message || 'Failed to create task' });
       }
-
-      const normalizedSt = normalizeStatus(body.status || 'draft');
-      const newItem = {
-        id: isBacklogMdProject(project)
-          ? code
-          : (body.id || `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
-        code,
-        projectId: project.id,
-        title: body.title || 'Sin título',
-        description: body.description || '',
-        type: body.type || 'feature',
-        priority: normalizePriority(body.priority),
-        status: normalizedSt,
-        module: body.module || undefined,
-        impactedFile: body.impactedFile || undefined,
-        risk: body.risk || undefined,
-        sprint: body.sprint || body.targetSprint || undefined,
-        release: body.release || body.targetRelease || undefined,
-        targetSprint: body.sprint || body.targetSprint || undefined,
-        targetRelease: body.release || body.targetRelease || undefined,
-        milestone: body.release || body.targetRelease || body.milestone || undefined,
-        parentId: body.parentId || undefined,
-        blocks: Array.isArray(body.blocks) ? body.blocks : [],
-        blockedBy: Array.isArray(body.blockedBy) ? body.blockedBy : [],
-        relatedTo: Array.isArray(body.relatedTo) ? body.relatedTo : [],
-        acceptanceCriteriaList: body.acceptanceCriteriaList || [],
-        implementationPlan: body.implementationPlan || '',
-        assignees: body.assignees || [],
-        labels: body.labels || [],
-        estimate: body.estimate !== undefined && body.estimate !== '' ? body.estimate : undefined,
-        sourceDoc: body.sourceDoc || undefined,
-        order: body.order ?? backlog.items.length + 1,
-        createdAt: now,
-        updatedAt: now,
-        completedAt: normalizedSt === 'done' ? now : undefined,
-        releasedAt: body.releasedAt || undefined
-      };
-
-      if (isBacklogMdProject(project)) {
-        saveBacklogMdItem(project, newItem);
-      } else {
-        backlog.items.push(newItem);
-        writeProjectBacklog(project, backlog);
-      }
-
-      return sendJson(res, 201, { ok: true, item: newItem });
     }
 
-    // POST /api/items/bulk (DEV-301: Atomic batch updates for bulk operations, sprint completion, reordering)
+    // POST /api/items/bulk (DEV-301 & DEV-311: Atomic batch updates delegated to BacklogService)
     if (req.method === 'POST' && pathname === '/api/items/bulk') {
       const body = await getBody(req, res);
-      const itemsToUpdate = Array.isArray(body.items) ? body.items : [];
       const explicitProjectId = body.projectId || searchParams.get('projectId');
       const targetProject = explicitProjectId
         ? registry.projects.find(p => p.id === explicitProjectId)
@@ -292,86 +216,35 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         return sendJson(res, 400, { error: 'No active project found for bulk update' });
       }
 
-      let updatedCount = 0;
-      const now = new Date().toISOString();
-      const backlog = readProjectBacklog(targetProject);
-
-      for (const patch of itemsToUpdate) {
-        if (!patch || (!patch.id && !patch.code)) continue;
-        const targetId = patch.code || patch.id;
-        const idx = backlog.items.findIndex(it => it.id === targetId || it.code === targetId);
-        if (idx !== -1) {
-          const existing = backlog.items[idx];
-          const newNormalizedStatus = patch.status ? normalizeStatus(patch.status) : existing.status;
-          const wasDone = existing.status === 'done';
-          const isNowDone = newNormalizedStatus === 'done';
-
-          const updatedItem = {
-            ...existing,
-            ...patch,
-            id: existing.id,
-            code: existing.code,
-            status: newNormalizedStatus,
-            priority: patch.priority ? normalizePriority(patch.priority) : existing.priority,
-            updatedAt: now,
-            completedAt: isNowDone && !wasDone ? now : (isNowDone ? existing.completedAt : undefined)
-          };
-
-          if (patch.sprint !== undefined) {
-            updatedItem.sprint = patch.sprint || undefined;
-            updatedItem.targetSprint = patch.sprint || undefined;
-            if (!patch.sprint && updatedItem.milestone && updatedItem.milestone.toLowerCase().includes('sprint')) {
-              updatedItem.milestone = undefined;
-            }
-            if (patch.sprint) {
-              updatedItem.sprints = Array.from(new Set([...(updatedItem.sprints || []), patch.sprint]));
-            } else {
-              updatedItem.sprints = [];
-            }
-          }
-          if (patch.sprints !== undefined) {
-            updatedItem.sprints = patch.sprints;
-          }
-          if (patch.release !== undefined || patch.targetRelease !== undefined || patch.milestone !== undefined || patch.releases !== undefined) {
-            const rVal = (patch.release || patch.targetRelease || patch.milestone || (patch.releases && patch.releases.length > 0 ? patch.releases[0] : '') || '').trim();
-            const relArr = Array.isArray(patch.releases) ? patch.releases.filter(Boolean) : (rVal ? [rVal] : []);
-            updatedItem.release = rVal || undefined;
-            updatedItem.targetRelease = rVal || undefined;
-            updatedItem.milestone = rVal || undefined;
-            updatedItem.releases = relArr;
-          }
-          if (patch.estimate !== undefined) {
-            updatedItem.estimate = (patch.estimate === '' || patch.estimate === null) ? undefined : patch.estimate;
-          }
-
-          if (isBacklogMdProject(targetProject)) {
-            saveBacklogMdItem(targetProject, updatedItem);
-          } else {
-            backlog.items[idx] = updatedItem;
-          }
-          updatedCount++;
-        }
-      }
-
-      if (!isBacklogMdProject(targetProject)) {
-        writeProjectBacklog(targetProject, backlog);
-      }
+      const targetFilter = {
+        taskIds: body.taskIds,
+        filterPrefix: body.filterPrefix,
+        filterStatus: body.filterStatus,
+        items: body.items
+      };
+      const updates = body.updates || body;
+      const result = BacklogService.bulkUpdateTasks(targetProject, targetFilter, updates, { force: body.force });
 
       broadcastSse('backlog_changed', {
         projectId: targetProject.id,
         action: 'bulk_updated',
-        count: updatedCount,
+        count: result.updatedCount,
         timestamp: Date.now()
       });
 
-      return sendJson(res, 200, { ok: true, updatedCount });
+      return sendJson(res, 200, {
+        ok: result.ok,
+        updatedCount: result.updatedCount,
+        count: result.updatedCount,
+        updatedIds: result.updatedIds,
+        failedUpdates: result.failedUpdates
+      });
     }
 
     // PUT /api/items/:id
     if (req.method === 'PUT' && pathname.startsWith('/api/items/')) {
       const id = decodeURIComponent(pathname.replace('/api/items/', ''));
       const body = await getBody(req, res);
-      const now = new Date().toISOString();
 
       const explicitProjectId = body?.projectId || searchParams.get('projectId');
       const candidateProjects = explicitProjectId
@@ -382,85 +255,36 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           ].filter(Boolean) as ProjectMeta[];
 
       for (const p of candidateProjects) {
-        const backlog = readProjectBacklog(p);
-        const index = backlog.items.findIndex(i => i.id === id || i.code === id);
-        if (index !== -1) {
-          const existing = backlog.items[index];
-
-          // DEV-017 & DEV-301: Optimistic Concurrency Check (ETag / Mtime)
-          if (!body.force && typeof body.expectedMtime === 'number' && typeof existing.mtime === 'number') {
-            if (existing.mtime > body.expectedMtime) {
-              return sendJson(res, 409, {
-                error: 'conflict',
-                message: `La tarea "${existing.code}" fue modificada en disco por otro proceso o agente.`,
-                currentMtime: existing.mtime,
-                currentItem: existing
-              });
-            }
+        try {
+          const result = BacklogService.updateTask(p, id, body, {
+            force: body?.force,
+            expectedMtime: body?.expectedMtime
+          });
+          if (result.ok) {
+            return sendJson(res, 200, {
+              ok: true,
+              item: result.updatedTask,
+              updatedTask: result.updatedTask,
+              warning: result.warning,
+              audit: result.audit
+            });
           }
-
-          const newNormalizedStatus = body.status ? normalizeStatus(body.status) : existing.status;
-          const wasDone = existing.status === 'done';
-          const isNowDone = newNormalizedStatus === 'done';
-
-          const updatedItem = {
-            ...existing,
-            ...body,
-            id: existing.id,
-            code: existing.code,
-            status: newNormalizedStatus,
-            priority: body.priority ? normalizePriority(body.priority) : existing.priority,
-            updatedAt: now,
-            completedAt: isNowDone && !wasDone ? now : (isNowDone ? existing.completedAt : undefined)
-          };
-
-          if (body.sprint !== undefined) {
-            updatedItem.sprint = body.sprint || undefined;
-            updatedItem.targetSprint = body.sprint || undefined;
-            if (!body.sprint && updatedItem.milestone && updatedItem.milestone.toLowerCase().includes('sprint')) {
-              updatedItem.milestone = undefined;
-            }
-            if (body.sprint) {
-              updatedItem.sprints = Array.from(new Set([...(updatedItem.sprints || []), body.sprint]));
-            } else {
-              updatedItem.sprints = [];
-            }
+        } catch (err: any) {
+          if (err instanceof ConflictError || err?.conflict || err?.name === 'ConflictError') {
+            return sendJson(res, 409, {
+              error: 'conflict',
+              message: err.message,
+              currentMtime: err.currentMtime,
+              currentItem: err.currentItem
+            });
           }
-          if (body.sprints !== undefined) {
-            updatedItem.sprints = body.sprints;
+          if (err?.message && (err.message.includes('Gatekeeper') || err.message.includes('[Validation]'))) {
+            return sendJson(res, 400, { error: err.message });
           }
-          if (body.release !== undefined || body.targetRelease !== undefined || body.milestone !== undefined || body.releases !== undefined) {
-            const rVal = (body.release || body.targetRelease || body.milestone || (body.releases && body.releases.length > 0 ? body.releases[0] : '') || '').trim();
-            const relArr = Array.isArray(body.releases) ? body.releases.filter(Boolean) : (rVal ? [rVal] : []);
-            updatedItem.release = rVal || undefined;
-            updatedItem.targetRelease = rVal || undefined;
-            updatedItem.milestone = rVal || undefined;
-            updatedItem.releases = relArr;
+          if (err?.message && err.message.includes('no encontrada')) {
+            continue;
           }
-          if (body.estimate !== undefined) {
-            updatedItem.estimate = (body.estimate === '' || body.estimate === null) ? undefined : body.estimate;
-          }
-
-          if (isBacklogMdProject(p)) {
-            saveBacklogMdItem(p, updatedItem);
-            const fileInfo = findBacklogMdFile(p, updatedItem.code || updatedItem.id);
-            updatedItem.mtime = fileInfo?.filePath && fs.existsSync(fileInfo.filePath)
-              ? Math.round(fs.statSync(fileInfo.filePath).mtimeMs)
-              : Date.now();
-          } else {
-            backlog.items[index] = updatedItem;
-            writeProjectBacklog(p, backlog);
-            const jsonPath = p.repoPath
-              ? path.join(p.repoPath, '.gripm/backlog.json')
-              : (fs.existsSync(path.resolve(PKG_ROOT, 'data/demo-backlog.json'))
-                  ? path.resolve(PKG_ROOT, 'data/demo-backlog.json')
-                  : path.resolve(PKG_ROOT, 'src/data/demo-backlog.json'));
-            updatedItem.mtime = fs.existsSync(jsonPath)
-              ? Math.round(fs.statSync(jsonPath).mtimeMs)
-              : Date.now();
-          }
-
-          return sendJson(res, 200, { ok: true, item: updatedItem });
+          return sendJson(res, 400, { error: err.message });
         }
       }
 
@@ -479,25 +303,10 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           ].filter(Boolean) as ProjectMeta[];
 
       for (const p of candidateProjects) {
-        if (isBacklogMdProject(p)) {
-          const restored = restoreBacklogMdItem(p, id);
-          if (restored) {
-            broadcastSse('change', { type: 'item_restored', id });
-            return sendJson(res, 200, { ok: true, id });
-          }
-        } else {
-          const backlog = readProjectBacklog(p);
-          const item = backlog.items.find((i: any) => i.id === id || i.code === id);
-          if (item) {
-            const restoreStatus = (item as any).previousStatus || 'draft';
-            item.status = restoreStatus;
-            delete (item as any).isDeleted;
-            delete (item as any).deletedAt;
-            delete (item as any).previousStatus;
-            writeProjectBacklog(p, backlog);
-            broadcastSse('change', { type: 'item_restored', id });
-            return sendJson(res, 200, { ok: true, id, item });
-          }
+        const restored = BacklogService.restoreTask(p, id);
+        if (restored) {
+          broadcastSse('change', { type: 'item_restored', id });
+          return sendJson(res, 200, { ok: true, id });
         }
       }
       return sendJson(res, 404, { error: 'Item not found' });
@@ -516,45 +325,25 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           ].filter(Boolean) as ProjectMeta[];
 
       for (const p of candidateProjects) {
-        if (isBacklogMdProject(p)) {
-          if (isPurge) {
-            const purged = purgeBacklogMdItem(p, id);
-            if (purged) {
-              broadcastSse('change', { type: 'item_purged', id });
-              return sendJson(res, 200, { ok: true, id, purged: true });
-            }
-          } else {
-            // Check done protection
-            const found = findBacklogMdFile(p, id);
-            if (found && (found.task.status || '').toLowerCase() === 'done') {
-              return sendJson(res, 403, { error: 'Cannot soft-delete a done item. Done items are protected historical records.' });
-            }
-            const deleted = softDeleteBacklogMdItem(p, id);
-            if (deleted) {
-              broadcastSse('change', { type: 'item_soft_deleted', id });
-              return sendJson(res, 200, { ok: true, id, softDeleted: true });
-            }
+        try {
+          const resDel = BacklogService.deleteTask(p, id, { purge: isPurge });
+          if (resDel.ok) {
+            broadcastSse('change', {
+              type: isPurge ? 'item_purged' : 'item_soft_deleted',
+              id
+            });
+            return sendJson(res, 200, {
+              ok: true,
+              id,
+              purged: isPurge ? true : undefined,
+              softDeleted: !isPurge ? true : undefined
+            });
           }
-        } else {
-          const backlog = readProjectBacklog(p);
-          const idx = backlog.items.findIndex((i: any) => i.id === id || i.code === id);
-          if (idx !== -1) {
-            const item = backlog.items[idx] as any;
-            if (!isPurge) {
-              // Protect done items
-              if (item.status === 'done') {
-                return sendJson(res, 403, { error: 'Cannot soft-delete a done item.' });
-              }
-              item.previousStatus = item.status;
-              item.isDeleted = true;
-              item.deletedAt = new Date().toISOString();
-            } else {
-              backlog.items.splice(idx, 1);
-            }
-            writeProjectBacklog(p, backlog);
-            broadcastSse('change', { type: isPurge ? 'item_purged' : 'item_soft_deleted', id });
-            return sendJson(res, 200, { ok: true, id, softDeleted: !isPurge, purged: isPurge });
+        } catch (err: any) {
+          if (err?.message && err.message.includes('Cannot soft-delete a done item')) {
+            return sendJson(res, 403, { error: err.message });
           }
+          return sendJson(res, 400, { error: err.message });
         }
       }
 
@@ -622,7 +411,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         };
 
         if (isBacklogMdProject(project)) {
-          saveBacklogMdItem(project, newItem);
+          BacklogService.saveTask(project, newItem);
         } else {
           currentBacklog.items.push(newItem);
         }
@@ -901,7 +690,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
 
       let converted = 0;
       for (const item of currentBacklog.items) {
-        saveBacklogMdItem({ ...project, storageType: 'markdown', backlogDir: 'backlog' }, item);
+        BacklogService.saveTask({ ...project, storageType: 'markdown', backlogDir: 'backlog' }, item);
         converted++;
       }
 
@@ -964,23 +753,11 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       const project = registry.projects.find(proj => proj.id === id);
       if (!project) return sendJson(res, 404, { error: 'Project not found' });
 
-      const backlog = readProjectBacklog(project);
-      const tasks: BacklogMdTask[] = backlog.items.filter((it: any) => !it.isDeleted).map((it: any) => ({
-        id: it.code || it.id,
-        title: it.title,
-        status: normalizeStatus(it.status),
-        type: it.type,
-        priority: it.priority,
-        milestone: it.targetSprint || it.milestone,
-        description: it.description,
-        acceptanceCriteria: it.acceptanceCriteriaList || []
-      }));
-
-      const markdownContent = generateMonolithicBacklogMd(project.name, tasks);
+      const result = BacklogService.exportBacklogMd(project, { save: false });
 
       return sendJson(res, 200, {
         ok: true,
-        content: markdownContent
+        content: result.content
       });
     }
 
@@ -993,26 +770,12 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
 
       await getBody(req, res).catch(() => ({}));
 
-      const backlog = readProjectBacklog(project);
-      const tasks: BacklogMdTask[] = backlog.items.filter((it: any) => !it.isDeleted).map((it: any) => ({
-        id: it.code || it.id,
-        title: it.title,
-        status: normalizeStatus(it.status),
-        type: it.type,
-        priority: it.priority,
-        milestone: it.targetSprint || it.milestone,
-        description: it.description,
-        acceptanceCriteria: it.acceptanceCriteriaList || []
-      }));
-
-      const markdownContent = generateMonolithicBacklogMd(project.name, tasks);
-      const savedPath = path.join(project.repoPath, 'BACKLOG.md');
-      atomicWriteFileSync(savedPath, markdownContent, 'utf8');
+      const result = BacklogService.exportBacklogMd(project, { save: true });
 
       return sendJson(res, 200, {
         ok: true,
-        content: markdownContent,
-        savedPath
+        content: result.content,
+        savedPath: result.savedPath
       });
     }
 
@@ -1076,7 +839,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
               updatedAt: now
             };
             if (isBacklogMdProject(project)) {
-              saveBacklogMdItem(project, updated);
+              BacklogService.saveTask(project, updated);
             }
             return updated;
           }
@@ -1092,7 +855,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
                 updatedAt: now
               };
               if (isBacklogMdProject(project)) {
-                saveBacklogMdItem(project, updated);
+                BacklogService.saveTask(project, updated);
               }
               return updated;
             }
@@ -1106,7 +869,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
               updatedAt: now
             };
             if (isBacklogMdProject(project)) {
-              saveBacklogMdItem(project, updated);
+              BacklogService.saveTask(project, updated);
             }
             return updated;
           }
@@ -1283,7 +1046,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
             it.sprint = newName;
             it.targetSprint = newName;
             if (isBacklogMdProject(project)) {
-              saveBacklogMdItem(project, it);
+              BacklogService.saveTask(project, it);
             }
           }
         });
@@ -1385,7 +1148,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
             it.milestone = undefined;
           }
           if (isBacklogMdProject(project)) {
-            saveBacklogMdItem(project, it);
+            BacklogService.saveTask(project, it);
           }
         }
       });
@@ -1423,7 +1186,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0
           let updatedCount = 0;
           for (const item of (boardData.items || [])) {
             item.projectId = targetProject.id;
-            saveBacklogMdItem(targetProject, item);
+            BacklogService.saveTask(targetProject, item);
             updatedCount++;
           }
 

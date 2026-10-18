@@ -48,6 +48,7 @@ const STEPS = [
   ['api-security', 'scripts/test-api-security.js'],
   ['package-smoke', 'scripts/test-package-smoke.js'],
   ['optimistic-locking', 'scripts/verify-optimistic-locking.js'],
+  ['fs-lock-concurrency', 'scripts/verify-fs-lock-concurrency.js'],
   ['json-sprint-persistence', 'scripts/verify-json-sprint-persistence.js'],
   ['sse', 'scripts/verify-sse.js'],
   ['legacy-import', 'scripts/verify-legacy-import.js'],
@@ -61,6 +62,7 @@ const STEPS = [
   ['port-probe', 'scripts/verify-port-probe.js'],
   ['sandbox', 'scripts/verify-sandbox.js'],
   ['dist', 'scripts/verify-dist.js'],
+  ['density-1366', 'scripts/verify-density-1366.js'],
 ];
 
 const DEFAULT_TIMEOUT_SECONDS = 180;

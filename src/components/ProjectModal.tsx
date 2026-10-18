@@ -101,10 +101,10 @@ export const ProjectModal: FC<ProjectModalProps> = ({
         onClose={onClose}
         panelRef={panelRef}
         maxWidth="max-w-lg"
-        className="max-h-[92vh] sm:max-h-none"
+        className="max-h-[90vh] flex flex-col"
       >
 
-          <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+          <div className="px-5 py-3.5 border-b border-white/[0.08] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
                 <FolderPlus className="w-4 h-4" />
@@ -121,8 +121,9 @@ export const ProjectModal: FC<ProjectModalProps> = ({
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-            {error && (
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1">
+              {error && (
               <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
                 <span>{error}</span>
@@ -198,11 +199,11 @@ export const ProjectModal: FC<ProjectModalProps> = ({
                       <FileCode className={`w-4 h-4 ${storageType === 'markdown' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`} />
                       <span className="font-semibold text-slate-900 dark:text-slate-200">Markdown (.md)</span>
                     </div>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 font-medium">
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 font-medium">
                       {t('common.recommended')}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                     {t('projectModal.storageMarkdownDesc')}
                   </p>
                 </div>
@@ -238,8 +239,9 @@ export const ProjectModal: FC<ProjectModalProps> = ({
                 className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
             </div>
+            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-white/[0.08] pb-6 sm:pb-2">
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200 dark:border-white/[0.08] shrink-0 bg-slate-50/50 dark:bg-white/[0.02]">
               <button
                 type="button"
                 onClick={onClose}

@@ -17,6 +17,7 @@ import {
   PKG_ROOT
 } from './registry.ts';
 import { atomicWriteFileSync } from './atomicWrite.ts';
+import { withFileLockSync } from '../utils/fs-lock.ts';
 
 // ---------------------------------------------------------------------------
 // Types and Interfaces
@@ -52,6 +53,57 @@ export interface VerifyCommandValidation {
   valid: boolean;
   reason?: string;
   command?: string;
+}
+
+export class ConflictError extends Error {
+  public readonly conflict = true;
+  public readonly currentMtime: number;
+  public readonly currentItem: any;
+
+  constructor(message: string, currentMtime: number, currentItem: any) {
+    super(message);
+    this.name = 'ConflictError';
+    this.currentMtime = currentMtime;
+    this.currentItem = currentItem;
+    Object.setPrototypeOf(this, ConflictError.prototype);
+  }
+}
+
+export interface NormalizedTaskUpdates {
+  status?: string;
+  rawStatus?: string;
+  title?: string;
+  description?: string;
+  priority?: string;
+  type?: string;
+  implementationPlan?: string;
+  implementationNotes?: string;
+  milestone?: string;
+  release?: string;
+  targetRelease?: string;
+  releases?: string[];
+  sprint?: string;
+  targetSprint?: string;
+  sprints?: string[];
+  clearSprint?: boolean;
+  estimate?: string | number | null;
+  labels?: string[];
+  assignees?: string[];
+  parentId?: string;
+  blocks?: string[];
+  blockedBy?: string[];
+  blockedReason?: string;
+  dismissedReason?: string;
+  relatedTo?: string[];
+  dependencies?: string[];
+  module?: string;
+  epic?: string;
+  category?: string;
+  impactedFile?: string;
+  risk?: string;
+  checkAllAcs?: boolean;
+  toggleAcIndex?: number;
+  usedUpdatesObject: boolean;
 }
 
 export interface BacklogStats {
@@ -104,6 +156,19 @@ export function getProjectSprintsPath(project: ProjectMeta): string {
 export function getProjectReleasesPath(project: ProjectMeta): string {
   if (!project.repoPath) return '';
   return path.join(project.repoPath, project.backlogDir || 'backlog', 'releases.json');
+}
+
+export function getProjectRetrospectivesPath(project: ProjectMeta): string {
+  if (!project.repoPath) return '';
+  return path.join(project.repoPath, project.backlogDir || 'backlog', 'retrospectives.json');
+}
+
+export function getProjectTaskAllocationLockPath(project: ProjectMeta): string {
+  if (project.repoPath) {
+    const baseDir = path.join(project.repoPath, project.backlogDir || 'backlog');
+    return path.join(baseDir, '.task-allocation.lock');
+  }
+  return path.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
 }
 
 // ---------------------------------------------------------------------------
@@ -563,6 +628,167 @@ function mapMarkdownTaskToCanonical(
   return canonical;
 }
 
+/**
+ * Pure helper function to extract and normalize task updates from input payloads.
+ * Shared between Markdown and JSON storage engines (DEV-311 AC #4).
+ */
+export function normalizeTaskUpdates(project: ProjectMeta, updates: any): NormalizedTaskUpdates {
+  const u = updates || {};
+  const inner = u.updates && typeof u.updates === 'object' ? u.updates : null;
+  const usedUpdatesObject = Boolean(inner && !u.status && inner.status);
+
+  // Status
+  const rawStatus = u.status || inner?.status;
+  const status = rawStatus ? normalizeStatus(rawStatus) : undefined;
+
+  // Title & description
+  const title = u.title !== undefined ? u.title : inner?.title;
+  const description = u.description !== undefined ? u.description : inner?.description;
+
+  // Priority & type
+  const rawPriority = u.priority || inner?.priority;
+  const priority = rawPriority ? normalizePriority(rawPriority) : undefined;
+  const rawType = u.type || inner?.type;
+  const type = rawType ? normalizeType(rawType) : undefined;
+
+  // Implementation plan & notes
+  const implementationPlan = u.implementationPlan !== undefined ? u.implementationPlan : inner?.implementationPlan;
+  const implementationNotes = u.implementationNotes !== undefined
+    ? u.implementationNotes
+    : (u.notes !== undefined
+      ? u.notes
+      : (u.fix !== undefined ? u.fix : inner?.implementationNotes));
+
+  // Sprints
+  let sprint: string | undefined;
+  let targetSprint: string | undefined;
+  let sprints: string[] | undefined;
+  let clearSprint = false;
+
+  const rawSprint = u.sprint !== undefined ? u.sprint : (u.targetSprint !== undefined ? u.targetSprint : inner?.sprint);
+  if (rawSprint !== undefined) {
+    const legSprint = resolveLegibleSprint(project, rawSprint);
+    if (legSprint) {
+      sprint = legSprint;
+      targetSprint = legSprint;
+      sprints = [legSprint];
+    } else {
+      clearSprint = true;
+      sprint = undefined;
+      targetSprint = undefined;
+      sprints = [];
+    }
+  } else if (u.sprints !== undefined || inner?.sprints !== undefined) {
+    const explicitSprints = Array.isArray(u.sprints) ? u.sprints : (Array.isArray(inner?.sprints) ? inner.sprints : []);
+    sprints = explicitSprints;
+    sprint = explicitSprints.length > 0 ? explicitSprints[0] : undefined;
+    targetSprint = sprint;
+  }
+
+  // Releases & Milestone
+  let release: string | undefined;
+  let targetRelease: string | undefined;
+  let milestone: string | undefined;
+  let releases: string[] | undefined;
+
+  if (u.release !== undefined || u.targetRelease !== undefined || u.milestone !== undefined || u.releases !== undefined ||
+      inner?.release !== undefined || inner?.targetRelease !== undefined || inner?.milestone !== undefined || inner?.releases !== undefined) {
+    const rawRel = (
+      u.release || u.targetRelease || u.milestone ||
+      inner?.release || inner?.targetRelease || inner?.milestone ||
+      (Array.isArray(u.releases) && u.releases.length > 0 ? u.releases[0] : '') ||
+      (Array.isArray(inner?.releases) && inner.releases.length > 0 ? inner.releases[0] : '') ||
+      ''
+    ).trim();
+
+    const rawRelArr = Array.isArray(u.releases)
+      ? u.releases
+      : (Array.isArray(inner?.releases)
+        ? inner.releases
+        : (rawRel ? [rawRel] : []));
+
+    releases = rawRelArr.filter(Boolean).filter((r: string) => !r.toLowerCase().includes('sprint'));
+    release = rawRel || undefined;
+    targetRelease = rawRel || undefined;
+    milestone = rawRel || undefined;
+  }
+
+  // Estimate
+  let estimate: string | number | null | undefined;
+  const rawEstimate = u.estimate !== undefined ? u.estimate : inner?.estimate;
+  if (rawEstimate !== undefined) {
+    if (rawEstimate === '' || rawEstimate === null) {
+      estimate = null;
+    } else {
+      const num = Number(rawEstimate);
+      estimate = (!isNaN(num) && typeof rawEstimate !== 'boolean' && !String(rawEstimate).includes(' '))
+        ? num
+        : rawEstimate;
+    }
+  }
+
+  // Labels & Assignees
+  const labels = Array.isArray(u.labels) ? u.labels : (Array.isArray(inner?.labels) ? inner.labels : undefined);
+  const assignees = Array.isArray(u.assignees) ? u.assignees : (Array.isArray(inner?.assignees) ? inner.assignees : undefined);
+
+  // Relationships & Graph
+  const parentId = u.parentId !== undefined ? u.parentId : inner?.parentId;
+  const blocks = Array.isArray(u.blocks) ? u.blocks : (Array.isArray(inner?.blocks) ? inner.blocks : undefined);
+  const blockedBy = Array.isArray(u.blockedBy) ? u.blockedBy : (Array.isArray(inner?.blockedBy) ? inner.blockedBy : undefined);
+  const blockedReason = u.blockedReason !== undefined ? u.blockedReason : inner?.blockedReason;
+  const dismissedReason = u.dismissedReason !== undefined ? u.dismissedReason : inner?.dismissedReason;
+  const relatedTo = Array.isArray(u.relatedTo) ? u.relatedTo : (Array.isArray(inner?.relatedTo) ? inner.relatedTo : undefined);
+  const dependencies = Array.isArray(u.dependencies) ? u.dependencies : (Array.isArray(inner?.dependencies) ? inner.dependencies : undefined);
+
+  // Metadata
+  const module = u.module !== undefined ? u.module : inner?.module;
+  const epic = u.epic !== undefined ? u.epic : inner?.epic;
+  const category = u.category !== undefined ? u.category : inner?.category;
+  const impactedFile = u.impactedFile !== undefined ? u.impactedFile : inner?.impactedFile;
+  const risk = u.risk !== undefined ? u.risk : inner?.risk;
+
+  // ACs
+  const checkAllAcs = u.checkAllAcs !== undefined ? u.checkAllAcs : inner?.checkAllAcs;
+  const toggleAcIndex = u.toggleAcIndex !== undefined ? u.toggleAcIndex : inner?.toggleAcIndex;
+
+  return {
+    status,
+    rawStatus,
+    title,
+    description,
+    priority,
+    type,
+    implementationPlan,
+    implementationNotes,
+    milestone,
+    release,
+    targetRelease,
+    releases,
+    sprint,
+    targetSprint,
+    sprints,
+    clearSprint,
+    estimate,
+    labels,
+    assignees,
+    parentId,
+    blocks,
+    blockedBy,
+    blockedReason,
+    dismissedReason,
+    relatedTo,
+    dependencies,
+    module,
+    epic,
+    category,
+    impactedFile,
+    risk,
+    checkAllAcs,
+    toggleAcIndex,
+    usedUpdatesObject
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Core Domain Operations
 // ---------------------------------------------------------------------------
@@ -769,9 +995,19 @@ export class BacklogService {
   }
 
   /**
-   * Creates a new task in the project with correlative code generation.
+   * Inspects existing tasks in memory and on disk to compute the next correlative task ID.
    */
-  static createTask(project: ProjectMeta, data: any): { ok: boolean; task: any; savedFile?: string } {
+  static getNextTaskId(project: ProjectMeta, options?: { withoutLock?: boolean }): string {
+    if (options?.withoutLock) {
+      return BacklogService.computeNextTaskId(project);
+    }
+    const lockPath = getProjectTaskAllocationLockPath(project);
+    return withFileLockSync(lockPath, () => {
+      return BacklogService.computeNextTaskId(project);
+    });
+  }
+
+  static computeNextTaskId(project: ProjectMeta): string {
     const cleanPrefix = (project.codePrefix || 'DEV').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'DEV';
     const allTasks = BacklogService.listTasks(project, { includeDeleted: true });
 
@@ -799,10 +1035,22 @@ export class BacklogService {
       }
     }
 
-    const nextNum = maxNum > 0 ? maxNum + 1 : allTasks.length + 1;
-    const code = `${cleanPrefix}-${String(nextNum).padStart(3, '0')}`;
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
+    const nextNum = maxNum > 0 ? maxNum + 1 : (allTasks.length > 0 ? allTasks.length + 1 : 1);
+    return `${cleanPrefix}-${String(nextNum).padStart(3, '0')}`;
+  }
+
+  /**
+   * Creates a new task in the project with correlative code generation under atomic lock.
+   */
+  static createTask(project: ProjectMeta, data: any): { ok: boolean; task: any; savedFile?: string } {
+    const lockPath = getProjectTaskAllocationLockPath(project);
+    return withFileLockSync(lockPath, () => {
+      const allTasks = BacklogService.listTasks(project, { includeDeleted: true });
+      const code = (typeof data.code === 'string' && data.code.trim())
+        ? data.code.trim()
+        : BacklogService.computeNextTaskId(project);
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
 
     let acList: Array<{ index: number; text: string; checked: boolean }> = [];
     if (Array.isArray(data.acceptanceCriteria)) {
@@ -826,6 +1074,18 @@ export class BacklogService {
       initialEstimate = (!isNaN(num) && typeof data.estimate !== 'boolean' && !String(data.estimate).includes(' ')) ? num : data.estimate;
     }
 
+    const rawSprint = data.sprint || data.targetSprint;
+    const legSprint = rawSprint ? resolveLegibleSprint(project, rawSprint) : undefined;
+
+    const rawRel = (
+      data.release || data.targetRelease || data.milestone ||
+      (Array.isArray(data.releases) && data.releases.length > 0 ? data.releases[0] : '') ||
+      ''
+    ).trim();
+    const relArr = Array.isArray(data.releases)
+      ? data.releases.filter(Boolean).filter((r: string) => !r.toLowerCase().includes('sprint'))
+      : (rawRel ? [rawRel] : []);
+
     const normalizedSt = normalizeStatus(data.status || 'draft');
     const taskData: BacklogMdTask = {
       id: code,
@@ -835,21 +1095,31 @@ export class BacklogService {
       type: data.type || 'feature',
       createdDate: today,
       updatedDate: today,
-      milestone: data.milestone || data.release || data.targetRelease,
+      milestone: rawRel || undefined,
+      sprint: legSprint || undefined,
+      targetSprint: legSprint || undefined,
+      sprints: legSprint ? [legSprint] : (Array.isArray(data.sprints) ? data.sprints : []),
+      releases: relArr,
       estimate: initialEstimate,
       description: data.description || '',
       acceptanceCriteria: acList,
       implementationPlan: data.implementationPlan || '',
       implementationNotes: data.implementationNotes || data.notes || data.fix,
-      assignees: data.assignees || [],
-      labels: data.labels || [],
-      dependencies: data.dependencies || [],
-      parentId: data.parentId,
-      blocks: data.blocks || [],
-      blockedBy: data.blockedBy || [],
+      assignees: Array.isArray(data.assignees) ? data.assignees : [],
+      labels: Array.isArray(data.labels) ? data.labels : [],
+      dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
+      parentId: data.parentId || undefined,
+      blocks: Array.isArray(data.blocks) ? data.blocks : [],
+      blockedBy: Array.isArray(data.blockedBy) ? data.blockedBy : [],
       blockedReason: data.blockedReason || undefined,
       dismissedReason: data.dismissedReason || undefined,
-      relatedTo: data.relatedTo || []
+      relatedTo: Array.isArray(data.relatedTo) ? data.relatedTo : [],
+      module: data.module || undefined,
+      impactedFile: data.impactedFile || undefined,
+      risk: data.risk || undefined,
+      epic: data.epic || undefined,
+      category: data.category || undefined,
+      fix: data.fix || undefined
     };
 
     if (isBacklogMdProject(project) && project.repoPath) {
@@ -861,7 +1131,8 @@ export class BacklogService {
       const serialized = serializeBacklogMd(taskData);
       atomicWriteFileSync(filepath, serialized, 'utf8');
 
-      const canonical = mapMarkdownTaskToCanonical(taskData, project, filename);
+      const fileStat = fs.existsSync(filepath) ? fs.statSync(filepath) : undefined;
+      const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
       return { ok: true, task: canonical, savedFile: filepath };
     }
 
@@ -872,7 +1143,7 @@ export class BacklogService {
       code,
       projectId: project.id,
       acceptanceCriteriaList: acList,
-      order: allTasks.length + 1,
+      order: typeof data.order === 'number' ? data.order : allTasks.length + 1,
       createdAt: now,
       updatedAt: now,
       completedAt: normalizedSt === 'done' ? now : undefined
@@ -889,8 +1160,11 @@ export class BacklogService {
     existingData.lastUpdated = now;
 
     atomicWriteFileSync(jsonPath, JSON.stringify(existingData, null, 2), 'utf8');
+    const jsonStat = fs.existsSync(jsonPath) ? fs.statSync(jsonPath) : undefined;
+    (newItem as any).mtime = jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
     return { ok: true, task: newItem, savedFile: jsonPath };
-  }
+  });
+}
 
   /**
    * Updates an existing task by ID with Gatekeeper validation.
@@ -907,6 +1181,7 @@ export class BacklogService {
 
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
+    const norm = normalizeTaskUpdates(project, updates);
 
     if (isBacklogMdProject(project) && project.repoPath) {
       const fileInfo = findTaskFile(project, taskId);
@@ -915,91 +1190,102 @@ export class BacklogService {
       }
 
       const { filePath, filename, task: current } = fileInfo;
+      const fileStat = fs.existsSync(filePath) ? fs.statSync(filePath) : undefined;
+      const currentMtime = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
 
-      // Extract effective updates
-      const effectiveStatus = updates.status || updates.updates?.status;
-      const effectiveTitle = updates.title || updates.updates?.title;
-      const effectiveDesc = updates.description !== undefined ? updates.description : updates.updates?.description;
-      const effectivePriority = updates.priority || updates.updates?.priority;
-      const effectiveType = updates.type || updates.updates?.type;
-      const effectivePlan = updates.implementationPlan !== undefined ? updates.implementationPlan : updates.updates?.implementationPlan;
-      const effectiveNotes = updates.implementationNotes !== undefined ? updates.implementationNotes : (updates.notes !== undefined ? updates.notes : (updates.fix !== undefined ? updates.fix : updates.updates?.implementationNotes));
-      const effectiveMilestone = updates.milestone !== undefined ? updates.milestone : updates.updates?.milestone;
-      const effectiveSprint = updates.sprint !== undefined ? updates.sprint : (updates.targetSprint !== undefined ? updates.targetSprint : updates.updates?.sprint);
-      const effectiveCheckAllAcs = updates.checkAllAcs !== undefined ? updates.checkAllAcs : updates.updates?.checkAllAcs;
-      const effectiveEstimate = updates.estimate !== undefined ? updates.estimate : updates.updates?.estimate;
-      const effectiveLabels = Array.isArray(updates.labels) ? updates.labels : (Array.isArray(updates.updates?.labels) ? updates.updates.labels : undefined);
-      const usedUpdatesObject = Boolean(updates.updates && !updates.status && updates.updates.status);
-
-      if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
-      if (effectiveTitle) current.title = effectiveTitle;
-      if (effectiveDesc !== undefined) current.description = effectiveDesc;
-      if (effectivePriority) current.priority = normalizePriority(effectivePriority);
-      if (effectiveType) current.type = normalizeType(effectiveType);
-      if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
-      if (effectiveNotes !== undefined) {
-        current.implementationNotes = effectiveNotes;
-        if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
-        current.rawExtraFrontmatter.fix = effectiveNotes;
-      }
-      if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
-      if (effectiveLabels !== undefined) current.labels = effectiveLabels;
-
-      if (effectiveSprint !== undefined) {
-        const legSprint = resolveLegibleSprint(project, effectiveSprint);
-        if (legSprint) {
-          current.sprint = legSprint;
-          current.targetSprint = legSprint;
-          if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
-          current.rawExtraFrontmatter.sprint = legSprint;
-          current.rawExtraFrontmatter.targetSprint = legSprint;
-          current.sprints = [legSprint];
-        } else {
-          current.sprint = undefined;
-          current.targetSprint = undefined;
-          current.sprints = [];
-          if (current.rawExtraFrontmatter) {
-            delete current.rawExtraFrontmatter.sprint;
-            delete current.rawExtraFrontmatter.targetSprint;
-          }
+      // DEV-017 & DEV-301: Optimistic Concurrency Check (expectedMtime / ETag)
+      if (!options?.force && typeof options?.expectedMtime === 'number') {
+        if (currentMtime > options.expectedMtime) {
+          const canonicalCurrent = mapMarkdownTaskToCanonical(current, project, filename, fileStat);
+          throw new ConflictError(
+            `La tarea "${current.id}" fue modificada en disco por otro proceso o agente.`,
+            currentMtime,
+            canonicalCurrent
+          );
         }
       }
 
-      if (effectiveEstimate !== undefined) {
-        if (effectiveEstimate === '' || effectiveEstimate === null) {
+      // Apply normalized updates
+      if (norm.status) current.status = norm.status as any;
+      if (norm.title !== undefined) current.title = norm.title;
+      if (norm.description !== undefined) current.description = norm.description;
+      if (norm.priority) current.priority = norm.priority;
+      if (norm.type) current.type = norm.type;
+      if (norm.implementationPlan !== undefined) current.implementationPlan = norm.implementationPlan;
+      if (norm.implementationNotes !== undefined) {
+        current.implementationNotes = norm.implementationNotes;
+        if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+        current.rawExtraFrontmatter.fix = norm.implementationNotes;
+      }
+      if (norm.milestone !== undefined) current.milestone = norm.milestone;
+      if (norm.labels !== undefined) current.labels = norm.labels;
+      if (norm.assignees !== undefined) current.assignees = norm.assignees;
+      if (norm.parentId !== undefined) current.parentId = norm.parentId || undefined;
+      if (norm.blocks !== undefined) current.blocks = norm.blocks;
+      if (norm.blockedBy !== undefined) current.blockedBy = norm.blockedBy;
+      if (norm.blockedReason !== undefined) current.blockedReason = norm.blockedReason || undefined;
+      if (norm.dismissedReason !== undefined) current.dismissedReason = norm.dismissedReason || undefined;
+      if (norm.relatedTo !== undefined) current.relatedTo = norm.relatedTo;
+      if (norm.dependencies !== undefined) current.dependencies = norm.dependencies;
+      if (norm.module !== undefined) current.module = norm.module || undefined;
+      if (norm.epic !== undefined) current.epic = norm.epic || undefined;
+      if (norm.category !== undefined) current.category = norm.category || undefined;
+      if (norm.impactedFile !== undefined) current.impactedFile = norm.impactedFile || undefined;
+      if (norm.risk !== undefined) current.risk = norm.risk || undefined;
+
+      if (norm.clearSprint) {
+        current.sprint = undefined;
+        current.targetSprint = undefined;
+        current.sprints = [];
+        if (current.rawExtraFrontmatter) {
+          delete current.rawExtraFrontmatter.sprint;
+          delete current.rawExtraFrontmatter.targetSprint;
+        }
+      } else if (norm.sprint !== undefined) {
+        current.sprint = norm.sprint;
+        current.targetSprint = norm.sprint;
+        current.sprints = norm.sprints || [norm.sprint];
+        if (!current.rawExtraFrontmatter) current.rawExtraFrontmatter = {};
+        current.rawExtraFrontmatter.sprint = norm.sprint;
+        current.rawExtraFrontmatter.targetSprint = norm.sprint;
+      } else if (norm.sprints !== undefined) {
+        current.sprints = norm.sprints;
+      }
+
+      if (norm.estimate !== undefined) {
+        if (norm.estimate === null) {
           current.estimate = undefined;
           if (current.rawExtraFrontmatter) delete current.rawExtraFrontmatter.estimate;
         } else {
-          const num = Number(effectiveEstimate);
-          current.estimate = (!isNaN(num) && typeof effectiveEstimate !== 'boolean' && !String(effectiveEstimate).includes(' ')) ? num : effectiveEstimate;
-          if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(effectiveEstimate);
+          current.estimate = norm.estimate;
+          if (current.rawExtraFrontmatter) current.rawExtraFrontmatter.estimate = String(norm.estimate);
         }
       }
 
       current.updatedDate = today;
 
       // Handle ACs
-      if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteria) {
+      if (norm.checkAllAcs !== undefined && current.acceptanceCriteria) {
         current.acceptanceCriteria = current.acceptanceCriteria.map((ac: any) => ({
           ...ac,
-          checked: Boolean(effectiveCheckAllAcs)
+          checked: Boolean(norm.checkAllAcs)
         }));
-      } else if (updates.toggleAcIndex !== undefined) {
-        if (typeof updates.toggleAcIndex !== 'number' || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
-          throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+      } else if (norm.toggleAcIndex !== undefined) {
+        if (typeof norm.toggleAcIndex !== 'number' || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
+          throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
         }
         const acList = current.acceptanceCriteria || [];
-        const foundAc = acList.find((ac: any) => ac.index === updates.toggleAcIndex);
+        const foundAc = acList.find((ac: any) => ac.index === norm.toggleAcIndex);
         if (!foundAc) {
-          throw new Error(`[Validation] Criterio de aceptación #${updates.toggleAcIndex} no encontrado en la tarea '${current.id}'.`);
+          throw new Error(`[Validation] Criterio de aceptación #${norm.toggleAcIndex} no encontrado en la tarea '${current.id}'.`);
         }
         current.acceptanceCriteria = acList.map((ac: any) =>
-          ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+          ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
         );
       }
 
       // Gatekeeper validation (DEV-224 / DEV-244 / SEC-01)
-      const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+      const targetStatus = norm.status || current.status;
       validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
 
       // SEC-01: Eradicate persistence of verifyCommand in Markdown frontmatter
@@ -1012,10 +1298,11 @@ export class BacklogService {
       const serialized = serializeBacklogMd(current);
       atomicWriteFileSync(filePath, serialized, 'utf8');
 
-      const canonical = mapMarkdownTaskToCanonical(current, project, filename);
+      const freshStat = fs.existsSync(filePath) ? fs.statSync(filePath) : undefined;
+      const canonical = mapMarkdownTaskToCanonical(current, project, filename, freshStat);
       const resp: any = { ok: true, updatedTask: canonical, filePath };
 
-      if (usedUpdatesObject) {
+      if (norm.usedUpdatesObject) {
         resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
       }
       if (options?.force) {
@@ -1047,66 +1334,100 @@ export class BacklogService {
     }
 
     const current = data.items[idx];
-    const effectiveStatus = updates.status || updates.updates?.status;
-    const effectiveTitle = updates.title || updates.updates?.title;
-    const effectiveDesc = updates.description !== undefined ? updates.description : updates.updates?.description;
-    const effectivePriority = updates.priority || updates.updates?.priority;
-    const effectiveType = updates.type || updates.updates?.type;
-    const effectivePlan = updates.implementationPlan !== undefined ? updates.implementationPlan : updates.updates?.implementationPlan;
-    const effectiveNotes = updates.implementationNotes !== undefined ? updates.implementationNotes : (updates.notes !== undefined ? updates.notes : (updates.fix !== undefined ? updates.fix : updates.updates?.implementationNotes));
-    const effectiveMilestone = updates.milestone !== undefined ? updates.milestone : updates.updates?.milestone;
-    const effectiveSprint = updates.sprint !== undefined ? updates.sprint : (updates.targetSprint !== undefined ? updates.targetSprint : updates.updates?.sprint);
-    const effectiveCheckAllAcs = updates.checkAllAcs !== undefined ? updates.checkAllAcs : updates.updates?.checkAllAcs;
-    const effectiveEstimate = updates.estimate !== undefined ? updates.estimate : updates.updates?.estimate;
-    const effectiveLabels = Array.isArray(updates.labels) ? updates.labels : (Array.isArray(updates.updates?.labels) ? updates.updates.labels : undefined);
-    const usedUpdatesObject = Boolean(updates.updates && !updates.status && updates.updates.status);
+    const jsonStat = fs.existsSync(jsonPath) ? fs.statSync(jsonPath) : undefined;
+    const currentMtime = typeof current.mtime === 'number'
+      ? current.mtime
+      : (jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now());
 
-    if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
-    if (effectiveTitle) current.title = effectiveTitle;
-    if (effectiveDesc !== undefined) current.description = effectiveDesc;
-    if (effectivePriority) current.priority = normalizePriority(effectivePriority);
-    if (effectiveType) current.type = normalizeType(effectiveType);
-    if (effectivePlan !== undefined) current.implementationPlan = effectivePlan;
-    if (effectiveNotes !== undefined) {
-      current.implementationNotes = effectiveNotes;
-      current.fix = effectiveNotes;
-    }
-    if (effectiveMilestone !== undefined) current.milestone = effectiveMilestone;
-    if (effectiveLabels !== undefined) current.labels = effectiveLabels;
-
-    if (effectiveSprint !== undefined) {
-      const legSprint = resolveLegibleSprint(project, effectiveSprint);
-      current.sprint = legSprint;
-      current.targetSprint = legSprint;
-      current.sprints = legSprint ? [legSprint] : [];
+    // DEV-017 & DEV-301: Optimistic Concurrency Check (expectedMtime / ETag)
+    if (!options?.force && typeof options?.expectedMtime === 'number') {
+      if (currentMtime > options.expectedMtime) {
+        throw new ConflictError(
+          `La tarea "${current.code || current.id}" fue modificada en disco por otro proceso o agente.`,
+          currentMtime,
+          current
+        );
+      }
     }
 
-    if (effectiveEstimate !== undefined) {
-      current.estimate = (effectiveEstimate === '' || effectiveEstimate === null) ? undefined : effectiveEstimate;
+    const wasDone = current.status === 'done';
+    if (norm.status) current.status = norm.status;
+    const isNowDone = current.status === 'done';
+
+    if (norm.title !== undefined) current.title = norm.title;
+    if (norm.description !== undefined) current.description = norm.description;
+    if (norm.priority) current.priority = norm.priority;
+    if (norm.type) current.type = norm.type;
+    if (norm.implementationPlan !== undefined) current.implementationPlan = norm.implementationPlan;
+    if (norm.implementationNotes !== undefined) {
+      current.implementationNotes = norm.implementationNotes;
+      current.fix = norm.implementationNotes;
     }
+    if (norm.milestone !== undefined) {
+      current.milestone = norm.milestone;
+      current.release = norm.release;
+      current.targetRelease = norm.targetRelease;
+      current.releases = norm.releases;
+    }
+    if (norm.labels !== undefined) current.labels = norm.labels;
+    if (norm.assignees !== undefined) current.assignees = norm.assignees;
+    if (norm.parentId !== undefined) current.parentId = norm.parentId || undefined;
+    if (norm.blocks !== undefined) current.blocks = norm.blocks;
+    if (norm.blockedBy !== undefined) current.blockedBy = norm.blockedBy;
+    if (norm.blockedReason !== undefined) current.blockedReason = norm.blockedReason || undefined;
+    if (norm.dismissedReason !== undefined) current.dismissedReason = norm.dismissedReason || undefined;
+    if (norm.relatedTo !== undefined) current.relatedTo = norm.relatedTo;
+    if (norm.dependencies !== undefined) current.dependencies = norm.dependencies;
+    if (norm.module !== undefined) current.module = norm.module || undefined;
+    if (norm.epic !== undefined) current.epic = norm.epic || undefined;
+    if (norm.category !== undefined) current.category = norm.category || undefined;
+    if (norm.impactedFile !== undefined) current.impactedFile = norm.impactedFile || undefined;
+    if (norm.risk !== undefined) current.risk = norm.risk || undefined;
+
+    if (norm.clearSprint) {
+      current.sprint = undefined;
+      current.targetSprint = undefined;
+      current.sprints = [];
+    } else if (norm.sprint !== undefined) {
+      current.sprint = norm.sprint;
+      current.targetSprint = norm.sprint;
+      current.sprints = norm.sprints || [norm.sprint];
+    } else if (norm.sprints !== undefined) {
+      current.sprints = norm.sprints;
+    }
+
+    if (norm.estimate !== undefined) {
+      current.estimate = norm.estimate === null ? undefined : norm.estimate;
+    }
+
     current.updatedAt = now;
+    if (isNowDone && !wasDone) {
+      current.completedAt = now;
+    } else if (!isNowDone) {
+      current.completedAt = undefined;
+    }
 
-    if (effectiveCheckAllAcs !== undefined && current.acceptanceCriteriaList) {
+    if (norm.checkAllAcs !== undefined && current.acceptanceCriteriaList) {
       current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac: any) => ({
         ...ac,
-        checked: Boolean(effectiveCheckAllAcs)
+        checked: Boolean(norm.checkAllAcs)
       }));
-    } else if (updates.toggleAcIndex !== undefined) {
-      if (typeof updates.toggleAcIndex !== 'number' || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
-        throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+    } else if (norm.toggleAcIndex !== undefined) {
+      if (typeof norm.toggleAcIndex !== 'number' || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
+        throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
       }
       const acList = current.acceptanceCriteriaList || [];
-      const foundAc = acList.find((ac: any) => ac.index === updates.toggleAcIndex);
+      const foundAc = acList.find((ac: any) => ac.index === norm.toggleAcIndex);
       if (!foundAc) {
-        throw new Error(`[Validation] Criterio de aceptación #${updates.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+        throw new Error(`[Validation] Criterio de aceptación #${norm.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
       }
       current.acceptanceCriteriaList = acList.map((ac: any) =>
-        ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+        ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
       );
     }
 
     // Gatekeeper validation
-    const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+    const targetStatus = norm.status || current.status;
     validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
 
     // SEC-01: Eradicate persistence of verifyCommand
@@ -1116,8 +1437,11 @@ export class BacklogService {
     data.lastUpdated = now;
     atomicWriteFileSync(jsonPath, JSON.stringify(data, null, 2), 'utf8');
 
+    const freshJsonStat = fs.existsSync(jsonPath) ? fs.statSync(jsonPath) : undefined;
+    current.mtime = freshJsonStat ? Math.round(freshJsonStat.mtimeMs) : Date.now();
+
     const resp: any = { ok: true, updatedTask: current, filePath: jsonPath };
-    if (usedUpdatesObject) {
+    if (norm.usedUpdatesObject) {
       resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
     }
     if (options?.force) {
@@ -1136,7 +1460,7 @@ export class BacklogService {
    */
   static bulkUpdateTasks(
     project: ProjectMeta,
-    targetFilter: { taskIds?: string[]; filterPrefix?: string; filterStatus?: string },
+    targetFilter: { taskIds?: string[]; filterPrefix?: string; filterStatus?: string; items?: any[] },
     updates: any,
     options?: TaskMutationOptions
   ): {
@@ -1150,6 +1474,45 @@ export class BacklogService {
     warning?: string;
     audit?: GatekeeperAudit;
   } {
+    if (Array.isArray(targetFilter.items)) {
+      const updatedIds: string[] = [];
+      const failedUpdates: any[] = [];
+      let updatedCount = 0;
+
+      for (const patch of targetFilter.items) {
+        if (!patch || (!patch.id && !patch.code)) continue;
+        const targetId = patch.code || patch.id;
+        try {
+          const res = BacklogService.updateTask(project, targetId, patch, options);
+          if (res.ok) {
+            updatedCount++;
+            updatedIds.push(targetId);
+          }
+        } catch (err: any) {
+          failedUpdates.push({ id: targetId, error: err.message });
+        }
+      }
+
+      const resp: any = {
+        ok: failedUpdates.length === 0,
+        projectId: project.id,
+        storageType: project.storageType || 'markdown',
+        updatedCount,
+        updatedIds,
+        ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {})
+      };
+
+      if (options?.force) {
+        resp.warning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+        resp.audit = {
+          bypassedGatekeeper: true,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      return resp;
+    }
+
     const cleanIds = Array.isArray(targetFilter.taskIds)
       ? new Set(targetFilter.taskIds.map(id => String(id).toLowerCase()))
       : null;
@@ -1177,11 +1540,10 @@ export class BacklogService {
     }
 
     // Gatekeeper pre-validation on ALL matched tasks (AC 3)
-    const effectiveStatus = updates.status || updates.updates?.status;
-    if (effectiveStatus) {
-      const targetStatus = normalizeStatus(effectiveStatus);
+    const norm = normalizeTaskUpdates(project, updates);
+    if (norm.status) {
       for (const t of matchedTasks) {
-        validateGatekeeperTransition(t, targetStatus, options, project.repoPath);
+        validateGatekeeperTransition(t, norm.status, options, project.repoPath);
       }
     }
 
@@ -1675,6 +2037,86 @@ export class BacklogService {
   }
 
   /**
+   * Reads releases from disk guarded by atomic file lock.
+   */
+  static readReleases(project: ProjectMeta): any[] {
+    const filePath = getProjectReleasesPath(project);
+    if (!filePath || !fs.existsSync(filePath)) return [];
+    return withFileLockSync(filePath, () => {
+      try {
+        if (!fs.existsSync(filePath)) return [];
+        const content = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  /**
+   * Mutates releases on disk guarded by atomic file lock.
+   */
+  static mutateReleases(project: ProjectMeta, mutator: (current: any[]) => any[] | void): any[] {
+    const filePath = getProjectReleasesPath(project);
+    if (!filePath) return [];
+    return withFileLockSync(filePath, () => {
+      let current: any[] = [];
+      if (fs.existsSync(filePath)) {
+        try {
+          const content = fs.readFileSync(filePath, 'utf8');
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) current = parsed;
+        } catch {}
+      }
+      const result = mutator(current);
+      const toWrite = Array.isArray(result) ? result : current;
+      atomicWriteFileSync(filePath, JSON.stringify(toWrite, null, 2), 'utf8');
+      return toWrite;
+    });
+  }
+
+  /**
+   * Reads retrospectives from disk guarded by atomic file lock.
+   */
+  static readRetrospectives(project: ProjectMeta): any[] {
+    const filePath = getProjectRetrospectivesPath(project);
+    if (!filePath || !fs.existsSync(filePath)) return [];
+    return withFileLockSync(filePath, () => {
+      try {
+        if (!fs.existsSync(filePath)) return [];
+        const content = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  /**
+   * Mutates retrospectives on disk guarded by atomic file lock.
+   */
+  static mutateRetrospectives(project: ProjectMeta, mutator: (current: any[]) => any[] | void): any[] {
+    const filePath = getProjectRetrospectivesPath(project);
+    if (!filePath) return [];
+    return withFileLockSync(filePath, () => {
+      let current: any[] = [];
+      if (fs.existsSync(filePath)) {
+        try {
+          const content = fs.readFileSync(filePath, 'utf8');
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) current = parsed;
+        } catch {}
+      }
+      const result = mutator(current);
+      const toWrite = Array.isArray(result) ? result : current;
+      atomicWriteFileSync(filePath, JSON.stringify(toWrite, null, 2), 'utf8');
+      return toWrite;
+    });
+  }
+
+  /**
    * Writes releases and sprints to disk atomically (markdown) or updates backlog.json (JSON).
    */
   static writeProjectBacklog(project: ProjectMeta, data: ProjectBacklog): void {
@@ -1684,24 +2126,26 @@ export class BacklogService {
           const dir = path.join(project.repoPath, project.backlogDir || 'backlog');
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           const releasesPath = path.join(dir, 'releases.json');
-          let releasesToWrite = data.releases || [];
-          if (fs.existsSync(releasesPath)) {
-            try {
-              const diskReleases = JSON.parse(fs.readFileSync(releasesPath, 'utf8'));
-              if (Array.isArray(diskReleases)) {
-                releasesToWrite = releasesToWrite.map((rel: any) => {
-                  const diskMatch = diskReleases.find((dr: any) => dr.id === rel.id || dr.version === rel.version);
-                  if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
-                    if (!rel.itemCodes || rel.itemCodes.length === 0) {
-                      return { ...rel, itemCodes: diskMatch.itemCodes };
+          withFileLockSync(releasesPath, () => {
+            let releasesToWrite = data.releases || [];
+            if (fs.existsSync(releasesPath)) {
+              try {
+                const diskReleases = JSON.parse(fs.readFileSync(releasesPath, 'utf8'));
+                if (Array.isArray(diskReleases)) {
+                  releasesToWrite = releasesToWrite.map((rel: any) => {
+                    const diskMatch = diskReleases.find((dr: any) => dr.id === rel.id || dr.version === rel.version);
+                    if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
+                      if (!rel.itemCodes || rel.itemCodes.length === 0) {
+                        return { ...rel, itemCodes: diskMatch.itemCodes };
+                      }
                     }
-                  }
-                  return rel;
-                });
-              }
-            } catch {}
-          }
-          atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), 'utf8');
+                    return rel;
+                  });
+                }
+              } catch {}
+            }
+            atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), 'utf8');
+          });
           if (data.sprints !== undefined) {
             atomicWriteFileSync(path.join(dir, 'sprints.json'), JSON.stringify(data.sprints || [], null, 2), 'utf8');
           }
@@ -1855,57 +2299,61 @@ export class BacklogService {
 
         if (project.repoPath) {
           const releasesPath = getProjectReleasesPath(project);
-          if (fs.existsSync(releasesPath)) {
-            try {
-              const relsData = JSON.parse(fs.readFileSync(releasesPath, 'utf8'));
-              const taskCode = (taskData.id || '').toUpperCase();
-              let changed = false;
-              const targetVersion = (rVal || (relArray[0] || '')).replace(/^v/i, '');
+          if (releasesPath) {
+            withFileLockSync(releasesPath, () => {
+              if (fs.existsSync(releasesPath)) {
+                try {
+                  const relsData = JSON.parse(fs.readFileSync(releasesPath, 'utf8'));
+                  const taskCode = (taskData.id || '').toUpperCase();
+                  let changed = false;
+                  const targetVersion = (rVal || (relArray[0] || '')).replace(/^v/i, '');
 
-              let versionFound = false;
-              for (const rel of relsData) {
-                const vClean = (rel.version || '').replace(/^v/i, '');
-                if (!rel.itemCodes) rel.itemCodes = [];
-                const idx = rel.itemCodes.findIndex((c: string) => c.toUpperCase() === taskCode);
+                  let versionFound = false;
+                  for (const rel of relsData) {
+                    const vClean = (rel.version || '').replace(/^v/i, '');
+                    if (!rel.itemCodes) rel.itemCodes = [];
+                    const idx = rel.itemCodes.findIndex((c: string) => c.toUpperCase() === taskCode);
 
-                if (targetVersion && vClean === targetVersion) {
-                  versionFound = true;
-                  if (idx < 0) {
-                    rel.itemCodes.push(taskData.id);
+                    if (targetVersion && vClean === targetVersion) {
+                      versionFound = true;
+                      if (idx < 0) {
+                        rel.itemCodes.push(taskData.id);
+                        changed = true;
+                      }
+                    } else if (idx >= 0 && !relArray.some((rv: string) => rv.replace(/^v/i, '') === vClean)) {
+                      rel.itemCodes.splice(idx, 1);
+                      changed = true;
+                    }
+                  }
+
+                  if (targetVersion && !versionFound) {
+                    const now = new Date();
+                    const todayStr = now.toISOString().slice(0, 10);
+                    const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                    relsData.unshift({
+                      id: `rel-${targetVersion.replace(/\./g, '-')}`,
+                      projectId: project.id,
+                      version: targetVersion,
+                      date: todayStr,
+                      targetDate: targetDate,
+                      status: 'unreleased',
+                      title: `v${targetVersion}`,
+                      summary: `Versión ${targetVersion} creada para planificación.`,
+                      itemCodes: [taskData.id],
+                      markdownContent: `## [${targetVersion}] - Unreleased\n\n### 🎯 Resumen\n*Versión ${targetVersion} en planificación.*`,
+                      createdAt: now.toISOString()
+                    });
                     changed = true;
                   }
-                } else if (idx >= 0 && !relArray.some((rv: string) => rv.replace(/^v/i, '') === vClean)) {
-                  rel.itemCodes.splice(idx, 1);
-                  changed = true;
+
+                  if (changed) {
+                    atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
+                  }
+                } catch (syncErr: any) {
+                  console.warn('[gripm BacklogService] Error sincronizando releases.json al guardar tarea:', syncErr.message);
                 }
               }
-
-              if (targetVersion && !versionFound) {
-                const now = new Date();
-                const todayStr = now.toISOString().slice(0, 10);
-                const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                relsData.unshift({
-                  id: `rel-${targetVersion.replace(/\./g, '-')}`,
-                  projectId: project.id,
-                  version: targetVersion,
-                  date: todayStr,
-                  targetDate: targetDate,
-                  status: 'unreleased',
-                  title: `v${targetVersion}`,
-                  summary: `Versión ${targetVersion} creada para planificación.`,
-                  itemCodes: [taskData.id],
-                  markdownContent: `## [${targetVersion}] - Unreleased\n\n### 🎯 Resumen\n*Versión ${targetVersion} en planificación.*`,
-                  createdAt: now.toISOString()
-                });
-                changed = true;
-              }
-
-              if (changed) {
-                atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
-              }
-            } catch (syncErr: any) {
-              console.warn('[gripm BacklogService] Error sincronizando releases.json al guardar tarea:', syncErr.message);
-            }
+            });
           }
         }
       }
@@ -1943,3 +2391,8 @@ export class BacklogService {
     atomicWriteFileSync(jsonPath, JSON.stringify(currentBacklog, null, 2), 'utf8');
   }
 }
+
+export function getNextTaskId(project: ProjectMeta, options?: { withoutLock?: boolean }): string {
+  return BacklogService.getNextTaskId(project, options);
+}
+

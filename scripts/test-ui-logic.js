@@ -132,4 +132,25 @@ assert(esLocales['sprint.colParent'] === 'Padre', "es.json must expose sprint.co
 assert(enLocales['sprint.colParent'] === 'Parent', "en.json must expose sprint.colParent as 'Parent' (DEV-256)");
 assert(!esLocales['sprint.colEpic'] && !enLocales['sprint.colEpic'], 'the obsolete sprint.colEpic key must be removed from both locales (DEV-256)');
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, module consistency (DEV-241) and Parent column migration (DEV-256)');
+// DEV-255: Command Palette global y buscador de acciones rápidas (⌘K)
+assert(esLocales['palette.title'] && enLocales['palette.title'], 'both locales must expose palette.title (DEV-255)');
+assert(esLocales['palette.placeholder'] && enLocales['palette.placeholder'], 'both locales must expose palette.placeholder (DEV-255)');
+assert(esLocales['palette.sectionNavigation'] && enLocales['palette.sectionNavigation'], 'both locales must expose palette.sectionNavigation (DEV-255)');
+assert(esLocales['palette.sectionTasks'] && enLocales['palette.sectionTasks'], 'both locales must expose palette.sectionTasks (DEV-255)');
+assert(esLocales['palette.sectionActions'] && enLocales['palette.sectionActions'], 'both locales must expose palette.sectionActions (DEV-255)');
+assert(esLocales['palette.sectionProjects'] && enLocales['palette.sectionProjects'], 'both locales must expose palette.sectionProjects (DEV-255)');
+
+const commandPaletteSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'CommandPaletteModal.tsx'), 'utf8');
+assert(commandPaletteSource.includes('role="combobox"'), 'CommandPaletteModal must implement role="combobox" input (DEV-255)');
+assert(commandPaletteSource.includes('role="listbox"'), 'CommandPaletteModal must implement role="listbox" results (DEV-255)');
+assert(commandPaletteSource.includes('role="option"'), 'CommandPaletteModal must implement role="option" items (DEV-255)');
+assert(commandPaletteSource.includes('aria-autocomplete="list"'), 'CommandPaletteModal must declare aria-autocomplete="list" (DEV-255)');
+assert(commandPaletteSource.includes('aria-controls="command-palette-results"'), 'CommandPaletteModal must link input to results via aria-controls (DEV-255)');
+assert(commandPaletteSource.includes('useFocusTrap<HTMLDivElement>(isOpen, onClose)'), 'CommandPaletteModal must integrate useFocusTrap (DEV-255)');
+
+const appSource = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8');
+assert(appSource.includes("<CommandPaletteModal"), 'App.tsx must mount CommandPaletteModal (DEV-255)');
+assert(appSource.includes("(e.key === 'k' || e.key === 'K')"), 'App.tsx must intercept Cmd+K / Ctrl+K (DEV-255)');
+assert(appSource.includes("e.stopImmediatePropagation()"), 'App.tsx must stop immediate propagation so FilterBar is superseded by palette (DEV-255)');
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, module consistency (DEV-241), Parent column migration (DEV-256) and Command Palette (DEV-255)');

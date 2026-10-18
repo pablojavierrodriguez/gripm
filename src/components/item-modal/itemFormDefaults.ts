@@ -92,7 +92,7 @@ export function parseItemToFormValues(
     labels: source.labels || [],
     assignees: source.assignees || [],
     acExpanded: true,
-    planExpanded: Boolean(source.implementationPlan?.trim()),
+    planExpanded: false,
     riskFixExpanded: Boolean(source.risk?.trim() || source.fix?.trim()),
     relationsExpanded: Boolean(
       Boolean(source.parentId) ||

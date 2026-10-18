@@ -1,7 +1,8 @@
 ---
 id: DEV-311
 title: "Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService"
-status: draft
+status: ready
+claimed_by: "antigravity:worker_dev311_1"
 created_date: '2026-10-17'
 updated_date: '2026-10-17'
 labels:
@@ -42,11 +43,11 @@ Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `s
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `POST /api/items` delega la creación en `BacklogService.createTask` garantizando paridad de validación con MCP
-- [ ] #2 `PUT /api/items/:id` delega la actualización en `BacklogService.updateTask` preservando la detección de conflictos `409` por `expectedMtime`
-- [ ] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
-- [ ] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
-- [ ] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
+- [x] #1 `POST /api/items` delega la creación en `BacklogService.createTask` garantizando paridad de validación con MCP
+- [x] #2 `PUT /api/items/:id` delega la actualización en `BacklogService.updateTask` preservando la detección de conflictos `409` por `expectedMtime`
+- [x] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
+- [x] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
+- [x] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -61,4 +62,9 @@ Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `s
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+- `normalizeTaskUpdates`: helper puro exportado en `server/services/backlogService.ts` que unifica la extracción y validación de campos para motores Markdown y JSON.
+- `ConflictError`: clase de error tipada exportada en `server/services/backlogService.ts` lanzada cuando `currentMtime > options.expectedMtime`, manejada con HTTP 409 Conflict en `PUT /api/items/:id`.
+- Delegación de endpoints mutantes en `server/routes/api.ts` (`POST /api/items`, `PUT /api/items/:id`, `POST /api/items/bulk`, `PATCH /api/items/:id/restore`, `DELETE /api/items/:id`).
+- Delegación de `export-monolithic-md` en `BacklogService.exportBacklogMd`.
+- Reducción de `server/routes/api.ts` de 1,476 líneas a 1,238 líneas.
 <!-- SECTION:NOTES:END -->

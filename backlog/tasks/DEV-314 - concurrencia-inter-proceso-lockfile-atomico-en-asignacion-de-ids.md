@@ -1,7 +1,7 @@
 ---
 id: DEV-314
 title: "Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas"
-status: draft
+status: ready
 priority: high
 type: enhancement
 owner: Antigravity
@@ -29,12 +29,12 @@ Esta tarea introduce un mecanismo de locking atómico inter-proceso:
 ## Criterios de Aceptacion
 
 <!-- AC:BEGIN -->
-- [ ] Implementar un módulo utilitario de lockfile atómico (`src/server/utils/fs-lock.ts` o equivalente) con soporte de timeout y liberación garantizada en `finally`.
-- [ ] La función de generación de próximo ID correlativo adquiere el lock antes de inspeccionar IDs y lo libera una vez creado el archivo en disco.
-- [ ] Las mutaciones en `releases.json` y `retrospectives.json` están protegidas por locks atómicos por archivo durante la lectura y escritura.
-- [ ] Manejo defensivo de stale locks huérfanos con verificación de timestamp de expiración (e.g. 5000ms de gracia máxima).
-- [ ] Pruebas unitarias que simulen concurrencia entre dos operaciones simultáneas de creación de tarea demostrando que se asignan IDs consecutivos sin colisión ni error no controlado.
-- [ ] La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
+- [x] Implementar un módulo utilitario de lockfile atómico (`src/server/utils/fs-lock.ts` o equivalente) con soporte de timeout y liberación garantizada en `finally`.
+- [x] La función de generación de próximo ID correlativo adquiere el lock antes de inspeccionar IDs y lo libera una vez creado el archivo en disco.
+- [x] Las mutaciones en `releases.json` y `retrospectives.json` están protegidas por locks atómicos por archivo durante la lectura y escritura.
+- [x] Manejo defensivo de stale locks huérfanos con verificación de timestamp de expiración (e.g. 5000ms de gracia máxima).
+- [x] Pruebas unitarias que simulen concurrencia entre dos operaciones simultáneas de creación de tarea demostrando que se asignan IDs consecutivos sin colisión ni error no controlado.
+- [x] La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
 <!-- AC:END -->
 
 ## Notas Tecnicas

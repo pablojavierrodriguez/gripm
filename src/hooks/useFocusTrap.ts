@@ -28,6 +28,20 @@ const focusableWithin = (container: HTMLElement): HTMLElement[] =>
   Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isVisible);
 
 /**
+ * Global stack of active focus trap instances (DEV-305).
+ * Only the topmost trap handles Escape and Tab events to prevent
+ * multiple nested modals from closing simultaneously.
+ */
+export interface FocusTrapEntry {
+  id: symbol;
+  container: HTMLElement | null;
+}
+
+export const activeTraps: FocusTrapEntry[] = [];
+
+export const hasActiveFocusTrap = (): boolean => activeTraps.length > 0;
+
+/**
  * Traps keyboard focus inside an open overlay and restores it on close (DEV-173).
  *
  * Without this, Tab walks out of the dialog into the page behind it, so a keyboard
@@ -47,18 +61,31 @@ export const useFocusTrap = <T extends HTMLElement>(
 ) => {
   const containerRef = useRef<T | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const trapInstanceRef = useRef<FocusTrapEntry>({
+    id: Symbol('focus-trap'),
+    get container() {
+      return containerRef.current;
+    },
+  });
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // Only the topmost trap on the stack handles Escape and Tab (DEV-305)
+      const isTopmost = activeTraps[activeTraps.length - 1] === trapInstanceRef.current;
+      if (!isTopmost) return;
+
       if (event.key === 'Escape') {
         if (onClose) {
           event.preventDefault();
+          event.stopImmediatePropagation();
           onClose();
         }
         return;
       }
 
       if (event.key !== 'Tab') return;
+
+      event.stopImmediatePropagation();
 
       const container = containerRef.current;
       if (!container) return;
@@ -94,6 +121,9 @@ export const useFocusTrap = <T extends HTMLElement>(
   useEffect(() => {
     if (!isOpen) return;
 
+    const currentTrap = trapInstanceRef.current;
+    activeTraps.push(currentTrap);
+
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
 
     // Defer so the dialog has painted before we measure focusable children.
@@ -108,6 +138,11 @@ export const useFocusTrap = <T extends HTMLElement>(
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown, true);
+
+      const trapIdx = activeTraps.indexOf(currentTrap);
+      if (trapIdx !== -1) {
+        activeTraps.splice(trapIdx, 1);
+      }
 
       const restoreTo = restoreFocusRef.current;
       restoreFocusRef.current = null;

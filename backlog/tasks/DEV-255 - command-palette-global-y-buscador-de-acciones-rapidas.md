@@ -1,9 +1,10 @@
 ---
 id: DEV-255
 title: "Command Palette global y buscador de acciones rápidas (⌘K)"
-status: draft
+status: ready
+claimed_by: "antigravity:worker_dev255_1"
 created_date: '2026-10-12'
-updated_date: '2026-10-12'
+updated_date: '2026-10-18'
 labels:
   - "ux"
   - "navigation"
@@ -28,9 +29,9 @@ Diseño e implementación de una Command Palette interactiva global (estilo Line
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Atajo ⌘K / Ctrl+K abre el modal flotante de Command Palette en lugar de enfocar únicamente el input de filtros
-- [ ] #2 Buscador filtra en tiempo real tareas existentes y comandos de acción rápida
-- [ ] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
-- [ ] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
-- [ ] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
+- [x] #1 Atajo ⌘K / Ctrl+K abre el modal flotante de Command Palette en lugar de enfocar únicamente el input de filtros
+- [x] #2 Buscador filtra en tiempo real tareas existentes y comandos de acción rápida
+- [x] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
+- [x] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
+- [x] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
 <!-- AC:END -->

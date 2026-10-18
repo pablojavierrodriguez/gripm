@@ -260,17 +260,17 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
   return (
     <div
       ref={popoverRef}
-      className="absolute left-0 top-full mt-2 w-[calc(100vw-32px)] sm:w-[420px] max-h-[calc(100vh-140px)] overflow-y-auto rounded-2xl filters-popover z-50 p-4 space-y-4 text-xs animate-in fade-in zoom-in-95 duration-150"
+      className="absolute left-0 top-full mt-2 w-[calc(100vw-32px)] sm:w-[600px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-2xl filters-popover z-50 p-4 space-y-3 text-xs animate-in fade-in zoom-in-95 duration-150"
     >
       {/* Popover Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06]">
+      <div className="flex items-center justify-between min-w-0 pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
           <span className="font-semibold text-slate-800 dark:text-slate-200">
             {t('filter.advancedTitle')}
           </span>
           {activeFiltersCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+            <span className="px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
               {activeFiltersCount}
             </span>
           )}
@@ -297,8 +297,12 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
         </div>
       </div>
 
-      {/* Section 1: Inclusiones Especiales (Ideas & Descartados) */}
-      <div className="space-y-1.5">
+      {/* 2-Column Grid on sm: */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 items-start">
+        {/* Left Column: Flow Status & Types */}
+        <div className="space-y-3">
+          {/* Section 1: Inclusiones Especiales (Ideas & Descartados) */}
+          <div className="space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {t('filter.inclusionsTitle')}
         </span>
@@ -431,7 +435,10 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
           })}
         </div>
       </div>
+    </div>
 
+    {/* Right Column: Priority, Sprint & Release, Modules, Estimation */}
+    <div className="space-y-3">
       {/* Section 3: Prioridad (Multiselect) */}
       <div className="space-y-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -625,6 +632,28 @@ export const AdvancedFiltersPopover: React.FC<AdvancedFiltersPopoverProps> = ({
           </div>
         </div>
       )}
+        </div>
+      </div>
+
+      {/* Popover Footer */}
+      <div className="pt-2.5 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between min-w-0">
+        <button
+          type="button"
+          onClick={onResetFilters}
+          disabled={activeFiltersCount === 0}
+          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>{activeFiltersCount > 0 ? t('filter.clear', { count: activeFiltersCount }) : t('common.clear')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors shadow-xs"
+        >
+          {t('common.close')}
+        </button>
+      </div>
     </div>
   );
 };

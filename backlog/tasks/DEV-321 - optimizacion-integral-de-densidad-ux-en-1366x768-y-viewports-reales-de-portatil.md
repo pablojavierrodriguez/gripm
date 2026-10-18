@@ -1,9 +1,10 @@
 ---
 id: DEV-321
 title: "Optimización Integral de Densidad UX en 1366x768 y Viewports Reales de Portátil (1366x650)"
-status: draft
+status: ready
+claimed_by: "antigravity:worker_dev321_1"
 created_date: '2026-10-17'
-updated_date: '2026-10-17 14:21'
+updated_date: '2026-10-17 20:15'
 labels:
   - "ux"
   - "ui"
@@ -49,12 +50,12 @@ Auditoría y resolución integral de los problemas de densidad vertical y horizo
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Con las 5 pestañas habilitadas en Español (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), badge de actualización visible, botón `Re-sync /docs` y nombre de proyecto de 25 caracteres, el `Header` en `1366x768` y `1280x800` mantiene separación `>= 16px` entre bloques y `0` saltos de línea en botones
-- [ ] #2 En `ItemModal` abierto a `1366x768` y `1366x650`, la cabecera de `Acceptance Criteria` y al menos los primeros criterios son visibles sin necesidad de scroll inicial, y todos los campos de la barra lateral derecha (`Status`, `Priority`, `Type`, `Sprint`, `Release`, `Dates`, `Assignees`, `Labels`) quedan accesibles sin recortes
-- [ ] #3 `AdvancedFiltersPopover` presenta una disposición compacta donde las secciones de estado, tipo, prioridad, release/sprint y el botón de reset son visibles simultáneamente en `1366x768` sin corte inferior
-- [ ] #4 `SprintView`, `TimelineView`, `ReleaseView` / `ReleaseAssembler`, `MetricsView` y `SettingsView` pasan validación visual y geométrica automatizada con Playwright en `1366x768` y `1366x650` (ES y EN) sin elementos solapados ni recortados
-- [ ] #5 Todos los modales secundarios (`ImportWizardModal`, `SprintModal`, `CompleteSprintModal`, `ProjectModal`, `TrashModal`, `KeyboardShortcutsModal`) mantienen cabecera y pie de acciones 100% visibles dentro de un viewport de `1366x650`
-- [ ] #6 El scroll horizontal de las columnas del `KanbanBoard` se mantiene intacto sin alteraciones
+- [x] #1 Con las 5 pestañas habilitadas en Español (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), badge de actualización visible, botón `Re-sync /docs` y nombre de proyecto de 25 caracteres, el `Header` en `1366x768` y `1280x800` mantiene separación `>= 16px` entre bloques y `0` saltos de línea en botones
+- [x] #2 En `ItemModal` abierto a `1366x768` y `1366x650`, la cabecera de `Acceptance Criteria` y al menos los primeros criterios son visibles sin necesidad de scroll inicial, y todos los campos de la barra lateral derecha (`Status`, `Priority`, `Type`, `Sprint`, `Release`, `Dates`, `Assignees`, `Labels`) quedan accesibles sin recortes
+- [x] #3 `AdvancedFiltersPopover` presenta una disposición compacta donde las secciones de estado, tipo, prioridad, release/sprint y el botón de reset son visibles simultáneamente en `1366x768` sin corte inferior
+- [x] #4 `SprintView`, `TimelineView`, `ReleaseView` / `ReleaseAssembler`, `MetricsView` y `SettingsView` pasan validación visual y geométrica automatizada con Playwright en `1366x768` y `1366x650` (ES y EN) sin elementos solapados ni recortados
+- [x] #5 Todos los modales secundarios (`ImportWizardModal`, `SprintModal`, `CompleteSprintModal`, `ProjectModal`, `TrashModal`, `KeyboardShortcutsModal`) mantienen cabecera y pie de acciones 100% visibles dentro de un viewport de `1366x650`
+- [x] #6 El scroll horizontal de las columnas del `KanbanBoard` se mantiene intacto sin alteraciones
 <!-- AC:END -->
 
 ## Implementation Plan

@@ -373,26 +373,26 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06] flex-shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={handleComplete}
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
-            >
-              {isSubmitting ? t('completeSprint.completing') : t('completeSprint.completeBtn')}
-            </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
-          </div>
+        {/* Modal Actions */}
+        <div className="flex items-center justify-end gap-2.5 px-6 py-3 border-t border-slate-100 dark:border-white/[0.06] flex-shrink-0 bg-slate-50/50 dark:bg-white/[0.02]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={handleComplete}
+            disabled={isSubmitting}
+            className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {isSubmitting ? t('completeSprint.completing') : t('completeSprint.completeBtn')}
+          </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
         </div>
       </Modal>
   );

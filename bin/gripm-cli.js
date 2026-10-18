@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // scripts/gripm-cli.ts
-import fs5 from "node:fs";
-import path5 from "node:path";
+import fs6 from "node:fs";
+import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 import { execSync as execSync2, execFileSync, spawnSync } from "node:child_process";
 
@@ -954,8 +954,8 @@ function resolveProjectIdentity(repoPath) {
 }
 
 // server/services/backlogService.ts
-import fs4 from "node:fs";
-import path4 from "node:path";
+import fs5 from "node:fs";
+import path5 from "node:path";
 import { execSync } from "node:child_process";
 
 // server/services/registry.ts
@@ -1068,26 +1068,175 @@ function isBacklogMdProject(project) {
   return false;
 }
 
+// server/utils/fs-lock.ts
+import fs4 from "node:fs";
+import path4 from "node:path";
+function getLockFilePath(targetPath) {
+  const resolved = path4.resolve(targetPath);
+  return resolved.endsWith(".lock") ? resolved : `${resolved}.lock`;
+}
+function sleepSync(ms) {
+  if (ms <= 0) return;
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+    }
+  }
+}
+function calculateNextDelay(currentDelay, maxDelay) {
+  const jitter = 0.8 + Math.random() * 0.4;
+  const next = Math.min(Math.round(currentDelay * 1.5 * jitter), maxDelay);
+  return Math.max(10, next);
+}
+function checkAndCleanStaleLock(lockFilePath, staleTimeoutMs) {
+  try {
+    const stat = fs4.statSync(lockFilePath);
+    const age = Date.now() - stat.mtimeMs;
+    let isStale = age > staleTimeoutMs;
+    if (!isStale) {
+      try {
+        const content = fs4.readFileSync(lockFilePath, "utf8");
+        const payload = JSON.parse(content);
+        if (typeof payload.expiresAt === "number" && Date.now() > payload.expiresAt) {
+          isStale = true;
+        }
+      } catch {
+      }
+    }
+    if (isStale) {
+      try {
+        fs4.unlinkSync(lockFilePath);
+        return true;
+      } catch {
+      }
+    }
+  } catch (statErr) {
+    const err = statErr;
+    if (err && err.code === "ENOENT") {
+      return true;
+    }
+  }
+  return false;
+}
+function acquireLockSync(targetPath, options) {
+  const lockFilePath = getLockFilePath(targetPath);
+  const timeoutMs = options?.timeoutMs ?? 1e4;
+  const minDelay = options?.minRetryDelayMs ?? 25;
+  const maxDelay = options?.maxRetryDelayMs ?? 250;
+  const staleTimeoutMs = options?.staleTimeoutMs ?? 5e3;
+  const dir = path4.dirname(lockFilePath);
+  if (!fs4.existsSync(dir)) {
+    fs4.mkdirSync(dir, { recursive: true });
+  }
+  const startTime = Date.now();
+  let currentDelay = minDelay;
+  while (true) {
+    try {
+      const fd = fs4.openSync(lockFilePath, "wx");
+      const payload = {
+        pid: process.pid,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + staleTimeoutMs,
+        metadata: options?.metadata
+      };
+      try {
+        fs4.writeFileSync(fd, JSON.stringify(payload), "utf8");
+      } finally {
+        try {
+          fs4.closeSync(fd);
+        } catch {
+        }
+      }
+      return {
+        lockPath: lockFilePath,
+        targetPath: path4.resolve(targetPath),
+        acquiredAt: Date.now(),
+        release: () => releaseLockSync(lockFilePath)
+      };
+    } catch (openErr) {
+      const err = openErr;
+      if (err && err.code === "EEXIST") {
+        const cleaned = checkAndCleanStaleLock(lockFilePath, staleTimeoutMs);
+        if (cleaned) {
+          continue;
+        }
+        if (Date.now() - startTime >= timeoutMs) {
+          throw new Error(`[fs-lock] Excedido timeout de ${timeoutMs}ms intentando adquirir lock: ${lockFilePath}`);
+        }
+        sleepSync(currentDelay);
+        currentDelay = calculateNextDelay(currentDelay, maxDelay);
+        continue;
+      }
+      throw openErr;
+    }
+  }
+}
+function releaseLockSync(targetPath) {
+  const lockFilePath = getLockFilePath(targetPath);
+  try {
+    if (fs4.existsSync(lockFilePath)) {
+      fs4.unlinkSync(lockFilePath);
+    }
+  } catch (unlinkErr) {
+    const err = unlinkErr;
+    if (err && err.code !== "ENOENT") {
+    }
+  }
+}
+function withFileLockSync(targetPath, fn, options) {
+  const handle = acquireLockSync(targetPath, options);
+  try {
+    return fn();
+  } finally {
+    handle.release();
+  }
+}
+
 // server/services/backlogService.ts
-var DEMO_FILE2 = fs4.existsSync(path4.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path4.resolve(PKG_ROOT, "data/demo-backlog.json") : path4.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var ConflictError = class _ConflictError extends Error {
+  conflict = true;
+  currentMtime;
+  currentItem;
+  constructor(message, currentMtime, currentItem) {
+    super(message);
+    this.name = "ConflictError";
+    this.currentMtime = currentMtime;
+    this.currentItem = currentItem;
+    Object.setPrototypeOf(this, _ConflictError.prototype);
+  }
+};
+var DEMO_FILE2 = fs5.existsSync(path5.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path5.resolve(PKG_ROOT, "data/demo-backlog.json") : path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
-    return path4.join(project.repoPath, ".gripm/backlog.json");
+    return path5.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path4.join(PKG_ROOT, `data/${project.id}-backlog.json`);
+  return path5.join(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
 function getProjectTasksDir(project) {
   if (!project.repoPath) return "";
-  return path4.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "tasks");
 }
 function getProjectSprintsPath(project) {
   if (!project.repoPath) return "";
-  return path4.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
 }
 function getProjectReleasesPath(project) {
   if (!project.repoPath) return "";
-  return path4.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+}
+function getProjectRetrospectivesPath(project) {
+  if (!project.repoPath) return "";
+  return path5.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
+}
+function getProjectTaskAllocationLockPath(project) {
+  if (project.repoPath) {
+    const baseDir = path5.join(project.repoPath, project.backlogDir || "backlog");
+    return path5.join(baseDir, ".task-allocation.lock");
+  }
+  return path5.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
 }
 function validateVerifyCommand(cmd, repoPath) {
   if (!cmd || typeof cmd !== "string") {
@@ -1140,9 +1289,9 @@ function validateVerifyCommand(cmd, repoPath) {
   let pkgScripts = {};
   let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    const pkgPath = path4.join(repoPath, "package.json");
-    if (fs4.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs4.readFileSync(pkgPath, "utf8"));
+    const pkgPath = path5.join(repoPath, "package.json");
+    if (fs5.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs5.readFileSync(pkgPath, "utf8"));
       if (pkg.scripts && typeof pkg.scripts === "object") {
         pkgScripts = pkg.scripts;
       }
@@ -1283,9 +1432,9 @@ function resolveLegibleSprint(project, val) {
   }
   if (!project.repoPath) return clean;
   const sprintsPath = getProjectSprintsPath(project);
-  if (fs4.existsSync(sprintsPath)) {
+  if (fs5.existsSync(sprintsPath)) {
     try {
-      const registeredSprints = JSON.parse(fs4.readFileSync(sprintsPath, "utf8"));
+      const registeredSprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
       if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
         const matched = registeredSprints.find(
           (s) => s.id && s.id.toLowerCase() === lower || s.name && s.name.trim().toLowerCase() === lower
@@ -1305,19 +1454,19 @@ function resolveLegibleSprint(project, val) {
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
-    path4.join(repoPath, "docs/RELEASE_NOTES.md"),
-    path4.join(repoPath, "docs/releasenotes.md"),
-    path4.join(repoPath, "RELEASE_NOTES.md"),
-    path4.join(repoPath, "releasenotes.md"),
-    path4.join(repoPath, "docs/CHANGELOG.md"),
-    path4.join(repoPath, "CHANGELOG.md"),
-    path4.join(repoPath, "changelog.md")
+    path5.join(repoPath, "docs/RELEASE_NOTES.md"),
+    path5.join(repoPath, "docs/releasenotes.md"),
+    path5.join(repoPath, "RELEASE_NOTES.md"),
+    path5.join(repoPath, "releasenotes.md"),
+    path5.join(repoPath, "docs/CHANGELOG.md"),
+    path5.join(repoPath, "CHANGELOG.md"),
+    path5.join(repoPath, "changelog.md")
   ];
   let notesContent = "";
   for (const p of possiblePaths) {
-    if (fs4.existsSync(p)) {
+    if (fs5.existsSync(p)) {
       try {
-        notesContent = fs4.readFileSync(p, "utf8");
+        notesContent = fs5.readFileSync(p, "utf8");
         break;
       } catch {
       }
@@ -1383,9 +1532,9 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
 function findTaskFile(project, id) {
   if (!project.repoPath) return null;
   const tasksDir = getProjectTasksDir(project);
-  if (!fs4.existsSync(tasksDir)) return null;
+  if (!fs5.existsSync(tasksDir)) return null;
   const cleanId = id.toLowerCase();
-  const files = fs4.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+  const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
   let found = files.find((f) => {
     const fLower = f.toLowerCase();
     return fLower.startsWith(`${cleanId} `) || fLower.startsWith(`${cleanId}-`) || fLower === `${cleanId}.md`;
@@ -1393,7 +1542,7 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const raw = fs4.readFileSync(path4.join(tasksDir, f), "utf8");
+        const raw = fs5.readFileSync(path5.join(tasksDir, f), "utf8");
         const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
         const parsed = parseBacklogMd(raw, fallbackId);
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
@@ -1405,9 +1554,9 @@ function findTaskFile(project, id) {
     }
   }
   if (!found) return null;
-  const filePath = path4.join(tasksDir, found);
+  const filePath = path5.join(tasksDir, found);
   try {
-    const raw = fs4.readFileSync(filePath, "utf8");
+    const raw = fs5.readFileSync(filePath, "utf8");
     const fallbackId = found.split("-")[0] || found.replace(/\.md$/, "");
     const task = parseBacklogMd(raw, fallbackId);
     return { filePath, filename: found, task };
@@ -1477,6 +1626,118 @@ function mapMarkdownTaskToCanonical(task, project, filename, fileStat) {
   };
   return canonical;
 }
+function normalizeTaskUpdates(project, updates) {
+  const u = updates || {};
+  const inner = u.updates && typeof u.updates === "object" ? u.updates : null;
+  const usedUpdatesObject = Boolean(inner && !u.status && inner.status);
+  const rawStatus = u.status || inner?.status;
+  const status = rawStatus ? normalizeStatus(rawStatus) : void 0;
+  const title = u.title !== void 0 ? u.title : inner?.title;
+  const description = u.description !== void 0 ? u.description : inner?.description;
+  const rawPriority = u.priority || inner?.priority;
+  const priority = rawPriority ? normalizePriority(rawPriority) : void 0;
+  const rawType = u.type || inner?.type;
+  const type = rawType ? normalizeType(rawType) : void 0;
+  const implementationPlan = u.implementationPlan !== void 0 ? u.implementationPlan : inner?.implementationPlan;
+  const implementationNotes = u.implementationNotes !== void 0 ? u.implementationNotes : u.notes !== void 0 ? u.notes : u.fix !== void 0 ? u.fix : inner?.implementationNotes;
+  let sprint;
+  let targetSprint;
+  let sprints;
+  let clearSprint = false;
+  const rawSprint = u.sprint !== void 0 ? u.sprint : u.targetSprint !== void 0 ? u.targetSprint : inner?.sprint;
+  if (rawSprint !== void 0) {
+    const legSprint = resolveLegibleSprint(project, rawSprint);
+    if (legSprint) {
+      sprint = legSprint;
+      targetSprint = legSprint;
+      sprints = [legSprint];
+    } else {
+      clearSprint = true;
+      sprint = void 0;
+      targetSprint = void 0;
+      sprints = [];
+    }
+  } else if (u.sprints !== void 0 || inner?.sprints !== void 0) {
+    const explicitSprints = Array.isArray(u.sprints) ? u.sprints : Array.isArray(inner?.sprints) ? inner.sprints : [];
+    sprints = explicitSprints;
+    sprint = explicitSprints.length > 0 ? explicitSprints[0] : void 0;
+    targetSprint = sprint;
+  }
+  let release;
+  let targetRelease;
+  let milestone;
+  let releases;
+  if (u.release !== void 0 || u.targetRelease !== void 0 || u.milestone !== void 0 || u.releases !== void 0 || inner?.release !== void 0 || inner?.targetRelease !== void 0 || inner?.milestone !== void 0 || inner?.releases !== void 0) {
+    const rawRel = (u.release || u.targetRelease || u.milestone || inner?.release || inner?.targetRelease || inner?.milestone || (Array.isArray(u.releases) && u.releases.length > 0 ? u.releases[0] : "") || (Array.isArray(inner?.releases) && inner.releases.length > 0 ? inner.releases[0] : "") || "").trim();
+    const rawRelArr = Array.isArray(u.releases) ? u.releases : Array.isArray(inner?.releases) ? inner.releases : rawRel ? [rawRel] : [];
+    releases = rawRelArr.filter(Boolean).filter((r) => !r.toLowerCase().includes("sprint"));
+    release = rawRel || void 0;
+    targetRelease = rawRel || void 0;
+    milestone = rawRel || void 0;
+  }
+  let estimate;
+  const rawEstimate = u.estimate !== void 0 ? u.estimate : inner?.estimate;
+  if (rawEstimate !== void 0) {
+    if (rawEstimate === "" || rawEstimate === null) {
+      estimate = null;
+    } else {
+      const num = Number(rawEstimate);
+      estimate = !isNaN(num) && typeof rawEstimate !== "boolean" && !String(rawEstimate).includes(" ") ? num : rawEstimate;
+    }
+  }
+  const labels = Array.isArray(u.labels) ? u.labels : Array.isArray(inner?.labels) ? inner.labels : void 0;
+  const assignees = Array.isArray(u.assignees) ? u.assignees : Array.isArray(inner?.assignees) ? inner.assignees : void 0;
+  const parentId = u.parentId !== void 0 ? u.parentId : inner?.parentId;
+  const blocks = Array.isArray(u.blocks) ? u.blocks : Array.isArray(inner?.blocks) ? inner.blocks : void 0;
+  const blockedBy = Array.isArray(u.blockedBy) ? u.blockedBy : Array.isArray(inner?.blockedBy) ? inner.blockedBy : void 0;
+  const blockedReason = u.blockedReason !== void 0 ? u.blockedReason : inner?.blockedReason;
+  const dismissedReason = u.dismissedReason !== void 0 ? u.dismissedReason : inner?.dismissedReason;
+  const relatedTo = Array.isArray(u.relatedTo) ? u.relatedTo : Array.isArray(inner?.relatedTo) ? inner.relatedTo : void 0;
+  const dependencies = Array.isArray(u.dependencies) ? u.dependencies : Array.isArray(inner?.dependencies) ? inner.dependencies : void 0;
+  const module = u.module !== void 0 ? u.module : inner?.module;
+  const epic = u.epic !== void 0 ? u.epic : inner?.epic;
+  const category = u.category !== void 0 ? u.category : inner?.category;
+  const impactedFile = u.impactedFile !== void 0 ? u.impactedFile : inner?.impactedFile;
+  const risk = u.risk !== void 0 ? u.risk : inner?.risk;
+  const checkAllAcs = u.checkAllAcs !== void 0 ? u.checkAllAcs : inner?.checkAllAcs;
+  const toggleAcIndex = u.toggleAcIndex !== void 0 ? u.toggleAcIndex : inner?.toggleAcIndex;
+  return {
+    status,
+    rawStatus,
+    title,
+    description,
+    priority,
+    type,
+    implementationPlan,
+    implementationNotes,
+    milestone,
+    release,
+    targetRelease,
+    releases,
+    sprint,
+    targetSprint,
+    sprints,
+    clearSprint,
+    estimate,
+    labels,
+    assignees,
+    parentId,
+    blocks,
+    blockedBy,
+    blockedReason,
+    dismissedReason,
+    relatedTo,
+    dependencies,
+    module,
+    epic,
+    category,
+    impactedFile,
+    risk,
+    checkAllAcs,
+    toggleAcIndex,
+    usedUpdatesObject
+  };
+}
 var BacklogService = class _BacklogService {
   /**
    * Reads all tasks for a project with optional filters.
@@ -1486,17 +1747,17 @@ var BacklogService = class _BacklogService {
     let items = [];
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs4.existsSync(tasksDir)) {
-        const files = fs4.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs5.existsSync(tasksDir)) {
+        const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
         let orderIdx = 1;
         for (const file of files) {
           try {
-            const fullPath = path4.join(tasksDir, file);
-            const raw = fs4.readFileSync(fullPath, "utf8");
+            const fullPath = path5.join(tasksDir, file);
+            const raw = fs5.readFileSync(fullPath, "utf8");
             const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
             const parsed = parseBacklogMd(raw, fallbackId);
-            const stat = fs4.statSync(fullPath);
+            const stat = fs5.statSync(fullPath);
             const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
             if (canonical.order === 0) canonical.order = orderIdx++;
             items.push(canonical);
@@ -1506,11 +1767,11 @@ var BacklogService = class _BacklogService {
       }
     } else {
       const jsonPath = resolveJsonBacklogPath(project);
-      if (fs4.existsSync(jsonPath)) {
+      if (fs5.existsSync(jsonPath)) {
         try {
-          const raw = fs4.readFileSync(jsonPath, "utf8");
+          const raw = fs5.readFileSync(jsonPath, "utf8");
           const data = JSON.parse(raw);
-          const jsonStat = fs4.statSync(jsonPath);
+          const jsonStat = fs5.statSync(jsonPath);
           const jsonMtime = Math.round(jsonStat.mtimeMs);
           items = (data.items || []).map((it) => ({
             ...it,
@@ -1648,9 +1909,18 @@ var BacklogService = class _BacklogService {
     };
   }
   /**
-   * Creates a new task in the project with correlative code generation.
+   * Inspects existing tasks in memory and on disk to compute the next correlative task ID.
    */
-  static createTask(project, data) {
+  static getNextTaskId(project, options) {
+    if (options?.withoutLock) {
+      return _BacklogService.computeNextTaskId(project);
+    }
+    const lockPath = getProjectTaskAllocationLockPath(project);
+    return withFileLockSync(lockPath, () => {
+      return _BacklogService.computeNextTaskId(project);
+    });
+  }
+  static computeNextTaskId(project) {
     const cleanPrefix = (project.codePrefix || "DEV").replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "DEV";
     const allTasks = _BacklogService.listTasks(project, { includeDeleted: true });
     let maxNum = 0;
@@ -1664,8 +1934,8 @@ var BacklogService = class _BacklogService {
     }
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs4.existsSync(tasksDir)) {
-        const diskFiles = fs4.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs5.existsSync(tasksDir)) {
+        const diskFiles = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const f of diskFiles) {
           const m = f.match(regex);
           if (m) {
@@ -1675,88 +1945,115 @@ var BacklogService = class _BacklogService {
         }
       }
     }
-    const nextNum = maxNum > 0 ? maxNum + 1 : allTasks.length + 1;
-    const code = `${cleanPrefix}-${String(nextNum).padStart(3, "0")}`;
-    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    let acList = [];
-    if (Array.isArray(data.acceptanceCriteria)) {
-      acList = data.acceptanceCriteria.map((item, i) => {
-        if (typeof item === "string") {
-          return { index: i + 1, text: item, checked: false };
-        }
-        return { index: item.index || i + 1, text: item.text || "", checked: Boolean(item.checked) };
-      });
-    } else if (Array.isArray(data.acceptanceCriteriaList)) {
-      acList = data.acceptanceCriteriaList.map((item, i) => ({
-        index: item.index || i + 1,
-        text: item.text || "",
-        checked: Boolean(item.checked)
-      }));
-    }
-    let initialEstimate;
-    if (data.estimate !== void 0 && data.estimate !== null && data.estimate !== "") {
-      const num = Number(data.estimate);
-      initialEstimate = !isNaN(num) && typeof data.estimate !== "boolean" && !String(data.estimate).includes(" ") ? num : data.estimate;
-    }
-    const normalizedSt = normalizeStatus(data.status || "draft");
-    const taskData = {
-      id: code,
-      title: data.title || "Sin t\xEDtulo",
-      status: normalizedSt,
-      priority: normalizePriority(data.priority || "medium"),
-      type: data.type || "feature",
-      createdDate: today,
-      updatedDate: today,
-      milestone: data.milestone || data.release || data.targetRelease,
-      estimate: initialEstimate,
-      description: data.description || "",
-      acceptanceCriteria: acList,
-      implementationPlan: data.implementationPlan || "",
-      implementationNotes: data.implementationNotes || data.notes || data.fix,
-      assignees: data.assignees || [],
-      labels: data.labels || [],
-      dependencies: data.dependencies || [],
-      parentId: data.parentId,
-      blocks: data.blocks || [],
-      blockedBy: data.blockedBy || [],
-      blockedReason: data.blockedReason || void 0,
-      dismissedReason: data.dismissedReason || void 0,
-      relatedTo: data.relatedTo || []
-    };
-    if (isBacklogMdProject(project) && project.repoPath) {
-      const tasksDir = getProjectTasksDir(project);
-      if (!fs4.existsSync(tasksDir)) fs4.mkdirSync(tasksDir, { recursive: true });
-      const filename = generateTaskFilename(code, taskData.title);
-      const filepath = path4.join(tasksDir, filename);
-      const serialized = serializeBacklogMd(taskData);
-      atomicWriteFileSync(filepath, serialized, "utf8");
-      const canonical = mapMarkdownTaskToCanonical(taskData, project, filename);
-      return { ok: true, task: canonical, savedFile: filepath };
-    }
-    const jsonPath = resolveJsonBacklogPath(project);
-    const newItem = {
-      ...taskData,
-      code,
-      projectId: project.id,
-      acceptanceCriteriaList: acList,
-      order: allTasks.length + 1,
-      createdAt: now,
-      updatedAt: now,
-      completedAt: normalizedSt === "done" ? now : void 0
-    };
-    let existingData = { project: { ...project, storageType: "json" }, items: [], releases: [], sprints: [] };
-    if (fs4.existsSync(jsonPath)) {
-      try {
-        existingData = JSON.parse(fs4.readFileSync(jsonPath, "utf8"));
-      } catch {
+    const nextNum = maxNum > 0 ? maxNum + 1 : allTasks.length > 0 ? allTasks.length + 1 : 1;
+    return `${cleanPrefix}-${String(nextNum).padStart(3, "0")}`;
+  }
+  /**
+   * Creates a new task in the project with correlative code generation under atomic lock.
+   */
+  static createTask(project, data) {
+    const lockPath = getProjectTaskAllocationLockPath(project);
+    return withFileLockSync(lockPath, () => {
+      const allTasks = _BacklogService.listTasks(project, { includeDeleted: true });
+      const code = typeof data.code === "string" && data.code.trim() ? data.code.trim() : _BacklogService.computeNextTaskId(project);
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      let acList = [];
+      if (Array.isArray(data.acceptanceCriteria)) {
+        acList = data.acceptanceCriteria.map((item, i) => {
+          if (typeof item === "string") {
+            return { index: i + 1, text: item, checked: false };
+          }
+          return { index: item.index || i + 1, text: item.text || "", checked: Boolean(item.checked) };
+        });
+      } else if (Array.isArray(data.acceptanceCriteriaList)) {
+        acList = data.acceptanceCriteriaList.map((item, i) => ({
+          index: item.index || i + 1,
+          text: item.text || "",
+          checked: Boolean(item.checked)
+        }));
       }
-    }
-    if (!Array.isArray(existingData.items)) existingData.items = [];
-    existingData.items.push(newItem);
-    existingData.lastUpdated = now;
-    atomicWriteFileSync(jsonPath, JSON.stringify(existingData, null, 2), "utf8");
-    return { ok: true, task: newItem, savedFile: jsonPath };
+      let initialEstimate;
+      if (data.estimate !== void 0 && data.estimate !== null && data.estimate !== "") {
+        const num = Number(data.estimate);
+        initialEstimate = !isNaN(num) && typeof data.estimate !== "boolean" && !String(data.estimate).includes(" ") ? num : data.estimate;
+      }
+      const rawSprint = data.sprint || data.targetSprint;
+      const legSprint = rawSprint ? resolveLegibleSprint(project, rawSprint) : void 0;
+      const rawRel = (data.release || data.targetRelease || data.milestone || (Array.isArray(data.releases) && data.releases.length > 0 ? data.releases[0] : "") || "").trim();
+      const relArr = Array.isArray(data.releases) ? data.releases.filter(Boolean).filter((r) => !r.toLowerCase().includes("sprint")) : rawRel ? [rawRel] : [];
+      const normalizedSt = normalizeStatus(data.status || "draft");
+      const taskData = {
+        id: code,
+        title: data.title || "Sin t\xEDtulo",
+        status: normalizedSt,
+        priority: normalizePriority(data.priority || "medium"),
+        type: data.type || "feature",
+        createdDate: today,
+        updatedDate: today,
+        milestone: rawRel || void 0,
+        sprint: legSprint || void 0,
+        targetSprint: legSprint || void 0,
+        sprints: legSprint ? [legSprint] : Array.isArray(data.sprints) ? data.sprints : [],
+        releases: relArr,
+        estimate: initialEstimate,
+        description: data.description || "",
+        acceptanceCriteria: acList,
+        implementationPlan: data.implementationPlan || "",
+        implementationNotes: data.implementationNotes || data.notes || data.fix,
+        assignees: Array.isArray(data.assignees) ? data.assignees : [],
+        labels: Array.isArray(data.labels) ? data.labels : [],
+        dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
+        parentId: data.parentId || void 0,
+        blocks: Array.isArray(data.blocks) ? data.blocks : [],
+        blockedBy: Array.isArray(data.blockedBy) ? data.blockedBy : [],
+        blockedReason: data.blockedReason || void 0,
+        dismissedReason: data.dismissedReason || void 0,
+        relatedTo: Array.isArray(data.relatedTo) ? data.relatedTo : [],
+        module: data.module || void 0,
+        impactedFile: data.impactedFile || void 0,
+        risk: data.risk || void 0,
+        epic: data.epic || void 0,
+        category: data.category || void 0,
+        fix: data.fix || void 0
+      };
+      if (isBacklogMdProject(project) && project.repoPath) {
+        const tasksDir = getProjectTasksDir(project);
+        if (!fs5.existsSync(tasksDir)) fs5.mkdirSync(tasksDir, { recursive: true });
+        const filename = generateTaskFilename(code, taskData.title);
+        const filepath = path5.join(tasksDir, filename);
+        const serialized = serializeBacklogMd(taskData);
+        atomicWriteFileSync(filepath, serialized, "utf8");
+        const fileStat = fs5.existsSync(filepath) ? fs5.statSync(filepath) : void 0;
+        const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
+        return { ok: true, task: canonical, savedFile: filepath };
+      }
+      const jsonPath = resolveJsonBacklogPath(project);
+      const newItem = {
+        ...taskData,
+        code,
+        projectId: project.id,
+        acceptanceCriteriaList: acList,
+        order: typeof data.order === "number" ? data.order : allTasks.length + 1,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: normalizedSt === "done" ? now : void 0
+      };
+      let existingData = { project: { ...project, storageType: "json" }, items: [], releases: [], sprints: [] };
+      if (fs5.existsSync(jsonPath)) {
+        try {
+          existingData = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
+        } catch {
+        }
+      }
+      if (!Array.isArray(existingData.items)) existingData.items = [];
+      existingData.items.push(newItem);
+      existingData.lastUpdated = now;
+      atomicWriteFileSync(jsonPath, JSON.stringify(existingData, null, 2), "utf8");
+      const jsonStat = fs5.existsSync(jsonPath) ? fs5.statSync(jsonPath) : void 0;
+      newItem.mtime = jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
+      return { ok: true, task: newItem, savedFile: jsonPath };
+    });
   }
   /**
    * Updates an existing task by ID with Gatekeeper validation.
@@ -1767,87 +2064,98 @@ var BacklogService = class _BacklogService {
     }
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const now = (/* @__PURE__ */ new Date()).toISOString();
+    const norm = normalizeTaskUpdates(project, updates);
     if (isBacklogMdProject(project) && project.repoPath) {
       const fileInfo = findTaskFile(project, taskId);
       if (!fileInfo) {
         throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
       }
       const { filePath, filename, task: current2 } = fileInfo;
-      const effectiveStatus2 = updates.status || updates.updates?.status;
-      const effectiveTitle2 = updates.title || updates.updates?.title;
-      const effectiveDesc2 = updates.description !== void 0 ? updates.description : updates.updates?.description;
-      const effectivePriority2 = updates.priority || updates.updates?.priority;
-      const effectiveType2 = updates.type || updates.updates?.type;
-      const effectivePlan2 = updates.implementationPlan !== void 0 ? updates.implementationPlan : updates.updates?.implementationPlan;
-      const effectiveNotes2 = updates.implementationNotes !== void 0 ? updates.implementationNotes : updates.notes !== void 0 ? updates.notes : updates.fix !== void 0 ? updates.fix : updates.updates?.implementationNotes;
-      const effectiveMilestone2 = updates.milestone !== void 0 ? updates.milestone : updates.updates?.milestone;
-      const effectiveSprint2 = updates.sprint !== void 0 ? updates.sprint : updates.targetSprint !== void 0 ? updates.targetSprint : updates.updates?.sprint;
-      const effectiveCheckAllAcs2 = updates.checkAllAcs !== void 0 ? updates.checkAllAcs : updates.updates?.checkAllAcs;
-      const effectiveEstimate2 = updates.estimate !== void 0 ? updates.estimate : updates.updates?.estimate;
-      const effectiveLabels2 = Array.isArray(updates.labels) ? updates.labels : Array.isArray(updates.updates?.labels) ? updates.updates.labels : void 0;
-      const usedUpdatesObject2 = Boolean(updates.updates && !updates.status && updates.updates.status);
-      if (effectiveStatus2) current2.status = normalizeStatus(effectiveStatus2);
-      if (effectiveTitle2) current2.title = effectiveTitle2;
-      if (effectiveDesc2 !== void 0) current2.description = effectiveDesc2;
-      if (effectivePriority2) current2.priority = normalizePriority(effectivePriority2);
-      if (effectiveType2) current2.type = normalizeType(effectiveType2);
-      if (effectivePlan2 !== void 0) current2.implementationPlan = effectivePlan2;
-      if (effectiveNotes2 !== void 0) {
-        current2.implementationNotes = effectiveNotes2;
-        if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
-        current2.rawExtraFrontmatter.fix = effectiveNotes2;
-      }
-      if (effectiveMilestone2 !== void 0) current2.milestone = effectiveMilestone2;
-      if (effectiveLabels2 !== void 0) current2.labels = effectiveLabels2;
-      if (effectiveSprint2 !== void 0) {
-        const legSprint = resolveLegibleSprint(project, effectiveSprint2);
-        if (legSprint) {
-          current2.sprint = legSprint;
-          current2.targetSprint = legSprint;
-          if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
-          current2.rawExtraFrontmatter.sprint = legSprint;
-          current2.rawExtraFrontmatter.targetSprint = legSprint;
-          current2.sprints = [legSprint];
-        } else {
-          current2.sprint = void 0;
-          current2.targetSprint = void 0;
-          current2.sprints = [];
-          if (current2.rawExtraFrontmatter) {
-            delete current2.rawExtraFrontmatter.sprint;
-            delete current2.rawExtraFrontmatter.targetSprint;
-          }
+      const fileStat = fs5.existsSync(filePath) ? fs5.statSync(filePath) : void 0;
+      const currentMtime2 = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
+      if (!options?.force && typeof options?.expectedMtime === "number") {
+        if (currentMtime2 > options.expectedMtime) {
+          const canonicalCurrent = mapMarkdownTaskToCanonical(current2, project, filename, fileStat);
+          throw new ConflictError(
+            `La tarea "${current2.id}" fue modificada en disco por otro proceso o agente.`,
+            currentMtime2,
+            canonicalCurrent
+          );
         }
       }
-      if (effectiveEstimate2 !== void 0) {
-        if (effectiveEstimate2 === "" || effectiveEstimate2 === null) {
+      if (norm.status) current2.status = norm.status;
+      if (norm.title !== void 0) current2.title = norm.title;
+      if (norm.description !== void 0) current2.description = norm.description;
+      if (norm.priority) current2.priority = norm.priority;
+      if (norm.type) current2.type = norm.type;
+      if (norm.implementationPlan !== void 0) current2.implementationPlan = norm.implementationPlan;
+      if (norm.implementationNotes !== void 0) {
+        current2.implementationNotes = norm.implementationNotes;
+        if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
+        current2.rawExtraFrontmatter.fix = norm.implementationNotes;
+      }
+      if (norm.milestone !== void 0) current2.milestone = norm.milestone;
+      if (norm.labels !== void 0) current2.labels = norm.labels;
+      if (norm.assignees !== void 0) current2.assignees = norm.assignees;
+      if (norm.parentId !== void 0) current2.parentId = norm.parentId || void 0;
+      if (norm.blocks !== void 0) current2.blocks = norm.blocks;
+      if (norm.blockedBy !== void 0) current2.blockedBy = norm.blockedBy;
+      if (norm.blockedReason !== void 0) current2.blockedReason = norm.blockedReason || void 0;
+      if (norm.dismissedReason !== void 0) current2.dismissedReason = norm.dismissedReason || void 0;
+      if (norm.relatedTo !== void 0) current2.relatedTo = norm.relatedTo;
+      if (norm.dependencies !== void 0) current2.dependencies = norm.dependencies;
+      if (norm.module !== void 0) current2.module = norm.module || void 0;
+      if (norm.epic !== void 0) current2.epic = norm.epic || void 0;
+      if (norm.category !== void 0) current2.category = norm.category || void 0;
+      if (norm.impactedFile !== void 0) current2.impactedFile = norm.impactedFile || void 0;
+      if (norm.risk !== void 0) current2.risk = norm.risk || void 0;
+      if (norm.clearSprint) {
+        current2.sprint = void 0;
+        current2.targetSprint = void 0;
+        current2.sprints = [];
+        if (current2.rawExtraFrontmatter) {
+          delete current2.rawExtraFrontmatter.sprint;
+          delete current2.rawExtraFrontmatter.targetSprint;
+        }
+      } else if (norm.sprint !== void 0) {
+        current2.sprint = norm.sprint;
+        current2.targetSprint = norm.sprint;
+        current2.sprints = norm.sprints || [norm.sprint];
+        if (!current2.rawExtraFrontmatter) current2.rawExtraFrontmatter = {};
+        current2.rawExtraFrontmatter.sprint = norm.sprint;
+        current2.rawExtraFrontmatter.targetSprint = norm.sprint;
+      } else if (norm.sprints !== void 0) {
+        current2.sprints = norm.sprints;
+      }
+      if (norm.estimate !== void 0) {
+        if (norm.estimate === null) {
           current2.estimate = void 0;
           if (current2.rawExtraFrontmatter) delete current2.rawExtraFrontmatter.estimate;
         } else {
-          const num = Number(effectiveEstimate2);
-          current2.estimate = !isNaN(num) && typeof effectiveEstimate2 !== "boolean" && !String(effectiveEstimate2).includes(" ") ? num : effectiveEstimate2;
-          if (current2.rawExtraFrontmatter) current2.rawExtraFrontmatter.estimate = String(effectiveEstimate2);
+          current2.estimate = norm.estimate;
+          if (current2.rawExtraFrontmatter) current2.rawExtraFrontmatter.estimate = String(norm.estimate);
         }
       }
       current2.updatedDate = today;
-      if (effectiveCheckAllAcs2 !== void 0 && current2.acceptanceCriteria) {
+      if (norm.checkAllAcs !== void 0 && current2.acceptanceCriteria) {
         current2.acceptanceCriteria = current2.acceptanceCriteria.map((ac) => ({
           ...ac,
-          checked: Boolean(effectiveCheckAllAcs2)
+          checked: Boolean(norm.checkAllAcs)
         }));
-      } else if (updates.toggleAcIndex !== void 0) {
-        if (typeof updates.toggleAcIndex !== "number" || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
-          throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+      } else if (norm.toggleAcIndex !== void 0) {
+        if (typeof norm.toggleAcIndex !== "number" || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
+          throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
         }
         const acList = current2.acceptanceCriteria || [];
-        const foundAc = acList.find((ac) => ac.index === updates.toggleAcIndex);
+        const foundAc = acList.find((ac) => ac.index === norm.toggleAcIndex);
         if (!foundAc) {
-          throw new Error(`[Validation] Criterio de aceptaci\xF3n #${updates.toggleAcIndex} no encontrado en la tarea '${current2.id}'.`);
+          throw new Error(`[Validation] Criterio de aceptaci\xF3n #${norm.toggleAcIndex} no encontrado en la tarea '${current2.id}'.`);
         }
         current2.acceptanceCriteria = acList.map(
-          (ac) => ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+          (ac) => ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
         );
       }
-      const targetStatus2 = effectiveStatus2 ? normalizeStatus(effectiveStatus2) : current2.status;
+      const targetStatus2 = norm.status || current2.status;
       validateGatekeeperTransition(current2, targetStatus2, options, project.repoPath);
       if (current2.rawExtraFrontmatter) {
         delete current2.rawExtraFrontmatter.verifyCommand;
@@ -1856,9 +2164,10 @@ var BacklogService = class _BacklogService {
       }
       const serialized = serializeBacklogMd(current2);
       atomicWriteFileSync(filePath, serialized, "utf8");
-      const canonical = mapMarkdownTaskToCanonical(current2, project, filename);
+      const freshStat = fs5.existsSync(filePath) ? fs5.statSync(filePath) : void 0;
+      const canonical = mapMarkdownTaskToCanonical(current2, project, filename, freshStat);
       const resp2 = { ok: true, updatedTask: canonical, filePath };
-      if (usedUpdatesObject2) {
+      if (norm.usedUpdatesObject) {
         resp2.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
       }
       if (options?.force) {
@@ -1872,10 +2181,10 @@ var BacklogService = class _BacklogService {
       return resp2;
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs4.existsSync(jsonPath)) {
+    if (!fs5.existsSync(jsonPath)) {
       throw new Error(`Archivo de backlog JSON no encontrado en ${jsonPath}.`);
     }
-    const data = JSON.parse(fs4.readFileSync(jsonPath, "utf8"));
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
     const cleanId = String(taskId).toLowerCase();
     const idx = (data.items || []).findIndex(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -1884,67 +2193,97 @@ var BacklogService = class _BacklogService {
       throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
     }
     const current = data.items[idx];
-    const effectiveStatus = updates.status || updates.updates?.status;
-    const effectiveTitle = updates.title || updates.updates?.title;
-    const effectiveDesc = updates.description !== void 0 ? updates.description : updates.updates?.description;
-    const effectivePriority = updates.priority || updates.updates?.priority;
-    const effectiveType = updates.type || updates.updates?.type;
-    const effectivePlan = updates.implementationPlan !== void 0 ? updates.implementationPlan : updates.updates?.implementationPlan;
-    const effectiveNotes = updates.implementationNotes !== void 0 ? updates.implementationNotes : updates.notes !== void 0 ? updates.notes : updates.fix !== void 0 ? updates.fix : updates.updates?.implementationNotes;
-    const effectiveMilestone = updates.milestone !== void 0 ? updates.milestone : updates.updates?.milestone;
-    const effectiveSprint = updates.sprint !== void 0 ? updates.sprint : updates.targetSprint !== void 0 ? updates.targetSprint : updates.updates?.sprint;
-    const effectiveCheckAllAcs = updates.checkAllAcs !== void 0 ? updates.checkAllAcs : updates.updates?.checkAllAcs;
-    const effectiveEstimate = updates.estimate !== void 0 ? updates.estimate : updates.updates?.estimate;
-    const effectiveLabels = Array.isArray(updates.labels) ? updates.labels : Array.isArray(updates.updates?.labels) ? updates.updates.labels : void 0;
-    const usedUpdatesObject = Boolean(updates.updates && !updates.status && updates.updates.status);
-    if (effectiveStatus) current.status = normalizeStatus(effectiveStatus);
-    if (effectiveTitle) current.title = effectiveTitle;
-    if (effectiveDesc !== void 0) current.description = effectiveDesc;
-    if (effectivePriority) current.priority = normalizePriority(effectivePriority);
-    if (effectiveType) current.type = normalizeType(effectiveType);
-    if (effectivePlan !== void 0) current.implementationPlan = effectivePlan;
-    if (effectiveNotes !== void 0) {
-      current.implementationNotes = effectiveNotes;
-      current.fix = effectiveNotes;
+    const jsonStat = fs5.existsSync(jsonPath) ? fs5.statSync(jsonPath) : void 0;
+    const currentMtime = typeof current.mtime === "number" ? current.mtime : jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
+    if (!options?.force && typeof options?.expectedMtime === "number") {
+      if (currentMtime > options.expectedMtime) {
+        throw new ConflictError(
+          `La tarea "${current.code || current.id}" fue modificada en disco por otro proceso o agente.`,
+          currentMtime,
+          current
+        );
+      }
     }
-    if (effectiveMilestone !== void 0) current.milestone = effectiveMilestone;
-    if (effectiveLabels !== void 0) current.labels = effectiveLabels;
-    if (effectiveSprint !== void 0) {
-      const legSprint = resolveLegibleSprint(project, effectiveSprint);
-      current.sprint = legSprint;
-      current.targetSprint = legSprint;
-      current.sprints = legSprint ? [legSprint] : [];
+    const wasDone = current.status === "done";
+    if (norm.status) current.status = norm.status;
+    const isNowDone = current.status === "done";
+    if (norm.title !== void 0) current.title = norm.title;
+    if (norm.description !== void 0) current.description = norm.description;
+    if (norm.priority) current.priority = norm.priority;
+    if (norm.type) current.type = norm.type;
+    if (norm.implementationPlan !== void 0) current.implementationPlan = norm.implementationPlan;
+    if (norm.implementationNotes !== void 0) {
+      current.implementationNotes = norm.implementationNotes;
+      current.fix = norm.implementationNotes;
     }
-    if (effectiveEstimate !== void 0) {
-      current.estimate = effectiveEstimate === "" || effectiveEstimate === null ? void 0 : effectiveEstimate;
+    if (norm.milestone !== void 0) {
+      current.milestone = norm.milestone;
+      current.release = norm.release;
+      current.targetRelease = norm.targetRelease;
+      current.releases = norm.releases;
+    }
+    if (norm.labels !== void 0) current.labels = norm.labels;
+    if (norm.assignees !== void 0) current.assignees = norm.assignees;
+    if (norm.parentId !== void 0) current.parentId = norm.parentId || void 0;
+    if (norm.blocks !== void 0) current.blocks = norm.blocks;
+    if (norm.blockedBy !== void 0) current.blockedBy = norm.blockedBy;
+    if (norm.blockedReason !== void 0) current.blockedReason = norm.blockedReason || void 0;
+    if (norm.dismissedReason !== void 0) current.dismissedReason = norm.dismissedReason || void 0;
+    if (norm.relatedTo !== void 0) current.relatedTo = norm.relatedTo;
+    if (norm.dependencies !== void 0) current.dependencies = norm.dependencies;
+    if (norm.module !== void 0) current.module = norm.module || void 0;
+    if (norm.epic !== void 0) current.epic = norm.epic || void 0;
+    if (norm.category !== void 0) current.category = norm.category || void 0;
+    if (norm.impactedFile !== void 0) current.impactedFile = norm.impactedFile || void 0;
+    if (norm.risk !== void 0) current.risk = norm.risk || void 0;
+    if (norm.clearSprint) {
+      current.sprint = void 0;
+      current.targetSprint = void 0;
+      current.sprints = [];
+    } else if (norm.sprint !== void 0) {
+      current.sprint = norm.sprint;
+      current.targetSprint = norm.sprint;
+      current.sprints = norm.sprints || [norm.sprint];
+    } else if (norm.sprints !== void 0) {
+      current.sprints = norm.sprints;
+    }
+    if (norm.estimate !== void 0) {
+      current.estimate = norm.estimate === null ? void 0 : norm.estimate;
     }
     current.updatedAt = now;
-    if (effectiveCheckAllAcs !== void 0 && current.acceptanceCriteriaList) {
+    if (isNowDone && !wasDone) {
+      current.completedAt = now;
+    } else if (!isNowDone) {
+      current.completedAt = void 0;
+    }
+    if (norm.checkAllAcs !== void 0 && current.acceptanceCriteriaList) {
       current.acceptanceCriteriaList = current.acceptanceCriteriaList.map((ac) => ({
         ...ac,
-        checked: Boolean(effectiveCheckAllAcs)
+        checked: Boolean(norm.checkAllAcs)
       }));
-    } else if (updates.toggleAcIndex !== void 0) {
-      if (typeof updates.toggleAcIndex !== "number" || !Number.isInteger(updates.toggleAcIndex) || updates.toggleAcIndex < 1) {
-        throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${updates.toggleAcIndex}'.`);
+    } else if (norm.toggleAcIndex !== void 0) {
+      if (typeof norm.toggleAcIndex !== "number" || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
+        throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
       }
       const acList = current.acceptanceCriteriaList || [];
-      const foundAc = acList.find((ac) => ac.index === updates.toggleAcIndex);
+      const foundAc = acList.find((ac) => ac.index === norm.toggleAcIndex);
       if (!foundAc) {
-        throw new Error(`[Validation] Criterio de aceptaci\xF3n #${updates.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+        throw new Error(`[Validation] Criterio de aceptaci\xF3n #${norm.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
       }
       current.acceptanceCriteriaList = acList.map(
-        (ac) => ac.index === updates.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
+        (ac) => ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
       );
     }
-    const targetStatus = effectiveStatus ? normalizeStatus(effectiveStatus) : current.status;
+    const targetStatus = norm.status || current.status;
     validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
     delete current.verifyCommand;
     data.items[idx] = current;
     data.lastUpdated = now;
     atomicWriteFileSync(jsonPath, JSON.stringify(data, null, 2), "utf8");
+    const freshJsonStat = fs5.existsSync(jsonPath) ? fs5.statSync(jsonPath) : void 0;
+    current.mtime = freshJsonStat ? Math.round(freshJsonStat.mtimeMs) : Date.now();
     const resp = { ok: true, updatedTask: current, filePath: jsonPath };
-    if (usedUpdatesObject) {
+    if (norm.usedUpdatesObject) {
       resp.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
     }
     if (options?.force) {
@@ -1961,6 +2300,40 @@ var BacklogService = class _BacklogService {
    * Bulk updates tasks with Gatekeeper validation applied to ALL matching tasks (AC 3).
    */
   static bulkUpdateTasks(project, targetFilter, updates, options) {
+    if (Array.isArray(targetFilter.items)) {
+      const updatedIds2 = [];
+      const failedUpdates2 = [];
+      let updatedCount2 = 0;
+      for (const patch of targetFilter.items) {
+        if (!patch || !patch.id && !patch.code) continue;
+        const targetId = patch.code || patch.id;
+        try {
+          const res = _BacklogService.updateTask(project, targetId, patch, options);
+          if (res.ok) {
+            updatedCount2++;
+            updatedIds2.push(targetId);
+          }
+        } catch (err) {
+          failedUpdates2.push({ id: targetId, error: err.message });
+        }
+      }
+      const resp2 = {
+        ok: failedUpdates2.length === 0,
+        projectId: project.id,
+        storageType: project.storageType || "markdown",
+        updatedCount: updatedCount2,
+        updatedIds: updatedIds2,
+        ...failedUpdates2.length > 0 ? { failedUpdates: failedUpdates2, error: `${failedUpdates2.length} tarea(s) fallaron al actualizarse.` } : {}
+      };
+      if (options?.force) {
+        resp2.warning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+        resp2.audit = {
+          bypassedGatekeeper: true,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        };
+      }
+      return resp2;
+    }
     const cleanIds = Array.isArray(targetFilter.taskIds) ? new Set(targetFilter.taskIds.map((id) => String(id).toLowerCase())) : null;
     const pfxFilter = targetFilter.filterPrefix ? String(targetFilter.filterPrefix).toLowerCase() : null;
     const statusFilter = targetFilter.filterStatus ? normalizeStatus(targetFilter.filterStatus) : null;
@@ -1981,11 +2354,10 @@ var BacklogService = class _BacklogService {
         updatedIds: []
       };
     }
-    const effectiveStatus = updates.status || updates.updates?.status;
-    if (effectiveStatus) {
-      const targetStatus = normalizeStatus(effectiveStatus);
+    const norm = normalizeTaskUpdates(project, updates);
+    if (norm.status) {
       for (const t of matchedTasks) {
-        validateGatekeeperTransition(t, targetStatus, options, project.repoPath);
+        validateGatekeeperTransition(t, norm.status, options, project.repoPath);
       }
     }
     const updatedIds = [];
@@ -2033,13 +2405,13 @@ var BacklogService = class _BacklogService {
         throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
       }
       if (isPurge) {
-        const archiveDir = path4.join(project.repoPath, project.backlogDir || "backlog", "archive");
-        if (!fs4.existsSync(archiveDir)) fs4.mkdirSync(archiveDir, { recursive: true });
-        fs4.renameSync(filePath, path4.join(archiveDir, filename));
+        const archiveDir = path5.join(project.repoPath, project.backlogDir || "backlog", "archive");
+        if (!fs5.existsSync(archiveDir)) fs5.mkdirSync(archiveDir, { recursive: true });
+        fs5.renameSync(filePath, path5.join(archiveDir, filename));
         return { ok: true, id: taskId, purged: true };
       }
       const previousStatus = task.status || "draft";
-      const raw = fs4.readFileSync(filePath, "utf8");
+      const raw = fs5.readFileSync(filePath, "utf8");
       let updated = raw;
       updated = updated.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
       updated = updated.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
@@ -2061,8 +2433,8 @@ previousStatus: "${previousStatus}"
       return { ok: true, id: taskId, softDeleted: true };
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs4.existsSync(jsonPath)) return { ok: false, id: taskId };
-    const data = JSON.parse(fs4.readFileSync(jsonPath, "utf8"));
+    if (!fs5.existsSync(jsonPath)) return { ok: false, id: taskId };
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
     const cleanId = taskId.toLowerCase();
     const idx = (data.items || []).findIndex(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -2092,7 +2464,7 @@ previousStatus: "${previousStatus}"
       const fileInfo = findTaskFile(project, taskId);
       if (!fileInfo) return false;
       const { filePath } = fileInfo;
-      let raw = fs4.readFileSync(filePath, "utf8");
+      let raw = fs5.readFileSync(filePath, "utf8");
       const prevMatch = raw.match(/^[pP]revious[sS]tatus:\s*"?([^"\r\n]+)"?/m);
       const restoreStatus2 = prevMatch ? prevMatch[1].trim() : "draft";
       if (/^status:.*$/m.test(raw)) {
@@ -2105,8 +2477,8 @@ previousStatus: "${previousStatus}"
       return true;
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs4.existsSync(jsonPath)) return false;
-    const data = JSON.parse(fs4.readFileSync(jsonPath, "utf8"));
+    if (!fs5.existsSync(jsonPath)) return false;
+    const data = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
     const cleanId = taskId.toLowerCase();
     const item = (data.items || []).find(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -2139,7 +2511,7 @@ previousStatus: "${previousStatus}"
     const content = generateMonolithicBacklogMd(project.name, mdTasks);
     let savedPath;
     if (options?.save !== false && project.repoPath) {
-      savedPath = path4.join(project.repoPath, "BACKLOG.md");
+      savedPath = path5.join(project.repoPath, "BACKLOG.md");
       atomicWriteFileSync(savedPath, content, "utf8");
     }
     return {
@@ -2161,11 +2533,11 @@ previousStatus: "${previousStatus}"
     const autoFix = options?.autoFix === true;
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs4.existsSync(tasksDir)) {
-        const files = fs4.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs5.existsSync(tasksDir)) {
+        const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const file of files) {
-          const filePath = path4.join(tasksDir, file);
-          const content2 = fs4.readFileSync(filePath, "utf8");
+          const filePath = path5.join(tasksDir, file);
+          const content2 = fs5.readFileSync(filePath, "utf8");
           const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
           if (!fmMatch) continue;
           const fm = fmMatch[1];
@@ -2196,11 +2568,11 @@ previousStatus: "${previousStatus}"
     let backlogPath = null;
     let changesWritten = false;
     if (project.repoPath) {
-      backlogPath = path4.join(project.repoPath, "BACKLOG.md");
+      backlogPath = path5.join(project.repoPath, "BACKLOG.md");
       let existingContent = "";
-      if (fs4.existsSync(backlogPath)) {
+      if (fs5.existsSync(backlogPath)) {
         try {
-          existingContent = fs4.readFileSync(backlogPath, "utf8");
+          existingContent = fs5.readFileSync(backlogPath, "utf8");
         } catch {
         }
       }
@@ -2232,7 +2604,7 @@ previousStatus: "${previousStatus}"
     if (isBacklogMdProject(project)) {
       const tasksDir = getProjectTasksDir(project);
       try {
-        if (!fs4.existsSync(tasksDir)) {
+        if (!fs5.existsSync(tasksDir)) {
           return {
             project: { ...project, storageType: "markdown" },
             items: [],
@@ -2244,9 +2616,9 @@ previousStatus: "${previousStatus}"
         const items = _BacklogService.listTasks(project, { includeDeleted: true });
         let releases = [];
         const releasesPath = getProjectReleasesPath(project);
-        if (fs4.existsSync(releasesPath)) {
+        if (fs5.existsSync(releasesPath)) {
           try {
-            releases = JSON.parse(fs4.readFileSync(releasesPath, "utf8"));
+            releases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
           } catch {
           }
         }
@@ -2297,9 +2669,9 @@ previousStatus: "${previousStatus}"
         }
         let sprints = [];
         const sprintsPath = getProjectSprintsPath(project);
-        if (fs4.existsSync(sprintsPath)) {
+        if (fs5.existsSync(sprintsPath)) {
           try {
-            sprints = JSON.parse(fs4.readFileSync(sprintsPath, "utf8"));
+            sprints = JSON.parse(fs5.readFileSync(sprintsPath, "utf8"));
           } catch {
           }
         }
@@ -2355,7 +2727,7 @@ previousStatus: "${previousStatus}"
     }
     const filePath = resolveJsonBacklogPath(project);
     try {
-      if (!fs4.existsSync(filePath)) {
+      if (!fs5.existsSync(filePath)) {
         const initial = {
           project: { ...project, storageType: "json" },
           items: [],
@@ -2370,9 +2742,9 @@ previousStatus: "${previousStatus}"
         }
         return initial;
       }
-      const jsonStat = fs4.statSync(filePath);
+      const jsonStat = fs5.statSync(filePath);
       const jsonMtime = Math.round(jsonStat.mtimeMs);
-      const raw = fs4.readFileSync(filePath, "utf8");
+      const raw = fs5.readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
       let items = Array.isArray(parsed.items) ? parsed.items : [];
       items = items.map((it) => ({
@@ -2403,36 +2775,116 @@ previousStatus: "${previousStatus}"
     }
   }
   /**
+   * Reads releases from disk guarded by atomic file lock.
+   */
+  static readReleases(project) {
+    const filePath = getProjectReleasesPath(project);
+    if (!filePath || !fs5.existsSync(filePath)) return [];
+    return withFileLockSync(filePath, () => {
+      try {
+        if (!fs5.existsSync(filePath)) return [];
+        const content = fs5.readFileSync(filePath, "utf8");
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+  /**
+   * Mutates releases on disk guarded by atomic file lock.
+   */
+  static mutateReleases(project, mutator) {
+    const filePath = getProjectReleasesPath(project);
+    if (!filePath) return [];
+    return withFileLockSync(filePath, () => {
+      let current = [];
+      if (fs5.existsSync(filePath)) {
+        try {
+          const content = fs5.readFileSync(filePath, "utf8");
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) current = parsed;
+        } catch {
+        }
+      }
+      const result = mutator(current);
+      const toWrite = Array.isArray(result) ? result : current;
+      atomicWriteFileSync(filePath, JSON.stringify(toWrite, null, 2), "utf8");
+      return toWrite;
+    });
+  }
+  /**
+   * Reads retrospectives from disk guarded by atomic file lock.
+   */
+  static readRetrospectives(project) {
+    const filePath = getProjectRetrospectivesPath(project);
+    if (!filePath || !fs5.existsSync(filePath)) return [];
+    return withFileLockSync(filePath, () => {
+      try {
+        if (!fs5.existsSync(filePath)) return [];
+        const content = fs5.readFileSync(filePath, "utf8");
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+  /**
+   * Mutates retrospectives on disk guarded by atomic file lock.
+   */
+  static mutateRetrospectives(project, mutator) {
+    const filePath = getProjectRetrospectivesPath(project);
+    if (!filePath) return [];
+    return withFileLockSync(filePath, () => {
+      let current = [];
+      if (fs5.existsSync(filePath)) {
+        try {
+          const content = fs5.readFileSync(filePath, "utf8");
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) current = parsed;
+        } catch {
+        }
+      }
+      const result = mutator(current);
+      const toWrite = Array.isArray(result) ? result : current;
+      atomicWriteFileSync(filePath, JSON.stringify(toWrite, null, 2), "utf8");
+      return toWrite;
+    });
+  }
+  /**
    * Writes releases and sprints to disk atomically (markdown) or updates backlog.json (JSON).
    */
   static writeProjectBacklog(project, data) {
     if (isBacklogMdProject(project)) {
       if (project.repoPath) {
         try {
-          const dir = path4.join(project.repoPath, project.backlogDir || "backlog");
-          if (!fs4.existsSync(dir)) fs4.mkdirSync(dir, { recursive: true });
-          const releasesPath = path4.join(dir, "releases.json");
-          let releasesToWrite = data.releases || [];
-          if (fs4.existsSync(releasesPath)) {
-            try {
-              const diskReleases = JSON.parse(fs4.readFileSync(releasesPath, "utf8"));
-              if (Array.isArray(diskReleases)) {
-                releasesToWrite = releasesToWrite.map((rel) => {
-                  const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
-                  if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
-                    if (!rel.itemCodes || rel.itemCodes.length === 0) {
-                      return { ...rel, itemCodes: diskMatch.itemCodes };
+          const dir = path5.join(project.repoPath, project.backlogDir || "backlog");
+          if (!fs5.existsSync(dir)) fs5.mkdirSync(dir, { recursive: true });
+          const releasesPath = path5.join(dir, "releases.json");
+          withFileLockSync(releasesPath, () => {
+            let releasesToWrite = data.releases || [];
+            if (fs5.existsSync(releasesPath)) {
+              try {
+                const diskReleases = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
+                if (Array.isArray(diskReleases)) {
+                  releasesToWrite = releasesToWrite.map((rel) => {
+                    const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
+                    if (diskMatch && Array.isArray(diskMatch.itemCodes) && diskMatch.itemCodes.length > 0) {
+                      if (!rel.itemCodes || rel.itemCodes.length === 0) {
+                        return { ...rel, itemCodes: diskMatch.itemCodes };
+                      }
                     }
-                  }
-                  return rel;
-                });
+                    return rel;
+                  });
+                }
+              } catch {
               }
-            } catch {
             }
-          }
-          atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
+            atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
+          });
           if (data.sprints !== void 0) {
-            atomicWriteFileSync(path4.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+            atomicWriteFileSync(path5.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
           }
         } catch (err) {
           console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
@@ -2455,7 +2907,7 @@ previousStatus: "${previousStatus}"
     if (!project.repoPath && isBacklogMdProject(project)) return;
     if (isBacklogMdProject(project)) {
       const tasksDir = getProjectTasksDir(project);
-      if (!fs4.existsSync(tasksDir)) fs4.mkdirSync(tasksDir, { recursive: true });
+      if (!fs5.existsSync(tasksDir)) fs5.mkdirSync(tasksDir, { recursive: true });
       const fileInfo = findTaskFile(project, item.code || item.id);
       let existingFile = fileInfo?.filename;
       let existingTask = fileInfo?.task || {};
@@ -2563,71 +3015,75 @@ previousStatus: "${previousStatus}"
         }
         if (project.repoPath) {
           const releasesPath = getProjectReleasesPath(project);
-          if (fs4.existsSync(releasesPath)) {
-            try {
-              const relsData = JSON.parse(fs4.readFileSync(releasesPath, "utf8"));
-              const taskCode = (taskData.id || "").toUpperCase();
-              let changed = false;
-              const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
-              let versionFound = false;
-              for (const rel of relsData) {
-                const vClean = (rel.version || "").replace(/^v/i, "");
-                if (!rel.itemCodes) rel.itemCodes = [];
-                const idx2 = rel.itemCodes.findIndex((c2) => c2.toUpperCase() === taskCode);
-                if (targetVersion && vClean === targetVersion) {
-                  versionFound = true;
-                  if (idx2 < 0) {
-                    rel.itemCodes.push(taskData.id);
-                    changed = true;
+          if (releasesPath) {
+            withFileLockSync(releasesPath, () => {
+              if (fs5.existsSync(releasesPath)) {
+                try {
+                  const relsData = JSON.parse(fs5.readFileSync(releasesPath, "utf8"));
+                  const taskCode = (taskData.id || "").toUpperCase();
+                  let changed = false;
+                  const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
+                  let versionFound = false;
+                  for (const rel of relsData) {
+                    const vClean = (rel.version || "").replace(/^v/i, "");
+                    if (!rel.itemCodes) rel.itemCodes = [];
+                    const idx2 = rel.itemCodes.findIndex((c2) => c2.toUpperCase() === taskCode);
+                    if (targetVersion && vClean === targetVersion) {
+                      versionFound = true;
+                      if (idx2 < 0) {
+                        rel.itemCodes.push(taskData.id);
+                        changed = true;
+                      }
+                    } else if (idx2 >= 0 && !relArray.some((rv) => rv.replace(/^v/i, "") === vClean)) {
+                      rel.itemCodes.splice(idx2, 1);
+                      changed = true;
+                    }
                   }
-                } else if (idx2 >= 0 && !relArray.some((rv) => rv.replace(/^v/i, "") === vClean)) {
-                  rel.itemCodes.splice(idx2, 1);
-                  changed = true;
-                }
-              }
-              if (targetVersion && !versionFound) {
-                const now = /* @__PURE__ */ new Date();
-                const todayStr = now.toISOString().slice(0, 10);
-                const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1e3).toISOString().slice(0, 10);
-                relsData.unshift({
-                  id: `rel-${targetVersion.replace(/\./g, "-")}`,
-                  projectId: project.id,
-                  version: targetVersion,
-                  date: todayStr,
-                  targetDate,
-                  status: "unreleased",
-                  title: `v${targetVersion}`,
-                  summary: `Versi\xF3n ${targetVersion} creada para planificaci\xF3n.`,
-                  itemCodes: [taskData.id],
-                  markdownContent: `## [${targetVersion}] - Unreleased
+                  if (targetVersion && !versionFound) {
+                    const now = /* @__PURE__ */ new Date();
+                    const todayStr = now.toISOString().slice(0, 10);
+                    const targetDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1e3).toISOString().slice(0, 10);
+                    relsData.unshift({
+                      id: `rel-${targetVersion.replace(/\./g, "-")}`,
+                      projectId: project.id,
+                      version: targetVersion,
+                      date: todayStr,
+                      targetDate,
+                      status: "unreleased",
+                      title: `v${targetVersion}`,
+                      summary: `Versi\xF3n ${targetVersion} creada para planificaci\xF3n.`,
+                      itemCodes: [taskData.id],
+                      markdownContent: `## [${targetVersion}] - Unreleased
 
 ### \u{1F3AF} Resumen
 *Versi\xF3n ${targetVersion} en planificaci\xF3n.*`,
-                  createdAt: now.toISOString()
-                });
-                changed = true;
+                      createdAt: now.toISOString()
+                    });
+                    changed = true;
+                  }
+                  if (changed) {
+                    atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), "utf8");
+                  }
+                } catch (syncErr) {
+                  console.warn("[gripm BacklogService] Error sincronizando releases.json al guardar tarea:", syncErr.message);
+                }
               }
-              if (changed) {
-                atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), "utf8");
-              }
-            } catch (syncErr) {
-              console.warn("[gripm BacklogService] Error sincronizando releases.json al guardar tarea:", syncErr.message);
-            }
+            });
           }
         }
       }
       if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
       const content = serializeBacklogMd(taskData);
       const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-      const targetFilePath = path4.join(tasksDir, targetFilename);
+      const targetFilePath = path5.join(tasksDir, targetFilename);
       atomicWriteFileSync(targetFilePath, content, "utf8");
       return;
     }
     const jsonPath = resolveJsonBacklogPath(project);
     let currentBacklog = { project, items: [] };
-    if (fs4.existsSync(jsonPath)) {
+    if (fs5.existsSync(jsonPath)) {
       try {
-        currentBacklog = JSON.parse(fs4.readFileSync(jsonPath, "utf8"));
+        currentBacklog = JSON.parse(fs5.readFileSync(jsonPath, "utf8"));
       } catch {
       }
     }
@@ -2647,8 +3103,8 @@ previousStatus: "${previousStatus}"
 
 // scripts/gripm-cli.ts
 var __filename3 = fileURLToPath3(import.meta.url);
-var __dirname3 = path5.dirname(__filename3);
-var ROOT_DIR = path5.resolve(__dirname3, "..");
+var __dirname3 = path6.dirname(__filename3);
+var ROOT_DIR = path6.resolve(__dirname3, "..");
 function getRegistry() {
   const reg = loadRegistryFile(ROOT_DIR);
   if (!reg || !Array.isArray(reg.projects)) {
@@ -2663,7 +3119,7 @@ function getProject(projectId) {
     if (found) return found;
   }
   const cwd = process.cwd();
-  const matched = registry.projects.find((p) => p.repoPath && path5.normalize(p.repoPath) === path5.normalize(cwd));
+  const matched = registry.projects.find((p) => p.repoPath && path6.normalize(p.repoPath) === path6.normalize(cwd));
   if (matched) {
     const identity = resolveProjectIdentity(matched.repoPath || cwd);
     return {
@@ -2673,8 +3129,8 @@ function getProject(projectId) {
       codePrefix: identity.codePrefix || matched.codePrefix
     };
   }
-  const hasMdBacklog = fs5.existsSync(path5.join(cwd, "backlog/tasks"));
-  const hasJsonBacklog = fs5.existsSync(path5.join(cwd, ".gripm/backlog.json"));
+  const hasMdBacklog = fs6.existsSync(path6.join(cwd, "backlog/tasks"));
+  const hasJsonBacklog = fs6.existsSync(path6.join(cwd, ".gripm/backlog.json"));
   if (hasMdBacklog || hasJsonBacklog) {
     const identity = resolveProjectIdentity(cwd);
     return {
@@ -2710,7 +3166,7 @@ function loadTasks(project, options = {}) {
           if (tabIdx === -1) continue;
           const meta = chunk.slice(0, tabIdx).trim().split(/\s+/);
           const relPath = chunk.slice(tabIdx + 1);
-          entries.push({ sha: meta[1], relPath, file: path5.basename(relPath) });
+          entries.push({ sha: meta[1], relPath, file: path6.basename(relPath) });
         }
         entries.sort((a, b) => a.file.localeCompare(b.file, void 0, { numeric: true }));
         const res = spawnSync("git", ["cat-file", "--batch"], {
@@ -2835,7 +3291,7 @@ async function main() {
       description: t.description || "",
       acceptanceCriteria: t.acceptanceCriteria || []
     }));
-    const exportPath = path5.join(project.repoPath || process.cwd(), "BACKLOG.md");
+    const exportPath = path6.join(project.repoPath || process.cwd(), "BACKLOG.md");
     if (args.includes("--check")) {
       let existing = "";
       if (isStaged) {
@@ -2850,7 +3306,7 @@ async function main() {
           process.exit(1);
         }
       } else {
-        existing = fs5.existsSync(exportPath) ? fs5.readFileSync(exportPath, "utf8") : "";
+        existing = fs6.existsSync(exportPath) ? fs6.readFileSync(exportPath, "utf8") : "";
       }
       const normalizeLf = (s) => s.replace(/\r\n/g, "\n").trim();
       const stripDateHeader = (s) => s.replace(/^> Consolidado generado el \d{4}-\d{2}-\d{2} por gripm( ⚡)?\n?/m, "");

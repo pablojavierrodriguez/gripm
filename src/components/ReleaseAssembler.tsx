@@ -209,10 +209,10 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     const ux = selectedItems.filter((i) => i.type === 'ux');
 
     let md = `## [${versionStr}] - ${todayStr} 🚀 ${titleStr}\n\n`;
-    md += `### 🎯 Resumen\n*${summaryStr || 'Notas de versión y mejoras implementadas.'}*\n\n`;
+    md += `${t('release.changelogResumen')}\n*${summaryStr || t('release.changelogSummary')}*\n\n`;
 
     if (features.length > 0) {
-      md += `### 🚀 Nuevas Funcionalidades & Evolutivos\n`;
+      md += `${t('release.changelogFeatures')}\n`;
       features.forEach((item) => {
         md += `- **${item.title} (${item.code}):**\n`;
         const desc = item.description || item.title;
@@ -222,14 +222,14 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     }
 
     if (bugs.length > 0) {
-      md += `### 🛡️ Integridad & Correcciones Críticas\n`;
+      md += `${t('release.changelogBugs')}\n`;
       bugs.forEach((item) => {
         md += `- **${item.title} (${item.code}):**\n`;
         if (item.impactedFile) {
-          md += `  - Archivo impactado: \`${item.impactedFile}\`\n`;
+          md += `  - ${t('release.changelogImpacted')}: \`${item.impactedFile}\`\n`;
         }
         if (item.fix) {
-          md += `  - Corrección: ${item.fix.split('\n')[0]}\n`;
+          md += `  - ${t('release.changelogFix')}: ${item.fix.split('\n')[0]}\n`;
         } else {
           md += `  - ${item.description.split('\n')[0]}\n`;
         }
@@ -238,7 +238,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     }
 
     if (tech.length > 0) {
-      md += `### ⚡ Rendimiento & Arquitectura\n`;
+      md += `${t('release.changelogTech')}\n`;
       tech.forEach((item) => {
         md += `- **${item.title} (${item.code}):**\n`;
         md += `  - ${item.description.split('\n')[0]}\n`;
@@ -247,7 +247,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     }
 
     if (ux.length > 0) {
-      md += `### 🎨 Experiencia de Usuario & Micro-UI\n`;
+      md += `${t('release.changelogUx')}\n`;
       ux.forEach((item) => {
         md += `- **${item.title} (${item.code}):**\n`;
         md += `  - ${item.description.split('\n')[0]}\n`;
@@ -270,7 +270,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
   const handleCreateNewRelease = async () => {
     const v = newVersion.trim();
     if (!v) {
-      onShowToast('Por favor especifica una versión válida', 'error');
+      onShowToast(t('release.validVersionRequired'), 'error');
       return;
     }
 
@@ -288,7 +288,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
 
     try {
       await onArchiveRelease(newRel, []);
-      onShowToast(`Versión v${v} creada como No liberada (Unreleased)`, 'success');
+      onShowToast(t('release.createdUnreleased', { version: v }), 'success');
       setNewReleaseModalOpen(false);
       // Auto open drawer for the newly created release
       setTimeout(() => {
@@ -298,7 +298,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
         }
       }, 300);
     } catch (err: any) {
-      onShowToast(err.message || 'Error al crear la versión', 'error');
+      onShowToast(err.message || t('release.createError'), 'error');
     }
   };
 
@@ -321,9 +321,9 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
         },
         editItemCodes
       );
-      onShowToast(`Cambios en v${activeRelease.version} guardados exitosamente`, 'success');
+      onShowToast(t('release.savedSuccess', { version: activeRelease.version }), 'success');
     } catch (err: any) {
-      onShowToast(err.message || 'Error al guardar cambios', 'error');
+      onShowToast(err.message || t('release.saveError'), 'error');
     } finally {
       setIsSavingDrawer(false);
     }
@@ -349,19 +349,19 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
         },
         rel.itemCodes || []
       );
-      onShowToast(`🚀 ¡Versión v${rel.version} liberada formalmente a Producción!`, 'success');
+      onShowToast(t('release.releasedSuccess', { version: rel.version }), 'success');
       setActiveReleaseId(null);
     } catch (err: any) {
-      onShowToast(err.message || 'Error al liberar a producción', 'error');
+      onShowToast(err.message || t('release.releaseError'), 'error');
     }
   };
 
   const handleQuickCopyMarkdown = async (content: string, ver: string) => {
     try {
       await navigator.clipboard.writeText(content);
-      onShowToast(`¡Changelog v${ver} copiado al portapapeles!`, 'success');
+      onShowToast(t('release.copiedChangelog', { version: ver }), 'success');
     } catch {
-      onShowToast('Error al copiar al portapapeles', 'error');
+      onShowToast(t('release.copyError'), 'error');
     }
   };
 
@@ -369,7 +369,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
     if (!activeRelease) return;
     const gen = generateChangelogForTasks(activeRelease.version, editTitle, editSummary, editItemCodes);
     setEditMarkdown(gen);
-    onShowToast('Notas de release regeneradas a partir de las tareas vinculadas', 'info');
+    onShowToast(t('release.notesRegenerated'), 'info');
   };
 
   const handleToggleTaskInRelease = (code: string) => {
@@ -383,9 +383,9 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 p-4 sm:p-6 min-w-0 max-w-[1680px] mx-auto space-y-6 pb-16">
+    <div className="w-full flex-1 p-3.5 sm:p-5 min-w-0 max-w-[1680px] mx-auto space-y-4 pb-8">
       {/* Header & Controls */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-slate-950/40 backdrop-blur-xl space-y-5">
+      <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-slate-950/40 backdrop-blur-xl space-y-3.5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
@@ -445,7 +445,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
               }`}
             >
               <span>{t('release.tabAll')}</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 font-mono">
+              <span className="px-1.5 py-0.5 rounded-full text-xs bg-slate-200 dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 font-mono">
                 {releases.length}
               </span>
             </button>
@@ -460,7 +460,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
             >
               <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>{t('release.tabUnreleased')}</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">
+              <span className="px-1.5 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">
                 {unreleasedReleases.length}
               </span>
             </button>
@@ -475,7 +475,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{t('release.tabReleased')}</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
+              <span className="px-1.5 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
                 {publishedReleases.length}
               </span>
             </button>
@@ -547,7 +547,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                     </span>
 
                     <span
-                      className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                      className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                         isUnrel
                           ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                           : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
@@ -566,7 +566,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                       )}
                     </span>
 
-                    <span className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-500">
+                    <span className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-500">
                       <Calendar className="w-3 h-3" />
                       <span>{rel.targetDate || rel.date}</span>
                     </span>
@@ -587,7 +587,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                 <div className="flex items-center gap-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                   {/* Progress Indicator */}
                   <div className="w-36 space-y-1 text-right">
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex min-w-0 items-center justify-between text-xs">
                       <span className="text-slate-600 dark:text-slate-400 font-medium">{t('release.scope')}</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">
                         {done}/{total} ({pct}%)
@@ -681,7 +681,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                 </span>
 
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                     activeRelease.status === 'released'
                       ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
                       : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
@@ -761,7 +761,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                 <Layers className="w-3.5 h-3.5" />
                 <span>{t('release.tabTasks')}</span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                  className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold ${
                     drawerTab === 'tasks'
                       ? 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
                       : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400'
@@ -791,7 +791,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                      Título Descriptivo de la Versión
+                      {t('release.versionTitleLabel')}
                     </label>
                     <input
                       type="text"
@@ -876,10 +876,10 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                   <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-white/[0.06]">
                     <div>
                       <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        Tareas en este Paquete ({editItemCodes.length})
+                        {t('release.tasksInPackage', { count: editItemCodes.length })}
                       </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                        Tareas asociadas a este release. Pasarán a estado Done al liberarlo a producción.
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                        {t('release.tasksInPackageDesc')}
                       </p>
                     </div>
                   </div>
@@ -889,10 +889,10 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                       <div className="py-8 text-center border border-dashed border-slate-200 dark:border-white/[0.08] rounded-xl bg-slate-50 dark:bg-white/[0.01]">
                         <Layers className="w-6 h-6 text-slate-600 mx-auto mb-2" />
                         <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                          No hay tareas asignadas todavía a este paquete.
+                          {t('release.noTasksInPackage')}
                         </p>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-500 mt-0.5">
-                          Vincula tareas terminadas usando la sección inferior.
+                        <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
+                          {t('release.linkTasksHint')}
                         </p>
                       </div>
                     ) : (
@@ -911,22 +911,22 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                                 {code}
                               </span>
                               <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
-                                {item?.title || 'Tarea registrada'}
+                                {item?.title || t('release.registeredTask')}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
                               {tConf && (
-                                <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${tConf.badge}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium border ${tConf.badge}`}>
                                   {tConf.label}
                                 </span>
                               )}
                               {pConf && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-100 dark:bg-white/[0.05] ${pConf.text}`}>
+                                <span className={`text-xs px-1.5 py-0.5 rounded font-mono bg-slate-100 dark:bg-white/[0.05] ${pConf.text}`}>
                                   {pConf.label}
                                 </span>
                               )}
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-semibold border ${
+                              <span className={`text-xs px-2 py-0.5 rounded font-semibold border ${
                                 item?.status === 'done'
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                                   : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
@@ -958,11 +958,11 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                         <div>
                           <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                             <span>{t('release.availableDoneTasks')}</span>
-                            <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                            <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
                               {availableDoneTasks.length} {t('release.availableCount')}
                             </span>
                           </h4>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
                             {t('release.availableDoneTasksDesc')}
                           </p>
                         </div>
@@ -991,7 +991,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
 
                               <button
                                 type="button"
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 transition-all shrink-0"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 transition-all shrink-0"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>{t('release.linkTask')}</span>
@@ -1013,7 +1013,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
                       <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                         {t('release.officialMarkdownTitle')}
                       </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                         {t('release.officialMarkdownDesc')}
                       </p>
                     </div>
@@ -1191,7 +1191,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
         isOpen={Boolean(promoteReleaseTarget)}
         title={t('release.confirmPromoteTitle', { version: promoteReleaseTarget?.version || '' })}
         message={t('release.confirmPromoteMessage')}
-        detail="Sellará la versión como inmutable y promoverá las tareas en 'ready' a 'done'."
+        detail={t('release.confirmPromoteDetail')}
         confirmText={t('release.promoteBtn')}
         cancelText={t('common.back')}
         variant="success"
@@ -1208,7 +1208,7 @@ export const ReleaseAssembler: FC<ReleaseAssemblerProps> = ({
         isOpen={Boolean(deleteReleaseTarget)}
         title={t('release.confirmDeleteTitle', { version: deleteReleaseTarget?.version || '' })}
         message={t('release.confirmDeleteMessage')}
-        detail="Las tareas vinculadas permanecerán en el backlog."
+        detail={t('release.confirmDeleteDetail')}
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         variant="danger"

@@ -182,7 +182,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-100 overflow-y-auto">
       {/* Top Banner Header */}
-      <div className="sticky top-0 z-20 border-b border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-md px-4 sm:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="sticky top-0 z-20 border-b border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-md px-4 sm:px-6 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -261,9 +261,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col md:flex-row gap-8">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-5 md:p-6 flex flex-col md:flex-row gap-5 lg:gap-6">
         {/* Navigation Sidebar */}
-        <aside className="w-full md:w-64 shrink-0">
+        <aside className="w-full md:w-56 lg:w-60 shrink-0">
           <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-none">
             {tabs.map((tab) => {
               const Icon = tab.icon;

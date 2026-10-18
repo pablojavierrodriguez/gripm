@@ -1,9 +1,9 @@
 ---
 id: DEV-305
 title: "Ergonomía de Interacción: A11y Universal, Portales, Stack de Modales y Migración Completa a i18n"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-18 01:25'
 labels:
   - "ux"
   - "a11y"
@@ -56,13 +56,13 @@ Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestió
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Al presionar `Escape` dentro de un modal anidado (ej. confirmación de borrado en `ItemModal`), se cierra exclusivamente el modal superior sin cerrar el modal padre
-- [ ] #2 El atajo de teclado `N` abre el modal con estado canónico `draft` y los atajos numéricos no interfieren cuando hay modales abiertos o pestañas desactivadas
-- [ ] #3 La selección por rango con `Shift+Click` en checkboxes de `SprintView` selecciona el bloque continuo de tareas de forma determinista sin deseleccionar la fila actual
-- [ ] #4 Los 8 modales identificados se renderizan mediante `createPortal(..., document.body)` con atributos ARIA y foco contenido
-- [ ] #5 Todas las cadenas de texto visibles de `ErrorBoundary`, `ImportWizardModal`, `ReleaseAssembler` y toasts se internacionalizan en `es.json` y `en.json`, funcionando limpiamente en modo inglés
-- [ ] #6 Se eliminan todas las apariciones de la clase Tailwind inválida `py-0.2`
-- [ ] #7 El baseline de `audit-ux-baseline.json` se reduce progresivamente reemplazando tamaños arbitrarios por la escala estándar `text-xs`
+- [x] #1 Al presionar `Escape` dentro de un modal anidado (ej. confirmación de borrado en `ItemModal`), se cierra exclusivamente el modal superior sin cerrar el modal padre
+- [x] #2 El atajo de teclado `N` abre el modal con estado canónico `draft` y los atajos numéricos no interfieren cuando hay modales abiertos o pestañas desactivadas
+- [x] #3 La selección por rango con `Shift+Click` en checkboxes de `SprintView` selecciona el bloque continuo de tareas de forma determinista sin deseleccionar la fila actual
+- [x] #4 Los 8 modales identificados se renderizan mediante `createPortal(..., document.body)` con atributos ARIA y foco contenido
+- [x] #5 Todas las cadenas de texto visibles de `ErrorBoundary`, `ImportWizardModal`, `ReleaseAssembler` y toasts se internacionalizan en `es.json` y `en.json`, funcionando limpiamente en modo inglés
+- [x] #6 Se eliminan todas las apariciones de la clase Tailwind inválida `py-0.2`
+- [x] #7 El baseline de `audit-ux-baseline.json` se reduce progresivamente reemplazando tamaños arbitrarios por la escala estándar `text-xs`
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -76,8 +76,3 @@ Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestió
 6. Corregir `py-0.2` y normalizar clases de fuente.
 7. Verificar con `npm run test:ui` y `npm run audit:ux`.
 <!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-<!-- SECTION:NOTES:END -->

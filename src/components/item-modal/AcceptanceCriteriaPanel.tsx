@@ -36,7 +36,7 @@ export const AcceptanceCriteriaPanel: React.FC<AcceptanceCriteriaPanelProps> = (
     <div className="rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] overflow-hidden transition-all">
       <div 
         onClick={() => setAcExpanded(!acExpanded)}
-        className="px-3.5 py-2.5 bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.05] flex min-w-0 items-center justify-between cursor-pointer select-none transition-colors"
+        className="px-3 py-2 bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.05] flex min-w-0 items-center justify-between cursor-pointer select-none transition-colors"
       >
         <div className="flex items-center gap-2">
           <CheckSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -98,13 +98,13 @@ export const AcceptanceCriteriaPanel: React.FC<AcceptanceCriteriaPanelProps> = (
       </div>
 
       {acExpanded && (
-        <div className="p-3.5 border-t border-slate-200 dark:border-white/[0.06] space-y-2 bg-slate-50 dark:bg-black/10">
+        <div className="p-3 border-t border-slate-200 dark:border-white/[0.06] space-y-1.5 bg-slate-50 dark:bg-black/10">
           {acceptanceCriteriaList.length === 0 ? (
             <p className="text-xs text-slate-600 dark:text-slate-500 italic py-1">
               {t('itemModal.acNoneDefined')}
             </p>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {acceptanceCriteriaList.map((ac) => (
                 <div key={ac.index} className="flex items-center gap-2">
                   <input
@@ -125,7 +125,7 @@ export const AcceptanceCriteriaPanel: React.FC<AcceptanceCriteriaPanelProps> = (
                       }
                     }}
                     placeholder={criterionExample}
-                    className={`flex-1 px-3.5 py-2 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 focus:bg-slate-100 dark:focus:bg-white/[0.05] transition-all ${
+                    className={`flex-1 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 focus:bg-slate-100 dark:focus:bg-white/[0.05] transition-all ${
                       ac.checked ? 'line-through text-slate-600 dark:text-slate-500' : ''
                     }`}
                   />

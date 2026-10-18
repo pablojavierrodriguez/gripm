@@ -54,7 +54,10 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
   const [selectedProjectId, setSelectedProjectId] = useState(activeProjectId || projects[0]?.id || '');
   const [rawText, setRawText] = useState(SAMPLE_MARKDOWN);
   const [defaultMilestone, setDefaultMilestone] = useState('');
-  const [detectedLabel, setDetectedLabel] = useState<string>('Markdown Legacy detectado: 5 tareas');
+  const [detectedLabel, setDetectedLabel] = useState<string>(() => {
+    const res = parseUniversalExport(SAMPLE_MARKDOWN);
+    return res.label;
+  });
   const [items, setItems] = useState<UniversalImportItem[]>(() => {
     const res = parseUniversalExport(SAMPLE_MARKDOWN);
     return res.items;
@@ -167,7 +170,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
       onImportComplete();
       onClose();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error al importar tareas');
+      setErrorMessage(err.message || t('import.importError'));
     } finally {
       setIsImporting(false);
     }
@@ -190,17 +193,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
       className="max-h-[90vh]"
     >
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
+      <div className="px-6 py-3.5 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between bg-slate-50 dark:bg-white/[0.02] shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight">
-              Asistente Universal de Importación (Jira, Linear, CSV y Markdown)
+              {t('import.wizardTitle')}
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Migra tareas de Jira, Linear, CSV o archivos TODO.md al estándar local {currentProj?.storageType === 'markdown' ? 'Markdown distribuido' : 'JSON centralizado'} con cero llamadas a la nube
+              {t('import.wizardSubtitle', { format: currentProj?.storageType === 'markdown' ? t('import.formatMarkdown') : t('import.formatJson') })}
             </p>
           </div>
         </div>
@@ -213,14 +216,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
       </div>
 
       {/* Content Body - Split in 2 panels (Input & Live Preview) */}
-      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.08]">
+      <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.08]">
         
         {/* Left Panel: Source & Target Options (5 cols) */}
         <div className="lg:col-span-5 p-5 flex flex-col gap-4 overflow-y-auto bg-slate-50 dark:bg-white/[0.01]">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Proyecto de Destino
+                {t('import.destinationProject')}
               </label>
               <select
                 value={selectedProjectId}
@@ -237,7 +240,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Milestone por Defecto
+                {t('import.defaultMilestone')}
               </label>
               <input
                 type="text"
@@ -261,7 +264,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
           >
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Contenido o Archivo (Jira, Linear, CSV, JSON, MD)
+                {t('import.contentOrFile')}
               </label>
               <label className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
@@ -278,7 +281,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
             <textarea
               value={rawText}
               onChange={(e) => handleTextChange(e.target.value)}
-              placeholder="Pega aquí el contenido de un export de Jira, Linear, un CSV genérico o un archivo Markdown..."
+              placeholder={t('import.pastePlaceholder')}
               rows={14}
               className={`w-full p-3 rounded-xl border text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed ${
                 isDragging
@@ -291,13 +294,13 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
           <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1 bg-slate-50 dark:bg-white/[0.02] p-3 rounded-xl border border-white/[0.05]">
             <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Formatos y Atributos Soportados</span>
+              <span>{t('import.supportedFormats')}</span>
             </div>
             <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-400 pl-1">
-              <li><strong>Jira:</strong> Export JSON o CSV (Key, Summary, Description, Status, Priority, Issue Type)</li>
-              <li><strong>Linear:</strong> Export CSV o JSON (Identifier, Title, Description, Status, Priority, Estimate)</li>
-              <li><strong>CSV Genérico:</strong> Detección automática por columnas de título/resumen</li>
-              <li><strong>Markdown:</strong> Tareas planas con checkboxes <code className="text-slate-700 dark:text-slate-300">- [ ]</code> y encabezados</li>
+              <li>{t('import.supportedJira')}</li>
+              <li>{t('import.supportedLinear')}</li>
+              <li>{t('import.supportedCsv')}</li>
+              <li>{t('import.supportedMarkdown')}</li>
             </ul>
           </div>
         </div>
@@ -408,12 +411,12 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
                           onChange={(e) => updateItemField(item.tempId, 'status', e.target.value)}
                           className="appearance-none px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 focus:outline-none"
                         >
-                          <option value="draft" className="bg-white dark:bg-slate-900">Borrador (Draft)</option>
-                          <option value="doing" className="bg-white dark:bg-slate-900">En Progreso (Doing)</option>
-                          <option value="review" className="bg-white dark:bg-slate-900">En Revisión (Review)</option>
-                          <option value="ready" className="bg-white dark:bg-slate-900">Listo (Ready)</option>
-                          <option value="done" className="bg-white dark:bg-slate-900">Completado (Done)</option>
-                          <option value="cancelled" className="bg-white dark:bg-slate-900">Cancelado (Cancelled)</option>
+                          <option value="draft" className="bg-white dark:bg-slate-900">{t('status.draft')}</option>
+                          <option value="doing" className="bg-white dark:bg-slate-900">{t('status.doing')}</option>
+                          <option value="review" className="bg-white dark:bg-slate-900">{t('status.review')}</option>
+                          <option value="ready" className="bg-white dark:bg-slate-900">{t('status.ready')}</option>
+                          <option value="done" className="bg-white dark:bg-slate-900">{t('status.done')}</option>
+                          <option value="cancelled" className="bg-white dark:bg-slate-900">{t('status.cancelled')}</option>
                         </select>
 
                         {/* Priority Badge */}
@@ -469,7 +472,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
       </div>
 
       {/* Modal Footer */}
-      <div className="px-6 py-4 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.02] flex items-center justify-between">
+      <div className="px-6 py-3.5 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.02] flex items-center justify-between shrink-0">
         <div className="text-xs text-slate-600 dark:text-slate-400">
           {selectedCount > 0 ? (
             <span>{t('import.willCreateTasks', { count: selectedCount, project: currentProj?.name || '' })}</span>

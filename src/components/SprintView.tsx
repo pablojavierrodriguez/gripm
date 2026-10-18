@@ -37,6 +37,8 @@ import { typeConfig, priorityConfig, cleanParentTitle } from './ItemCard';
 import { ConfirmModal } from './ConfirmModal';
 import { SprintModal } from './SprintModal';
 import { CompleteSprintModal } from './CompleteSprintModal';
+import { Modal } from './Modal';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useTranslation } from '../utils/i18n';
 import { useStatusMeta } from '../utils/useStatusMeta';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from '../utils/storage';
@@ -159,6 +161,7 @@ export const SprintView: FC<SprintViewProps> = ({
   // Retrospectivas vinculadas a sprints (DEV-080)
   const [retros, setRetros] = useState<any[]>([]);
   const [selectedRetro, setSelectedRetro] = useState<{ title: string; date: string; content: string; sprintName: string } | null>(null);
+  const retroPanelRef = useFocusTrap<HTMLDivElement>(Boolean(selectedRetro), () => setSelectedRetro(null));
 
   useEffect(() => {
     // DEV-222: pasa por el adaptador. Antes era un fetch hardcodeado a /api/retros,
@@ -878,11 +881,11 @@ export const SprintView: FC<SprintViewProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-full flex-1 p-4 sm:p-6 max-w-[1680px] mx-auto"
+      className="w-full flex-1 p-3.5 sm:p-5 max-w-[1680px] mx-auto"
       style={{ overflowAnchor: 'none' }}
     >
       {/* Controls: Group By + Collapse/Expand + Count */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 mb-3">
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
           <span className="text-slate-500 dark:text-slate-400 font-medium">{t('sprint.groupBy')}</span>
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] p-0.5 rounded-lg">
@@ -1527,9 +1530,11 @@ export const SprintView: FC<SprintViewProps> = ({
                                       if (e.shiftKey) {
                                         e.preventDefault();
                                         handleRowShiftClick(item.id, group.items);
+                                      } else {
+                                        handleToggleSelectItem(item.id);
                                       }
                                     }}
-                                    onChange={() => handleToggleSelectItem(item.id)}
+                                    onChange={() => {}}
                                     aria-label={isEs ? `Seleccionar tarea ${item.code}` : `Select task ${item.code}`}
                                     title={isEs ? `Seleccionar tarea ${item.code}` : `Select task ${item.code}`}
                                     className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer hover:border-indigo-400 active:scale-95 transition-all"
@@ -2072,10 +2077,17 @@ export const SprintView: FC<SprintViewProps> = ({
         />
       )}
 
-      {/* Retrospective View Modal (DEV-080) */}
-      {selectedRetro && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-white dark:bg-[#131c2f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      {/* Retrospective View Modal (DEV-080, DEV-305) */}
+      <Modal
+        isOpen={Boolean(selectedRetro)}
+        onClose={() => setSelectedRetro(null)}
+        panelRef={retroPanelRef}
+        maxWidth="max-w-2xl"
+        align="center"
+        showMobileHandle={false}
+      >
+        {selectedRetro && (
+          <div className="flex flex-col max-h-[85vh]">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-white/[0.08] flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
@@ -2086,14 +2098,16 @@ export const SprintView: FC<SprintViewProps> = ({
                     {selectedRetro.title}
                   </h3>
                   {selectedRetro.date && (
-                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
                       {t('sprintView.recordDate')}: {selectedRetro.date}
                     </p>
                   )}
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedRetro(null)}
+                aria-label={t('common.close')}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -2116,8 +2130,8 @@ export const SprintView: FC<SprintViewProps> = ({
               </button>{/* ux-audit-ignore UX-010: visible text label; the rule only reads attributes (upstream defect) */}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Floating Bulk Action Bar (DEV-277) */}
       {selectedItemIds.size > 0 && createPortal(

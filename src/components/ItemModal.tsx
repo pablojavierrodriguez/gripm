@@ -95,10 +95,10 @@ export const ItemModal: FC<ItemModalProps> = ({
         onClose={onClose}
         panelRef={panelRef}
         maxWidth="max-w-6xl"
-        className="max-h-[94vh] sm:max-h-[90vh]"
+        className="max-h-[94vh] sm:max-h-[92vh] flex flex-col"
       >
         {/* Modal Header */}
-        <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
               <Sparkles className="w-4 h-4" />
@@ -188,7 +188,7 @@ export const ItemModal: FC<ItemModalProps> = ({
         </div>
 
         {/* Modal Body - 2-Column Linear-style Grid */}
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <div className="p-3.5 sm:p-4 md:p-5 overflow-y-auto flex-1 space-y-3">
           {form.conflictItem && (
             <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-200 text-xs flex flex-col gap-2.5 animate-in fade-in">
               <div className="flex items-start gap-2">
@@ -231,9 +231,9 @@ export const ItemModal: FC<ItemModalProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
             {/* Left Column (67%): Main Content */}
-            <div className="lg:col-span-8 space-y-5">
+            <div className="lg:col-span-8 space-y-3.5">
               <ItemDescriptionPanel
                 title={form.title}
                 setTitle={form.setTitle}
@@ -381,7 +381,7 @@ export const ItemModal: FC<ItemModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.01] flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.01] flex items-center justify-between min-w-0 gap-3">
           <div className="flex items-center gap-2">
             {isEditing && onDelete && (
               <button

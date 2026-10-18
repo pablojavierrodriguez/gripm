@@ -50,12 +50,14 @@ import { ItemModal } from './components/ItemModal';
 import { ProjectModal } from './components/ProjectModal';
 import { PlanGuardModal } from './components/PlanGuardModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 import { filterItems, getAvailableModules } from './utils/filterItems';
+import { hasActiveFocusTrap } from './hooks/useFocusTrap';
 
 type AppActiveTab = ActiveTab;
 
@@ -73,7 +75,7 @@ const ViewLoadingFallback = () => (
 );
 
 export function App() {
-  const { t, setLanguage } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -188,6 +190,7 @@ export function App() {
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   // Settings / Config State (DEV-006 & DEV-009)
   const [config, setConfig] = useState<GripmConfig>({});
@@ -309,11 +312,11 @@ export function App() {
 
     try {
       await handleSaveConfig(updatedConfig);
-      showToast(`Columna actualizada a "${newTitle}"`, 'success');
+      showToast(t('app.columnUpdated', { title: newTitle }), 'success');
     } catch (err: any) {
-      showToast(`Error al actualizar columna: ${err.message}`, 'error');
+      showToast(t('app.columnUpdateError', { error: err.message }), 'error');
     }
-  }, [config, viewMode, handleSaveConfig, showToast]);
+  }, [config, viewMode, handleSaveConfig, showToast, t]);
 
   const [liveConnected, setLiveConnected] = useState<boolean>(false);
 
@@ -330,7 +333,7 @@ export function App() {
         // DEV-301: Do not overwrite expectedMtime behind the user's back while editing.
         // Preserving original expectedMtime ensures that saving stale data triggers the 409 Conflict dialog.
         if (updated.mtime && prevEditing.mtime && updated.mtime !== prevEditing.mtime) {
-          showToast(`Tarea ${updated.code || updated.id} modificada externamente en disco`, 'info');
+          showToast(t('app.taskModifiedExternally', { code: updated.code || updated.id }), 'info');
         }
         return prevEditing;
       });
@@ -363,11 +366,11 @@ export function App() {
         }
       }
     } catch (err: any) {
-      if (!silent) showToast(`Error al cargar datos: ${err.message}`, 'error');
+      if (!silent) showToast(t('app.loadDataError', { error: err.message }), 'error');
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [selectedProjectId, showToast]);
+  }, [selectedProjectId, showToast, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -407,32 +410,55 @@ export function App() {
         setLiveConnected(false);
       } else if (event.type === 'backlog_changed') {
         loadDataRef.current(true);
-        showToastRef.current('Tablero sincronizado con cambios en disco', 'info');
+        showToastRef.current(t('app.boardSyncDisk'), 'info');
       } else if (event.type === 'settings_changed') {
         loadSettingsRef.current(selectedProjectIdRef.current);
         loadDataRef.current(true);
-        showToastRef.current('Configuración sincronizada con cambios en disco', 'info');
+        showToastRef.current(t('app.configSyncDisk'), 'info');
       }
     });
 
     return unsubscribe;
   }, []);
 
-  // Keyboard Shortcuts: 'N' for new item, '1'-'4' for tabs, '⌘+,' for settings
+  // Keyboard Shortcuts: 'N' for new item, '1'-'4' for tabs, '⌘+,' for settings (DEV-305)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
         setActiveTab((prev) => (prev === 'settings' ? (config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban')) : 'settings'));
         return;
       }
 
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
       if (
+        !target ||
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
-        target.isContentEditable
+        target.tagName === 'BUTTON' ||
+        target.isContentEditable ||
+        Boolean(target.closest('button, input, textarea, select, [contenteditable="true"]'))
+      ) {
+        return;
+      }
+
+      // Single-key shortcuts must not fire when any modal or focus trap is active (DEV-305)
+      if (
+        hasActiveFocusTrap() ||
+        itemModalOpen ||
+        projectModalOpen ||
+        importWizardOpen ||
+        shortcutsModalOpen ||
+        commandPaletteOpen ||
+        planGuardOpen
       ) {
         return;
       }
@@ -443,22 +469,33 @@ export function App() {
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         setEditingItem(null);
-        setDefaultNewStatus('backlog');
+        setDefaultNewStatus('draft');
         setItemModalOpen(true);
       } else if (e.key === '1') {
-        setActiveTab('kanban');
+        if (isKanbanTabEnabled) setActiveTab('kanban');
       } else if (e.key === '2') {
-        setActiveTab('sprint');
+        if (isSprintTabEnabled) setActiveTab('sprint');
       } else if (e.key === '3') {
-        setActiveTab('release');
+        if (isReleaseTabEnabled) setActiveTab('release');
       } else if (e.key === '4') {
         setActiveTab('trash');
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [
+    config,
+    isKanbanTabEnabled,
+    isSprintTabEnabled,
+    isReleaseTabEnabled,
+    itemModalOpen,
+    projectModalOpen,
+    importWizardOpen,
+    shortcutsModalOpen,
+    commandPaletteOpen,
+    planGuardOpen,
+  ]);
 
   // Re-sync from project docs (DEV-012)
   const handleResyncDocs = useCallback(async () => {
@@ -468,15 +505,15 @@ export function App() {
       const refreshed = await fetchBoardData();
       setBoardData(refreshed);
       showToast(
-        `¡${result.projectName || 'Proyecto'} sincronizado: ${result.importedCount} tareas actualizadas!`,
+        t('app.syncDocsSuccess', { project: result.projectName || 'Project', count: result.importedCount }),
         'success'
       );
     } catch (err: any) {
-      showToast(`Fallo al sincronizar docs: ${err.message}`, 'error');
+      showToast(t('app.syncDocsError', { error: err.message }), 'error');
     } finally {
       setIsResyncing(false);
     }
-  }, [selectedProjectId, showToast]);
+  }, [selectedProjectId, showToast, t]);
 
   // Item Handlers
   const handleUpdateStatus = useCallback(async (
@@ -573,16 +610,16 @@ export function App() {
         };
       });
       if (statusChanged) {
-        showToast(`Estado actualizado: ${updated.code} → ${newStatus}`, 'info');
+        showToast(t('app.statusUpdated', { code: updated.code, status: newStatus }), 'info');
       } else if (orderChanged) {
-        showToast(`Orden de ${targetItem.code} actualizado`, 'success');
+        showToast(t('app.itemOrderUpdated', { code: targetItem.code }), 'success');
       }
     } catch (err: any) {
       // Rollback
       setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
-      showToast(`Error al actualizar estado: ${err.message}`, 'error');
+      showToast(t('app.statusUpdateError', { error: err.message }), 'error');
     }
-  }, [boardData, viewMode, showToast]);
+  }, [boardData, viewMode, showToast, t]);
 
   const handleConfirmStartWithPlan = useCallback(async (itemId: string, updatedPlan?: string) => {
     if (!boardData) return;
@@ -617,11 +654,11 @@ export function App() {
             }
           : null
       );
-      showToast(`Prioridad de ${updated.code} cambiada a ${newPriority.toUpperCase()}`, 'info');
+      showToast(t('app.priorityUpdated', { code: updated.code, priority: newPriority.toUpperCase() }), 'info');
     } catch (err: any) {
-      showToast(`Error al cambiar prioridad: ${err.message}`, 'error');
+      showToast(t('app.priorityUpdateError', { error: err.message }), 'error');
     }
-  }, [boardData, showToast]);
+  }, [boardData, showToast, t]);
 
   const handleReorderBacklogItem = useCallback(async (
     draggedId: string, 
@@ -687,12 +724,12 @@ export function App() {
           .map(([id, ord]) => ({ id, order: ord }))
       ];
       await bulkUpdateItems(patches);
-      showToast('Orden de tareas actualizado', 'success');
+      showToast(t('app.taskOrderUpdated'), 'success');
     } catch (err: any) {
       setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
-      showToast('Error al reordenar tarea: ' + err.message, 'error');
+      showToast(t('app.taskOrderUpdateError', { error: err.message }), 'error');
     }
-  }, [boardData, showToast]);
+  }, [boardData, showToast, t]);
 
   // DEV-301: Unified contextual sprint assignment propagating immediately across Sandbox and Local modes
   const handleAssignSprint = useCallback(async (item: BacklogItem, targetSprint: string) => {
@@ -718,11 +755,11 @@ export function App() {
           )
         };
       });
-      showToast(targetSprint ? `Asignado a ${targetSprint}` : 'Devuelto al Backlog', 'success');
+      showToast(targetSprint ? t('app.assignedToSprint', { sprint: targetSprint }) : t('app.returnedToBacklog'), 'success');
     } catch (err: any) {
-      showToast(`Error al asignar sprint: ${err?.message || err}`, 'error');
+      showToast(t('app.assignSprintError', { error: err?.message || String(err) }), 'error');
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   // DEV-049/DEV-096: Soft delete (send to trash)
   const handleDeleteItem = useCallback(async (id: string) => {
@@ -745,11 +782,11 @@ export function App() {
           ),
         };
       });
-      showToast('Ítem enviado a la papelera', 'success');
+      showToast(t('app.itemMovedToTrash'), 'success');
     } catch (err: any) {
-      showToast(`Error al enviar a la papelera: ${err.message}`, 'error');
+      showToast(t('app.itemMoveToTrashError', { error: err.message }), 'error');
     }
-  }, [boardData, showToast]);
+  }, [boardData, showToast, t]);
 
   // DEV-282: Callbacks estables para el tablero Kanban y memorización de ItemCard
   const handleKanbanUpdateStatus = useCallback((
@@ -789,11 +826,11 @@ export function App() {
           sprints: [...existingSprints, created],
         };
       });
-      showToast(`Sprint "${created.name}" creado con éxito`, 'success');
+      showToast(t('app.sprintCreated', { name: created.name }), 'success');
     } catch (err: any) {
-      showToast(`Error al crear sprint: ${err.message}`, 'error');
+      showToast(t('app.sprintCreateError', { error: err.message }), 'error');
     }
-  }, [selectedProjectId, showToast]);
+  }, [selectedProjectId, showToast, t]);
 
   const handleUpdateSprintMeta = useCallback(async (id: string, sprintData: Partial<Sprint>) => {
     try {
@@ -810,11 +847,11 @@ export function App() {
           sprints: existingSprints.map((s) => (s.id === id ? updated : s)),
         };
       });
-      showToast(`Sprint "${updated.name}" actualizado`, 'info');
+      showToast(t('app.sprintUpdated', { name: updated.name }), 'info');
     } catch (err: any) {
-      showToast(`Error al actualizar sprint: ${err.message}`, 'error');
+      showToast(t('app.sprintUpdateError', { error: err.message }), 'error');
     }
-  }, [boardData?.sprints, selectedProjectId, showToast]);
+  }, [boardData?.sprints, selectedProjectId, showToast, t]);
 
   const handleStartSprint = useCallback(async (sprint: Sprint) => {
     try {
@@ -834,11 +871,11 @@ export function App() {
           }),
         };
       });
-      showToast(`Sprint "${sprint.name}" iniciado (Activo)`, 'success');
+      showToast(t('app.sprintStarted', { name: sprint.name }), 'success');
     } catch (err: any) {
-      showToast(`Error al iniciar sprint: ${err.message}`, 'error');
+      showToast(t('app.sprintStartError', { error: err.message }), 'error');
     }
-  }, [selectedProjectId, showToast]);
+  }, [selectedProjectId, showToast, t]);
 
   const handleCompleteSprint = useCallback(async (sprint: Sprint, destinationSprintName: string, retroData?: any) => {
     try {
@@ -912,12 +949,12 @@ export function App() {
         };
       });
 
-      const destMsg = destinationSprintName ? `al ${destinationSprintName}` : 'al Backlog';
-      showToast(`Sprint "${sprint.name}" completado. ${sprintPendingItems.length} tareas pendientes movidas ${destMsg}.`, 'success');
+      const destMsg = destinationSprintName ? t('app.toSprint', { sprint: destinationSprintName }) : t('app.toBacklog');
+      showToast(t('app.sprintCompleted', { name: sprint.name, count: sprintPendingItems.length, dest: destMsg }), 'success');
     } catch (err: any) {
-      showToast(`Error al completar sprint: ${err.message}`, 'error');
+      showToast(t('app.sprintCompleteError', { error: err.message }), 'error');
     }
-  }, [boardData?.items, selectedProjectId, showToast]);
+  }, [boardData?.items, selectedProjectId, showToast, t]);
 
   const handleDeleteSprint = useCallback(async (id: string) => {
     try {
@@ -937,11 +974,11 @@ export function App() {
           }),
         };
       });
-      showToast('Sprint eliminado. Las tareas fueron devueltas al Backlog.', 'info');
+      showToast(t('app.sprintDeleted'), 'info');
     } catch (err: any) {
-      showToast(`Error al eliminar sprint: ${err.message}`, 'error');
+      showToast(t('app.sprintDeleteError', { error: err.message }), 'error');
     }
-  }, [boardData?.sprints, selectedProjectId, showToast]);
+  }, [boardData?.sprints, selectedProjectId, showToast, t]);
 
   const handleSaveItem = useCallback(async (itemData: Partial<BacklogItem> & { expectedMtime?: number; force?: boolean }) => {
     if (!boardData) return;
@@ -991,7 +1028,7 @@ export function App() {
       );
       showToast(`${t('itemModal.unlinkChild')}: ${child.code || child.id}`, 'info');
     } catch (err: any) {
-      showToast(`Error: ${err.message}`, 'error');
+      showToast(t('app.genericError', { error: err.message }), 'error');
     }
   }, [boardData, showToast, t]);
 
@@ -1281,13 +1318,13 @@ export function App() {
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center gap-2">
             <span className="font-bold text-base tracking-tight text-slate-800 dark:text-white">gripm</span>
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
+            <span className="text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
               {t('app.badge')}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            <span>Cargando gripm &amp; persistencia local...</span>
+            <span>{t('app.loadingLocalPersistence')}</span>
           </div>
         </div>
       </div>
@@ -1322,6 +1359,7 @@ export function App() {
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
         onOpenShortcuts={() => setShortcutsModalOpen(true)}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onDeleteProject={handleDeleteProject}
         onRestoreDemo={handleRestoreDemo}
         isSandbox={isSandboxMode()}
@@ -1396,16 +1434,16 @@ export function App() {
             <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="font-semibold text-amber-800 dark:text-amber-300">
-                No se pudieron cargar las tareas de {activeProj.name}
+                {t('app.projectLoadError', { name: activeProj.name })}
               </div>
               <div className="text-slate-600 dark:text-slate-400 mt-0.5">
-                El proceso del servidor Vite no pudo acceder a la carpeta: <code className="px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-[11px]">{activeProj.repoPath}</code>
+                {t('app.viteAccessError')} <code className="px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">{activeProj.repoPath}</code>
               </div>
               <div className="mt-1 text-slate-500 dark:text-slate-400">
-                <span className="font-medium text-slate-700 dark:text-slate-300">Detalle:</span> {activeProj.error}
+                <span className="font-medium text-slate-700 dark:text-slate-300">{t('app.detail')}</span> {activeProj.error}
               </div>
               <div className="mt-2 text-slate-700 dark:text-slate-300 bg-amber-500/5 p-2 rounded-lg border border-amber-500/15">
-                💡 <strong>Solución:</strong> Si el servidor Vite fue iniciado dentro de un sandbox o proceso aislado, reinicia el servidor en tu terminal habitual con <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono font-bold">npm run dev</code> para que cuente con permisos de acceso a las carpetas de otros repositorios en tu máquina.
+                💡 <strong>{t('app.solution')}</strong> {t('app.solutionHint')}
               </div>
             </div>
           </div>
@@ -1627,6 +1665,35 @@ export function App() {
         updateAvailable={boardData?.updateAvailable}
       />
 
+      {/* Command Palette Modal (DEV-255) */}
+      <CommandPaletteModal
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        items={boardData?.items || []}
+        projects={projects}
+        activeProjectId={selectedProjectId}
+        onSelectProject={setSelectedProjectId}
+        onSelectItem={(item) => {
+          setEditingItem(item);
+          setItemModalOpen(true);
+        }}
+        onNewItem={() => {
+          setEditingItem(null);
+          setDefaultNewStatus('draft');
+          setItemModalOpen(true);
+        }}
+        onNewProject={() => setProjectModalOpen(true)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        config={config}
+        isDarkMode={isDarkMode}
+        onToggleTheme={handleToggleTheme}
+        onResyncDocs={handleResyncDocs}
+        onOpenShortcuts={() => setShortcutsModalOpen(true)}
+        language={language}
+        onToggleLanguage={() => setLanguage(language === 'es' ? 'en' : 'es')}
+      />
+
       {/* Mobile Bottom Navigation Bar (DEV-007) */}
       <nav 
         aria-label={t('app.mobileNav')}
@@ -1642,7 +1709,7 @@ export function App() {
             }`}
           >
             <LayoutGrid className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">{t('header.kanban')}</span>
+            <span className="text-xs tracking-tight">{t('header.kanban')}</span>
           </button>
         )}
 
@@ -1656,7 +1723,7 @@ export function App() {
             }`}
           >
             <Target className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">{t('header.sprints')}</span>
+            <span className="text-xs tracking-tight">{t('header.sprints')}</span>
           </button>
         )}
 
@@ -1670,7 +1737,7 @@ export function App() {
             }`}
           >
             <Rocket className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">{t('header.releases')}</span>
+            <span className="text-xs tracking-tight">{t('header.releases')}</span>
           </button>
         )}
 
@@ -1713,12 +1780,12 @@ export function App() {
           <div className="relative">
             <Trash2 className="w-5 h-5 mb-0.5" />
             {trashedItems.length > 0 && (
-              <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-[9px] font-bold rounded-full bg-rose-600 text-white">
+              <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-xs font-bold rounded-full bg-rose-600 text-white">
                 {trashedItems.length}
               </span>
             )}
           </div>
-          <span className="text-[10px] tracking-tight">{t('header.trash')}</span>
+          <span className="text-xs tracking-tight">{t('header.trash')}</span>
         </button>
       </nav>
 

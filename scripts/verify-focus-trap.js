@@ -19,6 +19,7 @@ const COMPONENTS_DIR = path.join(ROOT, 'src', 'components');
 /** Every overlay in the app. The AC named five; there are eight, and leaving three
  *  behind would mean a modal that traps focus next to ones that do not. */
 const DIALOGS = [
+  'CommandPaletteModal',
   'ConfirmModal',
   'CompleteSprintModal',
   'FolderPickerModal',

@@ -1071,7 +1071,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                       </span>
                       {'status' in col && col.status && (
                         <span
-                          className={`px-1.5 py-0.2 rounded text-xs font-mono uppercase font-bold ${
+                          className={`px-1.5 py-0.5 rounded text-xs font-mono uppercase font-bold ${
                             col.status === 'active'
                               ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                               : col.status === 'completed'

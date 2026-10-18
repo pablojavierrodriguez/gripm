@@ -193,7 +193,7 @@ export const ItemSidebarSchedule: React.FC<ItemSidebarScheduleProps> = ({
                   .map((histSp) => (
                     <span
                       key={histSp}
-                      className="px-1.5 py-0.2 rounded text-xs bg-slate-50 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
+                      className="px-1.5 py-0.5 rounded text-xs bg-slate-50 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
                     >
                       {histSp}
                     </span>

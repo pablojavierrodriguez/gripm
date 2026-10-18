@@ -872,10 +872,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 {t('kanban.wipBadge', { count: colItems.length, limit })}
               </span>
             ) : (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200 dark:bg-white/[0.06] text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-white/[0.04]">
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-mono bg-slate-200 dark:bg-white/[0.06] text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-white/[0.04]">
                 {colItems.length}
                 {hiddenDoneCount > 0 && (
-                  <span className="text-[9px] text-slate-400 dark:text-slate-500 ml-1 font-semibold">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-1 font-semibold">
                     (+{hiddenDoneCount})
                   </span>
                 )}
@@ -1138,7 +1138,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-800 dark:text-slate-200">
               <Layers className="w-3.5 h-3.5 text-indigo-500" />
               <span>{t('kanban.continuousFlow')}</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-400">
+              <span className="px-1.5 py-0.5 rounded-full text-xs font-mono bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-400">
                 {t('kanban.tasksCount', { count: items.length })}
               </span>
             </div>
