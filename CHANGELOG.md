@@ -23,6 +23,7 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ### 📐 Densidad Visual y Ergonomía en Portátiles
 - **DEV-321 - Optimización Integral de Densidad UX en 1366x768 / 1366x650:** Redistribución geométrica de `ItemModal`, `AdvancedFiltersPopover`, cabecera con 5 pestañas activas y modales operativos. En pantallas de laptop, la sección de Acceptance Criteria ahora es visible de inmediato *above-the-fold* (276px de pliegue inicial frente a 503px disponibles), preservando el scroll horizontal del tablero Kanban al 100% como comportamiento de diseño deliberado.
+- **DEV-322 - Menú de Desbordamiento en Header para Portátiles y Tablets:** Entre 768px y 1535px las acciones secundarias (Command Palette, atajos, idioma, tema y Papelera con contador) se agrupan en un popover `⋯` que se cierra con `Escape` o clic exterior, manteniendo `+ Nueva Tarea` siempre visible en 1366x768. Desde 1536px el header conserva todos los botones sueltos y el drawer móvil incorpora la Papelera.
 
 ### 🔒 Concurrencia Inter-Proceso y Persistencia Segura
 - **DEV-314 - Concurrencia Inter-Proceso con Lockfile Atómico:** Implementación del módulo utilitario `server/utils/fs-lock.ts` basado en `openSync('wx')` del sistema operativo. Protege la asignación correlativa del próximo ID de tarea (`DEV-XXX`) y las escrituras en archivos compartidos (`releases.json`, `retrospectives.json`), con manejo defensivo de locks huérfanos por expiración (>5.000ms) y cero colisiones validadas en estrés concurrente.

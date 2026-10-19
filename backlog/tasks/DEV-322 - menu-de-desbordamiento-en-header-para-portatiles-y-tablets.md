@@ -1,7 +1,7 @@
 ---
 id: DEV-322
 title: "Menú de desbordamiento en Header para portátiles y tablets (botón Nueva Tarea fuera de pantalla en 1366x768)"
-status: review
+status: done
 claimed_by: "antigravity:eac4e0fc"
 created_date: '2026-10-19'
 updated_date: '2026-10-19 18:15'
