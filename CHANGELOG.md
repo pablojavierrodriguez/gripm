@@ -13,6 +13,28 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.8.0] - 2026-10-18 🚀 Command Palette Global ⌘K, Densidad UX en Portatiles, Concurrencia Atomica y Unificacion de Dominio
+
+### 🎯 Resumen
+*Versión 1.8.0 de Gripm: Command Palette global accesible con ⌘K / Ctrl+K con búsqueda difusa en tiempo real, navegación por teclado y menú de acciones rápidas ejecutables (DEV-255), optimización integral de densidad vertical y presupuesto horizontal para portátiles de 1366x768 garantizando visualización de Criterios de Aceptación above-the-fold sin alterar el scroll horizontal de Kanban (DEV-321), arquitectura de concurrencia inter-proceso protegida por lockfile atómico en fs-lock.ts previniendo colisiones de IDs y carreras de mutación en releases y retrospectivas (DEV-314), erradicación del bug de cierre con Escape en modales anidados mediante pila activeTraps, renderizado de 8 modales inline en createPortal, paridad 100% bilingüe en inglés y español y eliminación de clases CSS inválidas (DEV-305), y unificación de endpoints de mutación REST en api.ts hacia BacklogService reduciendo código duplicado e incorporando detección de conflictos HTTP 409 (DEV-311).*
+
+### ⌨️ Command Palette Global y Acciones Rápidas
+- **DEV-255 - Command Palette Global y Buscador Rápido (⌘K):** Modal central accesible mediante atajo global `⌘K` / `Ctrl+K` con captura en fase temprana. Integra búsqueda difusa indexada en tiempo real de tareas del backlog con salto directo a su modal de edición con `Enter`, menú de acciones rápidas ejecutables (alternar tema, cambiar idioma, saltar entre vistas, crear nueva tarea, resincronizar docs) y navegación completa por teclado con flechas `↑`/`↓`, escape y botón de cierre táctil.
+
+### 📐 Densidad Visual y Ergonomía en Portátiles
+- **DEV-321 - Optimización Integral de Densidad UX en 1366x768 / 1366x650:** Redistribución geométrica de `ItemModal`, `AdvancedFiltersPopover`, cabecera con 5 pestañas activas y modales operativos. En pantallas de laptop, la sección de Acceptance Criteria ahora es visible de inmediato *above-the-fold* (276px de pliegue inicial frente a 503px disponibles), preservando el scroll horizontal del tablero Kanban al 100% como comportamiento de diseño deliberado.
+
+### 🔒 Concurrencia Inter-Proceso y Persistencia Segura
+- **DEV-314 - Concurrencia Inter-Proceso con Lockfile Atómico:** Implementación del módulo utilitario `server/utils/fs-lock.ts` basado en `openSync('wx')` del sistema operativo. Protege la asignación correlativa del próximo ID de tarea (`DEV-XXX`) y las escrituras en archivos compartidos (`releases.json`, `retrospectives.json`), con manejo defensivo de locks huérfanos por expiración (>5.000ms) y cero colisiones validadas en estrés concurrente.
+
+### 🧩 Arquitectura de Dominio y Endpoints REST
+- **DEV-311 - Unificación de Dominio en BacklogService:** Delegación del 100% de las mutaciones de tareas (`POST /api/items`, `POST /api/items/bulk`, `PUT /api/items/:id`) desde `server/routes/api.ts` hacia `BacklogService`. Eliminación de más de 230 líneas de código duplicado, incorporación de detección de conflictos concurrentes (HTTP 409) y paridad estricta entre la API HTTP y el servidor MCP stdio.
+
+### 🌐 Accesibilidad Universal, Portales e i18n
+- **DEV-305 - Ergonomía de Interacción, Portales y Migración a i18n:** Pila LIFO `activeTraps` en `useFocusTrap` que resuelve el cierre accidental de modales padre al pulsar `Escape` en confirmaciones anidadas, renderizado de los 8 modales inline mediante `createPortal(..., document.body)`, inicialización canónica en `draft` al presionar `N`, y paridad de 1.002 claves entre `es.json` y `en.json`.
+
+---
+
 ## [1.7.0] - 2026-10-17 🚀 Aislamiento Multi-Proyecto Opt-In, Paridad Canónica de Estados y Optimización de Rendimiento en Kanban
 
 ### 🎯 Resumen

@@ -1,15 +1,15 @@
 ---
 id: DEV-314
 title: "Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas"
-status: ready
+status: done
 priority: high
 type: enhancement
 owner: Antigravity
 estimate: 2d
 sprint: ""
-release: ""
+release: "1.8.0"
 created: 2026-10-17
-updated: 2026-10-17
+updated: 2026-10-18
 ---
 
 # DEV-314 - Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas

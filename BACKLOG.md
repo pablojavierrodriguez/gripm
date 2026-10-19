@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-18 por gripm
+> Consolidado generado el 2026-10-19 por gripm
 
 ## Resumen de Estados
 
@@ -82,156 +82,6 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 - [ ] #3 Validar las vistas Kanban y Backlog en anchos táctiles habituales, incluyendo navegación, acciones y scroll
 - [ ] #4 Mantener la experiencia desktop compacta y sin regresiones en resoluciones amplias
 - [ ] #5 Verificar ambos idiomas y temas, sin overflow horizontal accidental ni pérdida de controles
-
----
-
-### 🚀 Ready for Deploy (5)
-
-#### [DEV-255] Command Palette global y buscador de acciones rápidas (⌘K)
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Diseño e implementación de una Command Palette interactiva global (estilo Linear, Raycast o GitHub) activada con `⌘K` o `Ctrl+K`:
-1. Modal flotante central con buscador difuso de alta velocidad.
-2. Salto directo a tareas (`DEV-XXX`) y apertura inmediata de su modal de edición con Enter.
-3. Menú de acciones rápidas ejecutables: cambiar de vista (Tablero, Sprints, Releases, Papelera, Configuración), alternar tema (Claro/Oscuro), cambiar idioma, sincronizar backlog con /docs, cambiar proyecto activo y crear nueva tarea.
-4. Navegación completa por teclado con flechas `↑` y `↓`, selección con `Enter` y cierre con `Escape`.
-5. Filtro de comandos por categorías (Navegación, Tareas, Proyectos, Ajustes).
-
-**Criterios de Aceptación:**
-- [x] #1 Atajo ⌘K / Ctrl+K abre el modal flotante de Command Palette en lugar de enfocar únicamente el input de filtros
-- [x] #2 Buscador filtra en tiempo real tareas existentes y comandos de acción rápida
-- [x] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
-- [x] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
-- [x] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
-
----
-
-#### [DEV-305] Ergonomía de Interacción: A11y Universal, Portales, Stack de Modales y Migración Completa a i18n
-- **Prioridad**: `medium` | **Tipo**: `ux`
-
-Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestión de foco en modales anidados y eliminación de más de 150 cadenas de texto hardcodeadas en español que quiebran el soporte para idioma inglés (`"language": "en"`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Colisión de Tecla `Escape` en Modales Anidados (Doble Cierre):**
-   En `src/hooks/useFocusTrap.ts:106`, cada modal abierto registra un listener `keydown` en fase de captura sobre `document`. Cuando `ItemModal` abre su diálogo de confirmación de borrado (`ConfirmModal`), pulsar `Escape` para cancelar el borrado dispara ambos listeners simultáneamente, cerrando tanto la confirmación como `ItemModal` y perdiendo las ediciones en curso. Idéntico problema ocurre en `ProjectModal` + `FolderPickerModal` y en `ReleaseAssembler`.
-2. **Atajos Globales de Teclado Rotos y Fugas de Contexto:**
-   En `src/App.tsx:404-443`:
-   - Pulsar `N` llama a `setDefaultNewStatus('backlog')`. Como `'backlog'` no es un estado canónico en el `<select>` de `ItemModal`, el selector aparece en blanco y persiste el valor obsoleto en disco.
-   - Los atajos numéricos (`1`, `2`, `3`, `4`) se ejecutan incluso si el usuario está interactuando con botones dentro de modales abiertos o si la pestaña destino está deshabilitada en `config.enabledTabs`.
-3. **Solapamiento en Checkboxes con Shift+Click:**
-   En `src/components/SprintView.tsx:1523-1536`, el checkbox de fila define simultáneamente `onClick` (con `handleRowShiftClick`) y `onChange` (con `handleToggleSelectItem`), provocando que un Shift-click seleccione y deseleccione la fila en el mismo evento.
-4. **Modales sin Portal y Atrapados en Stacking Contexts:**
-   8 modales (`Modal.tsx`, `ProjectModal.tsx`, `FolderPickerModal.tsx`, `SprintModal.tsx`, `CompleteSprintModal.tsx`, `PlanGuardModal.tsx`, `ImportWizardModal.tsx` y el visor de retro de `SprintView.tsx`) se renderizan en el DOM inline sin `createPortal(..., document.body)`, violando la Regla #11 de `AGENTS.md` y quedando vulnerables a bugs de apilamiento con `backdrop-filter` o `transform`.
-5. **Ruptura del Modo Inglés por Cadenas Hardcodeadas:**
-   Más de 150 textos en `main.tsx` (`ErrorBoundary`), `ImportWizardModal.tsx`, generador de changelogs en `ReleaseAssembler.tsx`, toasts de `App.tsx` y encabezados de `SprintView.tsx` están escritos en español estático, ignorando la configuración `"language": "en"`.
-6. **Clases de Utilidad Inválidas y Tipografía Arbitraria:**
-   Presencia de `py-0.2` (utilidad inexistente en Tailwind que no genera estilos) en 6 componentes y 265 violaciones de `UX-011` congeladas en `audit-ux-baseline.json`.
-
-### Solución Arquitectónica Profunda:
-
-- **Pila de Traps de Foco (`activeTraps` Stack):**
-  - Implementar en `useFocusTrap.ts` un stack global de modales activos. Solo el modal en el tope de la pila (`activeTraps[activeTraps.length - 1]`) captura `Escape` y `Tab`, llamando a `e.stopImmediatePropagation()`.
-- **Saneamiento de Atajos:**
-  - Corregir el estado por defecto de `N` a `'draft'`.
-  - Bloquear todos los atajos de una sola tecla cuando exista algún modal abierto o la pestaña esté deshabilitada.
-- **Portales Universales:**
-  - Envolver todos los modales y overlays en `createPortal(..., document.body)` con `role="dialog"`, `aria-modal="true"` y focus trap estricto.
-- **Internacionalización Completa:**
-  - Trasladar todas las cadenas hardcodeadas a `src/locales/es.json` y `src/locales/en.json`, garantizando paridad 100% y traducción dinámica vía `useTranslation()`.
-- **Higiene de CSS y Quema de Baseline:**
-  - Reemplazar `py-0.2` por `py-0.5` y migrar `text-[9px]`, `text-[10px]` y `text-[11px]` a la escala canónica `text-xs`.
-
-**Criterios de Aceptación:**
-- [x] #1 Al presionar `Escape` dentro de un modal anidado (ej. confirmación de borrado en `ItemModal`), se cierra exclusivamente el modal superior sin cerrar el modal padre
-- [x] #2 El atajo de teclado `N` abre el modal con estado canónico `draft` y los atajos numéricos no interfieren cuando hay modales abiertos o pestañas desactivadas
-- [x] #3 La selección por rango con `Shift+Click` en checkboxes de `SprintView` selecciona el bloque continuo de tareas de forma determinista sin deseleccionar la fila actual
-- [x] #4 Los 8 modales identificados se renderizan mediante `createPortal(..., document.body)` con atributos ARIA y foco contenido
-- [x] #5 Todas las cadenas de texto visibles de `ErrorBoundary`, `ImportWizardModal`, `ReleaseAssembler` y toasts se internacionalizan en `es.json` y `en.json`, funcionando limpiamente en modo inglés
-- [x] #6 Se eliminan todas las apariciones de la clase Tailwind inválida `py-0.2`
-- [x] #7 El baseline de `audit-ux-baseline.json` se reduce progresivamente reemplazando tamaños arbitrarios por la escala estándar `text-xs`
-
----
-
-#### [DEV-311] Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `server/services/backlogService.ts`, haciendo que el router REST delegue el 100% de las mutaciones de tareas en `BacklogService` (`createTask`, `updateTask`, `bulkUpdateTasks`, `deleteTask`).
-
-### Diagnóstico de la Causa Raíz:
-
-1. **Reimplementación de Mutaciones en el Router:**
-   Actualmente, `server/routes/api.ts` (1,457 líneas) manipula y muta directamente las entidades en memoria en `POST /api/items` (líneas 181-264), `POST /api/items/bulk` (líneas 267-352) y `PUT /api/items/:id` (líneas 355-452), llamando luego a la función de bajo nivel `saveBacklogMdItem` (`BacklogService.saveTask`) en vez de delegar en los métodos canónicos de dominio de `BacklogService`.
-   
-2. **Divergencias entre MCP y HTTP:**
-   - La asignación de IDs correlativos en `api.ts` usa una expresión regular distinta (`^${cleanPrefix}[-_]+(\\d+)`) a la de `BacklogService.createTask` (`^${cleanPrefix}-(\\d+)`).
-   - Las validaciones del Gatekeeper (`validateGatekeeperTransition`) corren en el MCP pero se omiten en el controlador REST de `PUT /api/items/:id`.
-   - Dentro de `BacklogService.updateTask`, el parseo y extracción de campos (`effectiveStatus`, `effectiveTitle`, etc.) se encuentra duplicado entre la rama de almacenamiento Markdown y la rama JSON.
-
-### Solución Técnica:
-
-- Hacer que `POST /api/items` invoque directamente `BacklogService.createTask(project, body)`.
-- Hacer que `PUT /api/items/:id` invoque `BacklogService.updateTask(project, id, body, { force: body.force, expectedMtime: body.expectedMtime })`.
-- Hacer que `POST /api/items/bulk` invoque `BacklogService.bulkUpdateTasks(project, { taskIds, filterPrefix, filterStatus }, updates)`.
-- Unificar la extracción y normalización de campos dentro de `BacklogService.updateTask` antes de bifurcar el almacenamiento en disco (`markdown` vs `json`).
-
-**Criterios de Aceptación:**
-- [x] #1 `POST /api/items` delega la creación en `BacklogService.createTask` garantizando paridad de validación con MCP
-- [x] #2 `PUT /api/items/:id` delega la actualización en `BacklogService.updateTask` preservando la detección de conflictos `409` por `expectedMtime`
-- [x] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
-- [x] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
-- [x] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
-
----
-
-#### [DEV-314] Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas
-- **Prioridad**: `high` | **Tipo**: `enhancement`
-**Criterios de Aceptación:**
-- [x] #1 Implementar un módulo utilitario de lockfile atómico (`src/server/utils/fs-lock.ts` o equivalente) con soporte de timeout y liberación garantizada en `finally`.
-- [x] #2 La función de generación de próximo ID correlativo adquiere el lock antes de inspeccionar IDs y lo libera una vez creado el archivo en disco.
-- [x] #3 Las mutaciones en `releases.json` y `retrospectives.json` están protegidas por locks atómicos por archivo durante la lectura y escritura.
-- [x] #4 Manejo defensivo de stale locks huérfanos con verificación de timestamp de expiración (e.g. 5000ms de gracia máxima).
-- [x] #5 Pruebas unitarias que simulen concurrencia entre dos operaciones simultáneas de creación de tarea demostrando que se asignan IDs consecutivos sin colisión ni error no controlado.
-- [x] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
-
----
-
-#### [DEV-321] Optimización Integral de Densidad UX en 1366x768 y Viewports Reales de Portátil (1366x650)
-- **Prioridad**: `high` | **Tipo**: `ux`
-
-Auditoría y resolución integral de los problemas de densidad vertical y horizontal en pantallas de portátil de `1366x768` (considerando tanto el viewport completo `1366x768` como el alto útil real de navegador `1366x650` tras descontar barra de tareas del sistema operativo y pestañas/barra de direcciones del navegador), validado pantalla por pantalla con Playwright en Español e Inglés.
-
-### Invariante de Diseño Obligatorio (Restricción Negativa):
-- **El scroll horizontal en las columnas del tablero Kanban es 100% intencional por diseño.** Queda terminantemente prohibido alterar el ancho mínimo de las columnas del Kanban o intentar forzar que todas las columnas entren sin scroll horizontal.
-
-### Diagnóstico Pantalla por Pantalla Pendiente de Resolver:
-
-1. **Modal de Edición / Creación de Ítem (`src/components/ItemModal.tsx` y subcomponentes en `src/components/item-modal/`):**
-   - En `1366x768` (y más aún en `1366x650`), la combinación de paddings verticales amplios, `textarea` de descripción y la sección `Implementation Plan & Plan Guard` desplegada por defecto empuja la sección crítica de **Acceptance Criteria (AC)** completamente fuera del área visible inicial (no se ve ni un solo criterio sin scrollear).
-   - En la columna lateral derecha (`Item Attributes`), el bloque de `Labels` y sus chips quedan cortados al ras del footer.
-   - Se requiere compactar la densidad vertical en alturas `<= 800px` (paddings, gaps, colapso inteligente de secciones secundarias vacías o no prioritarias) para que Título, Descripción, Estado/Atributos y el inicio de Acceptance Criteria sean visibles de inmediato sin cortes.
-
-2. **Popover de Filtros Avanzados (`src/components/AdvancedFiltersPopover.tsx`):**
-   - Limitar `max-h` únicamente agrega scroll interno a una lista vertical larga de una sola columna (`420px`), dejando **Target Release**, **Sprint** y el botón de **Reset** enterrados debajo del pliegue en `1366x768` / `1366x650`.
-   - Se requiere un layout más compacto (grilla de 2 columnas o chips de menor altura/espaciado vertical) para que todos los grupos de filtros y el pie de acciones entren de un vistazo sin requerir scroll interno salvo cuando existan decenas de releases/sprints.
-
-3. **Header con las 5 Pestañas Activas en Español e Inglés (`src/components/Header.tsx`):**
-   - Validar y blindar el presupuesto horizontal en `1366px` y `1280px` cuando están activas simultáneamente las **5 pestañas** (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), junto con nombre de proyecto largo, badge de nueva versión (`vX.Y.Z`), indicador de sincronización, botón `Re-sync /docs`, utilidades y CTA `+ Nueva Tarea`, garantizando cero solapamientos y cero salto de línea en botones.
-
-4. **Vistas Principales y Modales Secundarios en `1366x768` / `1366x650`:**
-   - **SprintView (`src/components/SprintView.tsx`):** Verificar y ajustar cabeceras de sprint, métricas superiores y listas de tareas para no desperdiciar más del 35% del alto útil de `650px` en banners estáticos antes de ver las tareas.
-   - **TimelineView (`src/components/TimelineView.tsx`):** Verificar controles de zoom/rango, cabeceras de fechas y filas del cronograma sin cortes ni desbordes de controles.
-   - **ReleaseAssembler (`src/components/ReleaseAssembler.tsx`) y ReleaseView (`src/components/ReleaseView.tsx`):** Asegurar que el panel de armado de release, preview de notas y selector de ítems `ready` funcionen sin recorte vertical en `650px - 768px` de alto.
-   - **SettingsView (`src/components/SettingsView.tsx`):** Verificar tabs/secciones de configuración y controles sin truncamientos ni desbordes en `1366x768`.
-   - **Modales operativos (`ImportWizardModal.tsx`, `SprintModal.tsx`, `CompleteSprintModal.tsx`, `ProjectModal.tsx`, `TrashModal.tsx`, `KeyboardShortcutsModal.tsx`):** Auditar y ajustar alturas máximas, paddings de cabecera/pie y scroll interno en viewport de `1366x650`.
-
-**Criterios de Aceptación:**
-- [x] #1 Con las 5 pestañas habilitadas en Español (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), badge de actualización visible, botón `Re-sync /docs` y nombre de proyecto de 25 caracteres, el `Header` en `1366x768` y `1280x800` mantiene separación `>= 16px` entre bloques y `0` saltos de línea en botones
-- [x] #2 En `ItemModal` abierto a `1366x768` y `1366x650`, la cabecera de `Acceptance Criteria` y al menos los primeros criterios son visibles sin necesidad de scroll inicial, y todos los campos de la barra lateral derecha (`Status`, `Priority`, `Type`, `Sprint`, `Release`, `Dates`, `Assignees`, `Labels`) quedan accesibles sin recortes
-- [x] #3 `AdvancedFiltersPopover` presenta una disposición compacta donde las secciones de estado, tipo, prioridad, release/sprint y el botón de reset son visibles simultáneamente en `1366x768` sin corte inferior
-- [x] #4 `SprintView`, `TimelineView`, `ReleaseView` / `ReleaseAssembler`, `MetricsView` y `SettingsView` pasan validación visual y geométrica automatizada con Playwright en `1366x768` y `1366x650` (ES y EN) sin elementos solapados ni recortados
-- [x] #5 Todos los modales secundarios (`ImportWizardModal`, `SprintModal`, `CompleteSprintModal`, `ProjectModal`, `TrashModal`, `KeyboardShortcutsModal`) mantienen cabecera y pie de acciones 100% visibles dentro de un viewport de `1366x650`
-- [x] #6 El scroll horizontal de las columnas del `KanbanBoard` se mantiene intacto sin alteraciones
 
 ---
 
@@ -711,7 +561,7 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 
 ---
 
-### ✅ Done / Deployed (287)
+### ✅ Done / Deployed (292)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -6137,6 +5987,25 @@ Implementación del diálogo modal accesible de ayuda y consulta de atajos de te
 
 ---
 
+#### [DEV-255] Command Palette global y buscador de acciones rápidas (⌘K)
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Diseño e implementación de una Command Palette interactiva global (estilo Linear, Raycast o GitHub) activada con `⌘K` o `Ctrl+K`:
+1. Modal flotante central con buscador difuso de alta velocidad.
+2. Salto directo a tareas (`DEV-XXX`) y apertura inmediata de su modal de edición con Enter.
+3. Menú de acciones rápidas ejecutables: cambiar de vista (Tablero, Sprints, Releases, Papelera, Configuración), alternar tema (Claro/Oscuro), cambiar idioma, sincronizar backlog con /docs, cambiar proyecto activo y crear nueva tarea.
+4. Navegación completa por teclado con flechas `↑` y `↓`, selección con `Enter` y cierre con `Escape`.
+5. Filtro de comandos por categorías (Navegación, Tareas, Proyectos, Ajustes).
+
+**Criterios de Aceptación:**
+- [x] #1 Atajo ⌘K / Ctrl+K abre el modal flotante de Command Palette en lugar de enfocar únicamente el input de filtros
+- [x] #2 Buscador filtra en tiempo real tareas existentes y comandos de acción rápida
+- [x] #3 Permite navegar por la lista de resultados con teclas de flecha y ejecutar la acción seleccionada con Enter
+- [x] #4 Incluye acciones para cambiar vistas, alternar tema, crear tarea, cambiar proyecto y sincronizar documentación
+- [x] #5 Accesibilidad completa con role combobox/listbox, useFocusTrap y compatibilidad responsive
+
+---
+
 #### [DEV-256] Renombrar la columna de épica a Parent en SprintView (contenedor: épica o iniciativa)
 - **Prioridad**: `medium` | **Tipo**: `feature`
 
@@ -7409,6 +7278,53 @@ Saneamiento integral de la Pirámide de Verificación y el pipeline de pruebas: 
 
 ---
 
+#### [DEV-305] Ergonomía de Interacción: A11y Universal, Portales, Stack de Modales y Migración Completa a i18n
+- **Prioridad**: `medium` | **Tipo**: `ux`
+
+Resolución integral de defectos ergonómicos, accesibilidad de teclado, gestión de foco en modales anidados y eliminación de más de 150 cadenas de texto hardcodeadas en español que quiebran el soporte para idioma inglés (`"language": "en"`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Colisión de Tecla `Escape` en Modales Anidados (Doble Cierre):**
+   En `src/hooks/useFocusTrap.ts:106`, cada modal abierto registra un listener `keydown` en fase de captura sobre `document`. Cuando `ItemModal` abre su diálogo de confirmación de borrado (`ConfirmModal`), pulsar `Escape` para cancelar el borrado dispara ambos listeners simultáneamente, cerrando tanto la confirmación como `ItemModal` y perdiendo las ediciones en curso. Idéntico problema ocurre en `ProjectModal` + `FolderPickerModal` y en `ReleaseAssembler`.
+2. **Atajos Globales de Teclado Rotos y Fugas de Contexto:**
+   En `src/App.tsx:404-443`:
+   - Pulsar `N` llama a `setDefaultNewStatus('backlog')`. Como `'backlog'` no es un estado canónico en el `<select>` de `ItemModal`, el selector aparece en blanco y persiste el valor obsoleto en disco.
+   - Los atajos numéricos (`1`, `2`, `3`, `4`) se ejecutan incluso si el usuario está interactuando con botones dentro de modales abiertos o si la pestaña destino está deshabilitada en `config.enabledTabs`.
+3. **Solapamiento en Checkboxes con Shift+Click:**
+   En `src/components/SprintView.tsx:1523-1536`, el checkbox de fila define simultáneamente `onClick` (con `handleRowShiftClick`) y `onChange` (con `handleToggleSelectItem`), provocando que un Shift-click seleccione y deseleccione la fila en el mismo evento.
+4. **Modales sin Portal y Atrapados en Stacking Contexts:**
+   8 modales (`Modal.tsx`, `ProjectModal.tsx`, `FolderPickerModal.tsx`, `SprintModal.tsx`, `CompleteSprintModal.tsx`, `PlanGuardModal.tsx`, `ImportWizardModal.tsx` y el visor de retro de `SprintView.tsx`) se renderizan en el DOM inline sin `createPortal(..., document.body)`, violando la Regla #11 de `AGENTS.md` y quedando vulnerables a bugs de apilamiento con `backdrop-filter` o `transform`.
+5. **Ruptura del Modo Inglés por Cadenas Hardcodeadas:**
+   Más de 150 textos en `main.tsx` (`ErrorBoundary`), `ImportWizardModal.tsx`, generador de changelogs en `ReleaseAssembler.tsx`, toasts de `App.tsx` y encabezados de `SprintView.tsx` están escritos en español estático, ignorando la configuración `"language": "en"`.
+6. **Clases de Utilidad Inválidas y Tipografía Arbitraria:**
+   Presencia de `py-0.2` (utilidad inexistente en Tailwind que no genera estilos) en 6 componentes y 265 violaciones de `UX-011` congeladas en `audit-ux-baseline.json`.
+
+### Solución Arquitectónica Profunda:
+
+- **Pila de Traps de Foco (`activeTraps` Stack):**
+  - Implementar en `useFocusTrap.ts` un stack global de modales activos. Solo el modal en el tope de la pila (`activeTraps[activeTraps.length - 1]`) captura `Escape` y `Tab`, llamando a `e.stopImmediatePropagation()`.
+- **Saneamiento de Atajos:**
+  - Corregir el estado por defecto de `N` a `'draft'`.
+  - Bloquear todos los atajos de una sola tecla cuando exista algún modal abierto o la pestaña esté deshabilitada.
+- **Portales Universales:**
+  - Envolver todos los modales y overlays en `createPortal(..., document.body)` con `role="dialog"`, `aria-modal="true"` y focus trap estricto.
+- **Internacionalización Completa:**
+  - Trasladar todas las cadenas hardcodeadas a `src/locales/es.json` y `src/locales/en.json`, garantizando paridad 100% y traducción dinámica vía `useTranslation()`.
+- **Higiene de CSS y Quema de Baseline:**
+  - Reemplazar `py-0.2` por `py-0.5` y migrar `text-[9px]`, `text-[10px]` y `text-[11px]` a la escala canónica `text-xs`.
+
+**Criterios de Aceptación:**
+- [x] #1 Al presionar `Escape` dentro de un modal anidado (ej. confirmación de borrado en `ItemModal`), se cierra exclusivamente el modal superior sin cerrar el modal padre
+- [x] #2 El atajo de teclado `N` abre el modal con estado canónico `draft` y los atajos numéricos no interfieren cuando hay modales abiertos o pestañas desactivadas
+- [x] #3 La selección por rango con `Shift+Click` en checkboxes de `SprintView` selecciona el bloque continuo de tareas de forma determinista sin deseleccionar la fila actual
+- [x] #4 Los 8 modales identificados se renderizan mediante `createPortal(..., document.body)` con atributos ARIA y foco contenido
+- [x] #5 Todas las cadenas de texto visibles de `ErrorBoundary`, `ImportWizardModal`, `ReleaseAssembler` y toasts se internacionalizan en `es.json` y `en.json`, funcionando limpiamente en modo inglés
+- [x] #6 Se eliminan todas las apariciones de la clase Tailwind inválida `py-0.2`
+- [x] #7 El baseline de `audit-ux-baseline.json` se reduce progresivamente reemplazando tamaños arbitrarios por la escala estándar `text-xs`
+
+---
+
 #### [DEV-306] Gobernanza Documental: ADRs, Alineación con Playbook y Saneamiento de Normas
 - **Prioridad**: `medium` | **Tipo**: `tech_debt`
 
@@ -7576,6 +7492,37 @@ Garantizar la soberanía, aislamiento y privacidad de proyectos locales configur
 
 ---
 
+#### [DEV-311] Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Eliminar la bifurcación de lógica de negocio entre `server/routes/api.ts` y `server/services/backlogService.ts`, haciendo que el router REST delegue el 100% de las mutaciones de tareas en `BacklogService` (`createTask`, `updateTask`, `bulkUpdateTasks`, `deleteTask`).
+
+### Diagnóstico de la Causa Raíz:
+
+1. **Reimplementación de Mutaciones en el Router:**
+   Actualmente, `server/routes/api.ts` (1,457 líneas) manipula y muta directamente las entidades en memoria en `POST /api/items` (líneas 181-264), `POST /api/items/bulk` (líneas 267-352) y `PUT /api/items/:id` (líneas 355-452), llamando luego a la función de bajo nivel `saveBacklogMdItem` (`BacklogService.saveTask`) en vez de delegar en los métodos canónicos de dominio de `BacklogService`.
+   
+2. **Divergencias entre MCP y HTTP:**
+   - La asignación de IDs correlativos en `api.ts` usa una expresión regular distinta (`^${cleanPrefix}[-_]+(\\d+)`) a la de `BacklogService.createTask` (`^${cleanPrefix}-(\\d+)`).
+   - Las validaciones del Gatekeeper (`validateGatekeeperTransition`) corren en el MCP pero se omiten en el controlador REST de `PUT /api/items/:id`.
+   - Dentro de `BacklogService.updateTask`, el parseo y extracción de campos (`effectiveStatus`, `effectiveTitle`, etc.) se encuentra duplicado entre la rama de almacenamiento Markdown y la rama JSON.
+
+### Solución Técnica:
+
+- Hacer que `POST /api/items` invoque directamente `BacklogService.createTask(project, body)`.
+- Hacer que `PUT /api/items/:id` invoque `BacklogService.updateTask(project, id, body, { force: body.force, expectedMtime: body.expectedMtime })`.
+- Hacer que `POST /api/items/bulk` invoque `BacklogService.bulkUpdateTasks(project, { taskIds, filterPrefix, filterStatus }, updates)`.
+- Unificar la extracción y normalización de campos dentro de `BacklogService.updateTask` antes de bifurcar el almacenamiento en disco (`markdown` vs `json`).
+
+**Criterios de Aceptación:**
+- [x] #1 `POST /api/items` delega la creación en `BacklogService.createTask` garantizando paridad de validación con MCP
+- [x] #2 `PUT /api/items/:id` delega la actualización en `BacklogService.updateTask` preservando la detección de conflictos `409` por `expectedMtime`
+- [x] #3 `POST /api/items/bulk` delega la actualización masiva en `BacklogService.bulkUpdateTasks`
+- [x] #4 La normalización de updates en `BacklogService.updateTask` se realiza en una única función pura compartida entre motores Markdown y JSON
+- [x] #5 La suite completa de tests de integración (`npm test`) y seguridad de API pasa con código de salida 0
+
+---
+
 #### [DEV-312] Paridad de Estados: Soporte Canónico de 'blocked' (con blocked_reason) y 'dismissed' en el Tablero y Parser
 - **Prioridad**: `high` | **Tipo**: `feature`
 
@@ -7605,6 +7552,18 @@ Alinear la máquina de estados de `@gripm/board` con el estándar canónico de `
 - [x] #3 `backlogMdParser.ts` parsea y serializa `blocked_reason` y `dismissed_reason` en el frontmatter YAML
 - [x] #4 `ItemModal` permite ingresar y editar el motivo de bloqueo cuando una tarea pasa a `blocked`
 - [x] #5 `KanbanBoard` e `ItemCard` muestran visualmente el indicador de bloqueo con su tooltip descriptivo
+
+---
+
+#### [DEV-314] Concurrencia inter-proceso: Lockfile atomico en asignacion de IDs correlativos y mutaciones compartidas
+- **Prioridad**: `high` | **Tipo**: `enhancement`
+**Criterios de Aceptación:**
+- [x] #1 Implementar un módulo utilitario de lockfile atómico (`src/server/utils/fs-lock.ts` o equivalente) con soporte de timeout y liberación garantizada en `finally`.
+- [x] #2 La función de generación de próximo ID correlativo adquiere el lock antes de inspeccionar IDs y lo libera una vez creado el archivo en disco.
+- [x] #3 Las mutaciones en `releases.json` y `retrospectives.json` están protegidas por locks atómicos por archivo durante la lectura y escritura.
+- [x] #4 Manejo defensivo de stale locks huérfanos con verificación de timestamp de expiración (e.g. 5000ms de gracia máxima).
+- [x] #5 Pruebas unitarias que simulen concurrencia entre dos operaciones simultáneas de creación de tarea demostrando que se asignan IDs consecutivos sin colisión ni error no controlado.
+- [x] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run backlog:check`) pasa con 0 errores.
 
 ---
 
@@ -7706,6 +7665,45 @@ Completar la homogeneización visual absoluta de la interfaz de terminal (CLI), 
 - [x] #5 Estandarizadas las salidas de guards (verify-backlog-sync.js, verify-publish-surface.js, generate-changelog.cjs, run-tests.js)
 - [x] #6 Cero em-dashes y soporte total de NO_COLOR en todas las herramientas intervenidas
 - [x] #7 Sincronización en gripm-playbook y Pirámide de Verificación completa en verde
+
+---
+
+#### [DEV-321] Optimización Integral de Densidad UX en 1366x768 y Viewports Reales de Portátil (1366x650)
+- **Prioridad**: `high` | **Tipo**: `ux`
+
+Auditoría y resolución integral de los problemas de densidad vertical y horizontal en pantallas de portátil de `1366x768` (considerando tanto el viewport completo `1366x768` como el alto útil real de navegador `1366x650` tras descontar barra de tareas del sistema operativo y pestañas/barra de direcciones del navegador), validado pantalla por pantalla con Playwright en Español e Inglés.
+
+### Invariante de Diseño Obligatorio (Restricción Negativa):
+- **El scroll horizontal en las columnas del tablero Kanban es 100% intencional por diseño.** Queda terminantemente prohibido alterar el ancho mínimo de las columnas del Kanban o intentar forzar que todas las columnas entren sin scroll horizontal.
+
+### Diagnóstico Pantalla por Pantalla Pendiente de Resolver:
+
+1. **Modal de Edición / Creación de Ítem (`src/components/ItemModal.tsx` y subcomponentes en `src/components/item-modal/`):**
+   - En `1366x768` (y más aún en `1366x650`), la combinación de paddings verticales amplios, `textarea` de descripción y la sección `Implementation Plan & Plan Guard` desplegada por defecto empuja la sección crítica de **Acceptance Criteria (AC)** completamente fuera del área visible inicial (no se ve ni un solo criterio sin scrollear).
+   - En la columna lateral derecha (`Item Attributes`), el bloque de `Labels` y sus chips quedan cortados al ras del footer.
+   - Se requiere compactar la densidad vertical en alturas `<= 800px` (paddings, gaps, colapso inteligente de secciones secundarias vacías o no prioritarias) para que Título, Descripción, Estado/Atributos y el inicio de Acceptance Criteria sean visibles de inmediato sin cortes.
+
+2. **Popover de Filtros Avanzados (`src/components/AdvancedFiltersPopover.tsx`):**
+   - Limitar `max-h` únicamente agrega scroll interno a una lista vertical larga de una sola columna (`420px`), dejando **Target Release**, **Sprint** y el botón de **Reset** enterrados debajo del pliegue en `1366x768` / `1366x650`.
+   - Se requiere un layout más compacto (grilla de 2 columnas o chips de menor altura/espaciado vertical) para que todos los grupos de filtros y el pie de acciones entren de un vistazo sin requerir scroll interno salvo cuando existan decenas de releases/sprints.
+
+3. **Header con las 5 Pestañas Activas en Español e Inglés (`src/components/Header.tsx`):**
+   - Validar y blindar el presupuesto horizontal en `1366px` y `1280px` cuando están activas simultáneamente las **5 pestañas** (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), junto con nombre de proyecto largo, badge de nueva versión (`vX.Y.Z`), indicador de sincronización, botón `Re-sync /docs`, utilidades y CTA `+ Nueva Tarea`, garantizando cero solapamientos y cero salto de línea en botones.
+
+4. **Vistas Principales y Modales Secundarios en `1366x768` / `1366x650`:**
+   - **SprintView (`src/components/SprintView.tsx`):** Verificar y ajustar cabeceras de sprint, métricas superiores y listas de tareas para no desperdiciar más del 35% del alto útil de `650px` en banners estáticos antes de ver las tareas.
+   - **TimelineView (`src/components/TimelineView.tsx`):** Verificar controles de zoom/rango, cabeceras de fechas y filas del cronograma sin cortes ni desbordes de controles.
+   - **ReleaseAssembler (`src/components/ReleaseAssembler.tsx`) y ReleaseView (`src/components/ReleaseView.tsx`):** Asegurar que el panel de armado de release, preview de notas y selector de ítems `ready` funcionen sin recorte vertical en `650px - 768px` de alto.
+   - **SettingsView (`src/components/SettingsView.tsx`):** Verificar tabs/secciones de configuración y controles sin truncamientos ni desbordes en `1366x768`.
+   - **Modales operativos (`ImportWizardModal.tsx`, `SprintModal.tsx`, `CompleteSprintModal.tsx`, `ProjectModal.tsx`, `TrashModal.tsx`, `KeyboardShortcutsModal.tsx`):** Auditar y ajustar alturas máximas, paddings de cabecera/pie y scroll interno en viewport de `1366x650`.
+
+**Criterios de Aceptación:**
+- [x] #1 Con las 5 pestañas habilitadas en Español (`Tablero`, `Sprints`, `Versiones`, `Cronograma`, `Métricas`), badge de actualización visible, botón `Re-sync /docs` y nombre de proyecto de 25 caracteres, el `Header` en `1366x768` y `1280x800` mantiene separación `>= 16px` entre bloques y `0` saltos de línea en botones
+- [x] #2 En `ItemModal` abierto a `1366x768` y `1366x650`, la cabecera de `Acceptance Criteria` y al menos los primeros criterios son visibles sin necesidad de scroll inicial, y todos los campos de la barra lateral derecha (`Status`, `Priority`, `Type`, `Sprint`, `Release`, `Dates`, `Assignees`, `Labels`) quedan accesibles sin recortes
+- [x] #3 `AdvancedFiltersPopover` presenta una disposición compacta donde las secciones de estado, tipo, prioridad, release/sprint y el botón de reset son visibles simultáneamente en `1366x768` sin corte inferior
+- [x] #4 `SprintView`, `TimelineView`, `ReleaseView` / `ReleaseAssembler`, `MetricsView` y `SettingsView` pasan validación visual y geométrica automatizada con Playwright en `1366x768` y `1366x650` (ES y EN) sin elementos solapados ni recortados
+- [x] #5 Todos los modales secundarios (`ImportWizardModal`, `SprintModal`, `CompleteSprintModal`, `ProjectModal`, `TrashModal`, `KeyboardShortcutsModal`) mantienen cabecera y pie de acciones 100% visibles dentro de un viewport de `1366x650`
+- [x] #6 El scroll horizontal de las columnas del `KanbanBoard` se mantiene intacto sin alteraciones
 
 ---
 

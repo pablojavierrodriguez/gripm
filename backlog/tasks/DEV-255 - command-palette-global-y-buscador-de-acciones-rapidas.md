@@ -1,10 +1,10 @@
 ---
 id: DEV-255
 title: "Command Palette global y buscador de acciones rápidas (⌘K)"
-status: ready
+status: done
 claimed_by: "antigravity:worker_dev255_1"
 created_date: '2026-10-12'
-updated_date: '2026-10-18'
+updated_date: '2026-10-18 01:38'
 labels:
   - "ux"
   - "navigation"

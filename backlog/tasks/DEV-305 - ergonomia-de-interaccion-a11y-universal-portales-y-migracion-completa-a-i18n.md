@@ -1,9 +1,9 @@
 ---
 id: DEV-305
 title: "Ergonomía de Interacción: A11y Universal, Portales, Stack de Modales y Migración Completa a i18n"
-status: ready
+status: done
 created_date: '2026-10-15'
-updated_date: '2026-10-18 01:25'
+updated_date: '2026-10-18 01:38'
 labels:
   - "ux"
   - "a11y"

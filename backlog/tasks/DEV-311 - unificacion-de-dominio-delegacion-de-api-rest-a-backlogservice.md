@@ -1,10 +1,10 @@
 ---
 id: DEV-311
 title: "Unificación de Dominio: Delegación Completa de Endpoints REST en api.ts hacia BacklogService"
-status: ready
+status: done
 claimed_by: "antigravity:worker_dev311_1"
 created_date: '2026-10-17'
-updated_date: '2026-10-17'
+updated_date: '2026-10-18 01:38'
 labels:
   - "architecture"
   - "refactor"
