@@ -7,8 +7,9 @@ export interface ComponentsTabProps {
   modulesList: string[];
   newModuleInput: string;
   setNewModuleInput: (v: string) => void;
-  handleAddModule: () => void;
+  handleAddModule: (mod?: string) => void;
   handleRemoveModule: (mod: string) => void;
+  availableModules?: string[];
 }
 
 export const ComponentsTab: React.FC<ComponentsTabProps> = ({
@@ -18,7 +19,9 @@ export const ComponentsTab: React.FC<ComponentsTabProps> = ({
   setNewModuleInput,
   handleAddModule,
   handleRemoveModule,
+  availableModules = [],
 }) => {
+  const discoveredModules = availableModules.filter((m) => !modulesList.includes(m));
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -110,6 +113,42 @@ export const ComponentsTab: React.FC<ComponentsTabProps> = ({
                 </button>
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Módulos detectados en tareas existentes pero no registrados en el catálogo */}
+        {discoveredModules.length > 0 && (
+          <div className="pt-3 border-t border-slate-200/60 dark:border-white/[0.06] space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {language === 'es'
+                  ? 'Módulos detectados en tareas del proyecto:'
+                  : 'Modules detected in project tasks:'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  discoveredModules.forEach((m) => handleAddModule(m));
+                }}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium text-left sm:text-right"
+              >
+                {language === 'es' ? '+ Agregar todos al catálogo' : '+ Add all to catalog'}
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {discoveredModules.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => handleAddModule(m)}
+                  title={language === 'es' ? `Agregar "${m}" al catálogo oficial` : `Add "${m}" to official catalog`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-white/[0.04] dark:hover:bg-indigo-500/10 text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 border border-dashed border-slate-300 dark:border-white/10 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>{m}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

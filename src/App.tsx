@@ -1565,6 +1565,7 @@ export function App() {
               onOpenImportWizard={() => setImportWizardOpen(true)}
               onExportMonolithic={handleExportMonolithic}
               onExportJson={handleExportJson}
+              availableModules={availableModules}
             />
           </Suspense>
         )}

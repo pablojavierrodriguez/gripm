@@ -386,8 +386,8 @@ export function useSettingsState({
     }
   };
 
-  const handleAddModule = async () => {
-    const trimmed = newModuleInput.trim();
+  const handleAddModule = async (explicitName?: string) => {
+    const trimmed = (explicitName !== undefined ? explicitName : newModuleInput).trim();
     if (!trimmed) return;
     if (modulesList.some((m) => m.toLowerCase() === trimmed.toLowerCase())) {
       onShowToast?.(language === 'es' ? 'El módulo ya existe' : 'Module already exists', 'info');
@@ -395,7 +395,7 @@ export function useSettingsState({
     }
     const updated = [...modulesList, trimmed];
     setModulesList(updated);
-    setNewModuleInput('');
+    if (explicitName === undefined) setNewModuleInput('');
     const next = { ...builtConfig, modulesList: updated };
     await onSaveConfig(next);
   };

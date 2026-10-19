@@ -36,6 +36,13 @@ const SANDBOX_CONFIG: GripmConfig = {
   defaultView: 'kanban',
   mode: 'single',
   enabledTabs: { kanban: true, sprint: true, release: true },
+  modulesList: [
+    'Colaboración',
+    'Design System',
+    'Documentación',
+    'Ingesta CSV',
+    'Notificaciones',
+  ],
 };
 
 const DEMO_PROJECT_ID = 'demo';

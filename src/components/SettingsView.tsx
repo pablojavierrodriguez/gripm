@@ -126,6 +126,7 @@ interface SettingsViewProps {
   onOpenImportWizard?: () => void;
   onExportMonolithic?: (projectId: string) => void;
   onExportJson?: (projectId: string) => void;
+  availableModules?: string[];
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -137,7 +138,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isDarkMode,
   onOpenImportWizard,
   onExportMonolithic,
-  onExportJson
+  onExportJson,
+  availableModules = [],
 }) => {
   const { t, language, setLanguage } = useTranslation();
 
@@ -381,6 +383,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               setNewModuleInput={state.setNewModuleInput}
               handleAddModule={state.handleAddModule}
               handleRemoveModule={state.handleRemoveModule}
+              availableModules={availableModules}
             />
           )}
 
