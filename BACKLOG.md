@@ -85,6 +85,22 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
+### 🔍 Review & QA (1)
+
+#### [DEV-322] Menú de desbordamiento en Header para portátiles y tablets (botón Nueva Tarea fuera de pantalla en 1366x768)
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En `1366x768` el botón `+ Nueva Tarea` del `Header` quedaba fuera del viewport tras v1.8.0 (se sumó el botón de Command Palette). Entre `768px` y `1535px` se agrupan las acciones secundarias (Command Palette, atajos, idioma, tema y Papelera con contador) en un popover `⋯` ("Más acciones"). Desde `1536px` (2xl) el header conserva todos los botones sueltos. Por debajo de `768px` se mantiene el drawer hamburguesa, que ahora incluye la Papelera.
+
+**Criterios de Aceptación:**
+- [x] #1 En `1366x768` el botón `+ Nueva Tarea` es visible y las acciones secundarias están agrupadas en el popover `⋯` (validado manualmente por el PO con `npm run dev`)
+- [x] #2 Desde `1536px` el header conserva todos los botones sueltos sin cambios visuales
+- [x] #3 El popover se cierra con `Escape` y con clic exterior, y la clave i18n `header.moreActions` existe en `es.json` y `en.json`
+- [x] #4 El drawer móvil incluye la entrada Papelera
+- [x] #5 `npx tsc --noEmit` y `npm test` (21 pasos) pasan con código 0
+
+---
+
 ### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases

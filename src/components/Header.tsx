@@ -23,7 +23,8 @@ import {
   Keyboard,
   Command,
   Calendar,
-  BarChart2
+  BarChart2,
+  MoreHorizontal
 } from 'lucide-react';
 import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
 import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, isMetricsModuleActive } from '../types';
@@ -94,6 +95,8 @@ export const Header: FC<HeaderProps> = ({
   const [projectToConvertMd, setProjectToConvertMd] = useState<Project | null>(null);
   const [projectToConvertJson, setProjectToConvertJson] = useState<Project | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const { t, language, setLanguage } = useTranslation();
 
   useEffect(() => {
@@ -101,9 +104,19 @@ export const Header: FC<HeaderProps> = ({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setProjectMenuOpen(false);
       }
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMoreOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const currentProject = projects.find((p) => p.id === selectedProjectId)
@@ -492,7 +505,7 @@ export const Header: FC<HeaderProps> = ({
               onClick={onToggleTheme}
               title={isDarkMode ? t('header.themeLight') : t('header.themeDark')}
               aria-label={isDarkMode ? t('header.themeLight') : t('header.themeDark')}
-              className="hidden sm:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+              className="hidden 2xl:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
             >
               <div className="w-3.5 h-3.5 relative flex items-center justify-center">
                 {isDarkMode ? (
@@ -508,7 +521,7 @@ export const Header: FC<HeaderProps> = ({
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
               title={t('header.switchLang')}
               aria-label={t('header.switchLang')}
-              className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+              className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
             >
               <Globe className="w-3.5 h-3.5 text-indigo-500" />
               <span className="font-mono text-[10px] font-bold tracking-wider">{language.toUpperCase()}</span>
@@ -519,7 +532,7 @@ export const Header: FC<HeaderProps> = ({
               onClick={onOpenCommandPalette}
               title={`${t('palette.title')} (⌘K)`}
               aria-label={t('palette.title')}
-              className="hidden sm:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+              className="hidden 2xl:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
             >
               <Command className="w-3.5 h-3.5" />
             </button>
@@ -529,10 +542,55 @@ export const Header: FC<HeaderProps> = ({
               onClick={onOpenShortcuts}
               title={`${t('shortcuts.title')} (?)`}
               aria-label={t('shortcuts.title')}
-              className="hidden sm:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
+              className="hidden 2xl:flex relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform active:scale-90 hover:shadow-sm"
             >
               <Keyboard className="w-3.5 h-3.5" />
             </button>
+
+            {/* Overflow menu: agrupa acciones secundarias entre md y 2xl (portatiles/tablets) */}
+            <div className="relative hidden md:block 2xl:hidden" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen(!moreOpen)}
+                title={t('header.moreActions')}
+                aria-label={t('header.moreActions')}
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 transition-all active:scale-90"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {moreOpen && (
+                <div role="menu" className="absolute right-0 mt-1.5 w-60 rounded-xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 z-50 text-xs">
+                  <button role="menuitem" onClick={() => { setMoreOpen(false); onOpenCommandPalette?.(); }} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                    <Command className="w-4 h-4 text-indigo-500" />
+                    <span className="flex-1 text-left">{t('palette.title')}</span>
+                    <span className="text-xs text-slate-400 font-mono">⌘K</span>
+                  </button>
+                  <button role="menuitem" onClick={() => { setMoreOpen(false); onOpenShortcuts?.(); }} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                    <Keyboard className="w-4 h-4 text-indigo-500" />
+                    <span className="flex-1 text-left">{t('shortcuts.title')}</span>
+                    <span className="text-xs text-slate-400 font-mono">?</span>
+                  </button>
+                  <button role="menuitem" onClick={() => setLanguage(language === 'es' ? 'en' : 'es')} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                    <Globe className="w-4 h-4 text-indigo-500" />
+                    <span className="flex-1 text-left">{t('header.switchLang')}</span>
+                    <span className="text-xs text-slate-400 font-mono font-semibold">{language.toUpperCase()}</span>
+                  </button>
+                  <button role="menuitem" onClick={onToggleTheme} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                    {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+                    <span className="flex-1 text-left">{isDarkMode ? t('header.themeLight') : t('header.themeDark')}</span>
+                  </button>
+                  <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
+                  <button role="menuitem" onClick={() => { setMoreOpen(false); onSelectTab(activeTab === 'trash' ? (config?.defaultView || 'kanban') : 'trash'); }} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                    <Trash2 className="w-4 h-4 text-rose-500" />
+                    <span className="flex-1 text-left">{t('header.trash')}</span>
+                    {(trashedCount ?? archivedCount) > 0 && (
+                      <span className="px-1.5 min-w-[18px] h-4 text-xs font-mono font-bold rounded-full bg-rose-500 text-white flex items-center justify-center">{trashedCount ?? archivedCount}</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Settings Button */}
             <button
@@ -553,7 +611,7 @@ export const Header: FC<HeaderProps> = ({
               onClick={() => onSelectTab(activeTab === 'trash' ? (config?.defaultView || 'kanban') : 'trash')}
               title={activeTab === 'trash' ? t('header.backToBoard') : `${t('header.trash')} (${trashedCount ?? archivedCount})`}
               aria-label={t('header.trash')}
-              className={`hidden sm:flex relative p-1.5 rounded-lg border text-xs font-medium transition-all duration-200 transform active:scale-90 ${
+              className={`hidden 2xl:flex relative p-1.5 rounded-lg border text-xs font-medium transition-all duration-200 transform active:scale-90 ${
                 activeTab === 'trash'
                   ? 'bg-rose-50 dark:bg-rose-600/20 text-rose-600 dark:text-rose-400 border-rose-500/30'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] border-slate-200 dark:border-white/[0.08] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -725,6 +783,17 @@ export const Header: FC<HeaderProps> = ({
                 >
                   <Settings className="w-4 h-4 text-indigo-500" />
                   <span>{t('settings.title')}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onSelectTab('trash');
+                  }}
+                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  <span>{t('header.trash')}</span>
                 </button>
 
                 <button
