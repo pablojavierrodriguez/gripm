@@ -85,7 +85,7 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🔍 Review & QA (1)
 
 #### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
