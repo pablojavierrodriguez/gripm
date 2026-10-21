@@ -3,7 +3,7 @@ id: DEV-188
 title: "Migración al motor de audit:ux upstream: fin del fork, baseline y pérdida de INVARIantes locales"
 status: draft
 created_date: '2026-10-06'
-updated_date: '2026-10-13'
+updated_date: '2026-10-21'
 labels:
  - "ux-audit"
  - "upstream"
@@ -12,6 +12,7 @@ labels:
 dependencies:
  - DEV-166
  - DEV-173
+ - DEV-323
 priority: high
 type: tech_debt
 ---
@@ -24,21 +25,42 @@ Dar de baja el fork local de `scripts/audit-ux-code.cjs` y adoptar el motor de
 DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
 upstream.
 
-### Estado actual del fork
+### Estado actual del fork (relevado 2026-10-21)
 
 > [!WARNING]
-> **Sección desactualizada al 2026-10-13.** La migración de la que trata esta tarea ya
-> ocurrió: desde v1.0.3 (DEV-166) `scripts/audit-ux-code.cjs` es byte a byte idéntico al
-> tarball de `@gripm/playbook`, la divergencia quedó en cero y el archivo **está** en el plan
-> core de `scripts/sync-playbook.mjs` (línea 76). Lo que queda vivo de este ítem es el bloque
-> **`hasVisibleText` no reconoce hijos de expresión JSX** y el **renegociado del baseline**.
-> Releer y reescribir el alcance antes de abordarla.
+> **Seccion reescrita el 2026-10-21.** La version previa de este bloque afirmaba que la
+> divergencia "quedó en cero" desde v1.0.3 y que el archivo era "byte a byte identico al
+> tarball". **Ambas afirmaciones son falsas.** El fork esta vivo y medido abajo. Lo que si
+> quedo resuelto upstream es el bloque `hasVisibleText`, ver la seccion final de esta
+> descripcion.
 
-`gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
-(`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
+**`scripts/audit-ux-code.cjs` sigue bifurcado y el fork sobrevive a cualquier sync.**
 
-- **270 líneas** que solo existen en `gripm`
-- **358 líneas** que solo existen en upstream
+Medicion de 2026-10-21, hash SHA-256 contra tags upstream:
+
+| Version | Hash | Lineas |
+| --- | --- | --- |
+| gripm | `4B57DB30` | 1225 |
+| upstream `v2.2.2` | `D5E2EDDE` | 1206 |
+| upstream `v2.3.0` / `v2.4.0` | `9710E158` | 1289 |
+| upstream `v2.5.0` / `v2.6.0` | `E3ADBF5D` | 1355 |
+
+El blob de gripm **no coincide con ningun tag upstream**. Divergencia contra `v2.2.2`:
+
+- **65 lineas** que solo existen en `gripm`
+- **46 lineas** que solo existen en upstream
+
+El nucleo del fork es un parche de i18n en `stripExpressions` (lineas 473-536): preserva
+`t('...')` / `i18n.t('...')` como token `__I18N_LABEL__` para que el 100% de etiquetas
+`{t('...')}` de una app bilingue no disparen UX-010.
+
+> [!IMPORTANT]
+> **Ningun `playbook:sync` arregla esto solo.** `.playbook-lock.json` registra
+> `scripts/audit-ux-code.cjs` en `customizations`, y `classifyLocalFile` evalua
+> `if (wasCustomization) return 'customization'` **antes** de mirar hash conocido ni
+> buscar provenance. El archivo queda protegido y sin actualizar pase lo que pase. El
+> retiro exige sacarlo del lockfile y correr `--force` para ese archivo, que es el
+> objetivo de este item.
 
 La divergencia no es cosmética: el fork tiene el sistema de baselining completo
 (`fingerprint`, multiplicidad, ERROR-nunca-absorbido) y los invariantes `ENV-001` y
@@ -159,27 +181,60 @@ usado del producto.
 real de UX-010 que aparezca en el futuro queda enterrado entre 12 falsos conocidos. Es deuda
 de **sensibilidad del detector**, no de accesibilidad de la UI.
 
+### `hasVisibleText` ya esta resuelto upstream (relevado 2026-10-21)
+
+**Este bloque supera al descriptivo de arriba.** El fix que el AC #9 pide hacer en
+upstream **ya existe desde `v2.6.0`**, y con una implementacion mejor a la que
+imaginabamos: no parchea `stripExpressions` inline, le pasa un predicado.
+
+```js
+// upstream v2.6.0
+function stripExpressions(source, keep = () => false)                                        // 503
+frame.unit.textContent = stripExpressions(segments.join(''), isTextExpression)               // 778
+```
+
+`isTextExpression` distingue **posicion**, que es exactamente lo que el parche de gripm no
+hace y por lo cual produce falsas negativas:
+
+| Criterio | Upstream `isTextExpression` | Parche de gripm (`/\b(?:i18n\.)?t\s*\(/`) |
+| --- | --- | --- |
+| Llamada o literal en posicion de hijo (`t('x')`, `` `Saved ${n}` ``) | acepta | acepta |
+| Constructor de subtree (`{cond && <X />}`, `{items.map(...)}`) | **rechaza** | acepta |
+| `=>` dentro de la expresion | **rechaza de plano** | acepta |
+| Argumentos entrecomillados | **blanquea antes de decidir** | no aplica |
+
+`text` incluye el tag de apertura y sus atributos, asi que con el parche de gripm algo como
+`onClick={() => t('save')}` genera el token y el boton parece tener texto visible: UX-010
+deja de detectar icon-only. Es la falsa negativa que el AC #9 anticipaba.
+
+Consecuencia para este item: **el AC #9 ya no exige tocar upstream.** Basta retirar la
+customizacion del lockfile y dejar que `playbook:sync` traiga `v2.6.0`. El AC #10 sigue
+siendo el gate de regresion que certifica que el motor traido se comporta como esperamos.
+
+El token tambien cambio: upstream usa `EXPRESSION_LABEL = 'label'` (linea 486), gripm usa
+`'__I18N_LABEL__'`. Es interno al parser, no afecta el formato del baseline.
+
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Registrar la fecha de fin del fork: dejar de preservar `scripts/audit-ux-code.cjs` en `sync-playbook.mjs` cuando `@gripm/playbook@2.2.0` esté publicado, y quitar la nota que lo justifica
-- [ ] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
-- [ ] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
+- [ ] #1 Registrar la fecha de fin del fork: quitar `scripts/audit-ux-code.cjs` de `customizations` en `.playbook-lock.json` y eliminar la nota que lo justifica. `@gripm/playbook@2.6.0` ya está publicado; el gate de espera superado
+- [x] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
+- [x] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
 - [ ] #4 Desacoplar los 4 asserts de la sección 6.2 de `scripts/test-parser.js` que dependen de la existencia de `ENV_GUTTER` y `auditEnvInvariants`, conservando 6.1 (UX-009 acotado a diálogos) y 6.3 (gutter leído del CSS)
 - [ ] #5 Regenerar el baseline **con revisión manual de los hallazgos**, no con `--update-baseline` ciego: separar lo genuino de los falsos positivos de UX-010 antes de snapshotear
 - [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
 - [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
 - [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
-- [ ] #9 Arreglar `hasVisibleText` **upstream** en `gripm-playbook/scripts/audit-ux-code.cjs` distinguiendo la ubicación de la expresión: una llamada o literal en la **lista de hijos** cuenta como texto visible, una expresión en el **tag de apertura** se sigue descartando. Traer el cambio con `npm run playbook:sync` sin reintroducir fork local (`.playbook-lock.json` actualizado y el archivo idéntico al playbook)
+- [ ] #9 Sacar `scripts/audit-ux-code.cjs` de `customizations` en `.playbook-lock.json` y traer el motor upstream con `npm run playbook:sync -- --force`, dejando el archivo idéntico al playbook (`.playbook-lock.json` regenerado). El fix de `hasVisibleText` **ya existe upstream desde `v2.6.0`** (`stripExpressions(source, keep)` + `isTextExpression`, que distingue posición), así que no hay que tocar `gripm-playbook`: basta dejar de preservar el fork
 - [ ] #10 Regresión en el motor con caso positivo **y** negativo: un botón con `<span>{t('x')}</span>` no se reporta, un botón sólo-icono sin nombre accesible sí se reporta, y un hijo condicional (`{cond && <span>texto</span>}`) **no** cuenta como etiqueta para no perder sensibilidad. Con el fix, `node scripts/audit-ux-code.cjs --strict` devuelve exit 0 con 0 warnings
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Esperar `@gripm/playbook@2.2.0`. No hay nada que ejecutar antes: sin la extensión publicada, seguir bifurcado es la única opción.
-2. Levantar la preservación en `scripts/sync-playbook.mjs` y dejar que `scripts/audit-ux-code.cjs` entre al sync.
-3. Mover el snapshot a la raíz y agregar `audit:ux:baseline`.
+1. **Prerequisito: DEV-323 ejecutado.** El sync de `v2.6.0` ya tiene que haber corrido; si no, este item arranca sobre un lockfile viejo en `v2.4.0` y el `--force` traeria cambios sin revisar.
+2. Sacar `scripts/audit-ux-code.cjs` de `customizations` en `.playbook-lock.json`. No hay que editar `sync-playbook.mjs`: la preservacion vive en el lockfile, no en el script.
+3. `npm run playbook:sync -- --tag v2.6.0 --yes --force`. El `--force` es solo necesario para el archivo recien descustomizado; el resto del core ya quedo actualizado por DEV-323.
 4. Correr `npm run audit:ux` con el motor nuevo y **leer la salida completa** antes de snapshotear: es la primera vez que se ve el estado real.
 5. Clasificar los hallazgos: los falsos positivos de UX-010 no entran al baseline; los genuinos, sí.
 6. Regenerar el baseline y pasar la Pirámide de Verificación completa.

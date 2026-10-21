@@ -68,7 +68,7 @@ El asistente interactivo ofrece tres perfiles de adopción adaptados a tu forma 
   Elige interactivamente tu metodología ágil, módulos activos, hooks de git y reglas para agentes paso a paso.
 
 **Integración con Gripm Playbook (Opcional):**
-El asistente de inicio consulta explícitamente si deseas incorporar **Gripm Playbook** (`@gripm/playbook`) con roles de equipo multi-agente (`pm-orchestrator`, `principal-engineer`, `rigorous-qa-auditor`, `worldclass-product-designer`) y auditoría estática de UX (`npm run audit:ux`). Si se rechaza, Gripm Board se mantiene 100% limpio y liviano.
+El asistente de inicio consulta explícitamente si deseas incorporar **Gripm Playbook** (`@gripm/playbook`) con roles de equipo multi-agente (`pm-orchestrator`, `principal-engineer`, `qa-auditor`, `product-designer`) y auditoría estática de UX (`npm run audit:ux`). Si se rechaza, Gripm Board se mantiene 100% limpio y liviano.
 
 **Flags no interactivas (CI / Automatización):**
 ```bash

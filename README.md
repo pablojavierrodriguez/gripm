@@ -68,7 +68,7 @@ The interactive setup wizard offers three tailored adoption profiles:
   Interactively choose your agile methodology, active modules, git hooks, and agent rules step by step.
 
 **Gripm Playbook Integration (Optional):**
-The setup wizard explicitly asks if you want to integrate **Gripm Playbook** (`@gripm/playbook`) with multi-agent team roles (`pm-orchestrator`, `principal-engineer`, `rigorous-qa-auditor`, `worldclass-product-designer`) and static UX auditing (`npm run audit:ux`). If declined, Gripm Board stays 100% clean and lightweight.
+The setup wizard explicitly asks if you want to integrate **Gripm Playbook** (`@gripm/playbook`) with multi-agent team roles (`pm-orchestrator`, `principal-engineer`, `qa-auditor`, `product-designer`) and static UX auditing (`npm run audit:ux`). If declined, Gripm Board stays 100% clean and lightweight.
 
 **Non-interactive flags (CI / Automation):**
 ```bash

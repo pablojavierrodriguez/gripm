@@ -218,10 +218,24 @@ function checkCorruption(file, content) {
 //
 // Prohibits literal U+2014 (em-dash) and U+2013 (en-dash) characters in
 // staged text files. Standard hyphen `-` with spaces (` - `) must be used.
+//
+// Excepción de mención (corregido el 2026-10-21, DEV-323): la propia regla
+// UX-014 tiene que poder nombrar el carácter que prohíbe, y eso obliga a
+// escribirlo. Se distingue la *mención* del *uso* por una señal inequívoca:
+// el guion largo como contenido único de un span entrecomillado o entre
+// backticks, inmediatamente después de la palabra `em-dash` / `en-dash`.
+// Un guion largo en prosa (título, opción de select, nota de release) no
+// tiene esa forma y sigue detectándose igual.
+const DASH_MENTION = /(?:em|en)-?dash[\s:]*[`([]+[\s\u2013\u2014]*[\u2013\u2014][\s\u2013\u2014]*[\])`]+/gi;
+
+/** Devuelve la línea sin las menciones del carácter, para medir el uso real. */
+function stripDashMentions(line) {
+  return line.replace(DASH_MENTION, '');
+}
 function checkAntiEmDash(file, content) {
   content.split('\n').forEach((rawLine, i) => {
     const line = rawLine.replace(/\r$/, '');
-    if (/[\u2013\u2014]/.test(line)) {
+    if (/[\u2013\u2014]/.test(stripDashMentions(line))) {
       fail(
         file,
         `Línea ${i + 1}: contiene em-dash o en-dash prohibido por la regla canónica Anti-AI`,

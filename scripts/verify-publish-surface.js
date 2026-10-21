@@ -51,9 +51,9 @@ const FORBIDDEN_PLAYBOOK_ENTRIES = [
   '.agents/STATE_MACHINE.md',
   '.agents/rules/git-workflow.md',
   '.agents/skills/principal-engineer/SKILL.md',
-  '.agents/skills/rigorous-qa-auditor/SKILL.md',
+  '.agents/skills/qa-auditor/SKILL.md',
   '.agents/skills/pm-orchestrator/SKILL.md',
-  '.agents/skills/worldclass-product-designer/SKILL.md',
+  '.agents/skills/product-designer/SKILL.md',
   '.agents/skills/code-level-ux-auditor/SKILL.md',
   '.agents/skills/market-researcher/SKILL.md',
 ];

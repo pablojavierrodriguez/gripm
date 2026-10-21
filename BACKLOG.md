@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-19 por gripm
+> Consolidado generado el 2026-10-21 por gripm
 
 ## Resumen de Estados
 
@@ -85,7 +85,42 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### 📋 Backlog / Draft (18)
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear todas las referencias a los nombres de rol renombrados (`worldclass-product-designer` -> `product-designer`, `rigorous-qa-auditor` -> `qa-auditor`).
+
+**Solo lado consumidor.** El framework esta terminado y certificado (PLAY-029, PLAY-030). Fuera de alcance: editar `gripm-playbook`, refactor editorial, traduccion de archivos del playbook, scripts one-off, y editar tareas historicas (`backlog/tasks/`, `docs/archive/`) que mencionan los nombres viejos.
+
+### Gates, abiertos a 2026-10-21
+
+- **Release**: tag remoto `v2.6.0` (`631df3c`) y npm `latest: 2.6.0`. El manifest del tag trae `product-designer` y `qa-auditor` en `core` y `coreSkills`.
+- **Lease antigravity**: `PLAY-026/027/028` en `done`, liberado por el PO.
+- **Ref del sync**: fijado explicitamente con `--tag v2.6.0`.
+
+### Alcance tecnico
+
+`scripts/sync-playbook.mjs` se auto-actualiza: el manifest de `v2.6.0` lo mete en `core`, el blob de gripm (`f4082e41`, 699 lineas) si existe en la historia upstream (commit `e5c8279`), y al no estar en `lock.files` la clasificacion arranca en `unknown` -> `findCanonicalProvenance` devuelve `canonical` -> el sync lo actualiza hacia adelante a la version modularizada (496 lineas). No hay que editar `FALLBACK_CORE_FILES` a mano. La version nueva importa `./lib/{terminal,provenance,sync-classifier}.mjs`, las tres en `core`, y su CLI es compatible con `playbook:check` y `playbook:sync`.
+
+`scripts/verify-publish-surface.js` si hay que editarlo a mano (lineas 54 y 56): es especifico del consumidor, no existe upstream.
+
+`scripts/audit-ux-code.cjs` **no** se toca: el lockfile lo registra en `customizations` (fork DEV-166) y `classifyLocalFile` lo devuelve `customization` por el lockfile antes de evaluar nada mas. El fork sobrevive al sync. Su retiro es labor de DEV-188.
+
+**Criterios de Aceptación:**
+- [x] #1 `npm run playbook:sync -- --tag v2.6.0 --yes` corre con exito y `.playbook-lock.json` queda con `ref: v2.6.0` y las rutas `product-designer` / `qa-auditor` en `files`.
+- [x] #2 El tarball npm no contiene archivos del framework del playbook (DEV-250). `npm run publish:check` con exit 0.
+- [x] #3 Los directorios `.agents/skills/worldclass-product-designer/` y `.agents/skills/rigorous-qa-auditor/` no existen, y los directorios `product-designer/` y `qa-auditor/` si.
+- [x] #4 `scripts/verify-publish-surface.js` referencia `product-designer` y `qa-auditor` en `FORBIDDEN_PLAYBOOK_ENTRIES`, y no quedan referencias a los nombres viejos en `scripts/`, `AGENTS.md`, `README.md` ni `README.es.md` (excluyendo `backlog/tasks/` y `docs/archive/`, que son historicos).
+- [x] #5 `scripts/scan-markdown-hygiene.mjs` no existe.
+- [x] #6 Piramide completa en verde: `npx tsc --noEmit`, `npm test`, `npm run test:linux`, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`.
+- [x] #7 Seccion desactualizada de `DEV-188` corregida: la advertencia que afirma que la divergencia de `audit-ux-code.cjs` quedo en cero desde v1.0.3 y que el archivo es byte a byte identico al tarball queda reemplazada por la medicion real, mas el hecho de que el fork sobrevive al sync.
+- [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
+
+---
+
+### 📋 Backlog / Draft (19)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -191,21 +226,42 @@ Dar de baja el fork local de `scripts/audit-ux-code.cjs` y adoptar el motor de
 DEV-166, que forkeó el motor para poder meter baselining antes de que existiera
 upstream.
 
-### Estado actual del fork
+### Estado actual del fork (relevado 2026-10-21)
 
 > [!WARNING]
-> **Sección desactualizada al 2026-10-13.** La migración de la que trata esta tarea ya
-> ocurrió: desde v1.0.3 (DEV-166) `scripts/audit-ux-code.cjs` es byte a byte idéntico al
-> tarball de `@gripm/playbook`, la divergencia quedó en cero y el archivo **está** en el plan
-> core de `scripts/sync-playbook.mjs` (línea 76). Lo que queda vivo de este ítem es el bloque
-> **`hasVisibleText` no reconoce hijos de expresión JSX** y el **renegociado del baseline**.
-> Releer y reescribir el alcance antes de abordarla.
+> **Seccion reescrita el 2026-10-21.** La version previa de este bloque afirmaba que la
+> divergencia "quedó en cero" desde v1.0.3 y que el archivo era "byte a byte identico al
+> tarball". **Ambas afirmaciones son falsas.** El fork esta vivo y medido abajo. Lo que si
+> quedo resuelto upstream es el bloque `hasVisibleText`, ver la seccion final de esta
+> descripcion.
 
-`gripm/scripts/audit-ux-code.cjs` está excluido de `playbook:sync` de forma deliberada
-(`scripts/sync-playbook.mjs`, nota de DEV-166). Divergencia medida contra upstream:
+**`scripts/audit-ux-code.cjs` sigue bifurcado y el fork sobrevive a cualquier sync.**
 
-- **270 líneas** que solo existen en `gripm`
-- **358 líneas** que solo existen en upstream
+Medicion de 2026-10-21, hash SHA-256 contra tags upstream:
+
+| Version | Hash | Lineas |
+| --- | --- | --- |
+| gripm | `4B57DB30` | 1225 |
+| upstream `v2.2.2` | `D5E2EDDE` | 1206 |
+| upstream `v2.3.0` / `v2.4.0` | `9710E158` | 1289 |
+| upstream `v2.5.0` / `v2.6.0` | `E3ADBF5D` | 1355 |
+
+El blob de gripm **no coincide con ningun tag upstream**. Divergencia contra `v2.2.2`:
+
+- **65 lineas** que solo existen en `gripm`
+- **46 lineas** que solo existen en upstream
+
+El nucleo del fork es un parche de i18n en `stripExpressions` (lineas 473-536): preserva
+`t('...')` / `i18n.t('...')` como token `__I18N_LABEL__` para que el 100% de etiquetas
+`{t('...')}` de una app bilingue no disparen UX-010.
+
+> [!IMPORTANT]
+> **Ningun `playbook:sync` arregla esto solo.** `.playbook-lock.json` registra
+> `scripts/audit-ux-code.cjs` en `customizations`, y `classifyLocalFile` evalua
+> `if (wasCustomization) return 'customization'` **antes** de mirar hash conocido ni
+> buscar provenance. El archivo queda protegido y sin actualizar pase lo que pase. El
+> retiro exige sacarlo del lockfile y correr `--force` para ese archivo, que es el
+> objetivo de este item.
 
 La divergencia no es cosmética: el fork tiene el sistema de baselining completo
 (`fingerprint`, multiplicidad, ERROR-nunca-absorbido) y los invariantes `ENV-001` y
@@ -241,15 +297,15 @@ El baseline actual quedó construido sobre una señal no confiable: UX-010 tení
 dejaría el gate verde con 101 supresiones falsas y congelaría el problema.
 
 **Criterios de Aceptación:**
-- [ ] #1 Registrar la fecha de fin del fork: dejar de preservar `scripts/audit-ux-code.cjs` en `sync-playbook.mjs` cuando `@gripm/playbook@2.2.0` esté publicado, y quitar la nota que lo justifica
-- [ ] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
-- [ ] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
+- [ ] #1 Registrar la fecha de fin del fork: quitar `scripts/audit-ux-code.cjs` de `customizations` en `.playbook-lock.json` y eliminar la nota que lo justifica. `@gripm/playbook@2.6.0` ya está publicado; el gate de espera superado
+- [x] #2 Mover `scripts/audit-ux-baseline.json` a la raíz del proyecto (`./audit-ux-baseline.json`), que es donde upstream lo ancla vía `path.join(ROOT, BASELINE_NAME)`
+- [x] #3 Agregar el script `audit:ux:baseline` a `package.json`; hoy no existe y la guía upstream lo invoca
 - [ ] #4 Desacoplar los 4 asserts de la sección 6.2 de `scripts/test-parser.js` que dependen de la existencia de `ENV_GUTTER` y `auditEnvInvariants`, conservando 6.1 (UX-009 acotado a diálogos) y 6.3 (gutter leído del CSS)
 - [ ] #5 Regenerar el baseline **con revisión manual de los hallazgos**, no con `--update-baseline` ciego: separar lo genuino de los falsos positivos de UX-010 antes de snapshotear
 - [ ] #6 Confirmar que `ENV-002` (truncate en diálogo) queda promovido upstream o, si no, reimplementarlo localmente después del sync, con su opt-out `audit-ux:allow-ENV-002` y las dos supresiones de `FolderPickerModal.tsx`
 - [ ] #7 Verificar que la contraparte de UX-010 en el motor nuevo reporte el conteo **real** de botones sin nombre accesible, y que ese número sea el que se use para cerrar AC #4 de DEV-173
 - [ ] #8 `npm run audit:ux` en verde con exit 0, `npx tsc --noEmit` con 0 errores, `npm test` y `npm run backlog:check` con código 0
-- [ ] #9 Arreglar `hasVisibleText` **upstream** en `gripm-playbook/scripts/audit-ux-code.cjs` distinguiendo la ubicación de la expresión: una llamada o literal en la **lista de hijos** cuenta como texto visible, una expresión en el **tag de apertura** se sigue descartando. Traer el cambio con `npm run playbook:sync` sin reintroducir fork local (`.playbook-lock.json` actualizado y el archivo idéntico al playbook)
+- [ ] #9 Sacar `scripts/audit-ux-code.cjs` de `customizations` en `.playbook-lock.json` y traer el motor upstream con `npm run playbook:sync -- --force`, dejando el archivo idéntico al playbook (`.playbook-lock.json` regenerado). El fix de `hasVisibleText` **ya existe upstream desde `v2.6.0`** (`stripExpressions(source, keep)` + `isTextExpression`, que distingue posición), así que no hay que tocar `gripm-playbook`: basta dejar de preservar el fork
 - [ ] #10 Regresión en el motor con caso positivo **y** negativo: un botón con `<span>{t('x')}</span>` no se reporta, un botón sólo-icono sin nombre accesible sí se reporta, y un hijo condicional (`{cond && <span>texto</span>}`) **no** cuenta como etiqueta para no perder sensibilidad. Con el fix, `node scripts/audit-ux-code.cjs --strict` devuelve exit 0 con 0 warnings
 
 ---
@@ -558,6 +614,29 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 - [ ] #4 Auditar y corregir las excepciones de UI listadas en `tests/audit-ux-baseline.json`.
 - [ ] #5 Verificar que no se introducen regresiones funcionales ni visuales en la navegación, atajos ni modales.
 - [ ] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run test:ui`) pasa con 0 errores.
+
+---
+
+#### [DEV-324] Corregir codePrefix GRIP por DEV en .gripm/config.json
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`.gripm/config.json` declara `"codePrefix": "GRIP"`, pero este repositorio usa el prefijo `DEV`. El bug ya causo un efecto observable: el CLI creo la tarea `GRIP-320` por error y hubo que renombrarla a `DEV-323`.
+
+`codePrefix` no es decorativo. Lo leen dos caminos de creacion:
+
+- `scripts/gripm-cli.js:920` lo usa para generar el ID de la tarea nueva.
+- `src/lib/sandbox.ts:144` y `src/lib/sandbox.ts:372` lo usan como `project?.codePrefix ?? 'TASK'`.
+
+Mientras el config declare `GRIP`, cualquier tarea creada desde la CLI o el sandbox de gripm sobre este repo vuelve a salir mal prefijada. Corregirlo es la mitigacion del defecto; la alternativa de proceso (escribir los IDs a mano) no arregla nada y deja la bomba armada.
+
+Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView: "sprint"` contra `enabledTabs.sprint: false`.
+
+**Criterios de Aceptación:**
+- [ ] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
+- [ ] #2 `npx tsc --noEmit` con 0 errores.
+- [ ] #3 `npm test` con codigo 0.
+- [ ] #4 `node scripts/verify-changes.js --all` con codigo 0.
+- [ ] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
 
 ---
 
