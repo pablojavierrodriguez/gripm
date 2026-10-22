@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-21 por gripm
+> Consolidado generado el 2026-10-22 por gripm
 
 ## Resumen de Estados
 
@@ -85,6 +85,36 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
+### ⚡ In Progress / Doing (1)
+
+#### [DEV-326] Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+`scripts/gate-qa.mjs` esta declarado como customizacion en `.playlock.json` por una razon que ya no existe. DEV-320 AC #3 lo marco para preservar sus mejoras de salida (encabezado abierto, glifos mono-ancho, eliminacion de cajas rigidas). Verificado caracter a caracter contra upstream `v2.6.0`, esas mejoras **ya estan en el canon**: `printHeader` y la paleta `c` son identicas, el bloque `Task:/ID:/Status:` es identico, los glifos `✖ ✔ ℹ ➜` son identicos y upstream tambien elimino las cajas `---`. Incluso mejora el original: su `isColorSupported` acepta cualquier `FORCE_COLOR` truthy, no solo `'1'`.
+
+Lo que el fork si diverge no es cosmético, es funcional, y en tres ejes:
+
+1. **No escribe nunca.** El fork no contiene `writeFileSync` ni `mutateTaskFrontmatter` en ningun camino. El canon escribe `status: ready` en T2, escribe status y limpia `blocked_reason` en T_unblock. El fork solo certifica y dice "may be promoted".
+2. **No implementa T0 ni T1.** `startMain` y `submitMain` no existen. Ejecutado: `node scripts/gate-qa.mjs start DEV-325` responde `no task found for "start"`, porque toma la palabra como identificador de tarea.
+3. **No soporta `--by`.** `pm-orchestrator/SKILL.md:87` ordena `--by "<provider>:<id>"`; el canon lo acepta (`--by`, `--as`, `--to`), el fork no.
+
+Las skills instaladas por DEV-323 (`qa-auditor/SKILL.md:52-53`, `pm-orchestrator/SKILL.md:22,87,90`) documentan el comportamiento del canon. Skills y herramienta quedaron fuera de sincronia porque el sync actualizo los primeros y protegio el segundo.
+
+Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este verde y el gate salga en 0, alguien tiene que escribir `ready` a mano. Eso explica por que los 293 `done` tuvieron que moverse a mano.
+
+**Criterios de Aceptación:**
+- [ ] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
+- [ ] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
+- [ ] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
+- [ ] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
+- [ ] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
+- [ ] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
+- [ ] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
+- [ ] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [ ] #9 `npm run publish:check` sale con codigo 0.
+
+---
+
 ### 🔍 Review & QA (1)
 
 #### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
@@ -117,6 +147,38 @@ Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear toda
 - [x] #6 Piramide completa en verde: `npx tsc --noEmit`, `npm test`, `npm run test:linux`, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`.
 - [x] #7 Seccion desactualizada de `DEV-188` corregida: la advertencia que afirma que la divergencia de `audit-ux-code.cjs` quedo en cero desde v1.0.3 y que el archivo es byte a byte identico al tarball queda reemplazada por la medicion real, mas el hecho de que el fork sobrevive al sync.
 - [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
+
+---
+
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-325] Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`scripts/gate-qa.mjs` nunca pudo salir con codigo 0 en este repositorio. El motivo no es un defecto del script: es un **contrato de nombres sin satisfacer**.
+
+`qa-auditor/SKILL.md:69` lo declara textual:
+
+> A blocking step (`validate`/`typecheck`, `test`, `spec`, `audit:ux`) that has no defined script **fails the gate**.
+
+El gate lee el `package.json` del anfitrión y resuelve cada paso por nombre. El playbook declara esos nombres en su propio `package.json` (`validate`, `gate:review`, `audit:ux:strict`), pero **gripm nunca los declaro**. El contrato lo falto el consumidor, no el framework.
+
+Verificado en el upstream `v2.6.0`: el mensaje de error que emite gripm (`blocking step has no "validate" script in package.json; it cannot be certified on a step that never ran`) es identico carácter a carácter al de `scripts/lib/pyramid.mjs`. La logica del fork esta preservada. Ademas upstream ya preve anfitriones con otros nombres via `fallbackScripts: ['typecheck']`.
+
+Consecuencia del contrato insatisfecho: tres de cinco pasos son `blocking: true` y quedan `failed`, asi que el gate **no ha podido certificar ningun item** en la historia del repo. Los 293 `done` llegaron ahi sin certificacion mecanica.
+
+La correccion va en `package.json`, no en `gate-qa.mjs`. Editar el gate profundizaria un fork cuya unica razon de existir es cosmética (DEV-320 AC #3: encabezado abierto y glifos mono-ancho) y cerraria gripm a cualquier fix futuro del upstream.
+
+**Criterios de Aceptación:**
+- [x] #1 `package.json` define los tres scripts del contrato del gate: `validate`, `gate:review` y `audit:ux:strict`.
+- [x] #2 Los tres delegan en los scripts primarios existentes (`verify:changes`, `backlog:check`, `audit:ux`) sin duplicar el comando, para que la fuente unica de verdad siga siendo el script primario.
+- [x] #3 `validate` pasa `--all`, de modo que el paso verifique el arbol completo y no pueda certificar un pase vacio cuando nada esta stageado.
+- [x] #4 `node scripts/gate-qa.mjs DEV-325` ejecuta los cinco pasos de la pirámide y ninguno reporta `has no "..." script in package.json`.
+- [x] #5 `scripts/gate-qa.mjs` no fue modificado: su SHA-256 sigue coincidiendo con el registrado en `.playbook-lock.json`.
+- [x] #6 `npm run audit:ux:strict` sale con codigo 0.
+- [x] #7 `npm run validate` sale con codigo 0 verificando el arbol completo.
+- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [x] #9 `node scripts/verify-changes.js --all` sale con codigo 0.
 
 ---
 

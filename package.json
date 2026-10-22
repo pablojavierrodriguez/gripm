@@ -75,6 +75,7 @@
     "mcp": "node bin/gripm-mcp.js",
     "tasks": "node --experimental-strip-types scripts/gripm-cli.ts list --open",
     "backlog:check": "node scripts/verify-backlog-sync.js",
+    "gate:review": "npm run backlog:check",
     "backlog:sync": "node scripts/verify-backlog-sync.js --fix",
     "playbook:check": "node scripts/sync-playbook.mjs --dry-run",
     "playbook:sync": "node scripts/sync-playbook.mjs",
@@ -82,6 +83,7 @@
     "backlog:canonicalize-status": "node --experimental-strip-types scripts/canonicalize-status.js",
     "publish:check": "node scripts/verify-publish-surface.js",
     "audit:ux": "node scripts/audit-ux-code.cjs",
+    "audit:ux:strict": "npm run audit:ux -- --strict",
     "audit:ux:baseline": "node scripts/audit-ux-code.cjs --update-baseline",
     "audit:deps": "npm audit --audit-level=critical",
     "changelog": "node scripts/generate-changelog.cjs",
@@ -90,7 +92,8 @@
     "prepublishOnly": "npm run build && npm run publish:check",
     "prepare": "node scripts/prepare-hooks.js",
     "test:linux": "bash scripts/repro-ci-linux.sh",
-    "verify:changes": "node scripts/verify-changes.js"
+    "verify:changes": "node scripts/verify-changes.js",
+    "validate": "npm run verify:changes -- --all"
   },
   "dependencies": {
     "lucide-react": "^1.56.0",
