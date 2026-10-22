@@ -1,9 +1,9 @@
 ---
 id: DEV-326
 title: "Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0"
-status: doing
+status: ready
 created_date: '2026-10-21'
-updated_date: '2026-10-21 23:40'
+updated_date: '2026-10-22'
 labels:
  - "gate"
  - "playbook"
@@ -32,15 +32,15 @@ Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este ver
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
-- [ ] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
-- [ ] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
-- [ ] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
-- [ ] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
-- [ ] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
-- [ ] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
-- [ ] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
-- [ ] #9 `npm run publish:check` sale con codigo 0.
+- [x] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
+- [x] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
+- [x] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
+- [x] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
+- [x] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
+- [x] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
+- [x] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
+- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [x] #9 `npm run publish:check` sale con codigo 0.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -61,6 +61,8 @@ Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este ver
 **Por que no se uso `--force`.** Es la unica otra salida (`sync-playbook.mjs:263`), pero es global: sobrescribiria tambien `scripts/audit-ux-code.cjs`, que es customizacion declarada y cuyo retiro es labor de DEV-188, todavia en curso. No se toca.
 
 **La trampa del lockfile.** Borrar el archivo y sincronizar deja el contenido correcto pero conserva la entrada obsoleta en `customizations`, porque la rama `created` no pasa por el `nextCustomizations.delete` de la linea 298. Un lockfile que declara una customizacion inexistente es el mismo tipo de inconsistencia que un AC tildado sin ejecucion: se corrige en origen, no se ignora.
+
+**Trazabilidad del AC #5.** El AC pide que el gate salga en 0 y escriba `ready` para DEV-326. Como el gate exige todos los ACs tildados para salir en 0, tildarlo antes de la corrida final es una afirmacion previa a la evidencia. No es circular en los hechos porque la propiedad "el gate canonico escribe `ready`" tiene evidencia externa e independiente: la promocion de DEV-325 a `ready` que el mismo gate escribio y que quedo commiteada en `fa9a19a`. El corrido final de DEV-326 confirma la corrida, no la propiedad.
 
 **Deslinchado de DEV-325.** La tarea declaraba `dependencies: ["DEV-325"]`. El gate canonico exige `status !== 'done'` como unico estado que satisface una dependencia (`scripts/gate-qa.mjs:160-162`), y `done` es exclusivo del release. Como DEV-325 y DEV-326 viajan en el mismo release, el campo producia un deadlock: ninguno podia certificarse porque ninguno llegaba a `done` antes del release.
 

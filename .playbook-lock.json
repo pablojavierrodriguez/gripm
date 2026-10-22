@@ -4,7 +4,7 @@
   "ref": "v2.6.0",
   "version": "2.6.0",
   "stacks": [],
-  "syncedAt": "2026-10-21T20:36:54.236Z",
+  "syncedAt": "2026-10-22T21:25:17.339Z",
   "files": {
     ".agents/TEAM_PLAYBOOK.md": "5adc02904ffb63bb26667e795af3643ecfe99e9a5861050724cefa7010328650",
     ".agents/STATE_MACHINE.md": "7b153250423c29e6265ef1a57d6abdceefd57492dc68d8a4cd26ef59a1e50f2f",
@@ -16,7 +16,7 @@
     ".agents/skills/qa-auditor/SKILL.md": "f63f105a5325f32e7c47c7c28e19df2efd130fab49357882e912346ad662351f",
     ".agents/skills/code-level-ux-auditor/SKILL.md": "21af3d903675804f3db68142315aaba847fbad80815566b05de585bc80641a68",
     "scripts/audit-ux-code.cjs": "4b57db300a775a139823e1379566bbac6e2d64fc908a2fb9493a8abf04c125e0",
-    "scripts/gate-qa.mjs": "80766771774a9926eb8b3a42e34371104661d37691e327741ed4216de03d9cda",
+    "scripts/gate-qa.mjs": "0c3da50b42306ca627cf39a688aa8d3087819579cbf0a86f81d65c5951b170db",
     "scripts/check-loc.mjs": "af334d9261b23ad98d0ef64d0b883d565a1ba5b0b1fe989c41f23611a2ac7f04",
     "scripts/ux-rules.json": "3306f872ffeccc91a5d65733371926e3652fde89f99fc6b47e7e1590436da60a",
     "scripts/sync-playbook.mjs": "37f99d6ebfdec3ebfc2a5306456cdd480af27c9ca6eb2fbe1379a82a7d6806d5",
@@ -32,7 +32,6 @@
     "docs/DOMAIN_TEMPLATE.md": "62ad6ba2009956be268c21704d962634298f2dfd4a63cac95c55645d91419f04"
   },
   "customizations": [
-    "scripts/audit-ux-code.cjs",
-    "scripts/gate-qa.mjs"
+    "scripts/audit-ux-code.cjs"
   ]
 }

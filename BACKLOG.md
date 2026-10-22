@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (4)
+### 💡 Ideas / Discovery (10)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -85,33 +85,111 @@ Este ítem es una **idea a refinar**, no un bug detectado. Requiere un trabajo d
 
 ---
 
-### ⚡ In Progress / Doing (1)
+#### [DEV-327] Vista Hoy con vencidas y próximas para uso diario
+- **Prioridad**: `medium` | **Tipo**: `feature`
 
-#### [DEV-326] Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0
-- **Prioridad**: `high` | **Tipo**: `chore`
+El modelo de datos ya persiste `dueDate` y `startDate` en el frontmatter de las tareas (`src/types.ts`), pero no existe ninguna lente que responda "¿qué debo atender hoy?". OpenTodo triunfa porque su pantalla principal agrupa vencidas, vencen hoy y próximas; gripm exige al usuario recorrer el Kanban o filtrar a mano para llegar a la misma información.
 
-`scripts/gate-qa.mjs` esta declarado como customizacion en `.playlock.json` por una razon que ya no existe. DEV-320 AC #3 lo marco para preservar sus mejoras de salida (encabezado abierto, glifos mono-ancho, eliminacion de cajas rigidas). Verificado caracter a caracter contra upstream `v2.6.0`, esas mejoras **ya estan en el canon**: `printHeader` y la paleta `c` son identicas, el bloque `Task:/ID:/Status:` es identico, los glifos `✖ ✔ ℹ ➜` son identicos y upstream tambien elimino las cajas `---`. Incluso mejora el original: su `isColorSupported` acepta cualquier `FORCE_COLOR` truthy, no solo `'1'`.
+Explorar una pestaña "Hoy" (junto a Board, Sprints, Releases y Trash) que consulte las tareas por `dueDate` sin duplicar datos: la fuente sigue siendo el frontmatter o el JSON del backlog. La vista debe respetar los módulos habilitados en `.gripm/config.json` y no introducir estado persistido propio fuera de la configuración del proyecto.
 
-Lo que el fork si diverge no es cosmético, es funcional, y en tres ejes:
-
-1. **No escribe nunca.** El fork no contiene `writeFileSync` ni `mutateTaskFrontmatter` en ningun camino. El canon escribe `status: ready` en T2, escribe status y limpia `blocked_reason` en T_unblock. El fork solo certifica y dice "may be promoted".
-2. **No implementa T0 ni T1.** `startMain` y `submitMain` no existen. Ejecutado: `node scripts/gate-qa.mjs start DEV-325` responde `no task found for "start"`, porque toma la palabra como identificador de tarea.
-3. **No soporta `--by`.** `pm-orchestrator/SKILL.md:87` ordena `--by "<provider>:<id>"`; el canon lo acepta (`--by`, `--as`, `--to`), el fork no.
-
-Las skills instaladas por DEV-323 (`qa-auditor/SKILL.md:52-53`, `pm-orchestrator/SKILL.md:22,87,90`) documentan el comportamiento del canon. Skills y herramienta quedaron fuera de sincronia porque el sync actualizo los primeros y protegio el segundo.
-
-Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este verde y el gate salga en 0, alguien tiene que escribir `ready` a mano. Eso explica por que los 293 `done` tuvieron que moverse a mano.
+Es una iniciativa de descubrimiento: antes de implementar, definir el agrupamiento exacto (vencidas, hoy, esta semana), el comportamiento con tareas sin fecha y si suma time-blocking sobre el `startDate` existente o se mantiene como lista simple.
 
 **Criterios de Aceptación:**
-- [ ] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
-- [ ] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
-- [ ] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
-- [ ] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
-- [ ] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
-- [ ] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
-- [ ] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
-- [ ] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
-- [ ] #9 `npm run publish:check` sale con codigo 0.
+- [ ] #1 Se documenta el alcance de la vista Hoy (agrupamiento, orden, tareas sin fecha) antes de implementar.
+- [ ] #2 La vista se alimenta exclusivamente de `dueDate`/`startDate` ya persistidos, sin crear un segundo store de fechas.
+- [ ] #3 La pestaña se integra al patrón de módulos existente y se puede deshabilitar desde `.gripm/config.json`.
+- [ ] #4 Las tareas sin fecha no desaparecen del resto de vistas ni generan errores de render en la vista Hoy.
+- [ ] #5 Los atajos de teclado y el cheat sheet (`?`) quedan actualizados si la vista agrega navegación nueva.
+
+---
+
+#### [DEV-328] Quick add en lenguaje natural para tareas
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Crear una tarea hoy exige abrir el modal y completar campos a mano. OpenTodo ofrece captura en lenguaje natural ("fix login friday p1") que interpreta fecha, prioridad y proyecto. gripm puede ofrecer lo mismo con un parser propio y determinístico, sin llamadas a LLM y sin salir de la máquina, manteniendo la esencia local-first.
+
+La captura debe mapear a campos ya existentes del frontmatter: `title`, `dueDate`, `priority`, `type` y `labels`. La interpretación debe ser conservadora: si un fragmento no se reconoce con certeza, va al título completo en lugar de inventar metadatos. El resultado debe ser una tarea normal que pasa por `backlog:sync` y el gatekeeper del MCP igual que cualquier otra.
+
+Es una iniciativa de descubrimiento: evaluar si el parser se resuelve en el modal del board, en el CLI o como función compartida por ambos, antes de decidir dónde se implementa.
+
+**Criterios de Aceptación:**
+- [ ] #1 Se define y documenta la sintaxis soportada (fecha, prioridad, tipo, etiquetas) con ejemplos y contraejemplos.
+- [ ] #2 La interpretación es determinística y sin red: los fragmentos no reconocidos se conservan literalmente en el título.
+- [ ] #3 Las tareas creadas por quick add son indistinguibles de las creadas por el modal en frontmatter y en `backlog:sync`.
+- [ ] #4 Existe al menos un test que cubra la interpretación de fechas y prioridades, incluido el caso ambiguo.
+- [ ] #5 El quick add no permite saltar el gatekeeper ni crear estados prohibidos por el MCP.
+
+---
+
+#### [DEV-329] Captura rápida desde CLI sin abrir el board
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Hoy un humano que quiere registrar una tarea debe abrir el board en el browser o recurrir al MCP (que está pensado para agentes). OpenTodo expone `ot add "Call the plumber" --due tomorrow --priority 2` como binario separado. gripm ya distribuye el binario `gripm`, así que el camino natural es un subcomando de captura que escriba directamente en el storage del proyecto (`backlog/tasks/*.md` o `.gripm/backlog.json`).
+
+La escritura debe reutilizar el mismo motor de persistencia que el board y el MCP para que el resultado pase por `backlog:check` y `backlog:sync` sin divergencias. El comando debe respetar el engine de storage configurado del proyecto y fallar con mensaje claro si no hay proyecto inicializado.
+
+Es una iniciativa de descubrimiento: definir el contrato del comando (flags, salida, manejo de errores) antes de implementar, y evaluar si convive con un quick add en lenguaje natural (DEV-328) o lo precede.
+
+**Criterios de Aceptación:**
+- [ ] #1 `gripm add` crea una tarea en el engine de storage activo del proyecto usando el mismo camino de escritura que el board.
+- [ ] #2 La tarea resultante pasa `npm run backlog:check` sin correcciones posteriores.
+- [ ] #3 El comando falla con mensaje accionable cuando el directorio no es un proyecto gripm inicializado.
+- [ ] #4 Los flags documentados (título, fecha, prioridad, tipo) tienen cobertura de test o verificación ejecutable.
+- [ ] #5 El uso queda documentado junto al resto de flags CLI del README.
+
+---
+
+#### [DEV-330] Badges y notificaciones locales de vencimiento
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+OpenTodo envía recordatorios vía Web Push, lo que exige servidor persistente, claves VAPID y un servicio de push de terceros. gripm no necesita nada de eso: su servidor corre en la máquina del usuario, así que con la Notifications API del navegador y un contador en la pestaña puede ofrecer el mismo valor ("3 tareas vencidas") sin que un solo byte salga de la máquina.
+
+Explorar un badge en el tab del board y notificaciones locales opcionales para tareas que vencen hoy o están vencidas, alimentados por el mismo `dueDate` que ya existe. La funcionalidad debe ser opt-in, con permiso del navegador solicitado en contexto, y desactivable desde configuración. Depende de la definición de la vista Hoy (DEV-327) porque comparte la misma lógica de agrupamiento por fecha.
+
+Es una iniciativa de descubrimiento: verificar primero que la ventana local tenga oportunidad real de mostrarse (el board no siempre está abierto) para no prometer recordatorios que no se disparan.
+
+**Criterios de Aceptación:**
+- [ ] #1 Se documenta cuándo pueden dispararse las notificaciones dado que el board solo corre con el servidor local abierto.
+- [ ] #2 No se realiza ninguna petición de red hacia servicios de push externos ni se introduce dependencia de terceros.
+- [ ] #3 El badge y las notificaciones son opt-in y se pueden desactivar desde la configuración del proyecto.
+- [ ] #4 El conteo usa `dueDate` existente y coincide con el agrupamiento de la vista Hoy (DEV-327).
+- [ ] #5 Con permiso denegado o navegador sin soporte, la app degrada sin errores en consola.
+
+---
+
+#### [DEV-331] Vistas guardadas y filtros persistidos en config
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Los filtros del board son efímeros: al recargar se pierden y el usuario debe reconstruirlos. OpenTodo ofrece vistas guardadas persistidas. gripm puede persistirlas en `.gripm/config.json`, lo que además las hace versionables con Git y editables por un agente vía MCP sin UI adicional.
+
+Explorar el modelo: qué dimensiones guarda una vista guardada (estado, prioridad, etiqueta, prefijo, sprint, release) y si se definen por proyecto o de forma global en `~/.gripm/`. Debe respetar la semántica de filtros existente (estados activos vs todos los estados) y la ortogonalidad de dimensiones del modelo de datos.
+
+Es una iniciativa de descubrimiento: definir primero el esquema de una vista guardada y su compatibilidad hacia atrás con `.gripm/config.json` actual antes de tocar la UI.
+
+**Criterios de Aceptación:**
+- [ ] #1 Se define el esquema de una vista guardada y se valida contra el parser actual de `.gripm/config.json` sin romper configuraciones existentes.
+- [ ] #2 Las vistas persistidas respetan la semántica de filtros vigente (estados activos vs todos los estados).
+- [ ] #3 Una vista guardada definida en config es visible y utilizable en el board sin pasos manuales extra.
+- [ ] #4 Un agente puede crear o modificar vistas vía MCP o edición de config y el board las refleja.
+- [ ] #5 La documentación de `.gripm/config.json` queda actualizada con el nuevo esquema.
+
+---
+
+#### [DEV-332] Importación de backlogs desde herramientas externas
+- **Prioridad**: `low` | **Tipo**: `feature`
+
+Migrar a gripm desde otra herramienta hoy exige reescribir tareas a mano. OpenTodo destaca por su importador de JSON, CSV y exports de otras apps. gripm puede importar con dos caminos de bajo riesgo: la convención de archivos de Backlog.md (que ya sigue en `backlog/tasks/*.md`) y un formato tabular o JSON genérico.
+
+La restricción crítica es la integridad: una importación no puede fabricar criterios de aceptación ni estados certificados (regla SEC-02). Las tareas importadas deben nacer en estado inicial (`draft` o `ideas`) sin ACs tildadas, y el resultado debe pasar `backlog:sync` y `backlog:check` limpios. El importador debe ser transaccional: o escribe todo o no escribe nada.
+
+Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayor demanda y validar el contrato antes de implementar múltiples importadores.
+
+**Criterios de Aceptación:**
+- [ ] #1 Se elige y documenta el formato de origen prioritario con un ejemplo real de importación.
+- [ ] #2 Toda tarea importada nace en estado inicial sin criterios marcados y sin transgredir SEC-02.
+- [ ] #3 El proceso es transaccional: una importación interrumpida no deja el backlog a medias.
+- [ ] #4 El resultado pasa `npm run backlog:sync` y `npm run backlog:check` con código 0.
+- [ ] #5 Duplicados y conflictos de ID se detectan y reportan antes de escribir, sin sobrescribir tareas existentes.
 
 ---
 
@@ -150,7 +228,7 @@ Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear toda
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🚀 Ready for Deploy (2)
 
 #### [DEV-325] Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica
 - **Prioridad**: `high` | **Tipo**: `bug`
@@ -179,6 +257,34 @@ La correccion va en `package.json`, no en `gate-qa.mjs`. Editar el gate profundi
 - [x] #7 `npm run validate` sale con codigo 0 verificando el arbol completo.
 - [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
 - [x] #9 `node scripts/verify-changes.js --all` sale con codigo 0.
+
+---
+
+#### [DEV-326] Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+`scripts/gate-qa.mjs` esta declarado como customizacion en `.playlock.json` por una razon que ya no existe. DEV-320 AC #3 lo marco para preservar sus mejoras de salida (encabezado abierto, glifos mono-ancho, eliminacion de cajas rigidas). Verificado caracter a caracter contra upstream `v2.6.0`, esas mejoras **ya estan en el canon**: `printHeader` y la paleta `c` son identicas, el bloque `Task:/ID:/Status:` es identico, los glifos `✖ ✔ ℹ ➜` son identicos y upstream tambien elimino las cajas `---`. Incluso mejora el original: su `isColorSupported` acepta cualquier `FORCE_COLOR` truthy, no solo `'1'`.
+
+Lo que el fork si diverge no es cosmético, es funcional, y en tres ejes:
+
+1. **No escribe nunca.** El fork no contiene `writeFileSync` ni `mutateTaskFrontmatter` en ningun camino. El canon escribe `status: ready` en T2, escribe status y limpia `blocked_reason` en T_unblock. El fork solo certifica y dice "may be promoted".
+2. **No implementa T0 ni T1.** `startMain` y `submitMain` no existen. Ejecutado: `node scripts/gate-qa.mjs start DEV-325` responde `no task found for "start"`, porque toma la palabra como identificador de tarea.
+3. **No soporta `--by`.** `pm-orchestrator/SKILL.md:87` ordena `--by "<provider>:<id>"`; el canon lo acepta (`--by`, `--as`, `--to`), el fork no.
+
+Las skills instaladas por DEV-323 (`qa-auditor/SKILL.md:52-53`, `pm-orchestrator/SKILL.md:22,87,90`) documentan el comportamiento del canon. Skills y herramienta quedaron fuera de sincronia porque el sync actualizo los primeros y protegio el segundo.
+
+Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este verde y el gate salga en 0, alguien tiene que escribir `ready` a mano. Eso explica por que los 293 `done` tuvieron que moverse a mano.
+
+**Criterios de Aceptación:**
+- [x] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
+- [x] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
+- [x] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
+- [x] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
+- [x] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
+- [x] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
+- [x] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
+- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [x] #9 `npm run publish:check` sale con codigo 0.
 
 ---
 
