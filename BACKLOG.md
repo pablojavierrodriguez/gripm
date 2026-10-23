@@ -286,7 +286,7 @@ Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este ver
 
 ---
 
-### 📋 Backlog / Draft (20)
+### 📋 Backlog / Draft (21)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -833,6 +833,43 @@ El problema de fondo no es la deteccion: es que `BACKLOG.md` es un agregado que 
 - [ ] #4 `node scripts/verify-integration.js` cubre el caso: un repositorio de prueba con una tarea stageada y un commit por pathspec que la excluye. El test debe demostrar que el mensaje correcto aparece.
 - [ ] #5 El chequeo sigue rechazando el fantasma real: un archivo `??` referenciado por el consolidado bloquea el commit como hasta ahora.
 - [ ] #6 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
+
+---
+
+#### [DEV-334] DEV-025 tilda un AC que apunta a docs/DISTRIBUTION.md, un archivo que nunca existio
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Al regularizar la atribucion de los tres items en `done` que nunca entraron en `itemCodes` (DEV-025, DEV-026, DEV-179), el rastreo por artefacto mostro que el AC #2 de DEV-025 apunta a un archivo que jamas existio.
+
+El criterio dice textualmente:
+
+```
+- [x] #2 Crear docs/DISTRIBUTION.md explicando npm link, npx devboard-mcp,
+  configuracion en IDEs y publicacion a npmjs.com
+```
+
+Evidencia recogida con git, sin interpretacion:
+
+- `git log --all --diff-filter=A -- '*DISTRIBUTION*'` devuelve un unico commit, `a5f8b3d`, que agrega `docs/archive/DISTRIBUTION_POC.md`. Fue el **2026-10-09**, tres semanas despues de que DEV-025 se cerrara el 2026-09-19, y esta atribuido a DEV-015/DEV-016, no a esta tarea.
+- `git log --all --follow -- docs/DISTRIBUTION.md` no devuelve ningun commit. La ruta nunca fue agregada, modificada ni eliminada.
+- La busqueda en el arbol actual no encuentra ningun archivo `DISTRIBUTION` trackeado salvo el PoC archivado.
+
+**El punto que debilita la hipotesis de "se creo y se borro antes del import".** El hermano del mismo AC si sobrevivio: `docs/AGENTIC_PLAYBOOK.md` (AC #1) estaba presente en el commit raiz `af5780e` del **2026-10-05**, que es la release v1.0.0, y recien lo elimino DEV-250 mucho despues. Si dos criterios de una misma tarea crearon artefactos en `docs/` y solo uno llego al import, lo mas parsimonioso es que el otro no se creo.
+
+El **contenido** si existe, repartido en el README: `### 2. Local Development Link (npm link)` en la L413 y la seccion de conexion de agentes e IDEs en L94-L134. O sea, la intension del criterio se cumplio; la ruta especifica que nombro, no.
+
+**Casos relacionados descubiertos en el mismo rastreo, NO cubiertos por esta tarea:**
+
+- **DEV-179** esta limpio y trazable: `DEFAULT_REMOTE = 'pablojavierrodriguez/gripm-playbook'` entra en `ed08e58` y se publica en la **v1.0.1**.
+- **DEV-026** tiene **tres de cinco ACs sin ningun pie de huella en git** (el bin `devboard`, `data/projects-registry.json` y las referencias del README). La explicacion plausible es que el arco de rebranding (DEV-144, cerrado el 2026-10-03) los reemplazo antes del import del 2026-10-05, pero es **inverificable** porque la historia de git arranca despues de ambas tareas. Requiere decision propia del PO.
+
+**Criterios de Aceptación:**
+- [ ] #1 El AC #2 de DEV-025 se reescribe para nombrar el artefacto que realmente existe (la seccion de distribucion del `README.md`), en vez de una ruta que nunca se creo.
+- [ ] #2 El AC #2 conserva su `- [x]` solo si respalda la afirmacion nueva con la evidencia real de que el contenido esta en el README: `npm link` en `README.md:413` y conexion de agentes e IDEs en `README.md:94-134`.
+- [ ] #3 Si al revisar la evidencia el contenido resulta insuficiente, el AC #2 se abre (`- [ ]`) y DEV-025 vuelve a un estado donde el trabajo falte. No se sostiene un tick sin respaldo.
+- [ ] #4 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras la modificacion, porque DEV-025 vive en `BACKLOG.md`.
+- [ ] #5 Se documenta en las notas por que no se creo `docs/DISTRIBUTION.md` en su momento, para que el defecto no se repita en tareas nuevas.
+- [ ] #6 `node scripts/verify-changes.js --all` sale con codigo 0.
 
 ---
 
