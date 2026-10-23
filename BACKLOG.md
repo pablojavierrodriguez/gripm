@@ -286,7 +286,7 @@ Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este ver
 
 ---
 
-### 📋 Backlog / Draft (21)
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -870,6 +870,45 @@ El **contenido** si existe, repartido en el README: `### 2. Local Development Li
 - [ ] #4 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras la modificacion, porque DEV-025 vive en `BACKLOG.md`.
 - [ ] #5 Se documenta en las notas por que no se creo `docs/DISTRIBUTION.md` en su momento, para que el defecto no se repita en tareas nuevas.
 - [ ] #6 `node scripts/verify-changes.js --all` sale con codigo 0.
+
+---
+
+#### [DEV-335] DEV-026 tilda tres ACs cuyos artefactos no tienen ninguna huella en la historia de git
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+Durante la regularizacion de atribucion de los items en `done` que nunca entraron en `itemCodes`, el rastreo por artefacto de DEV-026 encontro que **tres de sus cinco ACs no tienen ninguna aparicion en la historia de git**:
+
+| AC | Artefacto que nombra | Huella en git |
+| --- | --- | --- |
+| #1 | `devboard` y `devboard-mcp` en el campo `bin` de `package.json` | **ninguna** |
+| #2 | `data/projects-registry.json` (limpieza de `isDemo`) | **ninguna: nunca fue agregado por ningun commit** |
+| #4 | referencias a `devboard` en `README.md` | **ninguna: cero menciones siquiera en el import de v1.0.0** |
+
+Comandos usados y sus resultados:
+
+- `git log --all --reverse -S "devboard" -- package.json` -> vacio.
+- `git log --all --reverse -S "devboard-mcp"` -> solo archivos distintos de `package.json`.
+- `git log --all --diff-filter=A -- data/projects-registry.json` -> vacio. Ni agregado ni modificado jamas.
+- `git show af5780e:README.md | grep devboard` -> cero coincidencias.
+
+**Por que es inverificable y no necesariamente falso.** La historia de git de gripm arranca en el commit raiz `af5780e` del **2026-10-05**, la release v1.0.0 (*"initial open-source release"*). DEV-026 se cerro el **2026-09-19**, dieciseis dias antes de que existiera git. Y el arco de rebranding que lo reemplazo, **DEV-144**, se cerro el **2026-10-03**, solo dos dias antes del import.
+
+La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en septiembre, DEV-144 los renombro a `gripm` a principios de octubre, y el repositorio se importo el 5 de octubre ya renombrado. Todo eso habria pasado en disco sin quedar rastro en git.
+
+**El problema es que esa hipotesis no se puede probar ni refutar desde este repositorio.** Un artefacto que nunca se commiteo y otro que se commiteo y se borro antes del raiz son indistinguibles. La herramienta con la que el gate certifica los ACs (`git`) no alcanza para esta franja de la historia.
+
+**Contraste con DEV-025** (levantado como DEV-334): ahi el hermano del mismo AC **si** sobrevivio al import (`docs/AGENTIC_PLAYBOOK.md` esta en `af5780e`), lo que debilita la explicacion de "se borro antes de importar". En DEV-026 los tres artefactos caen en la misma franja ciega y hay un candidato creible (DEV-144) que los explica a todos, asi que el caso es distinto y merece tratamiento distinto.
+
+**Existe un limite metodologico de fondo que esta tarea deberia dejar documentado:** cualquier AC tildado antes del 2026-10-05 no es verificable por inspeccion de git. Es una franja fija de la historia, no un defecto transitorio.
+
+**Criterios de Aceptación:**
+- [ ] #1 Se determina y se deja escrito si existe una fuente de evidencia externa al repositorio (backup pre-import, otro repositorio, decision registrada del PO) que respalde los AC #1, #2 y #4 de DEV-026.
+- [ ] #2 Si la evidencia existe, se anota su ubicacion exacta en las notas del AC correspondiente de DEV-026, para que el tick sea verificable por un tercero.
+- [ ] #3 Si la evidencia NO existe, los AC #1, #2 y #4 de DEV-026 se reescriben para afirmar solo lo que el repositorio puede sostener, o se abren (`- [ ]`). No se conserva un tick que nadie puede comprobar.
+- [ ] #4 Si al abrir los ACs DEV-026 deja de cumplir la condicion de `done`, su estado se ajusta segun el flujo. Un `done` sin respaldo verificable no puede sostenerse por inercia.
+- [ ] #5 Queda documentado en un lugar de gobernanza (AGENTS.md, gate o skill) que los ACs tildados antes del 2026-10-05 no son verificables por git, para que futuras auditorias no repitan este rastreo.
+- [ ] #6 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras cualquier cambio sobre DEV-026.
+- [ ] #7 `node scripts/verify-changes.js --all` sale con codigo 0.
 
 ---
 
