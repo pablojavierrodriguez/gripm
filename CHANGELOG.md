@@ -11,6 +11,8 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
+En preparación: `1.9.0`.
+
 ---
 
 ## [1.8.0] - 2026-10-18 🚀 Command Palette Global ⌘K, Densidad UX en Portatiles, Concurrencia Atomica y Unificacion de Dominio

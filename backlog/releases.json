@@ -1,5 +1,23 @@
 [
   {
+    "id": "rel-1-9-0",
+    "projectId": "gripm",
+    "version": "1.9.0",
+    "date": "2026-10-23",
+    "targetDate": "2026-10-23",
+    "status": "unreleased",
+    "title": "v1.9.0 - Adopción del Playbook Golden v2.6.0, Contrato de Scripts del QA Gate y Gate Canónico",
+    "summary": "Versión 1.9.0 de Gripm: adopción del Playbook Golden v2.6.0 desde gripm-playbook con el gate de QA canónico operativo (DEV-323), declaración de los tres scripts que componen el contrato del gate, `validate`, `gate:review` y `audit:ux:strict`, delegando en los scripts primarios sin duplicar comandos (DEV-325), y retirada de la customización local de `gate-qa.mjs` para adoptar el blob upstream v2.6.0 byte a byte, dejando `customizations` reducido exclusivamente a `audit-ux-code.cjs` (DEV-326).",
+    "scopeNotes": "Cierre del arco de adopción del Playbook Golden v2.6.0. Los tres ítems quedan en `ready` y esta entrada queda en `unreleased` porque la publicación en npm y la promoción de producción en Vercel aún no se ejecutaron. La customización del lockfile queda reducida a un solo archivo, `scripts/audit-ux-code.cjs`.",
+    "itemCodes": [
+      "DEV-323",
+      "DEV-325",
+      "DEV-326"
+    ],
+    "markdownContent": "## [1.9.0] - 2026-10-23 🚀 Adopción del Playbook Golden v2.6.0, Contrato de Scripts del QA Gate y Gate Canónico\n\n### 🎯 Resumen\n*Versión 1.9.0 de Gripm: cierre de la adopción del Playbook Golden v2.6.0 con el gate de QA canónico plenamente operativo, tras declarar el contrato de scripts que el gate resuelve y retirar la customización local que lo impedía.*\n\n### 🚀 Novedades y Mejoras\n- **Contrato de Scripts del QA Gate (DEV-325):** `package.json` declara los tres scripts que componen el contrato del gate: `validate`, `gate:review` y `audit:ux:strict`. Los tres delegan en los scripts primarios existentes (`verify:changes`, `backlog:check` y `audit:ux`) sin duplicar el comando, de modo que la fuente única de verdad siga siendo el script primario. `validate` recibe `--all`, para que el paso verifique el árbol completo y no pueda certificar un pase vacío cuando nada está stageado.\n- **Gate Canónico v2.6.0 (DEV-326):** `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` y su SHA-256 queda verificado contra `.playbook-lock.json`. La customización se retira y `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`, la única excepción declarada bajo DEV-188. `gate-qa.mjs start <ID>` queda reconocido como transición T0 y no como identificador de tarea.\n- **Adopción del Playbook Golden (DEV-323):** tarea madre de la adopción, certificada con sus 8 criterios de aceptación verificados y la pirámide completa del gate en verde: validate, test, gate:review, audit:ux:strict y build. La suite corrió desde estado limpio, con `dist/` borrado y reconstruido, y con paridad Windows/Linux verificada en contenedor.\n\n### 🔧 Notas de Publicación\n- Esta entrada queda con estado `unreleased` y los tres ítems en `ready` porque la publicación en npm y la promoción de producción en Vercel aún no se ejecutaron. El paso de `ready` a `done` lo produce la publicación, y hasta entonces el invariante de AGENTS.md prohíbe tener ítems en `done` sin desplegar a producción.",
+    "createdAt": "2026-10-23T01:45:34.000Z"
+  },
+  {
     "id": "rel-1-8-0",
     "projectId": "gripm",
     "version": "1.8.0",
