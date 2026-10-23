@@ -193,7 +193,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🔍 Review & QA (1)
+### 🚀 Ready for Deploy (3)
 
 #### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
@@ -227,8 +227,6 @@ Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear toda
 - [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
 
 ---
-
-### 🚀 Ready for Deploy (2)
 
 #### [DEV-325] Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica
 - **Prioridad**: `high` | **Tipo**: `bug`

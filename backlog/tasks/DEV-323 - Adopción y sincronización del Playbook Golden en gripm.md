@@ -1,9 +1,9 @@
 ---
 id: DEV-323
 title: "Adopción y sincronización del Playbook Golden en gripm"
-status: review
+status: ready
 created_date: '2026-10-20'
-updated_date: '2026-10-21 21:10'
+updated_date: '2026-10-23'
 labels:
  - "upstream"
  - "@gripm/playbook"
