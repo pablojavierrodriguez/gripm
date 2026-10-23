@@ -367,6 +367,7 @@
     "summary": "Parche crítico v1.0.1 de gripm: saneamiento integral de las 13 skills del playbook para erradicar tokens residuales y referencias ajenas (DEV-181), alineación del catálogo de herramientas MCP canónicas gripm_* y formato de llamadas, contención estricta del filesystem en endpoints de navegación y creación de proyectos, y blindaje de endpoints locales contra DNS rebinding y orígenes web no autorizados.",
     "scopeNotes": "Parche crítico P0 de saneamiento y seguridad para el lanzamiento open source de gripm.",
     "itemCodes": [
+      "DEV-179",
       "DEV-181"
     ],
     "markdownContent": "## [1.0.1] - 2026-10-05 ⚡ Saneamiento P0 de Frontera OSS: Skills Canónicas, Contrato MCP y Endurecimiento de Seguridad\n\n### 🎯 Resumen\n*Parche crítico v1.0.1 de gripm: saneamiento integral de las 13 skills del playbook para erradicar tokens residuales y referencias ajenas (DEV-181), alineación del catálogo de herramientas MCP canónicas gripm_* y formato de llamadas, contención estricta del filesystem en endpoints de navegación y creación de proyectos, y blindaje de endpoints locales contra DNS rebinding y orígenes web no autorizados.*\n\n### 🐛 Correcciones y Estabilidad\n- **Saneamiento Integral de Skills (.agents/skills/*):** Erradicación total de referencias ajenas y rutas ficticias en las 13 skills del framework.\n- **Alineación de Herramientas MCP Canónicas:** Documentación corregida del catálogo de 12 herramientas `gripm_*` y formato top-level de `status` en `gripm/SKILL.md`.\n- **Contención de Filesystem en API:** Validación rigurosa de rutas autorizadas en `/api/fs/browse`, `/api/projects` y `/api/projects/detect-path` impidiendo escapes fuera del home o directorio de trabajo.\n- **Seguridad en Modo LAN:** Bloqueo de ataques de DNS Rebinding y filtrado estricto de encabezados `Origin` en peticiones entrantes y SSE.",
@@ -383,6 +384,8 @@
     "summary": "Lanzamiento oficial de la versión 1.0.0 de gripm (\"grip-em\"): tablero ágil de ingeniería y producto para pair programming con IA (DEV-043, DEV-176), binarios ejecutables gripm y gripm-mcp (DEV-144), internacionalización total i18n al 100% en inglés y español (DEV-060, DEV-152, DEV-153), empaquetado autónomo para distribución en npm sin dependencias faltantes (DEV-147, DEV-171), blindaje de seguridad del API local contra CSRF, DNS rebinding y loopback IPv4 en localhost (DEV-148, DEV-169, DEV-177), catálogo MCP canónico gripm_* con 12 herramientas y soporte de estado 'ideas' (DEV-149, DEV-150, DEV-160), persistencia local bajo prefijo gripm_* con retrocompatibilidad (DEV-168), CI multiplataforma Multi-OS (DEV-174) y automatización con Dependabot (DEV-175).",
     "scopeNotes": "Paquete de valor consolidado para el lanzamiento oficial y apertura de código de gripm.",
     "itemCodes": [
+      "DEV-025",
+      "DEV-026",
       "DEV-043",
       "DEV-060",
       "DEV-144",
