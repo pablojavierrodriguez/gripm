@@ -38,3 +38,4 @@ data/*
 .env*
 .playbook-backups/
 .agents/teamwork/
+.package.json.prepack.bak

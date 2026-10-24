@@ -1,13 +1,14 @@
 ---
 id: DEV-336
 title: "El gate de QA nunca arranca el producto instalado desde el tarball"
-status: draft
+status: ready
 created_date: '2026-10-23'
-updated_date: '2026-10-23'
+updated_date: '2026-10-24'
 labels:
   - "qa"
   - "release"
   - "verification"
+dependencies: []
 priority: high
 type: bug
 estimate: 3
@@ -62,14 +63,14 @@ FAIL:
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
-- [ ] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
-- [ ] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
-- [ ] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
-- [ ] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
-- [ ] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
-- [ ] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
-- [ ] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
+- [x] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
+- [x] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
+- [x] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
+- [x] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
+- [x] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
+- [x] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
+- [x] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
+- [x] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
 <!-- AC:END -->
 
 ## Implementation Plan

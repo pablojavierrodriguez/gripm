@@ -25,6 +25,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripScripts } from './prepack-strip-scripts.js';
+import { restoreScripts } from './postpack-restore-scripts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -98,6 +100,8 @@ let failed = false;
 
 try {
   // 1. Empaquetar de verdad (sin publicar ni disparar scripts que muten git config, DEV-235 / GATE-10).
+  // DEV-336: Aplicar strip de scripts dev antes de empaquetar para simular el tarball de producción exacto.
+  stripScripts();
   const out = run('npm', ['pack', '--ignore-scripts', '--pack-destination', tmp, '--json']);
   const parsed = JSON.parse(out);
   const filename = parsed[0].filename;
@@ -127,6 +131,20 @@ try {
   if (packedPackage.dependencies?.[packedPackage.name]) {
     console.error(`  ${c.red('✖')} DEPENDENCIA CIRCULAR: ${packedPackage.name} depende de sí mismo.`);
     failed = true;
+  }
+
+  // 3b. DEV-336 / AC #6: Verificar que ningún script publicado apunte a archivos inexistentes en el paquete
+  if (packedPackage.scripts) {
+    for (const [scriptName, scriptCmd] of Object.entries(packedPackage.scripts)) {
+      const match = String(scriptCmd).match(/node\s+([^\s]+)/);
+      if (match && match[1]) {
+        const targetRel = match[1].replace(/^[./]+/, '');
+        if (!allFiles.includes(targetRel)) {
+          console.error(`  ${c.red('✖')} SCRIPT ROTO EN TARBALL: script "${scriptName}" apunta a "${targetRel}" que no existe en el paquete.`);
+          failed = true;
+        }
+      }
+    }
   }
 
   // 4. Chequeo A - archivos prohibidos por nombre.
@@ -215,6 +233,7 @@ try {
   console.error(`    ${err.message}\n`);
   process.exit(1);
 } finally {
+  restoreScripts();
   if (tarballPath && fs.existsSync(tarballPath)) fs.rmSync(tarballPath, { force: true });
   fs.rmSync(tmp, { recursive: true, force: true });
 }

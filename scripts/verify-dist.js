@@ -35,7 +35,10 @@ try {
     cwd: ROOT,
     encoding: 'utf8'
   });
-  const parsed = JSON.parse(packOut);
+  const jsonStart = packOut.indexOf('[');
+  const jsonEnd = packOut.lastIndexOf(']');
+  const jsonStr = jsonStart !== -1 && jsonEnd !== -1 ? packOut.slice(jsonStart, jsonEnd + 1) : packOut.trim();
+  const parsed = JSON.parse(jsonStr);
   const filename = parsed[0].filename;
   tarballPath = path.join(tmp, filename);
   assert.ok(fs.existsSync(tarballPath), 'El tarball npm debe existir');

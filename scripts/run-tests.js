@@ -47,6 +47,7 @@ const STEPS = [
   ['backlog-service', 'scripts/test-backlog-service.js'],
   ['api-security', 'scripts/test-api-security.js'],
   ['package-smoke', 'scripts/test-package-smoke.js'],
+  ['clean-room', 'scripts/test-clean-room.js'],
   ['optimistic-locking', 'scripts/verify-optimistic-locking.js'],
   ['fs-lock-concurrency', 'scripts/verify-fs-lock-concurrency.js'],
   ['json-sprint-persistence', 'scripts/verify-json-sprint-persistence.js'],

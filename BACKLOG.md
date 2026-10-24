@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-23 por gripm
+> Consolidado generado el 2026-10-24 por gripm
 
 ## Resumen de Estados
 
@@ -193,7 +193,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (3)
+### 🚀 Ready for Deploy (4)
 
 #### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
@@ -286,7 +286,64 @@ Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este ver
 
 ---
 
-### 📋 Backlog / Draft (24)
+#### [DEV-336] El gate de QA nunca arranca el producto instalado desde el tarball
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+La suite `npm test` (21 pasos) certifica el repositorio, pero **nunca el producto tal como lo recibe un usuario**. El paso `package-smoke` hace `npm pack`, verifica el manifiesto de archivos, y ejecuta `--help`, `--version` y la sintaxis del binario MCP. Ahi termina: no arranca el servidor desde el tarball, no renderiza la interfaz, no instancia un proyecto nuevo y no prueba el bucle de escritura.
+
+`test:ui` existe pero esta fuera de `npm test` (gotcha 18), asi que tampoco cubre el render.
+
+**Cobertura antes de esta tarea:**
+
+| Verificacion | Cubierta por el gate |
+| --- | --- |
+| `npm pack` + manifiesto de archivos criticos | si |
+| `--help` / `--version` desde el tarball | si |
+| sintaxis del binario MCP | si |
+| arrancar el servidor desde el tarball | **no** |
+| render de la interfaz sin errores de consola | **no** |
+| proyecto random ejecutando `--init` | **no** |
+| bucle crear tarea -> persistencia en disco | **no** |
+| scripts `npm` anunciados por el `package.json` empaquetado | **no** |
+
+**Prueba clean-room ejecutada a mano el 2026-10-23** durante la preparacion de 1.9.0 (`npm pack` -> proyecto vacio -> `npm install <tarball>`), 15 checks, **12 PASS y 3 FAIL**:
+
+PASS:
+
+1. `npm run build` del repositorio.
+2. `npm pack` genera `gripm-board-1.9.0.tgz`.
+3. `npm install <tarball>` en un proyecto aleatorio sin nada preexistente.
+4. Shim `node_modules/.bin/gripm` instalado.
+5. `--version` sale codigo 0, imprime `1.9.0` y stderr vacio.
+6. `--help` sale codigo 0 y documenta el tablero.
+7. La estructura minima del proyecto instanciado queda montada.
+8. `gripm mcp` responde `initialize` por stdio con `serverInfo` correcto.
+9. El servidor arranca: `gripm v1.9.0  listo`, puerto en escucha por estado del sistema, stderr vacio.
+10. La interfaz renderiza con **cero errores de consola** y estados vacios correctos (`Sin tareas en este estado`).
+11. La pestana `Versiones` renderiza su empty state aunque falte `backlog/releases.json`.
+12. Una tarea creada desde la interfaz persiste como `backlog/tasks/PROY-001 - ....md` con frontmatter valido, codigo autogenerado y slug coincidente.
+
+FAIL:
+
+- **`gripm --init --yes --minimal --no-playbook` entrega backlog vacio con exit 0** -> levantado como **DEV-337**.
+- **`backlog/releases.json` no se genera en el proyecto nuevo** (consecuencia de DEV-337).
+- **`npm run validate` falla con codigo 1 dentro del paquete instalado**: el `package.json` empaquetado anuncia 32 scripts `npm` cuyo objetivo es `scripts/*.js`, directorio que el tarball excluye. El error es `Cannot find module .../scripts/verify-changes.js`. De esos 32 scripts, los que viajan al usuario son los unicos que apuntan a binarios si presentes (`gripm`, `board`, `mcp`).
+
+**Conclucion de la prueba.** El producto **no** esta inusable: instala, arranca, renderiza sin errores y el bucle de escritura funciona. El riesgo no era que estuviera roto, era que **nadie lo estaba comprobando antes de publicar**.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
+- [x] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
+- [x] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
+- [x] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
+- [x] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
+- [x] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
+- [x] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
+- [x] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
+
+---
+
+### 📋 Backlog / Draft (23)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -909,63 +966,6 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 - [ ] #5 Queda documentado en un lugar de gobernanza (AGENTS.md, gate o skill) que los ACs tildados antes del 2026-10-05 no son verificables por git, para que futuras auditorias no repitan este rastreo.
 - [ ] #6 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras cualquier cambio sobre DEV-026.
 - [ ] #7 `node scripts/verify-changes.js --all` sale con codigo 0.
-
----
-
-#### [DEV-336] El gate de QA nunca arranca el producto instalado desde el tarball
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-La suite `npm test` (21 pasos) certifica el repositorio, pero **nunca el producto tal como lo recibe un usuario**. El paso `package-smoke` hace `npm pack`, verifica el manifiesto de archivos, y ejecuta `--help`, `--version` y la sintaxis del binario MCP. Ahi termina: no arranca el servidor desde el tarball, no renderiza la interfaz, no instancia un proyecto nuevo y no prueba el bucle de escritura.
-
-`test:ui` existe pero esta fuera de `npm test` (gotcha 18), asi que tampoco cubre el render.
-
-**Cobertura antes de esta tarea:**
-
-| Verificacion | Cubierta por el gate |
-| --- | --- |
-| `npm pack` + manifiesto de archivos criticos | si |
-| `--help` / `--version` desde el tarball | si |
-| sintaxis del binario MCP | si |
-| arrancar el servidor desde el tarball | **no** |
-| render de la interfaz sin errores de consola | **no** |
-| proyecto random ejecutando `--init` | **no** |
-| bucle crear tarea -> persistencia en disco | **no** |
-| scripts `npm` anunciados por el `package.json` empaquetado | **no** |
-
-**Prueba clean-room ejecutada a mano el 2026-10-23** durante la preparacion de 1.9.0 (`npm pack` -> proyecto vacio -> `npm install <tarball>`), 15 checks, **12 PASS y 3 FAIL**:
-
-PASS:
-
-1. `npm run build` del repositorio.
-2. `npm pack` genera `gripm-board-1.9.0.tgz`.
-3. `npm install <tarball>` en un proyecto aleatorio sin nada preexistente.
-4. Shim `node_modules/.bin/gripm` instalado.
-5. `--version` sale codigo 0, imprime `1.9.0` y stderr vacio.
-6. `--help` sale codigo 0 y documenta el tablero.
-7. La estructura minima del proyecto instanciado queda montada.
-8. `gripm mcp` responde `initialize` por stdio con `serverInfo` correcto.
-9. El servidor arranca: `gripm v1.9.0  listo`, puerto en escucha por estado del sistema, stderr vacio.
-10. La interfaz renderiza con **cero errores de consola** y estados vacios correctos (`Sin tareas en este estado`).
-11. La pestana `Versiones` renderiza su empty state aunque falte `backlog/releases.json`.
-12. Una tarea creada desde la interfaz persiste como `backlog/tasks/PROY-001 - ....md` con frontmatter valido, codigo autogenerado y slug coincidente.
-
-FAIL:
-
-- **`gripm --init --yes --minimal --no-playbook` entrega backlog vacio con exit 0** -> levantado como **DEV-337**.
-- **`backlog/releases.json` no se genera en el proyecto nuevo** (consecuencia de DEV-337).
-- **`npm run validate` falla con codigo 1 dentro del paquete instalado**: el `package.json` empaquetado anuncia 32 scripts `npm` cuyo objetivo es `scripts/*.js`, directorio que el tarball excluye. El error es `Cannot find module .../scripts/verify-changes.js`. De esos 32 scripts, los que viajan al usuario son los unicos que apuntan a binarios si presentes (`gripm`, `board`, `mcp`).
-
-**Conclucion de la prueba.** El producto **no** esta inusable: instala, arranca, renderiza sin errores y el bucle de escritura funciona. El riesgo no era que estuviera roto, era que **nadie lo estaba comprobando antes de publicar**.
-
-**Criterios de Aceptación:**
-- [ ] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
-- [ ] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
-- [ ] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
-- [ ] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
-- [ ] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
-- [ ] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
-- [ ] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
-- [ ] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
 
 ---
 
