@@ -166,7 +166,10 @@ async function run() {
         throw new Error(`Declaración ✅ no reconocida por el gate: "${line}". Cada promesa debe verificarse explícitamente.`);
       }
     }
-    console.log(`  ${c.green('✔')} AC #5 PASS: ${declarationLines.length} promesas declarativas de --init verificadas en disco.`);
+    // DEV-337: Confirm minimal init delivers clean backlog (0 mock tasks seeded)
+    const tasksAfterInit = fs.readdirSync(path.join(projDir, 'backlog', 'tasks'));
+    assert.strictEqual(tasksAfterInit.length, 0, `El backlog tras --init minimal debe nacer limpio sin tareas mock (DEV-337), encontradas: ${tasksAfterInit.length}`);
+    console.log(`  ${c.green('✔')} AC #5 PASS: ${declarationLines.length} promesas declarativas de --init verificadas en disco (backlog limpio).`);
 
     // 4. AC #4: Create task via MCP stdio and verify persistence & frontmatter
     console.log(`  ${c.cyan('•')} AC #4: Creando tarea mediante MCP sobre stdio y verificando persistencia en disco...`);

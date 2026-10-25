@@ -5719,7 +5719,7 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
         projectId = projectName.toLowerCase().replace(/^@[^/]+\//, "").replace(/[^a-z0-9_-]/g, "-");
         codePrefix = projectName.replace(/^@[^/]+\//, "").replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase() || "PROJ";
       }
-      const profilePrompt = isEn2 ? "\n  3. Adoption Profile:\n     [1] Minimalist AI-First (Recommended: Pure Kanban, no timeboxes or ceremonies, tasks & skill only)\n     [2] Batteries Included (Full Scrum with Sprints, Releases and AGENTS.md)\n     [3] Custom (Manual configuration of each add-on and setting)\n     Select option [1]: " : "\n  3. Perfil de Adopci\xF3n:\n     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, solo tareas y skill)\n     [2] Bater\xEDas Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n     [3] Personalizado (Configuraci\xF3n manual de cada add-on y opci\xF3n)\n     Selecciona opci\xF3n [1]: ";
+      const profilePrompt = isEn2 ? "\n  3. Adoption Profile:\n     [1] Minimalist AI-First (Recommended: Pure Kanban, no timeboxes or ceremonies, agent skill & clean backlog)\n     [2] Batteries Included (Full Scrum with Sprints, Releases and AGENTS.md)\n     [3] Custom (Manual configuration of each add-on and setting)\n     Select option [1]: " : "\n  3. Perfil de Adopci\xF3n:\n     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, skill de agente y backlog limpio)\n     [2] Bater\xEDas Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n     [3] Personalizado (Configuraci\xF3n manual de cada add-on y opci\xF3n)\n     Selecciona opci\xF3n [1]: ";
       const profileAnswer = await rl.question(profilePrompt);
       const trimmedProfile = profileAnswer.trim();
       if (trimmedProfile === "2") {
@@ -5785,6 +5785,8 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     enabledTabs,
     gripmConfig: false,
     tasksDir: false,
+    tasksDirCreated: false,
+    tasksSeeded: false,
     skill: false,
     agentsMd: false,
     playbook: false,
@@ -5845,11 +5847,14 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   const tasksDir = path3.join(targetRepo, "backlog/tasks");
   if (!fs3.existsSync(tasksDir)) {
     fs3.mkdirSync(tasksDir, { recursive: true });
+    results.tasksDirCreated = true;
     console.log(isEnCurrent ? "  \u2705 backlog/tasks/ directory created for Markdown tasks" : "  \u2705 Directorio backlog/tasks/ creado para tareas Markdown");
   } else {
+    results.tasksDirCreated = false;
     console.log(isEnCurrent ? "  \u2139\uFE0F  Existing backlog/tasks/ directory preserved" : "  \u2139\uFE0F  Directorio backlog/tasks/ existente preservado");
   }
   results.tasksDir = true;
+  results.tasksSeeded = false;
   if (mode === "multi") {
     try {
       const registry = loadRegistryFile(PKG_ROOT);

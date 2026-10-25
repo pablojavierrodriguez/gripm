@@ -171,12 +171,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       // Question 3: Adoption Profile
       const profilePrompt = isEn
         ? '\n  3. Adoption Profile:\n' +
-          '     [1] Minimalist AI-First (Recommended: Pure Kanban, no timeboxes or ceremonies, tasks & skill only)\n' +
+          '     [1] Minimalist AI-First (Recommended: Pure Kanban, no timeboxes or ceremonies, agent skill & clean backlog)\n' +
           '     [2] Batteries Included (Full Scrum with Sprints, Releases and AGENTS.md)\n' +
           '     [3] Custom (Manual configuration of each add-on and setting)\n' +
           '     Select option [1]: '
         : '\n  3. Perfil de Adopción:\n' +
-          '     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, solo tareas y skill)\n' +
+          '     [1] Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, skill de agente y backlog limpio)\n' +
           '     [2] Baterías Incluidas (Scrum completo con Sprints, Releases y AGENTS.md)\n' +
           '     [3] Personalizado (Configuración manual de cada add-on y opción)\n' +
           '     Selecciona opción [1]: ';
@@ -291,6 +291,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     enabledTabs,
     gripmConfig: false,
     tasksDir: false,
+    tasksDirCreated: false,
+    tasksSeeded: false,
     skill: false,
     agentsMd: false,
     playbook: false,
@@ -357,11 +359,14 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   const tasksDir = path.join(targetRepo, 'backlog/tasks');
   if (!fs.existsSync(tasksDir)) {
     fs.mkdirSync(tasksDir, { recursive: true });
+    results.tasksDirCreated = true;
     console.log(isEnCurrent ? '  ✅ backlog/tasks/ directory created for Markdown tasks' : '  ✅ Directorio backlog/tasks/ creado para tareas Markdown');
   } else {
+    results.tasksDirCreated = false;
     console.log(isEnCurrent ? '  ℹ️  Existing backlog/tasks/ directory preserved' : '  ℹ️  Directorio backlog/tasks/ existente preservado');
   }
   results.tasksDir = true;
+  results.tasksSeeded = false;
 
   // 3. Handle Hub Registration if multi mode, or isolate if single
   if (mode === 'multi') {

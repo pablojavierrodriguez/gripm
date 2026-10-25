@@ -1,13 +1,14 @@
 ---
 id: DEV-337
 title: "El asistente init minimal anuncia tareas y entrega un backlog vacio con exit 0"
-status: draft
+status: ready
 created_date: '2026-10-23'
-updated_date: '2026-10-23'
+updated_date: '2026-10-24'
 labels:
   - "onboarding"
   - "cli"
   - "bug"
+dependencies: []
 priority: high
 type: bug
 estimate: 2
@@ -58,13 +59,13 @@ El codigo solo crea el directorio y **declara el resultado cumplido**. No escrib
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El PO decide y queda registrado el comportamiento canonico: o `--init` siembra al menos una tarea de ejemplo en `backlog/tasks/`, o el perfil `minimal` deja de prometer tareas en `scripts/initScaffold.js:174` y `:179`.
-- [ ] #2 Si se siembra, `gripm --init --yes --minimal --no-playbook` en un proyecto vacio crea al menos un archivo `.md` en `backlog/tasks/` y un `backlog/releases.json` que parsea como JSON.
-- [ ] #3 Si no se siembra, el texto del perfil y la ayuda de `--init` describen exactamente los artefactos que genera (config, skill, `.gitignore` y directorio `backlog/tasks/`), sin mencionar tareas que no crea.
-- [ ] #4 `results.tasksDir` no se declara cumplido sin evidencia: el resumen final de `--init` distingue entre directorio creado y contenido generado.
-- [ ] #5 El paso clean-room de DEV-336 verifica el comportamiento final elegido, de modo que una regresion aqui falle la suite y no se archive como exito.
-- [ ] #6 `npm test` sale con codigo 0 en Windows y con `npm run test:linux`.
-- [ ] #7 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
+- [x] #1 El PO decide y queda registrado el comportamiento canonico: o `--init` siembra al menos una tarea de ejemplo en `backlog/tasks/`, o el perfil `minimal` deja de prometer tareas en `scripts/initScaffold.js:174` y `:179`. Decision: Opcion A (no sembrar, corregir texto).
+- [x] #2 Si se siembra, `gripm --init --yes --minimal --no-playbook` en un proyecto vacio crea al menos un archivo `.md` en `backlog/tasks/` y un `backlog/releases.json` que parsea como JSON. (No aplica: se adopto Opcion A).
+- [x] #3 Si no se siembra, el texto del perfil y la ayuda de `--init` describen exactamente los artefactos que genera (config, skill, `.gitignore` y directorio `backlog/tasks/`), sin mencionar tareas que no crea.
+- [x] #4 `results.tasksDir` no se declara cumplido sin evidencia: el resumen final de `--init` distingue entre directorio creado y contenido generado.
+- [x] #5 El paso clean-room de DEV-336 verifica el comportamiento final elegido, de modo que una regresion aqui falle la suite y no se archive como exito.
+- [x] #6 `npm test` sale con codigo 0 en Windows y con `npm run test:linux`.
+- [x] #7 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
 <!-- AC:END -->
 
 ## Implementation Plan
