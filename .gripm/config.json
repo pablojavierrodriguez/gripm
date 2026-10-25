@@ -110,7 +110,7 @@
   "language": "en",
   "projectName": "gripm",
   "projectId": "gripm",
-  "codePrefix": "GRIP",
+  "codePrefix": "DEV",
   "methodology": "kanban",
   "enabledTabs": {
     "kanban": true,
@@ -118,7 +118,7 @@
     "release": true
   },
   "locale": "en",
-  "defaultView": "sprint",
+  "defaultView": "kanban",
   "modules": {
     "sprint": true,
     "release": true,

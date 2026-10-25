@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-24 por gripm
+> Consolidado generado el 2026-10-25 por gripm
 
 ## Resumen de Estados
 
@@ -193,7 +193,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (5)
+### 🚀 Ready for Deploy (6)
 
 #### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
@@ -225,6 +225,29 @@ Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear toda
 - [x] #6 Piramide completa en verde: `npx tsc --noEmit`, `npm test`, `npm run test:linux`, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`.
 - [x] #7 Seccion desactualizada de `DEV-188` corregida: la advertencia que afirma que la divergencia de `audit-ux-code.cjs` quedo en cero desde v1.0.3 y que el archivo es byte a byte identico al tarball queda reemplazada por la medicion real, mas el hecho de que el fork sobrevive al sync.
 - [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
+
+---
+
+#### [DEV-324] Corregir codePrefix GRIP por DEV en .gripm/config.json
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`.gripm/config.json` declara `"codePrefix": "GRIP"`, pero este repositorio usa el prefijo `DEV`. El bug ya causo un efecto observable: el CLI creo la tarea `GRIP-320` por error y hubo que renombrarla a `DEV-323`.
+
+`codePrefix` no es decorativo. Lo leen dos caminos de creacion:
+
+- `scripts/gripm-cli.js:920` lo usa para generar el ID de la tarea nueva.
+- `src/lib/sandbox.ts:144` y `src/lib/sandbox.ts:372` lo usan como `project?.codePrefix ?? 'TASK'`.
+
+Mientras el config declare `GRIP`, cualquier tarea creada desde la CLI o el sandbox de gripm sobre este repo vuelve a salir mal prefijada. Corregirlo es la mitigacion del defecto; la alternativa de proceso (escribir los IDs a mano) no arregla nada y deja la bomba armada.
+
+Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView: "sprint"` contra `enabledTabs.sprint: false`.
+
+**Criterios de Aceptación:**
+- [x] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
+- [x] #2 `npx tsc --noEmit` con 0 errores.
+- [x] #3 `npm test` con codigo 0.
+- [x] #4 `node scripts/verify-changes.js --all` con codigo 0.
+- [x] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
 
 ---
 
@@ -395,7 +418,7 @@ El codigo solo crea el directorio y **declara el resultado cumplido**. No escrib
 
 ---
 
-### 📋 Backlog / Draft (22)
+### 📋 Backlog / Draft (21)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -889,29 +912,6 @@ Extensión avanzada del módulo de analíticas (`DEV-229`) para incorporar herra
 - [ ] #4 Auditar y corregir las excepciones de UI listadas en `tests/audit-ux-baseline.json`.
 - [ ] #5 Verificar que no se introducen regresiones funcionales ni visuales en la navegación, atajos ni modales.
 - [ ] #6 La Pirámide de Verificación (`tsc --noEmit`, `npm test`, `npm run test:ui`) pasa con 0 errores.
-
----
-
-#### [DEV-324] Corregir codePrefix GRIP por DEV en .gripm/config.json
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-`.gripm/config.json` declara `"codePrefix": "GRIP"`, pero este repositorio usa el prefijo `DEV`. El bug ya causo un efecto observable: el CLI creo la tarea `GRIP-320` por error y hubo que renombrarla a `DEV-323`.
-
-`codePrefix` no es decorativo. Lo leen dos caminos de creacion:
-
-- `scripts/gripm-cli.js:920` lo usa para generar el ID de la tarea nueva.
-- `src/lib/sandbox.ts:144` y `src/lib/sandbox.ts:372` lo usan como `project?.codePrefix ?? 'TASK'`.
-
-Mientras el config declare `GRIP`, cualquier tarea creada desde la CLI o el sandbox de gripm sobre este repo vuelve a salir mal prefijada. Corregirlo es la mitigacion del defecto; la alternativa de proceso (escribir los IDs a mano) no arregla nada y deja la bomba armada.
-
-Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView: "sprint"` contra `enabledTabs.sprint: false`.
-
-**Criterios de Aceptación:**
-- [ ] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
-- [ ] #2 `npx tsc --noEmit` con 0 errores.
-- [ ] #3 `npm test` con codigo 0.
-- [ ] #4 `node scripts/verify-changes.js --all` con codigo 0.
-- [ ] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
 
 ---
 

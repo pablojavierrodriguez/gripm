@@ -1,12 +1,12 @@
 ---
 id: DEV-324
 title: "Corregir codePrefix GRIP por DEV en .gripm/config.json"
-status: draft
+status: ready
 created_date: '2026-10-21'
-updated_date: '2026-10-21 12:00'
+updated_date: '2026-10-25'
 labels:
- - "config"
- - "bug"
+  - "config"
+  - "bug"
 dependencies: []
 priority: high
 type: bug
@@ -31,11 +31,11 @@ Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView:
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
-- [ ] #2 `npx tsc --noEmit` con 0 errores.
-- [ ] #3 `npm test` con codigo 0.
-- [ ] #4 `node scripts/verify-changes.js --all` con codigo 0.
-- [ ] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
+- [x] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
+- [x] #2 `npx tsc --noEmit` con 0 errores.
+- [x] #3 `npm test` con codigo 0.
+- [x] #4 `node scripts/verify-changes.js --all` con codigo 0.
+- [x] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
 <!-- AC:END -->
 
 ## Implementation Plan
