@@ -1,7 +1,8 @@
 ---
 id: DEV-325
 title: "Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-21'
 updated_date: '2026-10-22'
 labels:

@@ -1,7 +1,8 @@
 ---
 id: DEV-329
 title: "Captura rápida desde CLI sin abrir el board"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-22'
 updated_date: '2026-10-25'
 labels:

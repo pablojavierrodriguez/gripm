@@ -1,7 +1,8 @@
 ---
 id: DEV-337
 title: "El asistente init minimal anuncia tareas y entrega un backlog vacio con exit 0"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-23'
 updated_date: '2026-10-24'
 labels:

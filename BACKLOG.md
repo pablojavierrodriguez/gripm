@@ -175,279 +175,6 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (8)
-
-#### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear todas las referencias a los nombres de rol renombrados (`worldclass-product-designer` -> `product-designer`, `rigorous-qa-auditor` -> `qa-auditor`).
-
-**Solo lado consumidor.** El framework esta terminado y certificado (PLAY-029, PLAY-030). Fuera de alcance: editar `gripm-playbook`, refactor editorial, traduccion de archivos del playbook, scripts one-off, y editar tareas historicas (`backlog/tasks/`, `docs/archive/`) que mencionan los nombres viejos.
-
-### Gates, abiertos a 2026-10-21
-
-- **Release**: tag remoto `v2.6.0` (`631df3c`) y npm `latest: 2.6.0`. El manifest del tag trae `product-designer` y `qa-auditor` en `core` y `coreSkills`.
-- **Lease antigravity**: `PLAY-026/027/028` en `done`, liberado por el PO.
-- **Ref del sync**: fijado explicitamente con `--tag v2.6.0`.
-
-### Alcance tecnico
-
-`scripts/sync-playbook.mjs` se auto-actualiza: el manifest de `v2.6.0` lo mete en `core`, el blob de gripm (`f4082e41`, 699 lineas) si existe en la historia upstream (commit `e5c8279`), y al no estar en `lock.files` la clasificacion arranca en `unknown` -> `findCanonicalProvenance` devuelve `canonical` -> el sync lo actualiza hacia adelante a la version modularizada (496 lineas). No hay que editar `FALLBACK_CORE_FILES` a mano. La version nueva importa `./lib/{terminal,provenance,sync-classifier}.mjs`, las tres en `core`, y su CLI es compatible con `playbook:check` y `playbook:sync`.
-
-`scripts/verify-publish-surface.js` si hay que editarlo a mano (lineas 54 y 56): es especifico del consumidor, no existe upstream.
-
-`scripts/audit-ux-code.cjs` **no** se toca: el lockfile lo registra en `customizations` (fork DEV-166) y `classifyLocalFile` lo devuelve `customization` por el lockfile antes de evaluar nada mas. El fork sobrevive al sync. Su retiro es labor de DEV-188.
-
-**Criterios de Aceptación:**
-- [x] #1 `npm run playbook:sync -- --tag v2.6.0 --yes` corre con exito y `.playbook-lock.json` queda con `ref: v2.6.0` y las rutas `product-designer` / `qa-auditor` en `files`.
-- [x] #2 El tarball npm no contiene archivos del framework del playbook (DEV-250). `npm run publish:check` con exit 0.
-- [x] #3 Los directorios `.agents/skills/worldclass-product-designer/` y `.agents/skills/rigorous-qa-auditor/` no existen, y los directorios `product-designer/` y `qa-auditor/` si.
-- [x] #4 `scripts/verify-publish-surface.js` referencia `product-designer` y `qa-auditor` en `FORBIDDEN_PLAYBOOK_ENTRIES`, y no quedan referencias a los nombres viejos en `scripts/`, `AGENTS.md`, `README.md` ni `README.es.md` (excluyendo `backlog/tasks/` y `docs/archive/`, que son historicos).
-- [x] #5 `scripts/scan-markdown-hygiene.mjs` no existe.
-- [x] #6 Piramide completa en verde: `npx tsc --noEmit`, `npm test`, `npm run test:linux`, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`.
-- [x] #7 Seccion desactualizada de `DEV-188` corregida: la advertencia que afirma que la divergencia de `audit-ux-code.cjs` quedo en cero desde v1.0.3 y que el archivo es byte a byte identico al tarball queda reemplazada por la medicion real, mas el hecho de que el fork sobrevive al sync.
-- [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
-
----
-
-#### [DEV-324] Corregir codePrefix GRIP por DEV en .gripm/config.json
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-`.gripm/config.json` declara `"codePrefix": "GRIP"`, pero este repositorio usa el prefijo `DEV`. El bug ya causo un efecto observable: el CLI creo la tarea `GRIP-320` por error y hubo que renombrarla a `DEV-323`.
-
-`codePrefix` no es decorativo. Lo leen dos caminos de creacion:
-
-- `scripts/gripm-cli.js:920` lo usa para generar el ID de la tarea nueva.
-- `src/lib/sandbox.ts:144` y `src/lib/sandbox.ts:372` lo usan como `project?.codePrefix ?? 'TASK'`.
-
-Mientras el config declare `GRIP`, cualquier tarea creada desde la CLI o el sandbox de gripm sobre este repo vuelve a salir mal prefijada. Corregirlo es la mitigacion del defecto; la alternativa de proceso (escribir los IDs a mano) no arregla nada y deja la bomba armada.
-
-Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView: "sprint"` contra `enabledTabs.sprint: false`.
-
-**Criterios de Aceptación:**
-- [x] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
-- [x] #2 `npx tsc --noEmit` con 0 errores.
-- [x] #3 `npm test` con codigo 0.
-- [x] #4 `node scripts/verify-changes.js --all` con codigo 0.
-- [x] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
-
----
-
-#### [DEV-325] Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-`scripts/gate-qa.mjs` nunca pudo salir con codigo 0 en este repositorio. El motivo no es un defecto del script: es un **contrato de nombres sin satisfacer**.
-
-`qa-auditor/SKILL.md:69` lo declara textual:
-
-> A blocking step (`validate`/`typecheck`, `test`, `spec`, `audit:ux`) that has no defined script **fails the gate**.
-
-El gate lee el `package.json` del anfitrión y resuelve cada paso por nombre. El playbook declara esos nombres en su propio `package.json` (`validate`, `gate:review`, `audit:ux:strict`), pero **gripm nunca los declaro**. El contrato lo falto el consumidor, no el framework.
-
-Verificado en el upstream `v2.6.0`: el mensaje de error que emite gripm (`blocking step has no "validate" script in package.json; it cannot be certified on a step that never ran`) es identico carácter a carácter al de `scripts/lib/pyramid.mjs`. La logica del fork esta preservada. Ademas upstream ya preve anfitriones con otros nombres via `fallbackScripts: ['typecheck']`.
-
-Consecuencia del contrato insatisfecho: tres de cinco pasos son `blocking: true` y quedan `failed`, asi que el gate **no ha podido certificar ningun item** en la historia del repo. Los 293 `done` llegaron ahi sin certificacion mecanica.
-
-La correccion va en `package.json`, no en `gate-qa.mjs`. Editar el gate profundizaria un fork cuya unica razon de existir es cosmética (DEV-320 AC #3: encabezado abierto y glifos mono-ancho) y cerraria gripm a cualquier fix futuro del upstream.
-
-**Criterios de Aceptación:**
-- [x] #1 `package.json` define los tres scripts del contrato del gate: `validate`, `gate:review` y `audit:ux:strict`.
-- [x] #2 Los tres delegan en los scripts primarios existentes (`verify:changes`, `backlog:check`, `audit:ux`) sin duplicar el comando, para que la fuente unica de verdad siga siendo el script primario.
-- [x] #3 `validate` pasa `--all`, de modo que el paso verifique el arbol completo y no pueda certificar un pase vacio cuando nada esta stageado.
-- [x] #4 `node scripts/gate-qa.mjs DEV-325` ejecuta los cinco pasos de la pirámide y ninguno reporta `has no "..." script in package.json`.
-- [x] #5 `scripts/gate-qa.mjs` no fue modificado: su SHA-256 sigue coincidiendo con el registrado en `.playbook-lock.json`.
-- [x] #6 `npm run audit:ux:strict` sale con codigo 0.
-- [x] #7 `npm run validate` sale con codigo 0 verificando el arbol completo.
-- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
-- [x] #9 `node scripts/verify-changes.js --all` sale con codigo 0.
-
----
-
-#### [DEV-326] Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-`scripts/gate-qa.mjs` esta declarado como customizacion en `.playlock.json` por una razon que ya no existe. DEV-320 AC #3 lo marco para preservar sus mejoras de salida (encabezado abierto, glifos mono-ancho, eliminacion de cajas rigidas). Verificado caracter a caracter contra upstream `v2.6.0`, esas mejoras **ya estan en el canon**: `printHeader` y la paleta `c` son identicas, el bloque `Task:/ID:/Status:` es identico, los glifos `✖ ✔ ℹ ➜` son identicos y upstream tambien elimino las cajas `---`. Incluso mejora el original: su `isColorSupported` acepta cualquier `FORCE_COLOR` truthy, no solo `'1'`.
-
-Lo que el fork si diverge no es cosmético, es funcional, y en tres ejes:
-
-1. **No escribe nunca.** El fork no contiene `writeFileSync` ni `mutateTaskFrontmatter` en ningun camino. El canon escribe `status: ready` en T2, escribe status y limpia `blocked_reason` en T_unblock. El fork solo certifica y dice "may be promoted".
-2. **No implementa T0 ni T1.** `startMain` y `submitMain` no existen. Ejecutado: `node scripts/gate-qa.mjs start DEV-325` responde `no task found for "start"`, porque toma la palabra como identificador de tarea.
-3. **No soporta `--by`.** `pm-orchestrator/SKILL.md:87` ordena `--by "<provider>:<id>"`; el canon lo acepta (`--by`, `--as`, `--to`), el fork no.
-
-Las skills instaladas por DEV-323 (`qa-auditor/SKILL.md:52-53`, `pm-orchestrator/SKILL.md:22,87,90`) documentan el comportamiento del canon. Skills y herramienta quedaron fuera de sincronia porque el sync actualizo los primeros y protegio el segundo.
-
-Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este verde y el gate salga en 0, alguien tiene que escribir `ready` a mano. Eso explica por que los 293 `done` tuvieron que moverse a mano.
-
-**Criterios de Aceptación:**
-- [x] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
-- [x] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
-- [x] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
-- [x] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
-- [x] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
-- [x] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
-- [x] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
-- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
-- [x] #9 `npm run publish:check` sale con codigo 0.
-
----
-
-#### [DEV-329] Captura rápida desde CLI sin abrir el board
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Hoy un humano que quiere registrar una tarea debe abrir el board en el browser o recurrir al MCP (que está pensado para agentes). OpenTodo expone `ot add "Call the plumber" --due tomorrow --priority 2` como binario separado. gripm ya distribuye el binario `gripm`, así que el camino natural es un subcomando de captura que escriba directamente en el storage del proyecto (`backlog/tasks/*.md` o `.gripm/backlog.json`).
-
-La escritura debe reutilizar el mismo motor de persistencia que el board y el MCP para que el resultado pase por `backlog:check` y `backlog:sync` sin divergencias. El comando debe respetar el engine de storage configurado del proyecto y fallar con mensaje claro si no hay proyecto inicializado.
-
-Es una iniciativa de descubrimiento: definir el contrato del comando (flags, salida, manejo de errores) antes de implementar, y evaluar si convive con un quick add en lenguaje natural (DEV-328) o lo precede.
-
-**Criterios de Aceptación:**
-- [x] #1 `gripm add` crea una tarea en el engine de storage activo del proyecto usando el mismo camino de escritura que el board.
-- [x] #2 La tarea resultante pasa `npm run backlog:check` sin correcciones posteriores.
-- [x] #3 El comando falla con mensaje accionable cuando el directorio no es un proyecto gripm inicializado.
-- [x] #4 Los flags documentados (título, fecha, prioridad, tipo) tienen cobertura de test o verificación ejecutable.
-- [x] #5 El uso queda documentado junto al resto de flags CLI del README.
-
----
-
-#### [DEV-333] El chequeo de fantasmas no distingue archivos stageados de archivos sin trackear en commits por pathspec
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-`scripts/verify-backlog-sync.js:96-130` implementa el chequeo de tareas fantasma: si `BACKLOG.md` esta en el stage y referencia un archivo que git no trackea, el commit se rechaza. La deteccion recorre `git status --porcelain -z backlog/tasks/` y se queda solo con las entradas que empiezan por `?? `.
-
-Esa condicion es correcta para un commit normal. **No lo es para un commit por pathspec.**
-
-Cuando se ejecuta `git commit -m "..." -- <paths>`, git construye el commit a partir de HEAD **mas** los paths indicados, y el hook pre-commit corre contra ese indice temporal. Los archivos stageados en el indice principal que no estan en el pathspec aparecen ahi como `??` sin trackear, aunque en el indice real esten en `A `.
-
-Resultado medido (2026-10-22): seis tareas stageadas (`A `, creadas por otro agente) y un commit selectivo de DEV-326 por pathspec. El guard las detecto como fantasmas y bloqueo un commit que era legitimo.
-
-Peor aun, **las dos salidas que sugiere el error son incorrectas para ese caso**:
-
-1. `git add <los 6 archivos>` - arrastra trabajo de otro agente al commit del agente en curso, violando la norma de "una tarea, un commit consolidado".
-2. "Regenera BACKLOG.md sin esas tareas" - es imposible sin borrar los archivos de disco, que pertenecen a otro agente.
-
-El agente quedo sin salida mecanica y tuvo que escalar la decision al PO. La unica resolucion real era incluir las tareas en el commit, y eso solo se sostiene invocando el precedente de `fa9a19a`.
-
-El problema de fondo no es la deteccion: es que `BACKLOG.md` es un agregado que referencia **todas** las tareas del arbol, y por eso cualquier commit que lo incluya acopla al agente con todos los demás tareas pendientes. Ese acoplamiento ya le costo al repo una ocasion mas: el hook **antes** ejecutaba `git add BACKLOG.md backlog/`, que stageaba el directorio entero y arrastraba tareas ajenas. Se corrigio el indice (`verify-backlog-sync.js:367-372`) pero la politica de bloqueo reprodujo el mismo efecto por el lado opuesto. En ambos periodos, **commits selectivos imposibles**.
-
-**Criterios de Aceptación:**
-- [x] #1 El chequeo distingue tres casos y reporta cada uno con su nombre: archivo `??` sin trackear (fantasma real), archivo `A ` stageado en el indice principal, y archivo presente en el arbol pero fuera del commit por pathspec.
-- [x] #2 El mensaje de error **no** sugiere `git add` de archivos que pertenecen a otro agente ni la regeneracion del consolidado sin ellos, porque ambas salidas son invalidas en el caso pathspec.
-- [x] #3 Ante un commit por pathspec que deja fuera archivos stageados, el error nombra explicitamente el pathspec como causa y ofrece las dos salidas reales: incluirlos, o commitearlos antes.
-- [x] #4 `node scripts/verify-integration.js` cubre el caso: un repositorio de prueba con una tarea stageada y un commit por pathspec que la excluye. El test debe demostrar que el mensaje correcto aparece.
-- [x] #5 El chequeo sigue rechazando el fantasma real: un archivo `??` referenciado por el consolidado bloquea el commit como hasta ahora.
-- [x] #6 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
-
----
-
-#### [DEV-336] El gate de QA nunca arranca el producto instalado desde el tarball
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-La suite `npm test` (21 pasos) certifica el repositorio, pero **nunca el producto tal como lo recibe un usuario**. El paso `package-smoke` hace `npm pack`, verifica el manifiesto de archivos, y ejecuta `--help`, `--version` y la sintaxis del binario MCP. Ahi termina: no arranca el servidor desde el tarball, no renderiza la interfaz, no instancia un proyecto nuevo y no prueba el bucle de escritura.
-
-`test:ui` existe pero esta fuera de `npm test` (gotcha 18), asi que tampoco cubre el render.
-
-**Cobertura antes de esta tarea:**
-
-| Verificacion | Cubierta por el gate |
-| --- | --- |
-| `npm pack` + manifiesto de archivos criticos | si |
-| `--help` / `--version` desde el tarball | si |
-| sintaxis del binario MCP | si |
-| arrancar el servidor desde el tarball | **no** |
-| render de la interfaz sin errores de consola | **no** |
-| proyecto random ejecutando `--init` | **no** |
-| bucle crear tarea -> persistencia en disco | **no** |
-| scripts `npm` anunciados por el `package.json` empaquetado | **no** |
-
-**Prueba clean-room ejecutada a mano el 2026-10-23** durante la preparacion de 1.9.0 (`npm pack` -> proyecto vacio -> `npm install <tarball>`), 15 checks, **12 PASS y 3 FAIL**:
-
-PASS:
-
-1. `npm run build` del repositorio.
-2. `npm pack` genera `gripm-board-1.9.0.tgz`.
-3. `npm install <tarball>` en un proyecto aleatorio sin nada preexistente.
-4. Shim `node_modules/.bin/gripm` instalado.
-5. `--version` sale codigo 0, imprime `1.9.0` y stderr vacio.
-6. `--help` sale codigo 0 y documenta el tablero.
-7. La estructura minima del proyecto instanciado queda montada.
-8. `gripm mcp` responde `initialize` por stdio con `serverInfo` correcto.
-9. El servidor arranca: `gripm v1.9.0  listo`, puerto en escucha por estado del sistema, stderr vacio.
-10. La interfaz renderiza con **cero errores de consola** y estados vacios correctos (`Sin tareas en este estado`).
-11. La pestana `Versiones` renderiza su empty state aunque falte `backlog/releases.json`.
-12. Una tarea creada desde la interfaz persiste como `backlog/tasks/PROY-001 - ....md` con frontmatter valido, codigo autogenerado y slug coincidente.
-
-FAIL:
-
-- **`gripm --init --yes --minimal --no-playbook` entrega backlog vacio con exit 0** -> levantado como **DEV-337**.
-- **`backlog/releases.json` no se genera en el proyecto nuevo** (consecuencia de DEV-337).
-- **`npm run validate` falla con codigo 1 dentro del paquete instalado**: el `package.json` empaquetado anuncia 32 scripts `npm` cuyo objetivo es `scripts/*.js`, directorio que el tarball excluye. El error es `Cannot find module .../scripts/verify-changes.js`. De esos 32 scripts, los que viajan al usuario son los unicos que apuntan a binarios si presentes (`gripm`, `board`, `mcp`).
-
-**Conclucion de la prueba.** El producto **no** esta inusable: instala, arranca, renderiza sin errores y el bucle de escritura funciona. El riesgo no era que estuviera roto, era que **nadie lo estaba comprobando antes de publicar**.
-
-**Criterios de Aceptación:**
-- [x] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
-- [x] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
-- [x] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
-- [x] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
-- [x] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
-- [x] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
-- [x] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
-- [x] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
-
----
-
-#### [DEV-337] El asistente init minimal anuncia tareas y entrega un backlog vacio con exit 0
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-El primer contacto de cualquier proyecto nuevo con gripm es `gripm --init`. En un proyecto aleatorio vacio, ejecutado desde el tarball instalado limpio el 2026-10-23:
-
-```
-node node_modules/@gripm/board/bin/gripm.js --init --yes --minimal --no-playbook --lang es
-```
-
-- **Sale con codigo 0** y cierra con mensajes de exito y con el consejo tipico de instalacion global.
-- **El perfil se anuncia prometiendo tareas.** `scripts/initScaffold.js:174` y `:179` describen la opcion como *"Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, **solo tareas y skill**)"*.
-- **Cero tareas creadas.** `backlog/tasks/` queda como directorio vacio.
-- **No se genera** `backlog/releases.json` ni `BACKLOG.md`.
-
-Lo unico que instancio:
-
-| Artefacto | Resultado |
-| --- | --- |
-| `.gripm/config.json` | 528 B, correcto |
-| `.agents/skills/gripm/SKILL.md` | 13966 B, correcto |
-| `.gitignore` | 58 B, correcto |
-| `backlog/tasks/` | **directorio vacio** |
-| `backlog/releases.json` | **ausente** |
-| `BACKLOG.md` | **ausente** |
-
-**Causa exacta, `scripts/initScaffold.js:356-364`:**
-
-```js
-const tasksDir = path.join(targetRepo, 'backlog/tasks');
-if (!fs.existsSync(tasksDir)) {
-  fs.mkdirSync(tasksDir, { recursive: true });
-}
-results.tasksDir = true;
-```
-
-El codigo solo crea el directorio y **declara el resultado cumplido**. No escribe ninguna tarea, pero `results.tasksDir = true` hace que el resumen reporte exito. El usuario ve un tick verde sobre un backlog vacio.
-
-**No es una caida.** El tablero tolera el backlog vacio: arranca, renderiza la pestana Tablero con estados vacios correctos (`Sin tareas en este estado`) y la pestana Versiones muestra su empty state sin errores de consola. Ademas el bucle de escritura funciona: desde la interfaz se creo `backlog/tasks/PROY-001 - Verificar instalacion limpia desde tarball npm.md` con frontmatter valido, codigo autogenerado y slug coincidente.
-
-**El defecto es de promesa, no de ejecucion.** El onboarding dice que entrega tareas y entrega una carpeta vacia marcada como exito. Un usuario que llega por primera vez queda con la duda de si algo fallo, y no hay ninguna tarea que le muestre como se usa el producto.
-
-**Criterios de Aceptación:**
-- [x] #1 El PO decide y queda registrado el comportamiento canonico: o `--init` siembra al menos una tarea de ejemplo en `backlog/tasks/`, o el perfil `minimal` deja de prometer tareas en `scripts/initScaffold.js:174` y `:179`. Decision: Opcion A (no sembrar, corregir texto).
-- [x] #2 Si se siembra, `gripm --init --yes --minimal --no-playbook` en un proyecto vacio crea al menos un archivo `.md` en `backlog/tasks/` y un `backlog/releases.json` que parsea como JSON. (No aplica: se adopto Opcion A).
-- [x] #3 Si no se siembra, el texto del perfil y la ayuda de `--init` describen exactamente los artefactos que genera (config, skill, `.gitignore` y directorio `backlog/tasks/`), sin mencionar tareas que no crea.
-- [x] #4 `results.tasksDir` no se declara cumplido sin evidencia: el resumen final de `--init` distingue entre directorio creado y contenido generado.
-- [x] #5 El paso clean-room de DEV-336 verifica el comportamiento final elegido, de modo que una regresion aqui falle la suite y no se archive como exito.
-- [x] #6 `npm test` sale con codigo 0 en Windows y con `npm run test:linux`.
-- [x] #7 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
-
----
-
 ### 📋 Backlog / Draft (20)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -1021,7 +748,7 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 
 ---
 
-### ✅ Done / Deployed (293)
+### ✅ Done / Deployed (301)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -8178,6 +7905,277 @@ En `1366x768` el botón `+ Nueva Tarea` del `Header` quedaba fuera del viewport 
 - [x] #3 El popover se cierra con `Escape` y con clic exterior, y la clave i18n `header.moreActions` existe en `es.json` y `en.json`
 - [x] #4 El drawer móvil incluye la entrada Papelera
 - [x] #5 `npx tsc --noEmit` y `npm test` (21 pasos) pasan con código 0
+
+---
+
+#### [DEV-323] Adopción y sincronización del Playbook Golden en gripm
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Adoptar en gripm el core estandarizado de `@gripm/playbook@2.6.0` y alinear todas las referencias a los nombres de rol renombrados (`worldclass-product-designer` -> `product-designer`, `rigorous-qa-auditor` -> `qa-auditor`).
+
+**Solo lado consumidor.** El framework esta terminado y certificado (PLAY-029, PLAY-030). Fuera de alcance: editar `gripm-playbook`, refactor editorial, traduccion de archivos del playbook, scripts one-off, y editar tareas historicas (`backlog/tasks/`, `docs/archive/`) que mencionan los nombres viejos.
+
+### Gates, abiertos a 2026-10-21
+
+- **Release**: tag remoto `v2.6.0` (`631df3c`) y npm `latest: 2.6.0`. El manifest del tag trae `product-designer` y `qa-auditor` en `core` y `coreSkills`.
+- **Lease antigravity**: `PLAY-026/027/028` en `done`, liberado por el PO.
+- **Ref del sync**: fijado explicitamente con `--tag v2.6.0`.
+
+### Alcance tecnico
+
+`scripts/sync-playbook.mjs` se auto-actualiza: el manifest de `v2.6.0` lo mete en `core`, el blob de gripm (`f4082e41`, 699 lineas) si existe en la historia upstream (commit `e5c8279`), y al no estar en `lock.files` la clasificacion arranca en `unknown` -> `findCanonicalProvenance` devuelve `canonical` -> el sync lo actualiza hacia adelante a la version modularizada (496 lineas). No hay que editar `FALLBACK_CORE_FILES` a mano. La version nueva importa `./lib/{terminal,provenance,sync-classifier}.mjs`, las tres en `core`, y su CLI es compatible con `playbook:check` y `playbook:sync`.
+
+`scripts/verify-publish-surface.js` si hay que editarlo a mano (lineas 54 y 56): es especifico del consumidor, no existe upstream.
+
+`scripts/audit-ux-code.cjs` **no** se toca: el lockfile lo registra en `customizations` (fork DEV-166) y `classifyLocalFile` lo devuelve `customization` por el lockfile antes de evaluar nada mas. El fork sobrevive al sync. Su retiro es labor de DEV-188.
+
+**Criterios de Aceptación:**
+- [x] #1 `npm run playbook:sync -- --tag v2.6.0 --yes` corre con exito y `.playbook-lock.json` queda con `ref: v2.6.0` y las rutas `product-designer` / `qa-auditor` en `files`.
+- [x] #2 El tarball npm no contiene archivos del framework del playbook (DEV-250). `npm run publish:check` con exit 0.
+- [x] #3 Los directorios `.agents/skills/worldclass-product-designer/` y `.agents/skills/rigorous-qa-auditor/` no existen, y los directorios `product-designer/` y `qa-auditor/` si.
+- [x] #4 `scripts/verify-publish-surface.js` referencia `product-designer` y `qa-auditor` en `FORBIDDEN_PLAYBOOK_ENTRIES`, y no quedan referencias a los nombres viejos en `scripts/`, `AGENTS.md`, `README.md` ni `README.es.md` (excluyendo `backlog/tasks/` y `docs/archive/`, que son historicos).
+- [x] #5 `scripts/scan-markdown-hygiene.mjs` no existe.
+- [x] #6 Piramide completa en verde: `npx tsc --noEmit`, `npm test`, `npm run test:linux`, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`.
+- [x] #7 Seccion desactualizada de `DEV-188` corregida: la advertencia que afirma que la divergencia de `audit-ux-code.cjs` quedo en cero desde v1.0.3 y que el archivo es byte a byte identico al tarball queda reemplazada por la medicion real, mas el hecho de que el fork sobrevive al sync.
+- [x] #8 `scripts/verify-changes.js` distingue **mencion** de **uso** en el guardrail Anti-Em-Dash, sin degradar la deteccion. `checkAntiEmDash` pasa la linea por `stripDashMentions` antes de medir.
+
+---
+
+#### [DEV-324] Corregir codePrefix GRIP por DEV en .gripm/config.json
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`.gripm/config.json` declara `"codePrefix": "GRIP"`, pero este repositorio usa el prefijo `DEV`. El bug ya causo un efecto observable: el CLI creo la tarea `GRIP-320` por error y hubo que renombrarla a `DEV-323`.
+
+`codePrefix` no es decorativo. Lo leen dos caminos de creacion:
+
+- `scripts/gripm-cli.js:920` lo usa para generar el ID de la tarea nueva.
+- `src/lib/sandbox.ts:144` y `src/lib/sandbox.ts:372` lo usan como `project?.codePrefix ?? 'TASK'`.
+
+Mientras el config declare `GRIP`, cualquier tarea creada desde la CLI o el sandbox de gripm sobre este repo vuelve a salir mal prefijada. Corregirlo es la mitigacion del defecto; la alternativa de proceso (escribir los IDs a mano) no arregla nada y deja la bomba armada.
+
+Revisar de paso la inconsistencia relacionada en el mismo archivo: `defaultView: "sprint"` contra `enabledTabs.sprint: false`.
+
+**Criterios de Aceptación:**
+- [x] #1 `.gripm/config.json` declara `"codePrefix": "DEV"`.
+- [x] #2 `npx tsc --noEmit` con 0 errores.
+- [x] #3 `npm test` con codigo 0.
+- [x] #4 `node scripts/verify-changes.js --all` con codigo 0.
+- [x] #5 No quedan tareas `GRIP-*` en `backlog/tasks/` ni referencias al prefijo `GRIP` como prefijo de este repo.
+
+---
+
+#### [DEV-325] Declarar los scripts del contrato del QA gate para desbloquear la certificacion mecanica
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`scripts/gate-qa.mjs` nunca pudo salir con codigo 0 en este repositorio. El motivo no es un defecto del script: es un **contrato de nombres sin satisfacer**.
+
+`qa-auditor/SKILL.md:69` lo declara textual:
+
+> A blocking step (`validate`/`typecheck`, `test`, `spec`, `audit:ux`) that has no defined script **fails the gate**.
+
+El gate lee el `package.json` del anfitrión y resuelve cada paso por nombre. El playbook declara esos nombres en su propio `package.json` (`validate`, `gate:review`, `audit:ux:strict`), pero **gripm nunca los declaro**. El contrato lo falto el consumidor, no el framework.
+
+Verificado en el upstream `v2.6.0`: el mensaje de error que emite gripm (`blocking step has no "validate" script in package.json; it cannot be certified on a step that never ran`) es identico carácter a carácter al de `scripts/lib/pyramid.mjs`. La logica del fork esta preservada. Ademas upstream ya preve anfitriones con otros nombres via `fallbackScripts: ['typecheck']`.
+
+Consecuencia del contrato insatisfecho: tres de cinco pasos son `blocking: true` y quedan `failed`, asi que el gate **no ha podido certificar ningun item** en la historia del repo. Los 293 `done` llegaron ahi sin certificacion mecanica.
+
+La correccion va en `package.json`, no en `gate-qa.mjs`. Editar el gate profundizaria un fork cuya unica razon de existir es cosmética (DEV-320 AC #3: encabezado abierto y glifos mono-ancho) y cerraria gripm a cualquier fix futuro del upstream.
+
+**Criterios de Aceptación:**
+- [x] #1 `package.json` define los tres scripts del contrato del gate: `validate`, `gate:review` y `audit:ux:strict`.
+- [x] #2 Los tres delegan en los scripts primarios existentes (`verify:changes`, `backlog:check`, `audit:ux`) sin duplicar el comando, para que la fuente unica de verdad siga siendo el script primario.
+- [x] #3 `validate` pasa `--all`, de modo que el paso verifique el arbol completo y no pueda certificar un pase vacio cuando nada esta stageado.
+- [x] #4 `node scripts/gate-qa.mjs DEV-325` ejecuta los cinco pasos de la pirámide y ninguno reporta `has no "..." script in package.json`.
+- [x] #5 `scripts/gate-qa.mjs` no fue modificado: su SHA-256 sigue coincidiendo con el registrado en `.playbook-lock.json`.
+- [x] #6 `npm run audit:ux:strict` sale con codigo 0.
+- [x] #7 `npm run validate` sale con codigo 0 verificando el arbol completo.
+- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [x] #9 `node scripts/verify-changes.js --all` sale con codigo 0.
+
+---
+
+#### [DEV-326] Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+`scripts/gate-qa.mjs` esta declarado como customizacion en `.playlock.json` por una razon que ya no existe. DEV-320 AC #3 lo marco para preservar sus mejoras de salida (encabezado abierto, glifos mono-ancho, eliminacion de cajas rigidas). Verificado caracter a caracter contra upstream `v2.6.0`, esas mejoras **ya estan en el canon**: `printHeader` y la paleta `c` son identicas, el bloque `Task:/ID:/Status:` es identico, los glifos `✖ ✔ ℹ ➜` son identicos y upstream tambien elimino las cajas `---`. Incluso mejora el original: su `isColorSupported` acepta cualquier `FORCE_COLOR` truthy, no solo `'1'`.
+
+Lo que el fork si diverge no es cosmético, es funcional, y en tres ejes:
+
+1. **No escribe nunca.** El fork no contiene `writeFileSync` ni `mutateTaskFrontmatter` en ningun camino. El canon escribe `status: ready` en T2, escribe status y limpia `blocked_reason` en T_unblock. El fork solo certifica y dice "may be promoted".
+2. **No implementa T0 ni T1.** `startMain` y `submitMain` no existen. Ejecutado: `node scripts/gate-qa.mjs start DEV-325` responde `no task found for "start"`, porque toma la palabra como identificador de tarea.
+3. **No soporta `--by`.** `pm-orchestrator/SKILL.md:87` ordena `--by "<provider>:<id>"`; el canon lo acepta (`--by`, `--as`, `--to`), el fork no.
+
+Las skills instaladas por DEV-323 (`qa-auditor/SKILL.md:52-53`, `pm-orchestrator/SKILL.md:22,87,90`) documentan el comportamiento del canon. Skills y herramienta quedaron fuera de sincronia porque el sync actualizo los primeros y protegio el segundo.
+
+Con el fork vivo, T2 no puede completarse por via mecanica: aunque todo este verde y el gate salga en 0, alguien tiene que escribir `ready` a mano. Eso explica por que los 293 `done` tuvieron que moverse a mano.
+
+**Criterios de Aceptación:**
+- [x] #1 `scripts/gate-qa.mjs` coincide byte a byte con el blob upstream `v2.6.0` (SHA-256 identico).
+- [x] #2 `.playbook-lock.json` ya no lista `scripts/gate-qa.mjs` en `customizations`.
+- [x] #3 `customizations` queda reducida exclusivamente a `scripts/audit-ux-code.cjs`.
+- [x] #4 `scripts/lib/frontmatter.mjs`, `scripts/lib/terminal.mjs` y `scripts/lib/pyramid.mjs` siguen presentes, porque el gate canonico los importa.
+- [x] #5 `node scripts/gate-qa.mjs DEV-326` sale con codigo 0, reporta los cinco pasos y escribe `status: ready` en el archivo de la tarea.
+- [x] #6 `node scripts/gate-qa.mjs start <ID>` reconoce `start` como transicion T0 y no como identificador de tarea.
+- [x] #7 `npx tsc --noEmit` sale con 0 errores y `node scripts/verify-changes.js --all` sale con codigo 0.
+- [x] #8 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0.
+- [x] #9 `npm run publish:check` sale con codigo 0.
+
+---
+
+#### [DEV-329] Captura rápida desde CLI sin abrir el board
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Hoy un humano que quiere registrar una tarea debe abrir el board en el browser o recurrir al MCP (que está pensado para agentes). OpenTodo expone `ot add "Call the plumber" --due tomorrow --priority 2` como binario separado. gripm ya distribuye el binario `gripm`, así que el camino natural es un subcomando de captura que escriba directamente en el storage del proyecto (`backlog/tasks/*.md` o `.gripm/backlog.json`).
+
+La escritura debe reutilizar el mismo motor de persistencia que el board y el MCP para que el resultado pase por `backlog:check` y `backlog:sync` sin divergencias. El comando debe respetar el engine de storage configurado del proyecto y fallar con mensaje claro si no hay proyecto inicializado.
+
+Es una iniciativa de descubrimiento: definir el contrato del comando (flags, salida, manejo de errores) antes de implementar, y evaluar si convive con un quick add en lenguaje natural (DEV-328) o lo precede.
+
+**Criterios de Aceptación:**
+- [x] #1 `gripm add` crea una tarea en el engine de storage activo del proyecto usando el mismo camino de escritura que el board.
+- [x] #2 La tarea resultante pasa `npm run backlog:check` sin correcciones posteriores.
+- [x] #3 El comando falla con mensaje accionable cuando el directorio no es un proyecto gripm inicializado.
+- [x] #4 Los flags documentados (título, fecha, prioridad, tipo) tienen cobertura de test o verificación ejecutable.
+- [x] #5 El uso queda documentado junto al resto de flags CLI del README.
+
+---
+
+#### [DEV-333] El chequeo de fantasmas no distingue archivos stageados de archivos sin trackear en commits por pathspec
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+`scripts/verify-backlog-sync.js:96-130` implementa el chequeo de tareas fantasma: si `BACKLOG.md` esta en el stage y referencia un archivo que git no trackea, el commit se rechaza. La deteccion recorre `git status --porcelain -z backlog/tasks/` y se queda solo con las entradas que empiezan por `?? `.
+
+Esa condicion es correcta para un commit normal. **No lo es para un commit por pathspec.**
+
+Cuando se ejecuta `git commit -m "..." -- <paths>`, git construye el commit a partir de HEAD **mas** los paths indicados, y el hook pre-commit corre contra ese indice temporal. Los archivos stageados en el indice principal que no estan en el pathspec aparecen ahi como `??` sin trackear, aunque en el indice real esten en `A `.
+
+Resultado medido (2026-10-22): seis tareas stageadas (`A `, creadas por otro agente) y un commit selectivo de DEV-326 por pathspec. El guard las detecto como fantasmas y bloqueo un commit que era legitimo.
+
+Peor aun, **las dos salidas que sugiere el error son incorrectas para ese caso**:
+
+1. `git add <los 6 archivos>` - arrastra trabajo de otro agente al commit del agente en curso, violando la norma de "una tarea, un commit consolidado".
+2. "Regenera BACKLOG.md sin esas tareas" - es imposible sin borrar los archivos de disco, que pertenecen a otro agente.
+
+El agente quedo sin salida mecanica y tuvo que escalar la decision al PO. La unica resolucion real era incluir las tareas en el commit, y eso solo se sostiene invocando el precedente de `fa9a19a`.
+
+El problema de fondo no es la deteccion: es que `BACKLOG.md` es un agregado que referencia **todas** las tareas del arbol, y por eso cualquier commit que lo incluya acopla al agente con todos los demás tareas pendientes. Ese acoplamiento ya le costo al repo una ocasion mas: el hook **antes** ejecutaba `git add BACKLOG.md backlog/`, que stageaba el directorio entero y arrastraba tareas ajenas. Se corrigio el indice (`verify-backlog-sync.js:367-372`) pero la politica de bloqueo reprodujo el mismo efecto por el lado opuesto. En ambos periodos, **commits selectivos imposibles**.
+
+**Criterios de Aceptación:**
+- [x] #1 El chequeo distingue tres casos y reporta cada uno con su nombre: archivo `??` sin trackear (fantasma real), archivo `A ` stageado en el indice principal, y archivo presente en el arbol pero fuera del commit por pathspec.
+- [x] #2 El mensaje de error **no** sugiere `git add` de archivos que pertenecen a otro agente ni la regeneracion del consolidado sin ellos, porque ambas salidas son invalidas en el caso pathspec.
+- [x] #3 Ante un commit por pathspec que deja fuera archivos stageados, el error nombra explicitamente el pathspec como causa y ofrece las dos salidas reales: incluirlos, o commitearlos antes.
+- [x] #4 `node scripts/verify-integration.js` cubre el caso: un repositorio de prueba con una tarea stageada y un commit por pathspec que la excluye. El test debe demostrar que el mensaje correcto aparece.
+- [x] #5 El chequeo sigue rechazando el fantasma real: un archivo `??` referenciado por el consolidado bloquea el commit como hasta ahora.
+- [x] #6 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
+
+---
+
+#### [DEV-336] El gate de QA nunca arranca el producto instalado desde el tarball
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+La suite `npm test` (21 pasos) certifica el repositorio, pero **nunca el producto tal como lo recibe un usuario**. El paso `package-smoke` hace `npm pack`, verifica el manifiesto de archivos, y ejecuta `--help`, `--version` y la sintaxis del binario MCP. Ahi termina: no arranca el servidor desde el tarball, no renderiza la interfaz, no instancia un proyecto nuevo y no prueba el bucle de escritura.
+
+`test:ui` existe pero esta fuera de `npm test` (gotcha 18), asi que tampoco cubre el render.
+
+**Cobertura antes de esta tarea:**
+
+| Verificacion | Cubierta por el gate |
+| --- | --- |
+| `npm pack` + manifiesto de archivos criticos | si |
+| `--help` / `--version` desde el tarball | si |
+| sintaxis del binario MCP | si |
+| arrancar el servidor desde el tarball | **no** |
+| render de la interfaz sin errores de consola | **no** |
+| proyecto random ejecutando `--init` | **no** |
+| bucle crear tarea -> persistencia en disco | **no** |
+| scripts `npm` anunciados por el `package.json` empaquetado | **no** |
+
+**Prueba clean-room ejecutada a mano el 2026-10-23** durante la preparacion de 1.9.0 (`npm pack` -> proyecto vacio -> `npm install <tarball>`), 15 checks, **12 PASS y 3 FAIL**:
+
+PASS:
+
+1. `npm run build` del repositorio.
+2. `npm pack` genera `gripm-board-1.9.0.tgz`.
+3. `npm install <tarball>` en un proyecto aleatorio sin nada preexistente.
+4. Shim `node_modules/.bin/gripm` instalado.
+5. `--version` sale codigo 0, imprime `1.9.0` y stderr vacio.
+6. `--help` sale codigo 0 y documenta el tablero.
+7. La estructura minima del proyecto instanciado queda montada.
+8. `gripm mcp` responde `initialize` por stdio con `serverInfo` correcto.
+9. El servidor arranca: `gripm v1.9.0  listo`, puerto en escucha por estado del sistema, stderr vacio.
+10. La interfaz renderiza con **cero errores de consola** y estados vacios correctos (`Sin tareas en este estado`).
+11. La pestana `Versiones` renderiza su empty state aunque falte `backlog/releases.json`.
+12. Una tarea creada desde la interfaz persiste como `backlog/tasks/PROY-001 - ....md` con frontmatter valido, codigo autogenerado y slug coincidente.
+
+FAIL:
+
+- **`gripm --init --yes --minimal --no-playbook` entrega backlog vacio con exit 0** -> levantado como **DEV-337**.
+- **`backlog/releases.json` no se genera en el proyecto nuevo** (consecuencia de DEV-337).
+- **`npm run validate` falla con codigo 1 dentro del paquete instalado**: el `package.json` empaquetado anuncia 32 scripts `npm` cuyo objetivo es `scripts/*.js`, directorio que el tarball excluye. El error es `Cannot find module .../scripts/verify-changes.js`. De esos 32 scripts, los que viajan al usuario son los unicos que apuntan a binarios si presentes (`gripm`, `board`, `mcp`).
+
+**Conclucion de la prueba.** El producto **no** esta inusable: instala, arranca, renderiza sin errores y el bucle de escritura funciona. El riesgo no era que estuviera roto, era que **nadie lo estaba comprobando antes de publicar**.
+
+**Criterios de Aceptación:**
+- [x] #1 Existe un paso de clean-room en `scripts/` que crea un proyecto temporal vacio, ejecuta `npm pack` e instala el tarball con `npm install <tarball>`, sin resolver nada desde el repositorio fuente.
+- [x] #2 El paso verifica `--version` (codigo 0, igual a la version del `package.json` empaquetado, stderr vacio) y `--help` contra el binario instalado y no contra `bin/` del repositorio.
+- [x] #3 El paso arranca el servidor del paquete instalado, confirma que el puerto queda en escucha consultando el estado del sistema (sin emitir peticiones HTTP locales, segun el gotcha 9) y que el proceso no termina ni escribe en stderr.
+- [x] #4 El paso verifica que una tarea creada persiste como archivo `.md` bajo `backlog/tasks/` con frontmatter valido que contiene `id`, `title` y `status`, y que el slug del archivo coincide con el `id`.
+- [x] #5 El paso ejecuta `gripm --init --yes --minimal --no-playbook` en un proyecto vacio y afirma exactamente lo que el propio CLI declara crear, de modo que una promesa incumplida del texto se detecte y no se archive como exito.
+- [x] #6 El paso verifica que cada script `npm` anunciado por el `package.json` empaquetado resuelve su archivo objetivo dentro del paquete instalado, o que tales scripts no viajan al tarball. Hoy `npm run validate` sale con codigo 1 dentro del paquete instalado.
+- [x] #7 El paso esta incluido en `npm test` y la suite completa sale con codigo 0 tanto en Windows como con `npm run test:linux`.
+- [x] #8 `npm run backlog:check`, `npm run publish:check` y `node scripts/verify-changes.js --all` salen con codigo 0 tras agregar el paso.
+
+---
+
+#### [DEV-337] El asistente init minimal anuncia tareas y entrega un backlog vacio con exit 0
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+El primer contacto de cualquier proyecto nuevo con gripm es `gripm --init`. En un proyecto aleatorio vacio, ejecutado desde el tarball instalado limpio el 2026-10-23:
+
+```
+node node_modules/@gripm/board/bin/gripm.js --init --yes --minimal --no-playbook --lang es
+```
+
+- **Sale con codigo 0** y cierra con mensajes de exito y con el consejo tipico de instalacion global.
+- **El perfil se anuncia prometiendo tareas.** `scripts/initScaffold.js:174` y `:179` describen la opcion como *"Minimalista AI-First (Recomendado: Kanban puro, sin timeboxes ni ceremonias, **solo tareas y skill**)"*.
+- **Cero tareas creadas.** `backlog/tasks/` queda como directorio vacio.
+- **No se genera** `backlog/releases.json` ni `BACKLOG.md`.
+
+Lo unico que instancio:
+
+| Artefacto | Resultado |
+| --- | --- |
+| `.gripm/config.json` | 528 B, correcto |
+| `.agents/skills/gripm/SKILL.md` | 13966 B, correcto |
+| `.gitignore` | 58 B, correcto |
+| `backlog/tasks/` | **directorio vacio** |
+| `backlog/releases.json` | **ausente** |
+| `BACKLOG.md` | **ausente** |
+
+**Causa exacta, `scripts/initScaffold.js:356-364`:**
+
+```js
+const tasksDir = path.join(targetRepo, 'backlog/tasks');
+if (!fs.existsSync(tasksDir)) {
+  fs.mkdirSync(tasksDir, { recursive: true });
+}
+results.tasksDir = true;
+```
+
+El codigo solo crea el directorio y **declara el resultado cumplido**. No escribe ninguna tarea, pero `results.tasksDir = true` hace que el resumen reporte exito. El usuario ve un tick verde sobre un backlog vacio.
+
+**No es una caida.** El tablero tolera el backlog vacio: arranca, renderiza la pestana Tablero con estados vacios correctos (`Sin tareas en este estado`) y la pestana Versiones muestra su empty state sin errores de consola. Ademas el bucle de escritura funciona: desde la interfaz se creo `backlog/tasks/PROY-001 - Verificar instalacion limpia desde tarball npm.md` con frontmatter valido, codigo autogenerado y slug coincidente.
+
+**El defecto es de promesa, no de ejecucion.** El onboarding dice que entrega tareas y entrega una carpeta vacia marcada como exito. Un usuario que llega por primera vez queda con la duda de si algo fallo, y no hay ninguna tarea que le muestre como se usa el producto.
+
+**Criterios de Aceptación:**
+- [x] #1 El PO decide y queda registrado el comportamiento canonico: o `--init` siembra al menos una tarea de ejemplo en `backlog/tasks/`, o el perfil `minimal` deja de prometer tareas en `scripts/initScaffold.js:174` y `:179`. Decision: Opcion A (no sembrar, corregir texto).
+- [x] #2 Si se siembra, `gripm --init --yes --minimal --no-playbook` en un proyecto vacio crea al menos un archivo `.md` en `backlog/tasks/` y un `backlog/releases.json` que parsea como JSON. (No aplica: se adopto Opcion A).
+- [x] #3 Si no se siembra, el texto del perfil y la ayuda de `--init` describen exactamente los artefactos que genera (config, skill, `.gitignore` y directorio `backlog/tasks/`), sin mencionar tareas que no crea.
+- [x] #4 `results.tasksDir` no se declara cumplido sin evidencia: el resumen final de `--init` distingue entre directorio creado y contenido generado.
+- [x] #5 El paso clean-room de DEV-336 verifica el comportamiento final elegido, de modo que una regresion aqui falle la suite y no se archive como exito.
+- [x] #6 `npm test` sale con codigo 0 en Windows y con `npm run test:linux`.
+- [x] #7 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
 
 ---
 

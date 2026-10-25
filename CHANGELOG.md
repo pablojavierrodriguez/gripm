@@ -11,7 +11,24 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
-En preparación: `1.9.0`.
+---
+
+## [1.9.0] - 2026-10-25 🚀 Captura Rapida CLI gripm add, Perfil Minimal y Blindaje de Pre-Commit y Empaquetado
+
+### 🎯 Resumen
+*Versión 1.9.0 de Gripm: nuevo comando CLI `gripm add` para captura rápida y determinista de tareas desde la terminal con soporte de flags (--priority, --due, --estimate, --tag) interoperable con Markdown y JSON (DEV-329), saneamiento integral del asistente de inicialización con perfil minimal evitando backlogs vacíos inesperados (DEV-337), blindaje del pre-commit hook de sincronización distinguiendo archivos stageados en commits por pathspec y eliminando falsos positivos en entornos concurrentes (DEV-333), incorporación de paso clean-room al gate de QA con prueba de arranque real y saneamiento del empaquetado npm excluyendo scripts de desarrollo del tarball final (DEV-336), corrección de prefijo canónico DEV y defaultView en .gripm/config.json (DEV-324), y adopción completa del Playbook Golden v2.6.0 con scripts del contrato de calidad y gate canónico (DEV-323, DEV-325, DEV-326).*
+
+### ⚡ Experiencia de Desarrollador y CLI
+- **DEV-329 - Captura Rápida desde CLI (`gripm add`):** Incorporación del comando nativo `gripm add <title> [options]` que permite registrar tareas de forma instantánea sin abrir el navegador. Soporta parámetros para prioridad (`-p, --priority`), fecha límite (`-d, --due`), estimación (`-e, --estimate`) y etiquetas (`-t, --tag`), persistiendo directamente en disco bajo el motor activo (Markdown multi-archivo o JSON centralizado) y garantizando sincronización con el MCP y el board.
+- **DEV-337 - Saneamiento del Asistente Init con Perfil Minimal:** Corrección en el flujo de inicialización (`gripm --init --minimal`), asegurando que la promesa de creación de tareas de ejemplo o backlog limpio se cumpla estrictamente sin generar estados inconsistentes ni anunciar tareas fantasma.
+
+### 🛡️ Blindaje de Integración, Git y Empaquetado
+- **DEV-333 - Blindaje de Pre-Commit Hook en Commits por Pathspec:** Corrección en `scripts/verify-backlog-sync.js` para consultar el índice principal de Git ante variables temporales (`GIT_INDEX_FILE`). Evita clasificar erróneamente tareas legítimamente stageadas como no trackeadas (`??`) durante commits parciales o en flujos de trabajo multi-agente concurrentes.
+- **DEV-336 - Paso Clean-Room en QA Gate y Saneamiento de Superficie npm:** Integración de un smoke test de instalación en aislamiento estricto que levanta el producto empaquetado real desde el tarball. Se incorporaron hooks automáticos de prepack y postpack que limpian scripts de desarrollo internos de `package.json`, reduciendo la superficie pública y blindando la seguridad del paquete publicado.
+- **DEV-324 - Alineación Canónica de Configuración de Repositorio:** Normalización de `.gripm/config.json` asegurando el prefijo canónico `codePrefix: "DEV"` y `defaultView: "kanban"`, erradicando discrepancias en la generación correlativa de identificadores.
+
+### 📐 Calidad y Playbook Golden v2.6.0
+- **DEV-323, DEV-325 y DEV-326 - Adopción de Playbook Golden v2.6.0:** Adopción integral del framework metodológico canónico v2.6.0, declaración de scripts de contrato de calidad (`validate`, `gate:review`, `audit:ux:strict`) en `package.json` y retiro de forks en favor de `gate-qa.mjs` canónico.
 
 ---
 

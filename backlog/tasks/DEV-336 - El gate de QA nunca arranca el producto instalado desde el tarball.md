@@ -1,7 +1,8 @@
 ---
 id: DEV-336
 title: "El gate de QA nunca arranca el producto instalado desde el tarball"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-23'
 updated_date: '2026-10-24'
 labels:

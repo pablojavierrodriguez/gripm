@@ -1,7 +1,8 @@
 ---
 id: DEV-333
 title: "El chequeo de fantasmas no distingue archivos stageados de archivos sin trackear en commits por pathspec"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-22'
 updated_date: '2026-10-25'
 labels:

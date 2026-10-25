@@ -1,7 +1,8 @@
 ---
 id: DEV-326
 title: "Retirar la customizacion de gate-qa.mjs y adoptar el gate canonico v2.6.0"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-21'
 updated_date: '2026-10-22'
 labels:

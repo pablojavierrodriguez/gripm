@@ -1,7 +1,8 @@
 ---
 id: DEV-324
 title: "Corregir codePrefix GRIP por DEV en .gripm/config.json"
-status: ready
+status: done
+release: "1.9.0"
 created_date: '2026-10-21'
 updated_date: '2026-10-25'
 labels:
