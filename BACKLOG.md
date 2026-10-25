@@ -748,7 +748,7 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 
 ---
 
-### ✅ Done / Deployed (301)
+### ✅ Done / Deployed (302)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -8176,6 +8176,25 @@ El codigo solo crea el directorio y **declara el resultado cumplido**. No escrib
 - [x] #5 El paso clean-room de DEV-336 verifica el comportamiento final elegido, de modo que una regresion aqui falle la suite y no se archive como exito.
 - [x] #6 `npm test` sale con codigo 0 en Windows y con `npm run test:linux`.
 - [x] #7 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
+
+---
+
+#### [DEV-338] Aislar NODE_OPTIONS y sanitizar ExperimentalWarning en test clean-room y CI
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+El workflow de GitHub Actions (`ci.yml`) falló en el job `verify` para los 3 runners de Node 22.6.0 (ubuntu-latest, macos-latest y windows-latest) durante el push del release v1.9.0 a `main` (Run 40165250123), impidiendo la ejecución del job dependiente `publish` y la publicación oficial del paquete en npmjs y GitHub Releases.
+
+La falla se originó por una combinación de factores:
+1. `ci.yml` inyectaba globalmente a nivel de job `NODE_OPTIONS: "--experimental-strip-types"`.
+2. En Node 22.6.0 (la versión inicial donde se introdujo type stripping), Node emite incondicionalmente a `stderr` el mensaje `(node:xxxx) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time`.
+3. `scripts/test-clean-room.js` heredaba `process.env.NODE_OPTIONS` al ejecutar los binarios empaquetados (`--version`, `--help`, server) y realizaba aserciones estrictas `assert.strictEqual(stderr.trim(), '')` sin limpiar el entorno ni sanitizar warnings del motor, a diferencia de `scripts/test-package-smoke.js`.
+
+**Criterios de Aceptación:**
+- [x] #1 `scripts/test-clean-room.js` ejecuta los binarios empaquetados bajo un entorno aislado `cleanEnv` sin `NODE_OPTIONS`.
+- [x] #2 `scripts/test-clean-room.js` sanitiza warnings del motor (incluyendo `ExperimentalWarning` de Node) antes de asertar stderr limpio en `--version`, `--help` y arranque de servidor.
+- [x] #3 `.github/workflows/ci.yml` retira `NODE_OPTIONS: "--experimental-strip-types"` global redundante de `jobs.verify.env` y `jobs.ui-smoke.env`.
+- [x] #4 `scripts/test-clean-room.js` pasa exitosamente incluso si se invoca con `NODE_OPTIONS="--experimental-strip-types"`.
+- [x] #5 La suite completa `npm test` pasa con código 0 y `node scripts/verify-changes.js --all` sale con código 0.
 
 ---
 

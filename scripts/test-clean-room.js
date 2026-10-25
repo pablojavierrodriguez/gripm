@@ -103,25 +103,38 @@ async function run() {
     assert.ok(hasShim, 'El shim node_modules/.bin/gripm debe existir');
     console.log(`  ${c.green('✔')} AC #1 PASS: Instalación clean-room completada.`);
 
+    // Clean environment for packaged binary execution (removes development NODE_OPTIONS)
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.NODE_OPTIONS;
+
+    // Helper to sanitize engine-level warnings (such as ExperimentalWarning in Node 22.6.0)
+    const sanitizeStderr = (err) =>
+      String(err || '')
+        .replace(/\(node:\d+\)\s*ExperimentalWarning:[^\n]*\n?/g, '')
+        .replace(/\(Use `node --trace-warnings \.\.\.`[^\n]*\n?/g, '')
+        .trim();
+
     // 2. AC #2: Verify --version and --help
     console.log(`  ${c.cyan('•')} AC #2: Verificando --version y --help desde el binario instalado...`);
     const versionRes = spawnSync(process.execPath, [installedBin, '--version'], {
       cwd: projDir,
       encoding: 'utf8',
-      timeout: 15000
+      timeout: 15000,
+      env: cleanEnv
     });
     assert.strictEqual(versionRes.status, 0, `--version debe salir con código 0, recibido status ${versionRes.status}`);
     assert.strictEqual(versionRes.stdout.trim(), installedPkgJson.version, `--version debe imprimir exactamente "${installedPkgJson.version}"`);
-    assert.strictEqual(versionRes.stderr.trim(), '', `--version no debe escribir en stderr, recibido: ${versionRes.stderr}`);
+    assert.strictEqual(sanitizeStderr(versionRes.stderr), '', `--version no debe escribir en stderr, recibido: ${versionRes.stderr}`);
 
     const helpRes = spawnSync(process.execPath, [installedBin, '--help'], {
       cwd: projDir,
       encoding: 'utf8',
-      timeout: 15000
+      timeout: 15000,
+      env: cleanEnv
     });
     assert.strictEqual(helpRes.status, 0, `--help debe salir con código 0, recibido status ${helpRes.status}`);
     assert.ok(helpRes.stdout.toLowerCase().includes('gripm'), '--help debe documentar gripm');
-    assert.strictEqual(helpRes.stderr.trim(), '', `--help no debe escribir en stderr, recibido: ${helpRes.stderr}`);
+    assert.strictEqual(sanitizeStderr(helpRes.stderr), '', `--help no debe escribir en stderr, recibido: ${helpRes.stderr}`);
     console.log(`  ${c.green('✔')} AC #2 PASS: --version y --help verificados exitosamente.`);
 
     // 3. AC #5: Execute gripm --init --yes --minimal --no-playbook and assert declarations
@@ -137,7 +150,7 @@ async function run() {
       encoding: 'utf8',
       timeout: 30000,
       env: {
-        ...process.env,
+        ...cleanEnv,
         GRIPM_HOME: homeDir,
         GRIPM_NO_UPDATE_CHECK: '1',
         NO_COLOR: '1'
@@ -179,7 +192,7 @@ async function run() {
     const mcpProc = spawn(process.execPath, [mcpBin], {
       cwd: projDir,
       env: {
-        ...process.env,
+        ...cleanEnv,
         GRIPM_HOME: homeDir,
         GRIPM_NO_UPDATE_CHECK: '1'
       },
@@ -257,7 +270,7 @@ async function run() {
     ], {
       cwd: projDir,
       env: {
-        ...process.env,
+        ...cleanEnv,
         GRIPM_HOME: homeDir,
         GRIPM_NO_UPDATE_CHECK: '1',
         NO_COLOR: '1'
@@ -287,7 +300,7 @@ async function run() {
     // System-level socket check (consulting OS listening state via TCP connect probe without HTTP, per gotcha 9)
     const portFree = await isPortAvailable(serverPort, '127.0.0.1');
     assert.strictEqual(portFree, false, `El puerto ${serverPort} debe estar ocupado y en escucha en el sistema`);
-    assert.strictEqual(serverStderr.trim(), '', `El servidor no debe emitir errores en stderr, recibido: ${serverStderr}`);
+    assert.strictEqual(sanitizeStderr(serverStderr), '', `El servidor no debe emitir errores en stderr, recibido: ${serverStderr}`);
 
     // Terminate server cleanly
     serverChild.kill();
