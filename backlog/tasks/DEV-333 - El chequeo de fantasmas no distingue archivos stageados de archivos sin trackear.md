@@ -1,13 +1,14 @@
 ---
 id: DEV-333
 title: "El chequeo de fantasmas no distingue archivos stageados de archivos sin trackear en commits por pathspec"
-status: draft
+status: ready
 created_date: '2026-10-22'
-updated_date: '2026-10-22'
+updated_date: '2026-10-25'
 labels:
   - "git"
   - "guards"
   - "backlog"
+dependencies: []
 priority: high
 type: bug
 estimate: 2
@@ -37,12 +38,12 @@ El problema de fondo no es la deteccion: es que `BACKLOG.md` es un agregado que 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 El chequeo distingue tres casos y reporta cada uno con su nombre: archivo `??` sin trackear (fantasma real), archivo `A ` stageado en el indice principal, y archivo presente en el arbol pero fuera del commit por pathspec.
-- [ ] #2 El mensaje de error **no** sugiere `git add` de archivos que pertenecen a otro agente ni la regeneracion del consolidado sin ellos, porque ambas salidas son invalidas en el caso pathspec.
-- [ ] #3 Ante un commit por pathspec que deja fuera archivos stageados, el error nombra explicitamente el pathspec como causa y ofrece las dos salidas reales: incluirlos, o commitearlos antes.
-- [ ] #4 `node scripts/verify-integration.js` cubre el caso: un repositorio de prueba con una tarea stageada y un commit por pathspec que la excluye. El test debe demostrar que el mensaje correcto aparece.
-- [ ] #5 El chequeo sigue rechazando el fantasma real: un archivo `??` referenciado por el consolidado bloquea el commit como hasta ahora.
-- [ ] #6 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
+- [x] #1 El chequeo distingue tres casos y reporta cada uno con su nombre: archivo `??` sin trackear (fantasma real), archivo `A ` stageado en el indice principal, y archivo presente en el arbol pero fuera del commit por pathspec.
+- [x] #2 El mensaje de error **no** sugiere `git add` de archivos que pertenecen a otro agente ni la regeneracion del consolidado sin ellos, porque ambas salidas son invalidas en el caso pathspec.
+- [x] #3 Ante un commit por pathspec que deja fuera archivos stageados, el error nombra explicitamente el pathspec como causa y ofrece las dos salidas reales: incluirlos, o commitearlos antes.
+- [x] #4 `node scripts/verify-integration.js` cubre el caso: un repositorio de prueba con una tarea stageada y un commit por pathspec que la excluye. El test debe demostrar que el mensaje correcto aparece.
+- [x] #5 El chequeo sigue rechazando el fantasma real: un archivo `??` referenciado por el consolidado bloquea el commit como hasta ahora.
+- [x] #6 `npm run backlog:check` y `node scripts/verify-changes.js --all` salen con codigo 0.
 <!-- AC:END -->
 
 ## Implementation Plan

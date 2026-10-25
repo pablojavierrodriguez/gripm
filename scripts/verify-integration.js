@@ -948,6 +948,142 @@ try {
   }
 }
 
+// DEV-333: Pre-commit guard distingue archivos stageados de archivos sin trackear en commits por pathspec
+{
+  const tempGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-git-dev333-'));
+  const testTasksDir = path.join(tempGitDir, 'backlog/tasks');
+  fs.mkdirSync(testTasksDir, { recursive: true });
+
+  const verifyScriptPath = path.resolve(__dirname, 'verify-backlog-sync.js');
+
+  try {
+    execSync('git init', { cwd: tempGitDir, stdio: 'pipe' });
+    execSync('git config user.name "Tester" && git config user.email "test@example.com"', { cwd: tempGitDir, stdio: 'pipe' });
+
+    // Tarea 1: Base ya commiteada
+    const baseTaskFile = path.join(testTasksDir, 'DEV-100 - base-task.md');
+    fs.writeFileSync(baseTaskFile, `---
+id: DEV-100
+title: Base task
+status: done
+---
+`, 'utf8');
+
+    // BACKLOG.md inicial
+    const backlogFile = path.join(tempGitDir, 'BACKLOG.md');
+    fs.writeFileSync(backlogFile, `# Backlog
+- [DEV-100](backlog/tasks/DEV-100%20-%20base-task.md)
+`, 'utf8');
+
+    execSync('git add . && git commit -m "initial commit"', { cwd: tempGitDir, stdio: 'pipe' });
+
+    // Tarea 2: Tarea stageada en el índice principal (ej. creada por otro agente)
+    const otherAgentTaskFile = path.join(testTasksDir, 'DEV-200 - other-agent-task.md');
+    fs.writeFileSync(otherAgentTaskFile, `---
+id: DEV-200
+title: Other agent task
+status: doing
+---
+`, 'utf8');
+    execSync('git add "backlog/tasks/DEV-200 - other-agent-task.md"', { cwd: tempGitDir, stdio: 'pipe' });
+
+    // Tarea 3: Archivo sin trackear real (fantasma)
+    const ghostTaskFile = path.join(testTasksDir, 'DEV-300 - ghost-task.md');
+    fs.writeFileSync(ghostTaskFile, `---
+id: DEV-300
+title: Ghost task
+status: draft
+---
+`, 'utf8');
+
+    // BACKLOG.md referencia a DEV-100, DEV-200 y DEV-300
+    fs.writeFileSync(backlogFile, `# Backlog
+- [DEV-100](backlog/tasks/DEV-100%20-%20base-task.md)
+- [DEV-200](backlog/tasks/DEV-200%20-%20other-agent-task.md)
+- [DEV-300](backlog/tasks/DEV-300%20-%20ghost-task.md)
+`, 'utf8');
+
+    // Escenario A: Commit por pathspec excluyendo la tarea stageada DEV-200
+    // Simulamos el hook pre-commit corriendo bajo un commit por pathspec (GIT_INDEX_FILE apunta a un índice temporal)
+    const tempIndexLock = path.join(tempGitDir, '.git/temp-index.lock');
+    // Creamos el índice temporal con solo BACKLOG.md staged
+    execSync(`git read-tree HEAD`, { cwd: tempGitDir, env: { ...process.env, GIT_INDEX_FILE: tempIndexLock }, stdio: 'pipe' });
+    execSync(`git add BACKLOG.md`, { cwd: tempGitDir, env: { ...process.env, GIT_INDEX_FILE: tempIndexLock }, stdio: 'pipe' });
+
+    // Si BACKLOG solo referencia a DEV-200 (stageada en índice principal), debe detectar pathspec y NO fantasma
+    const backlogOnly200 = `# Backlog
+- [DEV-100](backlog/tasks/DEV-100%20-%20base-task.md)
+- [DEV-200](backlog/tasks/DEV-200%20-%20other-agent-task.md)
+`;
+    fs.writeFileSync(backlogFile, backlogOnly200, 'utf8');
+    execSync(`git add BACKLOG.md`, { cwd: tempGitDir, env: { ...process.env, GIT_INDEX_FILE: tempIndexLock }, stdio: 'pipe' });
+
+    let pathspecErrorOutput = '';
+    try {
+      execSync(`node "${verifyScriptPath}" --hook`, {
+        cwd: tempGitDir,
+        env: { ...process.env, GIT_INDEX_FILE: tempIndexLock },
+        stdio: 'pipe'
+      });
+      assert.fail('Should have failed when pathspec excludes staged task referenced in BACKLOG.md');
+    } catch (err) {
+      pathspecErrorOutput = (err.stderr || err.stdout || '').toString();
+    }
+
+    assert.ok(
+      pathspecErrorOutput.includes('El commit por pathspec excluye tarea(s) stageadas en el índice principal'),
+      'DEV-333: Must identify pathspec commit as cause'
+    );
+    assert.ok(
+      pathspecErrorOutput.includes('stageada en índice principal con \'A \''),
+      'DEV-333: Must report status in main index'
+    );
+    assert.ok(
+      !pathspecErrorOutput.includes('archivos fantasma reales'),
+      'DEV-333: Must NOT falsely report staged tasks as real ghost files'
+    );
+    assert.ok(
+      pathspecErrorOutput.includes('1. Incluir los archivos en el pathspec del commit'),
+      'DEV-333: Must offer legitimate solution 1'
+    );
+    assert.ok(
+      pathspecErrorOutput.includes('2. Commitear previamente los archivos stageados en su respectiva rama/tarea'),
+      'DEV-333: Must offer legitimate solution 2'
+    );
+
+    // Escenario B: Fantasma real (archivo ?? no stageado en ningún índice pero referenciado en BACKLOG.md)
+    fs.writeFileSync(backlogFile, `# Backlog
+- [DEV-100](backlog/tasks/DEV-100%20-%20base-task.md)
+- [DEV-300](backlog/tasks/DEV-300%20-%20ghost-task.md)
+`, 'utf8');
+    execSync('git add BACKLOG.md', { cwd: tempGitDir, stdio: 'pipe' });
+
+    let ghostErrorOutput = '';
+    try {
+      execSync(`node "${verifyScriptPath}" --hook`, {
+        cwd: tempGitDir,
+        stdio: 'pipe'
+      });
+      assert.fail('Should have failed when real untracked ghost task is referenced in BACKLOG.md');
+    } catch (err) {
+      ghostErrorOutput = (err.stderr || err.stdout || '').toString();
+    }
+
+    assert.ok(
+      ghostErrorOutput.includes('archivos fantasma reales'),
+      'DEV-333: Must reject real ghost tasks (?? untracked)'
+    );
+    assert.ok(
+      ghostErrorOutput.includes('DEV-300'),
+      'DEV-333: Must name the untracked ghost task'
+    );
+
+    console.log('✅ DEV-333: Pre-commit guard distinguishes pathspec-excluded staged tasks from untracked ghost files');
+  } finally {
+    fs.rmSync(tempGitDir, { recursive: true, force: true });
+  }
+}
+
 // Clean up test files
 fs.rmSync(testRepoDir, { recursive: true, force: true });
 console.log('🧹 Cleaned up test directory');

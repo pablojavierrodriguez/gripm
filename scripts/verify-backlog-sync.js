@@ -93,6 +93,7 @@ if (isHookMode) {
   }
 
   // 2. Si BACKLOG.md está en el stage, verificar que no referencie tareas no trackeadas (archivos fantasma)
+  // o tareas excluidas por commit selectivo con pathspec.
   if (isBacklogStaged) {
     try {
       const untrackedOut = execSync('git status --porcelain -z backlog/tasks/', {
@@ -115,28 +116,77 @@ if (isHookMode) {
           stdio: ['pipe', 'pipe', 'pipe']
         });
 
-        const ghostTasks = [];
+        // Obtener status contra el índice principal si Git está ejecutando un commit por pathspec
+        // (en ese caso Git define GIT_INDEX_FILE apuntando a un archivo temporal como .git/next-index-*.lock)
+        const isPathspecCommit = Boolean(process.env.GIT_INDEX_FILE);
+        let mainIndexStatusMap = new Map();
+
+        if (isPathspecCommit) {
+          try {
+            const mainEnv = { ...process.env };
+            delete mainEnv.GIT_INDEX_FILE;
+            const mainStatusOut = execSync('git status --porcelain -z backlog/tasks/', {
+              cwd: currentRepoDir,
+              encoding: 'utf8',
+              stdio: ['pipe', 'pipe', 'pipe'],
+              env: mainEnv
+            });
+            const mainEntries = mainStatusOut.split('\0').filter(Boolean);
+            for (const mEntry of mainEntries) {
+              const statusCode = mEntry.slice(0, 2);
+              const filePath = mEntry.slice(3);
+              mainIndexStatusMap.set(filePath, statusCode);
+            }
+          } catch {
+            // Si falla la consulta al índice principal, se procesará defensivamente
+          }
+        }
+
+        const realGhostTasks = [];
+        const pathspecExcludedStagedTasks = [];
+
         for (const uf of untrackedFiles) {
           const base = path.basename(uf);
           const taskIdMatch = base.match(/^([A-Za-z0-9_-]+)/);
           if (taskIdMatch) {
             const taskId = taskIdMatch[1];
             if (stagedBacklogContent.includes(taskId)) {
-              ghostTasks.push({ id: taskId, file: uf });
+              const mainStatus = mainIndexStatusMap.get(uf);
+              // Si en el índice principal está stageado (ej. 'A ', 'M ', 'AM', etc.), es un pathspec commit
+              if (isPathspecCommit && mainStatus && (mainStatus[0] === 'A' || mainStatus[0] === 'M')) {
+                pathspecExcludedStagedTasks.push({ id: taskId, file: uf, statusInMainIndex: mainStatus });
+              } else {
+                realGhostTasks.push({ id: taskId, file: uf });
+              }
             }
           }
         }
 
-        if (ghostTasks.length > 0) {
-          console.error(`\n  ${c.red('✖')} Commit rechazado: BACKLOG.md referencia tarea(s) que no están trackeadas en Git (archivos fantasma):`);
-          ghostTasks.forEach(g => console.error(`    ${c.dim('•')} ${g.id} (archivo sin trackear: ${g.file})`));
+        if (pathspecExcludedStagedTasks.length > 0) {
+          console.error(`\n  ${c.red('✖')} Commit rechazado: El commit por pathspec excluye tarea(s) stageadas en el índice principal que están referenciadas en "BACKLOG.md":`);
+          pathspecExcludedStagedTasks.forEach(g => console.error(`    ${c.dim('•')} ${g.id} (stageada en índice principal con '${g.statusInMainIndex}': ${g.file})`));
+          console.error(`\n    ${c.yellow('▲')} Causa:`);
+          console.error('      El commit se ejecutó con un pathspec selectivo (ej. "git commit -- <paths>"). Git aisló el commit');
+          console.error('      en un índice temporal donde las tareas stageadas en el índice principal quedaron excluidas.');
+          console.error(`\n    ${c.yellow('▲')} Para resolverlo legítimamente sin arrastrar trabajo ajeno:`);
+          console.error('      1. Incluir los archivos en el pathspec del commit si corresponden a esta entrega, o');
+          console.error('      2. Commitear previamente los archivos stageados en su respectiva rama/tarea antes de este commit.\n');
+          process.exit(1);
+        }
+
+        if (realGhostTasks.length > 0) {
+          console.error(`\n  ${c.red('✖')} Commit rechazado: BACKLOG.md referencia tarea(s) que no están trackeadas en Git (archivos fantasma reales):`);
+          realGhostTasks.forEach(g => console.error(`    ${c.dim('•')} ${g.id} (archivo sin trackear: ${g.file})`));
           console.error(`\n    ${c.yellow('▲')} Para resolverlo:`);
-          console.error('      git add ' + ghostTasks.map(g => `"${g.file}"`).join(' '));
+          console.error('      git add ' + realGhostTasks.map(g => `"${g.file}"`).join(' '));
           console.error('      O regenera BACKLOG.md sin esas tareas antes de commitear.\n');
           process.exit(1);
         }
       }
-    } catch {
+    } catch (e) {
+      if (e && e.status) {
+        process.exit(e.status);
+      }
       // Ignorar fallas de lectura de status en entornos restringidos
     }
   }
