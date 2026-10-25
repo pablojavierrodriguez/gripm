@@ -448,598 +448,6 @@ var init_legacyParser = __esm({
   }
 });
 
-// server/services/atomicWrite.ts
-import fs5 from "node:fs";
-import path5 from "node:path";
-function parseOptions(options) {
-  let encoding = "utf8";
-  let mode = void 0;
-  if (typeof options === "string") {
-    encoding = options;
-  } else if (options && typeof options === "object") {
-    if ("encoding" in options && options.encoding) {
-      encoding = options.encoding;
-    }
-    if ("mode" in options && typeof options.mode === "number") {
-      mode = options.mode;
-    }
-  }
-  return { encoding, mode };
-}
-function atomicWriteFileSync2(filePath, content, options) {
-  const resolvedPath = path5.resolve(filePath);
-  const dir = path5.dirname(resolvedPath);
-  if (!fs5.existsSync(dir)) {
-    fs5.mkdirSync(dir, { recursive: true });
-  }
-  const { encoding, mode } = parseOptions(options);
-  const tempPath = `${resolvedPath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
-  let fd;
-  let renamed = false;
-  try {
-    fd = fs5.openSync(tempPath, "w", mode);
-    if (typeof content === "string") {
-      fs5.writeFileSync(fd, content, { encoding });
-    } else {
-      fs5.writeFileSync(fd, content);
-    }
-    fs5.fsyncSync(fd);
-    fs5.closeSync(fd);
-    fd = void 0;
-    let attempts = 0;
-    while (!renamed) {
-      try {
-        fs5.renameSync(tempPath, resolvedPath);
-        renamed = true;
-      } catch (renameErr) {
-        attempts++;
-        if ((renameErr.code === "EPERM" || renameErr.code === "EACCES" || renameErr.code === "EBUSY") && attempts <= 5) {
-          const end = Date.now() + 10;
-          while (Date.now() < end) {
-          }
-          continue;
-        }
-        throw renameErr;
-      }
-    }
-  } finally {
-    if (fd !== void 0) {
-      try {
-        fs5.closeSync(fd);
-      } catch {
-      }
-    }
-    if (!renamed && fs5.existsSync(tempPath)) {
-      try {
-        fs5.unlinkSync(tempPath);
-      } catch {
-      }
-    }
-  }
-}
-var init_atomicWrite = __esm({
-  "server/services/atomicWrite.ts"() {
-    "use strict";
-  }
-});
-
-// server/services/registry.ts
-var registry_exports = {};
-__export(registry_exports, {
-  DEFAULT_CONFIG: () => DEFAULT_CONFIG,
-  DEMO_FILE: () => DEMO_FILE,
-  PKG_ROOT: () => PKG_ROOT2,
-  detectProjectStorage: () => detectProjectStorage,
-  getBacklogTasksDir: () => getBacklogTasksDir,
-  getConfigFilepath: () => getConfigFilepath,
-  getProjectBacklogPath: () => getProjectBacklogPath,
-  getProjectDocsPath: () => getProjectDocsPath,
-  getRegistry: () => getRegistry,
-  isBacklogMdProject: () => isBacklogMdProject,
-  readProjectConfig: () => readProjectConfig,
-  saveRegistry: () => saveRegistry,
-  writeProjectConfig: () => writeProjectConfig
-});
-import fs6 from "node:fs";
-import path6 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
-function detectProjectStorage(repoPath) {
-  if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
-  const normalized = path6.normalize(repoPath.trim());
-  try {
-    if (fs6.existsSync(path6.join(normalized, "backlog", "tasks"))) {
-      return { storageType: "markdown", backlogDir: "backlog" };
-    }
-    if (fs6.existsSync(path6.join(normalized, ".backlog", "tasks"))) {
-      return { storageType: "markdown", backlogDir: ".backlog" };
-    }
-    if (fs6.existsSync(path6.join(normalized, "backlog"))) {
-      return { storageType: "markdown", backlogDir: "backlog" };
-    }
-    if (fs6.existsSync(path6.join(normalized, ".backlog"))) {
-      return { storageType: "markdown", backlogDir: ".backlog" };
-    }
-  } catch {
-  }
-  return { storageType: "json", backlogDir: "backlog" };
-}
-function isBacklogMdProject(project) {
-  if (project.isDemo) return false;
-  if (project.storageType === "markdown") return true;
-  if (project.storageType === "json") return false;
-  if (project.repoPath) {
-    return detectProjectStorage(project.repoPath).storageType === "markdown";
-  }
-  return false;
-}
-function getBacklogTasksDir(project) {
-  const dir = project.backlogDir || "backlog";
-  return path6.join(project.repoPath || "", dir, "tasks");
-}
-function getProjectDocsPath(project) {
-  if (project.docsPath && fs6.existsSync(project.docsPath)) {
-    return project.docsPath;
-  }
-  if (project.repoPath) {
-    const defaultDocs = path6.join(project.repoPath, "docs");
-    if (fs6.existsSync(defaultDocs)) {
-      try {
-        const files = fs6.readdirSync(defaultDocs);
-        const hasDocFiles = files.some(
-          (f) => ["quality_log.md", "backlog.md", "release_notes.md"].includes(f.toLowerCase()) || f.toLowerCase() === "specs"
-        );
-        if (hasDocFiles) return defaultDocs;
-      } catch {
-      }
-    }
-  }
-  return null;
-}
-function getRegistry() {
-  let reg = loadRegistryFile(PKG_ROOT2);
-  if (!reg || !Array.isArray(reg.projects)) {
-    reg = { activeProjectId: "", projects: [] };
-  }
-  const cwd = process.cwd();
-  const hasLocalGripm = fs6.existsSync(path6.join(cwd, ".gripm")) || fs6.existsSync(path6.join(cwd, "backlog"));
-  if (hasLocalGripm) {
-    const cwdResolved = path6.resolve(cwd);
-    const existingLocal = reg.projects.find((p) => p.repoPath && path6.resolve(p.repoPath) === cwdResolved);
-    if (!existingLocal) {
-      const detected = detectProjectStorage(cwdResolved);
-      const identity = resolveProjectIdentity(cwdResolved);
-      const localProject = {
-        id: identity.id,
-        name: identity.name,
-        codePrefix: identity.codePrefix,
-        repoPath: cwdResolved,
-        storageType: detected.storageType,
-        backlogDir: detected.backlogDir || "backlog",
-        createdAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      reg.projects.unshift(localProject);
-      if (!reg.activeProjectId || reg.projects.length === 1) {
-        reg.activeProjectId = identity.id;
-      }
-    } else {
-      const identity = resolveProjectIdentity(cwdResolved);
-      if (identity.id && identity.id !== existingLocal.id) {
-        existingLocal.id = identity.id;
-      }
-      existingLocal.name = identity.name || existingLocal.name;
-      existingLocal.codePrefix = identity.codePrefix || existingLocal.codePrefix;
-      if (!reg.activeProjectId) {
-        reg.activeProjectId = existingLocal.id;
-      }
-    }
-  }
-  reg.projects = reg.projects.filter((p) => {
-    if (p.isDemo || p.id === "demo") return true;
-    if (p.repoPath && !fs6.existsSync(p.repoPath)) return false;
-    return true;
-  });
-  if (reg.projects.length === 0) {
-    reg = {
-      activeProjectId: "demo",
-      projects: [
-        {
-          id: "demo",
-          name: "Proyecto Demo (Tour)",
-          codePrefix: "DEMO",
-          description: "Proyecto de demostraci\xF3n de gripm. Puedes explorarlo o eliminarlo en cualquier momento.",
-          isDemo: true,
-          storageType: "json",
-          createdAt: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      ]
-    };
-  }
-  reg.projects = reg.projects.map((p) => {
-    if (!p.storageType && p.repoPath) {
-      const detected = detectProjectStorage(p.repoPath);
-      return { ...p, storageType: detected.storageType, backlogDir: detected.backlogDir };
-    }
-    return { ...p, storageType: p.storageType || "json" };
-  });
-  return reg;
-}
-function saveRegistry(registry) {
-  const sanitized = {
-    ...registry,
-    projects: registry.projects.map((p) => {
-      const clean = { ...p };
-      if (!clean.isDemo) {
-        delete clean.isDemo;
-      }
-      return clean;
-    })
-  };
-  saveRegistryFile(sanitized, PKG_ROOT2);
-}
-function getProjectBacklogPath(project) {
-  if (project.isDemo) {
-    return DEMO_FILE;
-  }
-  if (project.repoPath) {
-    return path6.join(project.repoPath, ".gripm/backlog.json");
-  }
-  return path6.resolve(PKG_ROOT2, `data/${project.id}-backlog.json`);
-}
-function getConfigFilepath(project) {
-  const repo = project?.repoPath || process.cwd();
-  return path6.join(repo, ".gripm/config.json");
-}
-function readProjectConfig(project) {
-  if (project?.isDemo || project?.id === "demo") {
-    return { ...DEFAULT_CONFIG };
-  }
-  const configFile = getConfigFilepath(project);
-  try {
-    if (fs6.existsSync(configFile)) {
-      const raw = fs6.readFileSync(configFile, "utf8");
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed, _filepath: configFile };
-    }
-  } catch (err) {
-    console.warn(`[gripm Config] Failed to read ${configFile}:`, err.message);
-  }
-  return { ...DEFAULT_CONFIG, _filepath: configFile };
-}
-function writeProjectConfig(config, project) {
-  const repo = project?.repoPath || process.cwd();
-  const configFile = path6.join(repo, ".gripm/config.json");
-  const dir = path6.dirname(configFile);
-  if (!fs6.existsSync(dir)) {
-    fs6.mkdirSync(dir, { recursive: true });
-  }
-  const toSave = { ...config };
-  delete toSave._filepath;
-  atomicWriteFileSync2(configFile, JSON.stringify(toSave, null, 2), "utf8");
-  return configFile;
-}
-var __filename3, __dirname3, PKG_ROOT2, DEMO_FILE, DEFAULT_CONFIG;
-var init_registry = __esm({
-  "server/services/registry.ts"() {
-    "use strict";
-    init_registryConfig();
-    init_atomicWrite();
-    __filename3 = fileURLToPath3(import.meta.url);
-    __dirname3 = path6.dirname(__filename3);
-    PKG_ROOT2 = path6.resolve(__dirname3, "../../");
-    DEMO_FILE = fs6.existsSync(path6.resolve(PKG_ROOT2, "data/demo-backlog.json")) ? path6.resolve(PKG_ROOT2, "data/demo-backlog.json") : path6.resolve(PKG_ROOT2, "src/data/demo-backlog.json");
-    DEFAULT_CONFIG = {
-      theme: "dark",
-      density: "comfortable",
-      autoSave: true,
-      kanban: {
-        showIdeasByDefault: false,
-        showDoneHistoryByDefault: false,
-        wipLimits: {
-          "col-doing": 0,
-          "col-review": 0,
-          "col-ready": 0
-        }
-      },
-      version: "1.0.0"
-    };
-  }
-});
-
-// server/sse/sseManager.ts
-import fs7 from "node:fs";
-import path7 from "node:path";
-function broadcastSse(event, data) {
-  const msg = `event: ${event}
-data: ${JSON.stringify(data)}
-
-`;
-  for (const client of sseClients) {
-    try {
-      if (client.destroyed || client.writableEnded) {
-        sseClients.delete(client);
-        continue;
-      }
-      client.write(msg);
-    } catch {
-      sseClients.delete(client);
-    }
-  }
-}
-function closeWatchers() {
-  for (const w of activeWatchers) {
-    try {
-      w.close();
-    } catch {
-    }
-  }
-  activeWatchers = [];
-}
-function setupProjectWatchers() {
-  closeWatchers();
-  const registry = getRegistry();
-  const dirsToWatch = /* @__PURE__ */ new Set();
-  const dataDir = path7.resolve(PKG_ROOT2, "data");
-  if (fs7.existsSync(dataDir)) dirsToWatch.add(dataDir);
-  for (const p of registry.projects) {
-    try {
-      if (p.repoPath && fs7.existsSync(p.repoPath)) {
-        const backlogDir = path7.join(p.repoPath, p.backlogDir || "backlog");
-        if (fs7.existsSync(backlogDir)) dirsToWatch.add(backlogDir);
-        const gripmDir = path7.join(p.repoPath, ".gripm");
-        if (fs7.existsSync(gripmDir)) dirsToWatch.add(gripmDir);
-      }
-    } catch (err) {
-      console.warn(`[gripm Watcher] Error checking repoPath for ${p.id}:`, err.message);
-    }
-  }
-  let debounceTimer = null;
-  const notifyChange = (eventDir, filename) => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      broadcastSse("backlog_changed", {
-        dir: eventDir,
-        file: filename,
-        timestamp: Date.now()
-      });
-    }, 250);
-  };
-  for (const dir of dirsToWatch) {
-    try {
-      const watcher = fs7.watch(dir, { recursive: true }, (_eventType, filename) => {
-        if (filename && (filename.endsWith(".log") || filename.endsWith(".tmp") || filename.includes(".git") || filename.startsWith(".") && !filename.includes("gripm") && !filename.includes("backlog"))) {
-          return;
-        }
-        notifyChange(dir, filename);
-      });
-      watcher.on("error", (err) => {
-        console.warn(`[gripm Watcher] Error on ${dir}:`, err?.message || err);
-      });
-      activeWatchers.push(watcher);
-    } catch (err) {
-      console.warn(`[gripm Watcher] Could not watch ${dir}:`, err.message);
-    }
-  }
-}
-function handleSseRoute(req, res, originHeader, isAllowedOrigin) {
-  const sseHeaders = {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    "Connection": "keep-alive"
-  };
-  if (originHeader && isAllowedOrigin) {
-    sseHeaders["Access-Control-Allow-Origin"] = originHeader;
-    sseHeaders["Vary"] = "Origin";
-  }
-  res.writeHead(200, sseHeaders);
-  res.write(`event: connected
-data: ${JSON.stringify({ status: "connected", clients: sseClients.size + 1 })}
-
-`);
-  sseClients.add(res);
-  let cleanedUp = false;
-  const cleanup = () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-    clearInterval(pingInterval);
-    sseClients.delete(res);
-  };
-  const pingInterval = setInterval(() => {
-    try {
-      res.write(": ping\n\n");
-    } catch {
-      cleanup();
-    }
-  }, 25e3);
-  if (typeof pingInterval.unref === "function") pingInterval.unref();
-  req.on("close", cleanup);
-  req.on("error", cleanup);
-  res.on("close", cleanup);
-  res.on("error", cleanup);
-}
-var sseClients, activeWatchers;
-var init_sseManager = __esm({
-  "server/sse/sseManager.ts"() {
-    "use strict";
-    init_registry();
-    sseClients = /* @__PURE__ */ new Set();
-    activeWatchers = [];
-  }
-});
-
-// server/middleware/security.ts
-import crypto from "node:crypto";
-function applySecurityHeaders(res) {
-  if (typeof res.setHeader === "function") {
-    res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
-    );
-  }
-}
-function sendJson(res, status, payload) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(payload));
-}
-function getBody(req, res) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    let receivedBytes = 0;
-    let aborted = false;
-    req.on("data", (chunk) => {
-      if (aborted) return;
-      receivedBytes += chunk ? chunk.length || Buffer.byteLength(chunk) : 0;
-      if (receivedBytes > MAX_BODY_SIZE) {
-        aborted = true;
-        const err = new Error("Payload Too Large: request body exceeds 10MB limit");
-        err.statusCode = 413;
-        res.statusCode = 413;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Payload Too Large: request body exceeds 10MB limit" }));
-        reject(err);
-        if (typeof req.destroy === "function") req.destroy();
-        return;
-      }
-      body += chunk;
-    });
-    req.on("end", () => {
-      if (aborted) return;
-      if (!body) return resolve({});
-      try {
-        resolve(JSON.parse(body));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on("error", (err) => {
-      if (aborted) return;
-      reject(err);
-    });
-  });
-}
-function getEphemeralToken() {
-  return ephemeralToken;
-}
-function generateEphemeralToken() {
-  ephemeralToken = crypto.randomBytes(16).toString("hex");
-  return ephemeralToken;
-}
-function parseHostHeader(rawHost) {
-  const trimmed = (rawHost || "").trim().toLowerCase();
-  if (trimmed.startsWith("[")) {
-    const end = trimmed.indexOf("]");
-    if (end !== -1) {
-      return trimmed.slice(0, end + 1);
-    }
-  }
-  return trimmed.split(":")[0];
-}
-function extractRequestToken(req) {
-  const headerToken = req.headers["x-gripm-token"];
-  if (headerToken && typeof headerToken === "string") {
-    return headerToken.trim();
-  }
-  const authHeader = req.headers["authorization"];
-  if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice(7).trim();
-  }
-  if (req.url) {
-    try {
-      const urlObj = new URL(req.url, "http://localhost");
-      const queryToken = urlObj.searchParams.get("token");
-      if (queryToken) return queryToken.trim();
-    } catch {
-    }
-  }
-  return null;
-}
-function validateSecurity(req, res) {
-  applySecurityHeaders(res);
-  const hostHeader = parseHostHeader(req.headers.host || "");
-  const originHeader = req.headers.origin;
-  const configuredHost = (process.env.GRIPM_HOST || "127.0.0.1").toLowerCase();
-  const isLoopbackHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostHeader);
-  const isIpHost = /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(hostHeader) || hostHeader.includes(":") || hostHeader.endsWith(".local");
-  const extraAllowedHosts = (process.env.GRIPM_ALLOWED_HOSTS || "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
-  const isAllowedHost = isLoopbackHost || configuredHost !== "0.0.0.0" && hostHeader === configuredHost || configuredHost === "0.0.0.0" && isIpHost || extraAllowedHosts.includes(hostHeader);
-  if (!isAllowedHost) {
-    res.statusCode = 403;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: "Forbidden: Invalid or untrusted Host header" }));
-    return null;
-  }
-  let isAllowedOrigin = false;
-  if (originHeader) {
-    try {
-      const originUrl = new URL(originHeader);
-      const originHost = originUrl.hostname.toLowerCase();
-      const isLoopbackOrigin = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(originHost);
-      isAllowedOrigin = isLoopbackOrigin || originHost === hostHeader || configuredHost !== "0.0.0.0" && originHost === configuredHost || extraAllowedHosts.includes(originHost);
-      if (!isAllowedOrigin) {
-        res.statusCode = 403;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Forbidden: Cross-Origin request blocked" }));
-        return null;
-      }
-    } catch {
-      res.statusCode = 403;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "Forbidden: Malformed Origin header" }));
-      return null;
-    }
-  }
-  let activeToken = process.env.GRIPM_TOKEN || getEphemeralToken();
-  if (configuredHost === "0.0.0.0" && !activeToken) {
-    activeToken = generateEphemeralToken();
-    process.env.GRIPM_TOKEN = activeToken;
-  }
-  if (activeToken && !isLoopbackHost) {
-    const providedToken = extractRequestToken(req);
-    if (!providedToken || providedToken !== activeToken) {
-      res.statusCode = 401;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "Unauthorized: Ephemeral token required for LAN access" }));
-      return null;
-    }
-  }
-  const method = (req.method || "GET").toUpperCase();
-  if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
-    const contentType = (req.headers["content-type"] || "").toLowerCase();
-    const contentLength = parseInt(req.headers["content-length"] || "0", 10);
-    if (contentLength > 0 || method === "POST" || method === "PUT") {
-      if (!contentType.includes("application/json")) {
-        res.statusCode = 415;
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({ error: "Unsupported Media Type: Content-Type must be application/json" }));
-        return null;
-      }
-    }
-  }
-  if (method === "OPTIONS") {
-    if (originHeader && isAllowedOrigin) {
-      res.setHeader("Access-Control-Allow-Origin", originHeader);
-      res.setHeader("Vary", "Origin");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Gripm-Token, Authorization");
-    }
-    res.statusCode = 204;
-    res.end();
-    return null;
-  }
-  return { isAllowedOrigin };
-}
-var MAX_BODY_SIZE, ephemeralToken;
-var init_security = __esm({
-  "server/middleware/security.ts"() {
-    "use strict";
-    MAX_BODY_SIZE = 10 * 1024 * 1024;
-    ephemeralToken = null;
-  }
-});
-
 // scripts/backlogMdParser.ts
 function normalizeStatus(raw) {
   if (!raw) return "draft";
@@ -1904,11 +1312,308 @@ var init_backlogMdParser = __esm({
   }
 });
 
+// server/services/atomicWrite.ts
+import fs5 from "node:fs";
+import path5 from "node:path";
+function parseOptions(options) {
+  let encoding = "utf8";
+  let mode = void 0;
+  if (typeof options === "string") {
+    encoding = options;
+  } else if (options && typeof options === "object") {
+    if ("encoding" in options && options.encoding) {
+      encoding = options.encoding;
+    }
+    if ("mode" in options && typeof options.mode === "number") {
+      mode = options.mode;
+    }
+  }
+  return { encoding, mode };
+}
+function atomicWriteFileSync2(filePath, content, options) {
+  const resolvedPath = path5.resolve(filePath);
+  const dir = path5.dirname(resolvedPath);
+  if (!fs5.existsSync(dir)) {
+    fs5.mkdirSync(dir, { recursive: true });
+  }
+  const { encoding, mode } = parseOptions(options);
+  const tempPath = `${resolvedPath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+  let fd;
+  let renamed = false;
+  try {
+    fd = fs5.openSync(tempPath, "w", mode);
+    if (typeof content === "string") {
+      fs5.writeFileSync(fd, content, { encoding });
+    } else {
+      fs5.writeFileSync(fd, content);
+    }
+    fs5.fsyncSync(fd);
+    fs5.closeSync(fd);
+    fd = void 0;
+    let attempts = 0;
+    while (!renamed) {
+      try {
+        fs5.renameSync(tempPath, resolvedPath);
+        renamed = true;
+      } catch (renameErr) {
+        attempts++;
+        if ((renameErr.code === "EPERM" || renameErr.code === "EACCES" || renameErr.code === "EBUSY") && attempts <= 5) {
+          const end = Date.now() + 10;
+          while (Date.now() < end) {
+          }
+          continue;
+        }
+        throw renameErr;
+      }
+    }
+  } finally {
+    if (fd !== void 0) {
+      try {
+        fs5.closeSync(fd);
+      } catch {
+      }
+    }
+    if (!renamed && fs5.existsSync(tempPath)) {
+      try {
+        fs5.unlinkSync(tempPath);
+      } catch {
+      }
+    }
+  }
+}
+var init_atomicWrite = __esm({
+  "server/services/atomicWrite.ts"() {
+    "use strict";
+  }
+});
+
+// server/services/registry.ts
+var registry_exports = {};
+__export(registry_exports, {
+  DEFAULT_CONFIG: () => DEFAULT_CONFIG,
+  DEMO_FILE: () => DEMO_FILE,
+  PKG_ROOT: () => PKG_ROOT2,
+  detectProjectStorage: () => detectProjectStorage,
+  getBacklogTasksDir: () => getBacklogTasksDir,
+  getConfigFilepath: () => getConfigFilepath,
+  getProjectBacklogPath: () => getProjectBacklogPath,
+  getProjectDocsPath: () => getProjectDocsPath,
+  getRegistry: () => getRegistry,
+  isBacklogMdProject: () => isBacklogMdProject,
+  readProjectConfig: () => readProjectConfig,
+  saveRegistry: () => saveRegistry,
+  writeProjectConfig: () => writeProjectConfig
+});
+import fs6 from "node:fs";
+import path6 from "node:path";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
+function detectProjectStorage(repoPath) {
+  if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
+  const normalized = path6.normalize(repoPath.trim());
+  try {
+    if (fs6.existsSync(path6.join(normalized, "backlog", "tasks"))) {
+      return { storageType: "markdown", backlogDir: "backlog" };
+    }
+    if (fs6.existsSync(path6.join(normalized, ".backlog", "tasks"))) {
+      return { storageType: "markdown", backlogDir: ".backlog" };
+    }
+    if (fs6.existsSync(path6.join(normalized, "backlog"))) {
+      return { storageType: "markdown", backlogDir: "backlog" };
+    }
+    if (fs6.existsSync(path6.join(normalized, ".backlog"))) {
+      return { storageType: "markdown", backlogDir: ".backlog" };
+    }
+  } catch {
+  }
+  return { storageType: "json", backlogDir: "backlog" };
+}
+function isBacklogMdProject(project) {
+  if (project.isDemo) return false;
+  if (project.storageType === "markdown") return true;
+  if (project.storageType === "json") return false;
+  if (project.repoPath) {
+    return detectProjectStorage(project.repoPath).storageType === "markdown";
+  }
+  return false;
+}
+function getBacklogTasksDir(project) {
+  const dir = project.backlogDir || "backlog";
+  return path6.join(project.repoPath || "", dir, "tasks");
+}
+function getProjectDocsPath(project) {
+  if (project.docsPath && fs6.existsSync(project.docsPath)) {
+    return project.docsPath;
+  }
+  if (project.repoPath) {
+    const defaultDocs = path6.join(project.repoPath, "docs");
+    if (fs6.existsSync(defaultDocs)) {
+      try {
+        const files = fs6.readdirSync(defaultDocs);
+        const hasDocFiles = files.some(
+          (f) => ["quality_log.md", "backlog.md", "release_notes.md"].includes(f.toLowerCase()) || f.toLowerCase() === "specs"
+        );
+        if (hasDocFiles) return defaultDocs;
+      } catch {
+      }
+    }
+  }
+  return null;
+}
+function getRegistry() {
+  let reg = loadRegistryFile(PKG_ROOT2);
+  if (!reg || !Array.isArray(reg.projects)) {
+    reg = { activeProjectId: "", projects: [] };
+  }
+  const cwd = process.cwd();
+  const hasLocalGripm = fs6.existsSync(path6.join(cwd, ".gripm")) || fs6.existsSync(path6.join(cwd, "backlog"));
+  if (hasLocalGripm) {
+    const cwdResolved = path6.resolve(cwd);
+    const existingLocal = reg.projects.find((p) => p.repoPath && path6.resolve(p.repoPath) === cwdResolved);
+    if (!existingLocal) {
+      const detected = detectProjectStorage(cwdResolved);
+      const identity = resolveProjectIdentity(cwdResolved);
+      const localProject = {
+        id: identity.id,
+        name: identity.name,
+        codePrefix: identity.codePrefix,
+        repoPath: cwdResolved,
+        storageType: detected.storageType,
+        backlogDir: detected.backlogDir || "backlog",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      reg.projects.unshift(localProject);
+      if (!reg.activeProjectId || reg.projects.length === 1) {
+        reg.activeProjectId = identity.id;
+      }
+    } else {
+      const identity = resolveProjectIdentity(cwdResolved);
+      if (identity.id && identity.id !== existingLocal.id) {
+        existingLocal.id = identity.id;
+      }
+      existingLocal.name = identity.name || existingLocal.name;
+      existingLocal.codePrefix = identity.codePrefix || existingLocal.codePrefix;
+      if (!reg.activeProjectId) {
+        reg.activeProjectId = existingLocal.id;
+      }
+    }
+  }
+  reg.projects = reg.projects.filter((p) => {
+    if (p.isDemo || p.id === "demo") return true;
+    if (p.repoPath && !fs6.existsSync(p.repoPath)) return false;
+    return true;
+  });
+  if (reg.projects.length === 0) {
+    reg = {
+      activeProjectId: "demo",
+      projects: [
+        {
+          id: "demo",
+          name: "Proyecto Demo (Tour)",
+          codePrefix: "DEMO",
+          description: "Proyecto de demostraci\xF3n de gripm. Puedes explorarlo o eliminarlo en cualquier momento.",
+          isDemo: true,
+          storageType: "json",
+          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      ]
+    };
+  }
+  reg.projects = reg.projects.map((p) => {
+    if (!p.storageType && p.repoPath) {
+      const detected = detectProjectStorage(p.repoPath);
+      return { ...p, storageType: detected.storageType, backlogDir: detected.backlogDir };
+    }
+    return { ...p, storageType: p.storageType || "json" };
+  });
+  return reg;
+}
+function saveRegistry(registry) {
+  const sanitized = {
+    ...registry,
+    projects: registry.projects.map((p) => {
+      const clean = { ...p };
+      if (!clean.isDemo) {
+        delete clean.isDemo;
+      }
+      return clean;
+    })
+  };
+  saveRegistryFile(sanitized, PKG_ROOT2);
+}
+function getProjectBacklogPath(project) {
+  if (project.isDemo) {
+    return DEMO_FILE;
+  }
+  if (project.repoPath) {
+    return path6.join(project.repoPath, ".gripm/backlog.json");
+  }
+  return path6.resolve(PKG_ROOT2, `data/${project.id}-backlog.json`);
+}
+function getConfigFilepath(project) {
+  const repo = project?.repoPath || process.cwd();
+  return path6.join(repo, ".gripm/config.json");
+}
+function readProjectConfig(project) {
+  if (project?.isDemo || project?.id === "demo") {
+    return { ...DEFAULT_CONFIG };
+  }
+  const configFile = getConfigFilepath(project);
+  try {
+    if (fs6.existsSync(configFile)) {
+      const raw = fs6.readFileSync(configFile, "utf8");
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_CONFIG, ...parsed, _filepath: configFile };
+    }
+  } catch (err) {
+    console.warn(`[gripm Config] Failed to read ${configFile}:`, err.message);
+  }
+  return { ...DEFAULT_CONFIG, _filepath: configFile };
+}
+function writeProjectConfig(config, project) {
+  const repo = project?.repoPath || process.cwd();
+  const configFile = path6.join(repo, ".gripm/config.json");
+  const dir = path6.dirname(configFile);
+  if (!fs6.existsSync(dir)) {
+    fs6.mkdirSync(dir, { recursive: true });
+  }
+  const toSave = { ...config };
+  delete toSave._filepath;
+  atomicWriteFileSync2(configFile, JSON.stringify(toSave, null, 2), "utf8");
+  return configFile;
+}
+var __filename3, __dirname3, PKG_ROOT2, DEMO_FILE, DEFAULT_CONFIG;
+var init_registry = __esm({
+  "server/services/registry.ts"() {
+    "use strict";
+    init_registryConfig();
+    init_atomicWrite();
+    __filename3 = fileURLToPath3(import.meta.url);
+    __dirname3 = path6.dirname(__filename3);
+    PKG_ROOT2 = path6.resolve(__dirname3, "../../");
+    DEMO_FILE = fs6.existsSync(path6.resolve(PKG_ROOT2, "data/demo-backlog.json")) ? path6.resolve(PKG_ROOT2, "data/demo-backlog.json") : path6.resolve(PKG_ROOT2, "src/data/demo-backlog.json");
+    DEFAULT_CONFIG = {
+      theme: "dark",
+      density: "comfortable",
+      autoSave: true,
+      kanban: {
+        showIdeasByDefault: false,
+        showDoneHistoryByDefault: false,
+        wipLimits: {
+          "col-doing": 0,
+          "col-review": 0,
+          "col-ready": 0
+        }
+      },
+      version: "1.0.0"
+    };
+  }
+});
+
 // server/utils/fs-lock.ts
-import fs8 from "node:fs";
-import path8 from "node:path";
+import fs7 from "node:fs";
+import path7 from "node:path";
 function getLockFilePath(targetPath) {
-  const resolved = path8.resolve(targetPath);
+  const resolved = path7.resolve(targetPath);
   return resolved.endsWith(".lock") ? resolved : `${resolved}.lock`;
 }
 function sleepSync(ms) {
@@ -1928,12 +1633,12 @@ function calculateNextDelay(currentDelay, maxDelay) {
 }
 function checkAndCleanStaleLock(lockFilePath, staleTimeoutMs) {
   try {
-    const stat = fs8.statSync(lockFilePath);
+    const stat = fs7.statSync(lockFilePath);
     const age = Date.now() - stat.mtimeMs;
     let isStale = age > staleTimeoutMs;
     if (!isStale) {
       try {
-        const content = fs8.readFileSync(lockFilePath, "utf8");
+        const content = fs7.readFileSync(lockFilePath, "utf8");
         const payload = JSON.parse(content);
         if (typeof payload.expiresAt === "number" && Date.now() > payload.expiresAt) {
           isStale = true;
@@ -1943,7 +1648,7 @@ function checkAndCleanStaleLock(lockFilePath, staleTimeoutMs) {
     }
     if (isStale) {
       try {
-        fs8.unlinkSync(lockFilePath);
+        fs7.unlinkSync(lockFilePath);
         return true;
       } catch {
       }
@@ -1962,15 +1667,15 @@ function acquireLockSync(targetPath, options) {
   const minDelay = options?.minRetryDelayMs ?? 25;
   const maxDelay = options?.maxRetryDelayMs ?? 250;
   const staleTimeoutMs = options?.staleTimeoutMs ?? 5e3;
-  const dir = path8.dirname(lockFilePath);
-  if (!fs8.existsSync(dir)) {
-    fs8.mkdirSync(dir, { recursive: true });
+  const dir = path7.dirname(lockFilePath);
+  if (!fs7.existsSync(dir)) {
+    fs7.mkdirSync(dir, { recursive: true });
   }
   const startTime = Date.now();
   let currentDelay = minDelay;
   while (true) {
     try {
-      const fd = fs8.openSync(lockFilePath, "wx");
+      const fd = fs7.openSync(lockFilePath, "wx");
       const payload = {
         pid: process.pid,
         createdAt: Date.now(),
@@ -1978,16 +1683,16 @@ function acquireLockSync(targetPath, options) {
         metadata: options?.metadata
       };
       try {
-        fs8.writeFileSync(fd, JSON.stringify(payload), "utf8");
+        fs7.writeFileSync(fd, JSON.stringify(payload), "utf8");
       } finally {
         try {
-          fs8.closeSync(fd);
+          fs7.closeSync(fd);
         } catch {
         }
       }
       return {
         lockPath: lockFilePath,
-        targetPath: path8.resolve(targetPath),
+        targetPath: path7.resolve(targetPath),
         acquiredAt: Date.now(),
         release: () => releaseLockSync(lockFilePath)
       };
@@ -2012,8 +1717,8 @@ function acquireLockSync(targetPath, options) {
 function releaseLockSync(targetPath) {
   const lockFilePath = getLockFilePath(targetPath);
   try {
-    if (fs8.existsSync(lockFilePath)) {
-      fs8.unlinkSync(lockFilePath);
+    if (fs7.existsSync(lockFilePath)) {
+      fs7.unlinkSync(lockFilePath);
     }
   } catch (unlinkErr) {
     const err = unlinkErr;
@@ -2036,38 +1741,38 @@ var init_fs_lock = __esm({
 });
 
 // server/services/backlogService.ts
-import fs9 from "node:fs";
-import path9 from "node:path";
+import fs8 from "node:fs";
+import path8 from "node:path";
 import { execSync } from "node:child_process";
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
-    return path9.join(project.repoPath, ".gripm/backlog.json");
+    return path8.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path9.join(PKG_ROOT2, `data/${project.id}-backlog.json`);
+  return path8.join(PKG_ROOT2, `data/${project.id}-backlog.json`);
 }
 function getProjectTasksDir(project) {
   if (!project.repoPath) return "";
-  return path9.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "tasks");
 }
 function getProjectSprintsPath(project) {
   if (!project.repoPath) return "";
-  return path9.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
 }
 function getProjectReleasesPath(project) {
   if (!project.repoPath) return "";
-  return path9.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
 }
 function getProjectRetrospectivesPath(project) {
   if (!project.repoPath) return "";
-  return path9.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
 }
 function getProjectTaskAllocationLockPath(project) {
   if (project.repoPath) {
-    const baseDir = path9.join(project.repoPath, project.backlogDir || "backlog");
-    return path9.join(baseDir, ".task-allocation.lock");
+    const baseDir = path8.join(project.repoPath, project.backlogDir || "backlog");
+    return path8.join(baseDir, ".task-allocation.lock");
   }
-  return path9.join(PKG_ROOT2, `data/.${project.id}-task-allocation.lock`);
+  return path8.join(PKG_ROOT2, `data/.${project.id}-task-allocation.lock`);
 }
 function validateVerifyCommand(cmd, repoPath) {
   if (!cmd || typeof cmd !== "string") {
@@ -2120,9 +1825,9 @@ function validateVerifyCommand(cmd, repoPath) {
   let pkgScripts = {};
   let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    const pkgPath = path9.join(repoPath, "package.json");
-    if (fs9.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs9.readFileSync(pkgPath, "utf8"));
+    const pkgPath = path8.join(repoPath, "package.json");
+    if (fs8.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs8.readFileSync(pkgPath, "utf8"));
       if (pkg.scripts && typeof pkg.scripts === "object") {
         pkgScripts = pkg.scripts;
       }
@@ -2263,9 +1968,9 @@ function resolveLegibleSprint(project, val) {
   }
   if (!project.repoPath) return clean;
   const sprintsPath = getProjectSprintsPath(project);
-  if (fs9.existsSync(sprintsPath)) {
+  if (fs8.existsSync(sprintsPath)) {
     try {
-      const registeredSprints = JSON.parse(fs9.readFileSync(sprintsPath, "utf8"));
+      const registeredSprints = JSON.parse(fs8.readFileSync(sprintsPath, "utf8"));
       if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
         const matched = registeredSprints.find(
           (s) => s.id && s.id.toLowerCase() === lower || s.name && s.name.trim().toLowerCase() === lower
@@ -2285,19 +1990,19 @@ function resolveLegibleSprint(project, val) {
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
-    path9.join(repoPath, "docs/RELEASE_NOTES.md"),
-    path9.join(repoPath, "docs/releasenotes.md"),
-    path9.join(repoPath, "RELEASE_NOTES.md"),
-    path9.join(repoPath, "releasenotes.md"),
-    path9.join(repoPath, "docs/CHANGELOG.md"),
-    path9.join(repoPath, "CHANGELOG.md"),
-    path9.join(repoPath, "changelog.md")
+    path8.join(repoPath, "docs/RELEASE_NOTES.md"),
+    path8.join(repoPath, "docs/releasenotes.md"),
+    path8.join(repoPath, "RELEASE_NOTES.md"),
+    path8.join(repoPath, "releasenotes.md"),
+    path8.join(repoPath, "docs/CHANGELOG.md"),
+    path8.join(repoPath, "CHANGELOG.md"),
+    path8.join(repoPath, "changelog.md")
   ];
   let notesContent = "";
   for (const p of possiblePaths) {
-    if (fs9.existsSync(p)) {
+    if (fs8.existsSync(p)) {
       try {
-        notesContent = fs9.readFileSync(p, "utf8");
+        notesContent = fs8.readFileSync(p, "utf8");
         break;
       } catch {
       }
@@ -2363,9 +2068,9 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
 function findTaskFile(project, id) {
   if (!project.repoPath) return null;
   const tasksDir = getProjectTasksDir(project);
-  if (!fs9.existsSync(tasksDir)) return null;
+  if (!fs8.existsSync(tasksDir)) return null;
   const cleanId = id.toLowerCase();
-  const files = fs9.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+  const files = fs8.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
   let found = files.find((f) => {
     const fLower = f.toLowerCase();
     return fLower.startsWith(`${cleanId} `) || fLower.startsWith(`${cleanId}-`) || fLower === `${cleanId}.md`;
@@ -2373,7 +2078,7 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const raw = fs9.readFileSync(path9.join(tasksDir, f), "utf8");
+        const raw = fs8.readFileSync(path8.join(tasksDir, f), "utf8");
         const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
         const parsed = parseBacklogMd(raw, fallbackId);
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
@@ -2385,9 +2090,9 @@ function findTaskFile(project, id) {
     }
   }
   if (!found) return null;
-  const filePath = path9.join(tasksDir, found);
+  const filePath = path8.join(tasksDir, found);
   try {
-    const raw = fs9.readFileSync(filePath, "utf8");
+    const raw = fs8.readFileSync(filePath, "utf8");
     const fallbackId = found.split("-")[0] || found.replace(/\.md$/, "");
     const task = parseBacklogMd(raw, fallbackId);
     return { filePath, filename: found, task };
@@ -2589,7 +2294,7 @@ var init_backlogService = __esm({
         Object.setPrototypeOf(this, _ConflictError.prototype);
       }
     };
-    DEMO_FILE2 = fs9.existsSync(path9.resolve(PKG_ROOT2, "data/demo-backlog.json")) ? path9.resolve(PKG_ROOT2, "data/demo-backlog.json") : path9.resolve(PKG_ROOT2, "src/data/demo-backlog.json");
+    DEMO_FILE2 = fs8.existsSync(path8.resolve(PKG_ROOT2, "data/demo-backlog.json")) ? path8.resolve(PKG_ROOT2, "data/demo-backlog.json") : path8.resolve(PKG_ROOT2, "src/data/demo-backlog.json");
     BacklogService = class _BacklogService {
       /**
        * Reads all tasks for a project with optional filters.
@@ -2599,17 +2304,17 @@ var init_backlogService = __esm({
         let items = [];
         if (isBacklogMdProject(project) && project.repoPath) {
           const tasksDir = getProjectTasksDir(project);
-          if (fs9.existsSync(tasksDir)) {
-            const files = fs9.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+          if (fs8.existsSync(tasksDir)) {
+            const files = fs8.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
             files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
             let orderIdx = 1;
             for (const file of files) {
               try {
-                const fullPath = path9.join(tasksDir, file);
-                const raw = fs9.readFileSync(fullPath, "utf8");
+                const fullPath = path8.join(tasksDir, file);
+                const raw = fs8.readFileSync(fullPath, "utf8");
                 const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
                 const parsed = parseBacklogMd(raw, fallbackId);
-                const stat = fs9.statSync(fullPath);
+                const stat = fs8.statSync(fullPath);
                 const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
                 if (canonical.order === 0) canonical.order = orderIdx++;
                 items.push(canonical);
@@ -2619,11 +2324,11 @@ var init_backlogService = __esm({
           }
         } else {
           const jsonPath = resolveJsonBacklogPath(project);
-          if (fs9.existsSync(jsonPath)) {
+          if (fs8.existsSync(jsonPath)) {
             try {
-              const raw = fs9.readFileSync(jsonPath, "utf8");
+              const raw = fs8.readFileSync(jsonPath, "utf8");
               const data = JSON.parse(raw);
-              const jsonStat = fs9.statSync(jsonPath);
+              const jsonStat = fs8.statSync(jsonPath);
               const jsonMtime = Math.round(jsonStat.mtimeMs);
               items = (data.items || []).map((it) => ({
                 ...it,
@@ -2786,8 +2491,8 @@ var init_backlogService = __esm({
         }
         if (isBacklogMdProject(project) && project.repoPath) {
           const tasksDir = getProjectTasksDir(project);
-          if (fs9.existsSync(tasksDir)) {
-            const diskFiles = fs9.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+          if (fs8.existsSync(tasksDir)) {
+            const diskFiles = fs8.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
             for (const f of diskFiles) {
               const m = f.match(regex);
               if (m) {
@@ -2843,6 +2548,8 @@ var init_backlogService = __esm({
             type: data.type || "feature",
             createdDate: today,
             updatedDate: today,
+            startDate: data.startDate || data.start_date || void 0,
+            dueDate: data.dueDate || data.due_date || data.targetDate || data.target_date || void 0,
             milestone: rawRel || void 0,
             sprint: legSprint || void 0,
             targetSprint: legSprint || void 0,
@@ -2871,12 +2578,12 @@ var init_backlogService = __esm({
           };
           if (isBacklogMdProject(project) && project.repoPath) {
             const tasksDir = getProjectTasksDir(project);
-            if (!fs9.existsSync(tasksDir)) fs9.mkdirSync(tasksDir, { recursive: true });
+            if (!fs8.existsSync(tasksDir)) fs8.mkdirSync(tasksDir, { recursive: true });
             const filename = generateTaskFilename(code, taskData.title);
-            const filepath = path9.join(tasksDir, filename);
+            const filepath = path8.join(tasksDir, filename);
             const serialized = serializeBacklogMd(taskData);
             atomicWriteFileSync2(filepath, serialized, "utf8");
-            const fileStat = fs9.existsSync(filepath) ? fs9.statSync(filepath) : void 0;
+            const fileStat = fs8.existsSync(filepath) ? fs8.statSync(filepath) : void 0;
             const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
             return { ok: true, task: canonical, savedFile: filepath };
           }
@@ -2892,9 +2599,9 @@ var init_backlogService = __esm({
             completedAt: normalizedSt === "done" ? now : void 0
           };
           let existingData = { project: { ...project, storageType: "json" }, items: [], releases: [], sprints: [] };
-          if (fs9.existsSync(jsonPath)) {
+          if (fs8.existsSync(jsonPath)) {
             try {
-              existingData = JSON.parse(fs9.readFileSync(jsonPath, "utf8"));
+              existingData = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
             } catch {
             }
           }
@@ -2902,7 +2609,7 @@ var init_backlogService = __esm({
           existingData.items.push(newItem);
           existingData.lastUpdated = now;
           atomicWriteFileSync2(jsonPath, JSON.stringify(existingData, null, 2), "utf8");
-          const jsonStat = fs9.existsSync(jsonPath) ? fs9.statSync(jsonPath) : void 0;
+          const jsonStat = fs8.existsSync(jsonPath) ? fs8.statSync(jsonPath) : void 0;
           newItem.mtime = jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
           return { ok: true, task: newItem, savedFile: jsonPath };
         });
@@ -2923,7 +2630,7 @@ var init_backlogService = __esm({
             throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
           }
           const { filePath, filename, task: current2 } = fileInfo;
-          const fileStat = fs9.existsSync(filePath) ? fs9.statSync(filePath) : void 0;
+          const fileStat = fs8.existsSync(filePath) ? fs8.statSync(filePath) : void 0;
           const currentMtime2 = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
           if (!options?.force && typeof options?.expectedMtime === "number") {
             if (currentMtime2 > options.expectedMtime) {
@@ -3016,7 +2723,7 @@ var init_backlogService = __esm({
           }
           const serialized = serializeBacklogMd(current2);
           atomicWriteFileSync2(filePath, serialized, "utf8");
-          const freshStat = fs9.existsSync(filePath) ? fs9.statSync(filePath) : void 0;
+          const freshStat = fs8.existsSync(filePath) ? fs8.statSync(filePath) : void 0;
           const canonical = mapMarkdownTaskToCanonical(current2, project, filename, freshStat);
           const resp2 = { ok: true, updatedTask: canonical, filePath };
           if (norm.usedUpdatesObject) {
@@ -3033,10 +2740,10 @@ var init_backlogService = __esm({
           return resp2;
         }
         const jsonPath = resolveJsonBacklogPath(project);
-        if (!fs9.existsSync(jsonPath)) {
+        if (!fs8.existsSync(jsonPath)) {
           throw new Error(`Archivo de backlog JSON no encontrado en ${jsonPath}.`);
         }
-        const data = JSON.parse(fs9.readFileSync(jsonPath, "utf8"));
+        const data = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
         const cleanId = String(taskId).toLowerCase();
         const idx = (data.items || []).findIndex(
           (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -3045,7 +2752,7 @@ var init_backlogService = __esm({
           throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
         }
         const current = data.items[idx];
-        const jsonStat = fs9.existsSync(jsonPath) ? fs9.statSync(jsonPath) : void 0;
+        const jsonStat = fs8.existsSync(jsonPath) ? fs8.statSync(jsonPath) : void 0;
         const currentMtime = typeof current.mtime === "number" ? current.mtime : jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
         if (!options?.force && typeof options?.expectedMtime === "number") {
           if (currentMtime > options.expectedMtime) {
@@ -3132,7 +2839,7 @@ var init_backlogService = __esm({
         data.items[idx] = current;
         data.lastUpdated = now;
         atomicWriteFileSync2(jsonPath, JSON.stringify(data, null, 2), "utf8");
-        const freshJsonStat = fs9.existsSync(jsonPath) ? fs9.statSync(jsonPath) : void 0;
+        const freshJsonStat = fs8.existsSync(jsonPath) ? fs8.statSync(jsonPath) : void 0;
         current.mtime = freshJsonStat ? Math.round(freshJsonStat.mtimeMs) : Date.now();
         const resp = { ok: true, updatedTask: current, filePath: jsonPath };
         if (norm.usedUpdatesObject) {
@@ -3257,13 +2964,13 @@ var init_backlogService = __esm({
             throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
           }
           if (isPurge) {
-            const archiveDir = path9.join(project.repoPath, project.backlogDir || "backlog", "archive");
-            if (!fs9.existsSync(archiveDir)) fs9.mkdirSync(archiveDir, { recursive: true });
-            fs9.renameSync(filePath, path9.join(archiveDir, filename));
+            const archiveDir = path8.join(project.repoPath, project.backlogDir || "backlog", "archive");
+            if (!fs8.existsSync(archiveDir)) fs8.mkdirSync(archiveDir, { recursive: true });
+            fs8.renameSync(filePath, path8.join(archiveDir, filename));
             return { ok: true, id: taskId, purged: true };
           }
           const previousStatus = task.status || "draft";
-          const raw = fs9.readFileSync(filePath, "utf8");
+          const raw = fs8.readFileSync(filePath, "utf8");
           let updated = raw;
           updated = updated.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
           updated = updated.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
@@ -3285,8 +2992,8 @@ previousStatus: "${previousStatus}"
           return { ok: true, id: taskId, softDeleted: true };
         }
         const jsonPath = resolveJsonBacklogPath(project);
-        if (!fs9.existsSync(jsonPath)) return { ok: false, id: taskId };
-        const data = JSON.parse(fs9.readFileSync(jsonPath, "utf8"));
+        if (!fs8.existsSync(jsonPath)) return { ok: false, id: taskId };
+        const data = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
         const cleanId = taskId.toLowerCase();
         const idx = (data.items || []).findIndex(
           (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -3316,7 +3023,7 @@ previousStatus: "${previousStatus}"
           const fileInfo = findTaskFile(project, taskId);
           if (!fileInfo) return false;
           const { filePath } = fileInfo;
-          let raw = fs9.readFileSync(filePath, "utf8");
+          let raw = fs8.readFileSync(filePath, "utf8");
           const prevMatch = raw.match(/^[pP]revious[sS]tatus:\s*"?([^"\r\n]+)"?/m);
           const restoreStatus2 = prevMatch ? prevMatch[1].trim() : "draft";
           if (/^status:.*$/m.test(raw)) {
@@ -3329,8 +3036,8 @@ previousStatus: "${previousStatus}"
           return true;
         }
         const jsonPath = resolveJsonBacklogPath(project);
-        if (!fs9.existsSync(jsonPath)) return false;
-        const data = JSON.parse(fs9.readFileSync(jsonPath, "utf8"));
+        if (!fs8.existsSync(jsonPath)) return false;
+        const data = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
         const cleanId = taskId.toLowerCase();
         const item = (data.items || []).find(
           (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -3355,7 +3062,7 @@ previousStatus: "${previousStatus}"
           title: t.title,
           status: normalizeStatus(t.status),
           type: t.type,
-          priority: t.priority,
+          priority: formatPriorityForMd(t.priority),
           milestone: t.milestone || t.targetSprint,
           description: t.description || "",
           acceptanceCriteria: t.acceptanceCriteriaList || t.acceptanceCriteria || []
@@ -3363,7 +3070,7 @@ previousStatus: "${previousStatus}"
         const content = generateMonolithicBacklogMd(project.name, mdTasks);
         let savedPath;
         if (options?.save !== false && project.repoPath) {
-          savedPath = path9.join(project.repoPath, "BACKLOG.md");
+          savedPath = path8.join(project.repoPath, "BACKLOG.md");
           atomicWriteFileSync2(savedPath, content, "utf8");
         }
         return {
@@ -3385,11 +3092,11 @@ previousStatus: "${previousStatus}"
         const autoFix = options?.autoFix === true;
         if (isBacklogMdProject(project) && project.repoPath) {
           const tasksDir = getProjectTasksDir(project);
-          if (fs9.existsSync(tasksDir)) {
-            const files = fs9.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+          if (fs8.existsSync(tasksDir)) {
+            const files = fs8.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
             for (const file of files) {
-              const filePath = path9.join(tasksDir, file);
-              const content2 = fs9.readFileSync(filePath, "utf8");
+              const filePath = path8.join(tasksDir, file);
+              const content2 = fs8.readFileSync(filePath, "utf8");
               const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
               if (!fmMatch) continue;
               const fm = fmMatch[1];
@@ -3420,11 +3127,11 @@ previousStatus: "${previousStatus}"
         let backlogPath = null;
         let changesWritten = false;
         if (project.repoPath) {
-          backlogPath = path9.join(project.repoPath, "BACKLOG.md");
+          backlogPath = path8.join(project.repoPath, "BACKLOG.md");
           let existingContent = "";
-          if (fs9.existsSync(backlogPath)) {
+          if (fs8.existsSync(backlogPath)) {
             try {
-              existingContent = fs9.readFileSync(backlogPath, "utf8");
+              existingContent = fs8.readFileSync(backlogPath, "utf8");
             } catch {
             }
           }
@@ -3456,7 +3163,7 @@ previousStatus: "${previousStatus}"
         if (isBacklogMdProject(project)) {
           const tasksDir = getProjectTasksDir(project);
           try {
-            if (!fs9.existsSync(tasksDir)) {
+            if (!fs8.existsSync(tasksDir)) {
               return {
                 project: { ...project, storageType: "markdown" },
                 items: [],
@@ -3468,9 +3175,9 @@ previousStatus: "${previousStatus}"
             const items = _BacklogService.listTasks(project, { includeDeleted: true });
             let releases = [];
             const releasesPath = getProjectReleasesPath(project);
-            if (fs9.existsSync(releasesPath)) {
+            if (fs8.existsSync(releasesPath)) {
               try {
-                releases = JSON.parse(fs9.readFileSync(releasesPath, "utf8"));
+                releases = JSON.parse(fs8.readFileSync(releasesPath, "utf8"));
               } catch {
               }
             }
@@ -3483,7 +3190,7 @@ previousStatus: "${previousStatus}"
             if (releases.length > 0) {
               for (const rel of releases) {
                 const vClean = (rel.version || "").replace(/^v/i, "");
-                const existingCodes = new Set((rel.itemCodes || []).map((c2) => c2.toUpperCase()));
+                const existingCodes = new Set((rel.itemCodes || []).map((c3) => c3.toUpperCase()));
                 for (const it of items) {
                   const itRel = (it.release || it.targetRelease || "").replace(/^v/i, "");
                   const inReleases = (it.releases || []).some((r) => r.replace(/^v/i, "") === vClean);
@@ -3521,9 +3228,9 @@ previousStatus: "${previousStatus}"
             }
             let sprints = [];
             const sprintsPath = getProjectSprintsPath(project);
-            if (fs9.existsSync(sprintsPath)) {
+            if (fs8.existsSync(sprintsPath)) {
               try {
-                sprints = JSON.parse(fs9.readFileSync(sprintsPath, "utf8"));
+                sprints = JSON.parse(fs8.readFileSync(sprintsPath, "utf8"));
               } catch {
               }
             }
@@ -3579,7 +3286,7 @@ previousStatus: "${previousStatus}"
         }
         const filePath = resolveJsonBacklogPath(project);
         try {
-          if (!fs9.existsSync(filePath)) {
+          if (!fs8.existsSync(filePath)) {
             const initial = {
               project: { ...project, storageType: "json" },
               items: [],
@@ -3594,9 +3301,9 @@ previousStatus: "${previousStatus}"
             }
             return initial;
           }
-          const jsonStat = fs9.statSync(filePath);
+          const jsonStat = fs8.statSync(filePath);
           const jsonMtime = Math.round(jsonStat.mtimeMs);
-          const raw = fs9.readFileSync(filePath, "utf8");
+          const raw = fs8.readFileSync(filePath, "utf8");
           const parsed = JSON.parse(raw);
           let items = Array.isArray(parsed.items) ? parsed.items : [];
           items = items.map((it) => ({
@@ -3631,11 +3338,11 @@ previousStatus: "${previousStatus}"
        */
       static readReleases(project) {
         const filePath = getProjectReleasesPath(project);
-        if (!filePath || !fs9.existsSync(filePath)) return [];
+        if (!filePath || !fs8.existsSync(filePath)) return [];
         return withFileLockSync(filePath, () => {
           try {
-            if (!fs9.existsSync(filePath)) return [];
-            const content = fs9.readFileSync(filePath, "utf8");
+            if (!fs8.existsSync(filePath)) return [];
+            const content = fs8.readFileSync(filePath, "utf8");
             const parsed = JSON.parse(content);
             return Array.isArray(parsed) ? parsed : [];
           } catch {
@@ -3651,9 +3358,9 @@ previousStatus: "${previousStatus}"
         if (!filePath) return [];
         return withFileLockSync(filePath, () => {
           let current = [];
-          if (fs9.existsSync(filePath)) {
+          if (fs8.existsSync(filePath)) {
             try {
-              const content = fs9.readFileSync(filePath, "utf8");
+              const content = fs8.readFileSync(filePath, "utf8");
               const parsed = JSON.parse(content);
               if (Array.isArray(parsed)) current = parsed;
             } catch {
@@ -3670,11 +3377,11 @@ previousStatus: "${previousStatus}"
        */
       static readRetrospectives(project) {
         const filePath = getProjectRetrospectivesPath(project);
-        if (!filePath || !fs9.existsSync(filePath)) return [];
+        if (!filePath || !fs8.existsSync(filePath)) return [];
         return withFileLockSync(filePath, () => {
           try {
-            if (!fs9.existsSync(filePath)) return [];
-            const content = fs9.readFileSync(filePath, "utf8");
+            if (!fs8.existsSync(filePath)) return [];
+            const content = fs8.readFileSync(filePath, "utf8");
             const parsed = JSON.parse(content);
             return Array.isArray(parsed) ? parsed : [];
           } catch {
@@ -3690,9 +3397,9 @@ previousStatus: "${previousStatus}"
         if (!filePath) return [];
         return withFileLockSync(filePath, () => {
           let current = [];
-          if (fs9.existsSync(filePath)) {
+          if (fs8.existsSync(filePath)) {
             try {
-              const content = fs9.readFileSync(filePath, "utf8");
+              const content = fs8.readFileSync(filePath, "utf8");
               const parsed = JSON.parse(content);
               if (Array.isArray(parsed)) current = parsed;
             } catch {
@@ -3711,14 +3418,14 @@ previousStatus: "${previousStatus}"
         if (isBacklogMdProject(project)) {
           if (project.repoPath) {
             try {
-              const dir = path9.join(project.repoPath, project.backlogDir || "backlog");
-              if (!fs9.existsSync(dir)) fs9.mkdirSync(dir, { recursive: true });
-              const releasesPath = path9.join(dir, "releases.json");
+              const dir = path8.join(project.repoPath, project.backlogDir || "backlog");
+              if (!fs8.existsSync(dir)) fs8.mkdirSync(dir, { recursive: true });
+              const releasesPath = path8.join(dir, "releases.json");
               withFileLockSync(releasesPath, () => {
                 let releasesToWrite = data.releases || [];
-                if (fs9.existsSync(releasesPath)) {
+                if (fs8.existsSync(releasesPath)) {
                   try {
-                    const diskReleases = JSON.parse(fs9.readFileSync(releasesPath, "utf8"));
+                    const diskReleases = JSON.parse(fs8.readFileSync(releasesPath, "utf8"));
                     if (Array.isArray(diskReleases)) {
                       releasesToWrite = releasesToWrite.map((rel) => {
                         const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
@@ -3736,7 +3443,7 @@ previousStatus: "${previousStatus}"
                 atomicWriteFileSync2(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
               });
               if (data.sprints !== void 0) {
-                atomicWriteFileSync2(path9.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+                atomicWriteFileSync2(path8.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
               }
             } catch (err) {
               console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
@@ -3759,7 +3466,7 @@ previousStatus: "${previousStatus}"
         if (!project.repoPath && isBacklogMdProject(project)) return;
         if (isBacklogMdProject(project)) {
           const tasksDir = getProjectTasksDir(project);
-          if (!fs9.existsSync(tasksDir)) fs9.mkdirSync(tasksDir, { recursive: true });
+          if (!fs8.existsSync(tasksDir)) fs8.mkdirSync(tasksDir, { recursive: true });
           const fileInfo = findTaskFile(project, item.code || item.id);
           let existingFile = fileInfo?.filename;
           let existingTask = fileInfo?.task || {};
@@ -3869,9 +3576,9 @@ previousStatus: "${previousStatus}"
               const releasesPath = getProjectReleasesPath(project);
               if (releasesPath) {
                 withFileLockSync(releasesPath, () => {
-                  if (fs9.existsSync(releasesPath)) {
+                  if (fs8.existsSync(releasesPath)) {
                     try {
-                      const relsData = JSON.parse(fs9.readFileSync(releasesPath, "utf8"));
+                      const relsData = JSON.parse(fs8.readFileSync(releasesPath, "utf8"));
                       const taskCode = (taskData.id || "").toUpperCase();
                       let changed = false;
                       const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
@@ -3879,7 +3586,7 @@ previousStatus: "${previousStatus}"
                       for (const rel of relsData) {
                         const vClean = (rel.version || "").replace(/^v/i, "");
                         if (!rel.itemCodes) rel.itemCodes = [];
-                        const idx2 = rel.itemCodes.findIndex((c2) => c2.toUpperCase() === taskCode);
+                        const idx2 = rel.itemCodes.findIndex((c3) => c3.toUpperCase() === taskCode);
                         if (targetVersion && vClean === targetVersion) {
                           versionFound = true;
                           if (idx2 < 0) {
@@ -3927,15 +3634,15 @@ previousStatus: "${previousStatus}"
           if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
           const content = serializeBacklogMd(taskData);
           const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-          const targetFilePath = path9.join(tasksDir, targetFilename);
+          const targetFilePath = path8.join(tasksDir, targetFilename);
           atomicWriteFileSync2(targetFilePath, content, "utf8");
           return;
         }
         const jsonPath = resolveJsonBacklogPath(project);
         let currentBacklog = { project, items: [] };
-        if (fs9.existsSync(jsonPath)) {
+        if (fs8.existsSync(jsonPath)) {
           try {
-            currentBacklog = JSON.parse(fs9.readFileSync(jsonPath, "utf8"));
+            currentBacklog = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
           } catch {
           }
         }
@@ -3955,6 +3662,301 @@ previousStatus: "${previousStatus}"
   }
 });
 
+// server/sse/sseManager.ts
+import fs10 from "node:fs";
+import path10 from "node:path";
+function broadcastSse(event, data) {
+  const msg = `event: ${event}
+data: ${JSON.stringify(data)}
+
+`;
+  for (const client of sseClients) {
+    try {
+      if (client.destroyed || client.writableEnded) {
+        sseClients.delete(client);
+        continue;
+      }
+      client.write(msg);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+function closeWatchers() {
+  for (const w of activeWatchers) {
+    try {
+      w.close();
+    } catch {
+    }
+  }
+  activeWatchers = [];
+}
+function setupProjectWatchers() {
+  closeWatchers();
+  const registry = getRegistry();
+  const dirsToWatch = /* @__PURE__ */ new Set();
+  const dataDir = path10.resolve(PKG_ROOT2, "data");
+  if (fs10.existsSync(dataDir)) dirsToWatch.add(dataDir);
+  for (const p of registry.projects) {
+    try {
+      if (p.repoPath && fs10.existsSync(p.repoPath)) {
+        const backlogDir = path10.join(p.repoPath, p.backlogDir || "backlog");
+        if (fs10.existsSync(backlogDir)) dirsToWatch.add(backlogDir);
+        const gripmDir = path10.join(p.repoPath, ".gripm");
+        if (fs10.existsSync(gripmDir)) dirsToWatch.add(gripmDir);
+      }
+    } catch (err) {
+      console.warn(`[gripm Watcher] Error checking repoPath for ${p.id}:`, err.message);
+    }
+  }
+  let debounceTimer = null;
+  const notifyChange = (eventDir, filename) => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      broadcastSse("backlog_changed", {
+        dir: eventDir,
+        file: filename,
+        timestamp: Date.now()
+      });
+    }, 250);
+  };
+  for (const dir of dirsToWatch) {
+    try {
+      const watcher = fs10.watch(dir, { recursive: true }, (_eventType, filename) => {
+        if (filename && (filename.endsWith(".log") || filename.endsWith(".tmp") || filename.includes(".git") || filename.startsWith(".") && !filename.includes("gripm") && !filename.includes("backlog"))) {
+          return;
+        }
+        notifyChange(dir, filename);
+      });
+      watcher.on("error", (err) => {
+        console.warn(`[gripm Watcher] Error on ${dir}:`, err?.message || err);
+      });
+      activeWatchers.push(watcher);
+    } catch (err) {
+      console.warn(`[gripm Watcher] Could not watch ${dir}:`, err.message);
+    }
+  }
+}
+function handleSseRoute(req, res, originHeader, isAllowedOrigin) {
+  const sseHeaders = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive"
+  };
+  if (originHeader && isAllowedOrigin) {
+    sseHeaders["Access-Control-Allow-Origin"] = originHeader;
+    sseHeaders["Vary"] = "Origin";
+  }
+  res.writeHead(200, sseHeaders);
+  res.write(`event: connected
+data: ${JSON.stringify({ status: "connected", clients: sseClients.size + 1 })}
+
+`);
+  sseClients.add(res);
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    clearInterval(pingInterval);
+    sseClients.delete(res);
+  };
+  const pingInterval = setInterval(() => {
+    try {
+      res.write(": ping\n\n");
+    } catch {
+      cleanup();
+    }
+  }, 25e3);
+  if (typeof pingInterval.unref === "function") pingInterval.unref();
+  req.on("close", cleanup);
+  req.on("error", cleanup);
+  res.on("close", cleanup);
+  res.on("error", cleanup);
+}
+var sseClients, activeWatchers;
+var init_sseManager = __esm({
+  "server/sse/sseManager.ts"() {
+    "use strict";
+    init_registry();
+    sseClients = /* @__PURE__ */ new Set();
+    activeWatchers = [];
+  }
+});
+
+// server/middleware/security.ts
+import crypto from "node:crypto";
+function applySecurityHeaders(res) {
+  if (typeof res.setHeader === "function") {
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+    );
+  }
+}
+function sendJson(res, status, payload) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload));
+}
+function getBody(req, res) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    let receivedBytes = 0;
+    let aborted = false;
+    req.on("data", (chunk) => {
+      if (aborted) return;
+      receivedBytes += chunk ? chunk.length || Buffer.byteLength(chunk) : 0;
+      if (receivedBytes > MAX_BODY_SIZE) {
+        aborted = true;
+        const err = new Error("Payload Too Large: request body exceeds 10MB limit");
+        err.statusCode = 413;
+        res.statusCode = 413;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Payload Too Large: request body exceeds 10MB limit" }));
+        reject(err);
+        if (typeof req.destroy === "function") req.destroy();
+        return;
+      }
+      body += chunk;
+    });
+    req.on("end", () => {
+      if (aborted) return;
+      if (!body) return resolve({});
+      try {
+        resolve(JSON.parse(body));
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", (err) => {
+      if (aborted) return;
+      reject(err);
+    });
+  });
+}
+function getEphemeralToken() {
+  return ephemeralToken;
+}
+function generateEphemeralToken() {
+  ephemeralToken = crypto.randomBytes(16).toString("hex");
+  return ephemeralToken;
+}
+function parseHostHeader(rawHost) {
+  const trimmed = (rawHost || "").trim().toLowerCase();
+  if (trimmed.startsWith("[")) {
+    const end = trimmed.indexOf("]");
+    if (end !== -1) {
+      return trimmed.slice(0, end + 1);
+    }
+  }
+  return trimmed.split(":")[0];
+}
+function extractRequestToken(req) {
+  const headerToken = req.headers["x-gripm-token"];
+  if (headerToken && typeof headerToken === "string") {
+    return headerToken.trim();
+  }
+  const authHeader = req.headers["authorization"];
+  if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7).trim();
+  }
+  if (req.url) {
+    try {
+      const urlObj = new URL(req.url, "http://localhost");
+      const queryToken = urlObj.searchParams.get("token");
+      if (queryToken) return queryToken.trim();
+    } catch {
+    }
+  }
+  return null;
+}
+function validateSecurity(req, res) {
+  applySecurityHeaders(res);
+  const hostHeader = parseHostHeader(req.headers.host || "");
+  const originHeader = req.headers.origin;
+  const configuredHost = (process.env.GRIPM_HOST || "127.0.0.1").toLowerCase();
+  const isLoopbackHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostHeader);
+  const isIpHost = /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(hostHeader) || hostHeader.includes(":") || hostHeader.endsWith(".local");
+  const extraAllowedHosts = (process.env.GRIPM_ALLOWED_HOSTS || "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+  const isAllowedHost = isLoopbackHost || configuredHost !== "0.0.0.0" && hostHeader === configuredHost || configuredHost === "0.0.0.0" && isIpHost || extraAllowedHosts.includes(hostHeader);
+  if (!isAllowedHost) {
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Forbidden: Invalid or untrusted Host header" }));
+    return null;
+  }
+  let isAllowedOrigin = false;
+  if (originHeader) {
+    try {
+      const originUrl = new URL(originHeader);
+      const originHost = originUrl.hostname.toLowerCase();
+      const isLoopbackOrigin = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(originHost);
+      isAllowedOrigin = isLoopbackOrigin || originHost === hostHeader || configuredHost !== "0.0.0.0" && originHost === configuredHost || extraAllowedHosts.includes(originHost);
+      if (!isAllowedOrigin) {
+        res.statusCode = 403;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Forbidden: Cross-Origin request blocked" }));
+        return null;
+      }
+    } catch {
+      res.statusCode = 403;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "Forbidden: Malformed Origin header" }));
+      return null;
+    }
+  }
+  let activeToken = process.env.GRIPM_TOKEN || getEphemeralToken();
+  if (configuredHost === "0.0.0.0" && !activeToken) {
+    activeToken = generateEphemeralToken();
+    process.env.GRIPM_TOKEN = activeToken;
+  }
+  if (activeToken && !isLoopbackHost) {
+    const providedToken = extractRequestToken(req);
+    if (!providedToken || providedToken !== activeToken) {
+      res.statusCode = 401;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "Unauthorized: Ephemeral token required for LAN access" }));
+      return null;
+    }
+  }
+  const method = (req.method || "GET").toUpperCase();
+  if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
+    const contentType = (req.headers["content-type"] || "").toLowerCase();
+    const contentLength = parseInt(req.headers["content-length"] || "0", 10);
+    if (contentLength > 0 || method === "POST" || method === "PUT") {
+      if (!contentType.includes("application/json")) {
+        res.statusCode = 415;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Unsupported Media Type: Content-Type must be application/json" }));
+        return null;
+      }
+    }
+  }
+  if (method === "OPTIONS") {
+    if (originHeader && isAllowedOrigin) {
+      res.setHeader("Access-Control-Allow-Origin", originHeader);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Gripm-Token, Authorization");
+    }
+    res.statusCode = 204;
+    res.end();
+    return null;
+  }
+  return { isAllowedOrigin };
+}
+var MAX_BODY_SIZE, ephemeralToken;
+var init_security = __esm({
+  "server/middleware/security.ts"() {
+    "use strict";
+    MAX_BODY_SIZE = 10 * 1024 * 1024;
+    ephemeralToken = null;
+  }
+});
+
 // server/services/storage.ts
 function readProjectBacklog(project) {
   return BacklogService.readProjectBacklog(project);
@@ -3971,32 +3973,32 @@ var init_storage = __esm({
 });
 
 // server/services/fsExplorer.ts
-import fs10 from "node:fs";
-import path10 from "node:path";
+import fs11 from "node:fs";
+import path11 from "node:path";
 import os2 from "node:os";
 function getAllowedBrowseRoots() {
   const roots = [];
   const homedir = os2.homedir();
   if (homedir) {
-    roots.push(path10.resolve(homedir));
+    roots.push(path11.resolve(homedir));
     try {
-      roots.push(fs10.realpathSync(homedir));
+      roots.push(fs11.realpathSync(homedir));
     } catch {
     }
   }
   const cwd = process.cwd();
   if (cwd) {
-    roots.push(path10.resolve(cwd));
+    roots.push(path11.resolve(cwd));
     try {
-      roots.push(fs10.realpathSync(cwd));
+      roots.push(fs11.realpathSync(cwd));
     } catch {
     }
   }
   const tmpdir = os2.tmpdir();
   if (tmpdir) {
-    roots.push(path10.resolve(tmpdir));
+    roots.push(path11.resolve(tmpdir));
     try {
-      roots.push(fs10.realpathSync(tmpdir));
+      roots.push(fs11.realpathSync(tmpdir));
     } catch {
     }
   }
@@ -4005,9 +4007,9 @@ function getAllowedBrowseRoots() {
     if (reg && Array.isArray(reg.projects)) {
       for (const p of reg.projects) {
         if (p.repoPath) {
-          roots.push(path10.resolve(p.repoPath));
+          roots.push(path11.resolve(p.repoPath));
           try {
-            roots.push(fs10.realpathSync(p.repoPath));
+            roots.push(fs11.realpathSync(p.repoPath));
           } catch {
           }
         }
@@ -4017,11 +4019,11 @@ function getAllowedBrowseRoots() {
   }
   const extra = process.env.GRIPM_ALLOWED_PATHS;
   if (extra) {
-    for (const p of extra.split(path10.delimiter)) {
+    for (const p of extra.split(path11.delimiter)) {
       if (p.trim()) {
-        roots.push(path10.resolve(p.trim()));
+        roots.push(path11.resolve(p.trim()));
         try {
-          roots.push(fs10.realpathSync(p.trim()));
+          roots.push(fs11.realpathSync(p.trim()));
         } catch {
         }
       }
@@ -4032,14 +4034,14 @@ function getAllowedBrowseRoots() {
 function isSystemRootDir(targetPath) {
   if (!targetPath || typeof targetPath !== "string") return true;
   try {
-    const resolved = path10.resolve(targetPath);
-    const parsed = path10.parse(resolved);
+    const resolved = path11.resolve(targetPath);
+    const parsed = path11.parse(resolved);
     if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
     const tmp = os2.tmpdir();
     if (tmp) {
-      if (isPathContained(resolved, path10.resolve(tmp))) return false;
+      if (isPathContained(resolved, path11.resolve(tmp))) return false;
       try {
-        const realTmp = fs10.realpathSync(tmp);
+        const realTmp = fs11.realpathSync(tmp);
         if (realTmp && isPathContained(resolved, realTmp)) return false;
       } catch {
       }
@@ -4058,27 +4060,27 @@ function isSystemRootDir(targetPath) {
       "/proc",
       "/dev"
     ];
-    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path10.sep));
+    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path11.sep));
   } catch {
     return true;
   }
 }
 function isPathContained(targetPath, rootDir) {
-  const relative = path10.relative(rootDir, targetPath);
-  return !relative.startsWith("..") && !path10.isAbsolute(relative);
+  const relative = path11.relative(rootDir, targetPath);
+  return !relative.startsWith("..") && !path11.isAbsolute(relative);
 }
 function isAllowedBrowsePath(targetPath, extraRoots = []) {
   if (!targetPath || typeof targetPath !== "string") return false;
   try {
-    const normalized = path10.resolve(path10.normalize(targetPath));
+    const normalized = path11.resolve(path11.normalize(targetPath));
     if (isSystemRootDir(normalized)) return false;
     const baseRoots = getAllowedBrowseRoots();
     const roots = [...baseRoots];
     for (const er of extraRoots) {
       if (er) {
-        roots.push(path10.resolve(er));
+        roots.push(path11.resolve(er));
         try {
-          roots.push(fs10.realpathSync(er));
+          roots.push(fs11.realpathSync(er));
         } catch {
         }
       }
@@ -4089,17 +4091,17 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
     let realPath = normalized;
     while (true) {
       try {
-        const resolvedAncestor = fs10.realpathSync(current);
-        realPath = remainingSegments.length > 0 ? path10.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
+        const resolvedAncestor = fs11.realpathSync(current);
+        realPath = remainingSegments.length > 0 ? path11.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
         break;
       } catch (err) {
         if (err && (err.code === "ENOENT" || err.code === "ENOTDIR")) {
-          const parent = path10.dirname(current);
+          const parent = path11.dirname(current);
           if (parent === current) {
             realPath = current;
             break;
           }
-          remainingSegments.unshift(path10.basename(current));
+          remainingSegments.unshift(path11.basename(current));
           current = parent;
         } else {
           return false;
@@ -4114,20 +4116,20 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
 }
 function getSafeInitialBrowseDir() {
   const candidates = [
-    path10.resolve(process.cwd(), ".."),
+    path11.resolve(process.cwd(), ".."),
     process.cwd(),
     os2.homedir()
   ];
   for (const candidate of candidates) {
     try {
-      if (candidate && fs10.existsSync(candidate) && isAllowedBrowsePath(candidate)) {
-        fs10.readdirSync(candidate);
+      if (candidate && fs11.existsSync(candidate) && isAllowedBrowsePath(candidate)) {
+        fs11.readdirSync(candidate);
         return candidate;
       }
     } catch {
     }
   }
-  return path10.resolve(os2.homedir() || process.cwd());
+  return path11.resolve(os2.homedir() || process.cwd());
 }
 var init_fsExplorer = __esm({
   "server/services/fsExplorer.ts"() {
@@ -4137,12 +4139,12 @@ var init_fsExplorer = __esm({
 });
 
 // scripts/import-docs.js
-import fs11 from "node:fs";
-import path11 from "node:path";
-import { fileURLToPath as fileURLToPath4 } from "node:url";
+import fs12 from "node:fs";
+import path12 from "node:path";
+import { fileURLToPath as fileURLToPath5 } from "node:url";
 function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, projectMeta = null) {
   console.log(`[gripm Migrator] Starting migration from: ${docsDir}`);
-  if (!fs11.existsSync(docsDir)) {
+  if (!fs12.existsSync(docsDir)) {
     throw new Error(`Docs directory not found: ${docsDir}`);
   }
   if (!projectMeta) {
@@ -4158,28 +4160,28 @@ function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, projectMeta 
   }
   const ctx = { codePrefix, projectId: projectMeta.id };
   const itemsMap = /* @__PURE__ */ new Map();
-  const qualityLogPath = path11.join(docsDir, "QUALITY_LOG.md");
-  if (fs11.existsSync(qualityLogPath)) {
-    const content = fs11.readFileSync(qualityLogPath, "utf8");
+  const qualityLogPath = path12.join(docsDir, "QUALITY_LOG.md");
+  if (fs12.existsSync(qualityLogPath)) {
+    const content = fs12.readFileSync(qualityLogPath, "utf8");
     parseQualityLog(content, itemsMap, ctx);
   } else {
     console.warn(`[gripm Migrator] Warning: QUALITY_LOG.md not found at ${qualityLogPath}`);
   }
-  const backlogPath = path11.join(docsDir, "BACKLOG.md");
-  if (fs11.existsSync(backlogPath)) {
-    const content = fs11.readFileSync(backlogPath, "utf8");
+  const backlogPath = path12.join(docsDir, "BACKLOG.md");
+  if (fs12.existsSync(backlogPath)) {
+    const content = fs12.readFileSync(backlogPath, "utf8");
     parseBacklog(content, itemsMap, ctx);
   } else {
     console.warn(`[gripm Migrator] Warning: BACKLOG.md not found at ${backlogPath}`);
   }
-  const specsDir = path11.join(docsDir, "specs");
-  if (fs11.existsSync(specsDir)) {
+  const specsDir = path12.join(docsDir, "specs");
+  if (fs12.existsSync(specsDir)) {
     parseSpecs(specsDir, itemsMap, ctx);
   }
   const releases = [];
-  const releaseNotesPath = path11.join(docsDir, "RELEASE_NOTES.md");
-  if (fs11.existsSync(releaseNotesPath)) {
-    const content = fs11.readFileSync(releaseNotesPath, "utf8");
+  const releaseNotesPath = path12.join(docsDir, "RELEASE_NOTES.md");
+  if (fs12.existsSync(releaseNotesPath)) {
+    const content = fs12.readFileSync(releaseNotesPath, "utf8");
     const parsedReleases = parseReleaseNotes(content, itemsMap, ctx);
     releases.push(...parsedReleases);
   }
@@ -4205,10 +4207,10 @@ function runMigration(docsDir = M3_DOCS_DIR, targetFile = OUT_FILE, projectMeta 
     lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
   };
   if (targetFile) {
-    if (!fs11.existsSync(path11.dirname(targetFile))) {
-      fs11.mkdirSync(path11.dirname(targetFile), { recursive: true });
+    if (!fs12.existsSync(path12.dirname(targetFile))) {
+      fs12.mkdirSync(path12.dirname(targetFile), { recursive: true });
     }
-    fs11.writeFileSync(targetFile, JSON.stringify(boardData, null, 2), "utf8");
+    fs12.writeFileSync(targetFile, JSON.stringify(boardData, null, 2), "utf8");
     console.log(`[gripm Migrator] Migration successfully written to ${targetFile}`);
   }
   console.log(`[gripm Migrator] Summary: ${items.length} items, ${releases.length} releases, 1 project.`);
@@ -4239,7 +4241,7 @@ function parseQualityLog(content, itemsMap, ctx) {
       continue;
     }
     if (inTable && trimmed.startsWith("|")) {
-      const cols = trimmed.split("|").map((c2) => c2.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+      const cols = trimmed.split("|").map((c3) => c3.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
       if (cols.length >= 6) {
         const rawId = cols[0].replace(/\*\*/g, "").replace(/`/g, "").trim();
         const area = cols[1].replace(/\*\*/g, "").trim();
@@ -4386,10 +4388,10 @@ ${problema}`;
   }
 }
 function parseSpecs(specsDir, itemsMap, ctx) {
-  const files = fs11.readdirSync(specsDir).filter((f) => f.endsWith(".md"));
+  const files = fs12.readdirSync(specsDir).filter((f) => f.endsWith(".md"));
   for (const file of files) {
-    const filePath = path11.join(specsDir, file);
-    const content = fs11.readFileSync(filePath, "utf8");
+    const filePath = path12.join(specsDir, file);
+    const content = fs12.readFileSync(filePath, "utf8");
     const titleMatch = content.match(/^#\s+(.+)$/m);
     const title = titleMatch ? titleMatch[1].replace(/[- - - ].*$/, "").trim() : file.replace(".md", "");
     const paras = content.split("\n\n").map((p) => p.trim()).filter((p) => p && !p.startsWith("#"));
@@ -4455,16 +4457,16 @@ function parseReleaseNotes(content, itemsMap, ctx) {
   }
   return releases;
 }
-var __filename4, __dirname4, M3_DOCS_DIR, DATA_DIR, OUT_FILE;
+var __filename5, __dirname5, M3_DOCS_DIR, DATA_DIR, OUT_FILE;
 var init_import_docs = __esm({
   "scripts/import-docs.js"() {
     "use strict";
-    __filename4 = fileURLToPath4(import.meta.url);
-    __dirname4 = path11.dirname(__filename4);
+    __filename5 = fileURLToPath5(import.meta.url);
+    __dirname5 = path12.dirname(__filename5);
     M3_DOCS_DIR = process.env.M3_DOCS_DIR || "";
-    DATA_DIR = path11.join(__dirname4, "../data");
-    OUT_FILE = path11.join(DATA_DIR, "gripm-board.json");
-    if (process.argv[1] && fileURLToPath4(import.meta.url) === process.argv[1]) {
+    DATA_DIR = path12.join(__dirname5, "../data");
+    OUT_FILE = path12.join(DATA_DIR, "gripm-board.json");
+    if (process.argv[1] && fileURLToPath5(import.meta.url) === process.argv[1]) {
       try {
         if (!process.env.M3_DOCS_DIR) {
           console.error("[gripm Migrator] Falta la variable de entorno M3_DOCS_DIR con la ruta de documentos a importar.");
@@ -4480,12 +4482,12 @@ var init_import_docs = __esm({
 });
 
 // server/routes/api.ts
-import fs12 from "node:fs";
-import path12 from "node:path";
+import fs13 from "node:fs";
+import path13 from "node:path";
 function getVisibleProjects(projects, activeProject) {
   return projects.filter((p) => {
     if (p.isDemo || p.id === "demo") return true;
-    if (activeProject && (p.id === activeProject.id || p.repoPath && activeProject.repoPath && path12.resolve(p.repoPath) === path12.resolve(activeProject.repoPath))) {
+    if (activeProject && (p.id === activeProject.id || p.repoPath && activeProject.repoPath && path13.resolve(p.repoPath) === path13.resolve(activeProject.repoPath))) {
       return true;
     }
     if (p.repoPath) {
@@ -4503,8 +4505,8 @@ async function handleApiRequest(req, res) {
   try {
     const registry = getRegistry();
     const targetRepoEnv = process.env.GRIPM_TARGET_REPO;
-    const targetRepo = targetRepoEnv ? path12.resolve(targetRepoEnv) : path12.resolve(process.cwd());
-    const targetProject = registry.projects.find((p) => p.repoPath && path12.resolve(p.repoPath) === targetRepo);
+    const targetRepo = targetRepoEnv ? path13.resolve(targetRepoEnv) : path13.resolve(process.cwd());
+    const targetProject = registry.projects.find((p) => p.repoPath && path13.resolve(p.repoPath) === targetRepo);
     const projectConfig = targetProject || registry.projects[0] ? readProjectConfig(targetProject || registry.projects[0]) : null;
     const envMode = process.env.GRIPM_MODE;
     const configuredMode = envMode || projectConfig?.mode;
@@ -4816,12 +4818,12 @@ async function handleApiRequest(req, res) {
       let storageType = body.storageType;
       let backlogDir = body.backlogDir || "backlog";
       if (body.backlogDir) {
-        const normBacklog = path12.normalize(body.backlogDir);
-        if (path12.isAbsolute(normBacklog) || normBacklog.startsWith("..") || normBacklog.includes(`..${path12.sep}`)) {
+        const normBacklog = path13.normalize(body.backlogDir);
+        if (path13.isAbsolute(normBacklog) || normBacklog.startsWith("..") || normBacklog.includes(`..${path13.sep}`)) {
           return sendJson(res, 400, { ok: false, error: "Invalid backlogDir: must be a relative directory inside the repository" });
         }
       }
-      const normalizedRepoPath = body.repoPath ? path12.normalize(body.repoPath.trim()) : void 0;
+      const normalizedRepoPath = body.repoPath ? path13.normalize(body.repoPath.trim()) : void 0;
       if (normalizedRepoPath && !isAllowedBrowsePath(normalizedRepoPath)) {
         return sendJson(res, 403, { error: "Forbidden: repoPath is outside allowed roots" });
       }
@@ -4867,15 +4869,15 @@ async function handleApiRequest(req, res) {
     }
     if (req.method === "POST" && pathname === "/api/projects/detect-path") {
       const body = await getBody(req, res);
-      const inputPath = body.repoPath ? path12.normalize(body.repoPath.trim()) : "";
+      const inputPath = body.repoPath ? path13.normalize(body.repoPath.trim()) : "";
       if (!inputPath) {
         return sendJson(res, 400, { error: "repoPath required" });
       }
       if (!isAllowedBrowsePath(inputPath)) {
         return sendJson(res, 403, { error: "Forbidden: repoPath is outside allowed roots" });
       }
-      const exists = fs12.existsSync(inputPath);
-      const isGit = exists && fs12.existsSync(path12.join(inputPath, ".git"));
+      const exists = fs13.existsSync(inputPath);
+      const isGit = exists && fs13.existsSync(path13.join(inputPath, ".git"));
       const detection = detectProjectStorage(inputPath);
       return sendJson(res, 200, {
         ok: true,
@@ -4919,28 +4921,28 @@ async function handleApiRequest(req, res) {
       if (!targetDir) {
         targetDir = getSafeInitialBrowseDir();
       } else {
-        targetDir = path12.resolve(path12.normalize(targetDir));
+        targetDir = path13.resolve(path13.normalize(targetDir));
         if (!isAllowedBrowsePath(targetDir)) {
           return sendJson(res, 403, { error: "Forbidden: Path is outside allowed roots" });
         }
       }
       try {
-        if (!fs12.existsSync(targetDir)) {
+        if (!fs13.existsSync(targetDir)) {
           targetDir = getSafeInitialBrowseDir();
         }
-        const stat = fs12.statSync(targetDir);
+        const stat = fs13.statSync(targetDir);
         if (!stat.isDirectory()) {
-          targetDir = path12.dirname(targetDir);
+          targetDir = path13.dirname(targetDir);
         }
         if (!isAllowedBrowsePath(targetDir)) {
           return sendJson(res, 403, { error: "Forbidden: Path is outside allowed roots" });
         }
-        const parent = path12.dirname(targetDir);
+        const parent = path13.dirname(targetDir);
         const parentPath = parent !== targetDir && isAllowedBrowsePath(parent) ? parent : null;
         let entries = [];
         let dirWarning = void 0;
         try {
-          entries = fs12.readdirSync(targetDir, { withFileTypes: true });
+          entries = fs13.readdirSync(targetDir, { withFileTypes: true });
         } catch (readErr) {
           console.warn(`[gripm FS] Cannot scan ${targetDir}: ${readErr.message}`);
           dirWarning = readErr.code === "EPERM" || readErr.code === "EACCES" ? `Permiso restringido por el sistema al explorar esta carpeta (${readErr.message}). Puedes escribir o pegar la ruta exacta manualmente.` : `No se pudieron leer subcarpetas: ${readErr.message}`;
@@ -4950,12 +4952,12 @@ async function handleApiRequest(req, res) {
           if (!entry.isDirectory()) continue;
           if (entry.name.startsWith(".") && entry.name !== ".backlog") continue;
           if (["node_modules", "dist", "build", ".git", "$RECYCLE.BIN", "System Volume Information"].includes(entry.name)) continue;
-          const fullPath = path12.join(targetDir, entry.name);
+          const fullPath = path13.join(targetDir, entry.name);
           let isGit = false;
           let hasBacklog = false;
           try {
-            isGit = fs12.existsSync(path12.join(fullPath, ".git"));
-            hasBacklog = fs12.existsSync(path12.join(fullPath, "backlog")) || fs12.existsSync(path12.join(fullPath, ".backlog"));
+            isGit = fs13.existsSync(path13.join(fullPath, ".git"));
+            hasBacklog = fs13.existsSync(path13.join(fullPath, "backlog")) || fs13.existsSync(path13.join(fullPath, ".backlog"));
           } catch {
           }
           folders.push({
@@ -4970,9 +4972,9 @@ async function handleApiRequest(req, res) {
         let hasCurrentBacklog = false;
         let hasCurrentGripm = false;
         try {
-          isCurrentGit = fs12.existsSync(path12.join(targetDir, ".git"));
-          hasCurrentBacklog = fs12.existsSync(path12.join(targetDir, "backlog")) || fs12.existsSync(path12.join(targetDir, ".backlog"));
-          hasCurrentGripm = fs12.existsSync(path12.join(targetDir, ".gripm"));
+          isCurrentGit = fs13.existsSync(path13.join(targetDir, ".git"));
+          hasCurrentBacklog = fs13.existsSync(path13.join(targetDir, "backlog")) || fs13.existsSync(path13.join(targetDir, ".backlog"));
+          hasCurrentGripm = fs13.existsSync(path13.join(targetDir, ".gripm"));
         } catch {
         }
         return sendJson(res, 200, {
@@ -4987,7 +4989,7 @@ async function handleApiRequest(req, res) {
         });
       } catch (browseErr) {
         const safeDir = getSafeInitialBrowseDir();
-        const parent = path12.dirname(safeDir);
+        const parent = path13.dirname(safeDir);
         const parentPath = parent !== safeDir && isAllowedBrowsePath(parent) ? parent : null;
         return sendJson(res, 200, {
           ok: true,
@@ -5012,9 +5014,9 @@ async function handleApiRequest(req, res) {
         return sendJson(res, 400, { error: "Project not found or lacks repoPath" });
       }
       const currentBacklog = readProjectBacklog(project);
-      const tasksDir = path12.join(project.repoPath, "backlog/tasks");
-      if (!fs12.existsSync(tasksDir)) {
-        fs12.mkdirSync(tasksDir, { recursive: true });
+      const tasksDir = path13.join(project.repoPath, "backlog/tasks");
+      if (!fs13.existsSync(tasksDir)) {
+        fs13.mkdirSync(tasksDir, { recursive: true });
       }
       let converted = 0;
       for (const item of currentBacklog.items) {
@@ -5038,10 +5040,10 @@ async function handleApiRequest(req, res) {
         return sendJson(res, 400, { error: "Project not found or lacks repoPath" });
       }
       const currentBacklog = readProjectBacklog(project);
-      const jsonPath = path12.join(project.repoPath, ".gripm/backlog.json");
-      const gripmDir = path12.dirname(jsonPath);
-      if (!fs12.existsSync(gripmDir)) {
-        fs12.mkdirSync(gripmDir, { recursive: true });
+      const jsonPath = path13.join(project.repoPath, ".gripm/backlog.json");
+      const gripmDir = path13.dirname(jsonPath);
+      if (!fs13.existsSync(gripmDir)) {
+        fs13.mkdirSync(gripmDir, { recursive: true });
       }
       atomicWriteFileSync2(jsonPath, JSON.stringify(currentBacklog, null, 2), "utf8");
       project.storageType = "json";
@@ -5117,7 +5119,7 @@ async function handleApiRequest(req, res) {
         targetDate: body.targetDate !== void 0 ? body.targetDate : existingRel ? existingRel.targetDate : void 0,
         scopeNotes: body.scopeNotes !== void 0 ? body.scopeNotes : existingRel ? existingRel.scopeNotes : void 0
       };
-      const itemCodeSet = new Set((release.itemCodes || []).map((c2) => c2.toUpperCase()));
+      const itemCodeSet = new Set((release.itemCodes || []).map((c3) => c3.toUpperCase()));
       const relVCLean = (release.version || "").replace(/^v/i, "");
       backlog.items = backlog.items.map((it) => {
         const codeUpper = (it.code || it.id || "").toUpperCase();
@@ -5198,9 +5200,9 @@ async function handleApiRequest(req, res) {
         const parsed = parseReleaseNotesMd(project.repoPath, project.codePrefix, backlog.items);
         if (parsed.length > 0) {
           backlog.releases = parsed;
-          const releasesPath = path12.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+          const releasesPath = path13.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
           try {
-            if (!fs12.existsSync(path12.dirname(releasesPath))) fs12.mkdirSync(path12.dirname(releasesPath), { recursive: true });
+            if (!fs13.existsSync(path13.dirname(releasesPath))) fs13.mkdirSync(path13.dirname(releasesPath), { recursive: true });
             atomicWriteFileSync2(releasesPath, JSON.stringify(backlog.releases, null, 2), "utf8");
           } catch (err) {
             console.warn(`[gripm API] Error saving synced releases:`, err.message);
@@ -5309,13 +5311,13 @@ async function handleApiRequest(req, res) {
       }
       if (body.retro) {
         try {
-          const retrosDir = path12.join(project.repoPath || "", project.backlogDir || "backlog", "retros");
-          if (!fs12.existsSync(retrosDir)) {
-            fs12.mkdirSync(retrosDir, { recursive: true });
+          const retrosDir = path13.join(project.repoPath || "", project.backlogDir || "backlog", "retros");
+          if (!fs13.existsSync(retrosDir)) {
+            fs13.mkdirSync(retrosDir, { recursive: true });
           }
           const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
           const sprintKey = String(updatedSprint.id || newName).toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-          const retroFile = path12.join(retrosDir, `${sprintKey}-retro.md`);
+          const retroFile = path13.join(retrosDir, `${sprintKey}-retro.md`);
           const r = body.retro;
           const md = `# Retrospectiva - ${newName}
 
@@ -5350,12 +5352,12 @@ ${Array.isArray(r.actions) && r.actions.length > 0 ? r.actions.map((act) => `- [
       const projectId = searchParams.get("projectId");
       const project = registry.projects.find((p) => p.id === projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
       if (!project) return sendJson(res, 400, { error: "Project not found" });
-      const retrosDir = path12.join(project.repoPath || "", project.backlogDir || "backlog", "retros");
-      if (!fs12.existsSync(retrosDir)) return sendJson(res, 200, { retros: [] });
-      const files = fs12.readdirSync(retrosDir).filter((f) => f.endsWith(".md"));
+      const retrosDir = path13.join(project.repoPath || "", project.backlogDir || "backlog", "retros");
+      if (!fs13.existsSync(retrosDir)) return sendJson(res, 200, { retros: [] });
+      const files = fs13.readdirSync(retrosDir).filter((f) => f.endsWith(".md"));
       const retros = files.map((f) => {
-        const full = path12.join(retrosDir, f);
-        const raw = fs12.readFileSync(full, "utf8");
+        const full = path13.join(retrosDir, f);
+        const raw = fs13.readFileSync(full, "utf8");
         const titleMatch = raw.match(/^#\s+(.+)$/m);
         const dateMatch = raw.match(/\*\*Fecha:\*\*\s*([^\n]+)/);
         return {
@@ -5407,7 +5409,7 @@ ${Array.isArray(r.actions) && r.actions.length > 0 ? r.actions.map((act) => `- [
         if (body.docsPath && !isAllowedBrowsePath(body.docsPath)) {
           return sendJson(res, 403, { ok: false, error: "Forbidden: docsPath is outside allowed roots" });
         }
-        if (!docsDir || !fs12.existsSync(docsDir)) {
+        if (!docsDir || !fs13.existsSync(docsDir)) {
           return sendJson(res, 400, {
             ok: false,
             error: `El proyecto "${targetProject2.name}" no tiene una carpeta de documentaci\xF3n vinculada (/docs) v\xE1lida o existente.`
@@ -5422,9 +5424,9 @@ ${Array.isArray(r.actions) && r.actions.length > 0 ? r.actions.map((act) => `- [
             updatedCount++;
           }
           if (boardData.releases && boardData.releases.length > 0 && targetProject2.repoPath) {
-            const releasesPath = path12.join(targetProject2.repoPath, targetProject2.backlogDir || "backlog", "releases.json");
+            const releasesPath = path13.join(targetProject2.repoPath, targetProject2.backlogDir || "backlog", "releases.json");
             try {
-              if (!fs12.existsSync(path12.dirname(releasesPath))) fs12.mkdirSync(path12.dirname(releasesPath), { recursive: true });
+              if (!fs13.existsSync(path13.dirname(releasesPath))) fs13.mkdirSync(path13.dirname(releasesPath), { recursive: true });
               atomicWriteFileSync2(releasesPath, JSON.stringify(boardData.releases, null, 2), "utf8");
             } catch (relErr) {
               console.warn("[gripm] Error saving releases during import:", relErr.message);
@@ -5482,7 +5484,7 @@ var init_api = __esm({
     init_updateChecker();
     appVersion = "1.0.0";
     try {
-      const pkg = JSON.parse(fs12.readFileSync(path12.resolve(PKG_ROOT2, "package.json"), "utf8"));
+      const pkg = JSON.parse(fs13.readFileSync(path13.resolve(PKG_ROOT2, "package.json"), "utf8"));
       if (pkg.version) appVersion = pkg.version;
     } catch {
     }
@@ -5569,10 +5571,10 @@ var init_plugin = __esm({
 // scripts/gripm-runner.js
 init_registryConfig();
 init_updateChecker();
-import fs13 from "node:fs";
-import path13 from "node:path";
+import fs14 from "node:fs";
+import path14 from "node:path";
 import os3 from "node:os";
-import { fileURLToPath as fileURLToPath5 } from "node:url";
+import { fileURLToPath as fileURLToPath6 } from "node:url";
 import { execFile } from "node:child_process";
 
 // scripts/initScaffold.js
@@ -7088,20 +7090,261 @@ function formatTaskMarkdown(task, id) {
 ${bodySections.join("\n")}`;
 }
 
-// scripts/gripm-runner.js
-var __filename5 = fileURLToPath5(import.meta.url);
-var __dirname5 = path13.dirname(__filename5);
-var PKG_ROOT3 = path13.resolve(__dirname5, "..");
-var pkgJson = JSON.parse(fs13.readFileSync(path13.join(PKG_ROOT3, "package.json"), "utf8"));
-var currentVersion = pkgJson.version || "1.0.0";
-var args = process.argv.slice(2);
+// scripts/cliAdd.ts
+init_backlogService();
+init_backlogMdParser();
+init_registryConfig();
+import fs9 from "node:fs";
+import path9 from "node:path";
+import { fileURLToPath as fileURLToPath4 } from "node:url";
+var __filename4 = fileURLToPath4(import.meta.url);
+var __dirname4 = path9.dirname(__filename4);
+var ROOT_DIR = path9.resolve(__dirname4, "..");
 var isColorSupported = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
 var c = {
   bold: (s) => isColorSupported ? `\x1B[1m${s}\x1B[0m` : s,
   dim: (s) => isColorSupported ? `\x1B[2m${s}\x1B[0m` : s,
   green: (s) => isColorSupported ? `\x1B[32m${s}\x1B[0m` : s,
   cyan: (s) => isColorSupported ? `\x1B[36m${s}\x1B[0m` : s,
-  yellow: (s) => isColorSupported ? `\x1B[33m${s}\x1B[0m` : s
+  yellow: (s) => isColorSupported ? `\x1B[33m${s}\x1B[0m` : s,
+  red: (s) => isColorSupported ? `\x1B[31m${s}\x1B[0m` : s
+};
+function printAddHelp() {
+  console.log(`
+  gripm add - Captura r\xE1pida de tareas desde la terminal sin abrir el navegador
+
+  Uso:
+    gripm add "<t\xEDtulo>" [opciones]
+    gripm add --title "<t\xEDtulo>" [opciones]
+
+  Descripci\xF3n:
+    Crea una nueva tarea en el proyecto de forma instant\xE1nea y local,
+    utilizando el motor de almacenamiento configurado (Markdown o JSON).
+    Sincroniza autom\xE1ticamente BACKLOG.md si corresponde.
+
+  Opciones:
+    --title, -t <texto>            T\xEDtulo de la tarea (o como argumento posicional)
+    --priority, -p <prioridad>     Prioridad: low, medium, high, urgent, p0, p1, p2, p3 (defecto: medium)
+    --type <tipo>                  Tipo: feature, bug, spike, chore, task (defecto: feature)
+    --due, --due-date <YYYY-MM-DD> Fecha de vencimiento
+    --description, -d <texto>      Descripci\xF3n o notas de la tarea
+    --estimate, -e <valor>         Estimaci\xF3n (puntos de historia o valor libre)
+    --labels, -l <etiquetas>       Etiquetas separadas por comas (ej: "cli,ux")
+    --sprint, -s <sprint>          Nombre del sprint asignado (ej: "Sprint 1")
+    --repo, -r <ruta>              Ruta al proyecto destino (defecto: directorio actual)
+    --json                         Emite el resultado en formato JSON estructurado
+    --help, -h                     Muestra esta ayuda
+`);
+}
+function parseAddArgs(rawArgs) {
+  const args2 = [...rawArgs];
+  if (args2[0] === "add") {
+    args2.shift();
+  }
+  const opts = {};
+  const positionalWords = [];
+  for (let i = 0; i < args2.length; i++) {
+    const arg = args2[i];
+    if (arg === "--help" || arg === "-h" || arg === "-help") {
+      opts.help = true;
+      continue;
+    }
+    if (arg === "--json") {
+      opts.json = true;
+      continue;
+    }
+    if (arg === "--title" || arg === "-t") {
+      opts.title = args2[++i];
+      continue;
+    }
+    if (arg === "--priority" || arg === "-p") {
+      opts.priority = args2[++i];
+      continue;
+    }
+    if (arg === "--type") {
+      opts.type = args2[++i];
+      continue;
+    }
+    if (arg === "--due" || arg === "--due-date") {
+      opts.due = args2[++i];
+      continue;
+    }
+    if (arg === "--description" || arg === "-d" || arg === "--desc") {
+      opts.description = args2[++i];
+      continue;
+    }
+    if (arg === "--estimate" || arg === "-e") {
+      opts.estimate = args2[++i];
+      continue;
+    }
+    if (arg === "--labels" || arg === "--label" || arg === "-l") {
+      const val = args2[++i] || "";
+      const split = val.split(",").map((s) => s.trim()).filter(Boolean);
+      opts.labels = [...opts.labels || [], ...split];
+      continue;
+    }
+    if (arg === "--sprint" || arg === "-s") {
+      opts.sprint = args2[++i];
+      continue;
+    }
+    if (arg === "--repo" || arg === "-r") {
+      opts.repo = args2[++i];
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      positionalWords.push(arg);
+    }
+  }
+  if (!opts.title && positionalWords.length > 0) {
+    opts.title = positionalWords.join(" ");
+  }
+  return opts;
+}
+function resolveProjectForCli(targetRepo) {
+  const hasTasks = fs9.existsSync(path9.join(targetRepo, "backlog", "tasks"));
+  const hasJson = fs9.existsSync(path9.join(targetRepo, ".gripm", "backlog.json"));
+  const hasConfig = fs9.existsSync(path9.join(targetRepo, ".gripm", "config.json"));
+  const hasBacklogMd = fs9.existsSync(path9.join(targetRepo, "BACKLOG.md"));
+  const registry = loadRegistryFile(ROOT_DIR);
+  const matched = (registry?.projects || []).find(
+    (p) => p.repoPath && path9.resolve(p.repoPath) === targetRepo
+  );
+  if (!hasTasks && !hasJson && !hasConfig && !hasBacklogMd && !matched) {
+    return null;
+  }
+  const identity = resolveProjectIdentity(targetRepo);
+  let storageType = hasTasks || hasBacklogMd ? "markdown" : hasJson ? "json" : "markdown";
+  if (matched?.storageType) {
+    storageType = matched.storageType;
+  }
+  return {
+    id: identity.id || matched?.id || path9.basename(targetRepo),
+    name: identity.name || matched?.name || path9.basename(targetRepo),
+    codePrefix: identity.codePrefix || matched?.codePrefix || "DEV",
+    repoPath: targetRepo,
+    storageType,
+    backlogDir: "backlog",
+    createdAt: matched?.createdAt || (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+async function runAddCommand(rawArgs) {
+  const opts = parseAddArgs(rawArgs);
+  if (opts.help) {
+    printAddHelp();
+    return;
+  }
+  if (!opts.title || !opts.title.trim()) {
+    console.error(`
+  ${c.red("\u2716")} Error: Debes especificar el t\xEDtulo de la tarea.`);
+    console.error(`    Uso: gripm add "<t\xEDtulo>" [--priority high] [--type bug] [--due YYYY-MM-DD]`);
+    console.error(`    Ejecuta "gripm add --help" para ver todas las opciones disponibles.
+`);
+    process.exitCode = 1;
+    return;
+  }
+  if (opts.due) {
+    const isFormatValid = /^\d{4}-\d{2}-\d{2}$/.test(opts.due);
+    const parsedTime = Date.parse(opts.due);
+    if (!isFormatValid || isNaN(parsedTime)) {
+      console.error(`
+  ${c.red("\u2716")} Error: Formato de fecha inv\xE1lido para --due: "${opts.due}".`);
+      console.error(`    Debe seguir el formato YYYY-MM-DD (ej: 2026-12-31).
+`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const targetRepo = opts.repo ? path9.resolve(opts.repo) : process.cwd();
+  if (!fs9.existsSync(targetRepo)) {
+    console.error(`
+  ${c.red("\u2716")} Error: El directorio especificado no existe: "${targetRepo}".
+`);
+    process.exitCode = 1;
+    return;
+  }
+  const project = resolveProjectForCli(targetRepo);
+  if (!project) {
+    console.error(`
+  ${c.red("\u2716")} Error: No se encontr\xF3 un proyecto de gripm inicializado en "${targetRepo}".`);
+    console.error(`    Ejecuta 'gripm --init' en este directorio para inicializarlo.
+`);
+    process.exitCode = 1;
+    return;
+  }
+  const taskPayload = {
+    title: opts.title.trim(),
+    priority: opts.priority ? normalizePriority(opts.priority) : "medium",
+    type: opts.type ? normalizeType(opts.type) : "feature",
+    status: "draft",
+    description: opts.description || "",
+    estimate: opts.estimate,
+    sprint: opts.sprint,
+    labels: opts.labels || [],
+    dueDate: opts.due
+  };
+  const result = BacklogService.createTask(project, taskPayload);
+  if (!result.ok || !result.task) {
+    console.error(`
+  ${c.red("\u2716")} Error: No se pudo crear la tarea en el storage.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (project.storageType === "markdown" && project.repoPath) {
+    const backlogMdPath = path9.join(project.repoPath, "BACKLOG.md");
+    if (fs9.existsSync(backlogMdPath)) {
+      try {
+        BacklogService.exportBacklogMd(project);
+      } catch (err) {
+        console.warn(`  ${c.yellow("\u25B2")} Aviso: No se pudo auto-sincronizar BACKLOG.md: ${err.message}`);
+      }
+    }
+  }
+  if (opts.json) {
+    console.log(JSON.stringify({
+      ok: true,
+      task: result.task,
+      savedFile: result.savedFile
+    }, null, 2));
+    return;
+  }
+  const created = result.task;
+  const code = created.code || created.id;
+  const relFile = result.savedFile ? path9.relative(targetRepo, result.savedFile) : "";
+  console.log(`
+  ${c.green("\u2714")} Tarea creada exitosamente: ${c.bold(`[${code}]`)} ${c.dim(`(${created.priority} / ${created.type})`)}`);
+  console.log(`    ${c.bold("T\xEDtulo:")}      ${created.title}`);
+  if (created.dueDate) {
+    console.log(`    ${c.bold("Vencimiento:")} ${created.dueDate}`);
+  }
+  if (created.estimate !== void 0 && created.estimate !== null && created.estimate !== "") {
+    console.log(`    ${c.bold("Estimaci\xF3n:")}  ${created.estimate}`);
+  }
+  if (created.labels && created.labels.length > 0) {
+    console.log(`    ${c.bold("Etiquetas:")}   ${created.labels.join(", ")}`);
+  }
+  if (created.sprint) {
+    console.log(`    ${c.bold("Sprint:")}      ${created.sprint}`);
+  }
+  if (relFile) {
+    console.log(`    ${c.bold("Archivo:")}     ${relFile}`);
+  }
+  console.log("");
+}
+
+// scripts/gripm-runner.js
+var __filename6 = fileURLToPath6(import.meta.url);
+var __dirname6 = path14.dirname(__filename6);
+var PKG_ROOT3 = path14.resolve(__dirname6, "..");
+var pkgJson = JSON.parse(fs14.readFileSync(path14.join(PKG_ROOT3, "package.json"), "utf8"));
+var currentVersion = pkgJson.version || "1.0.0";
+var args = process.argv.slice(2);
+var isColorSupported2 = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
+var c2 = {
+  bold: (s) => isColorSupported2 ? `\x1B[1m${s}\x1B[0m` : s,
+  dim: (s) => isColorSupported2 ? `\x1B[2m${s}\x1B[0m` : s,
+  green: (s) => isColorSupported2 ? `\x1B[32m${s}\x1B[0m` : s,
+  cyan: (s) => isColorSupported2 ? `\x1B[36m${s}\x1B[0m` : s,
+  yellow: (s) => isColorSupported2 ? `\x1B[33m${s}\x1B[0m` : s
 };
 function openBrowser(url) {
   if (process.platform === "darwin") {
@@ -7133,6 +7376,7 @@ function printMainHelp() {
     gripm <comando> [opciones]     Ejecuta un subcomando espec\xEDfico
 
   Comandos:
+    gripm add "<t\xEDtulo>" [opciones] Captura r\xE1pida de tareas sin abrir el navegador
     gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
     gripm playbook sync            Sincroniza materiales de Gripm Playbook en el proyecto actual
     gripm import --file <ruta>     Importa tareas de Jira, Linear o CSV al backlog local
@@ -7245,7 +7489,23 @@ async function main() {
     "--from",
     "--file",
     "-f",
-    "--prefix"
+    "--prefix",
+    "--title",
+    "-t",
+    "--priority",
+    "--type",
+    "--due",
+    "--due-date",
+    "--description",
+    "-d",
+    "--desc",
+    "--estimate",
+    "-e",
+    "--labels",
+    "--label",
+    "-l",
+    "--sprint",
+    "-s"
   ]);
   const nonFlagArgs = [];
   for (let i = 0; i < args.length; i++) {
@@ -7258,13 +7518,17 @@ async function main() {
     }
   }
   const command = nonFlagArgs[0];
-  if (command && !["mcp", "playbook", "help", "import"].includes(command)) {
+  if (command && !["mcp", "playbook", "help", "import", "add"].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
   }
   if (command === "help") {
     const sub = nonFlagArgs[1];
+    if (sub === "add") {
+      printAddHelp();
+      process.exit(0);
+    }
     if (sub === "mcp") {
       printMcpHelp();
       process.exit(0);
@@ -7280,6 +7544,14 @@ async function main() {
     printMainHelp();
     process.exit(0);
   }
+  if (command === "add" || args[0] === "add" || args.includes("add") && command !== "help") {
+    if (hasHelpFlag(args)) {
+      printAddHelp();
+      process.exit(0);
+    }
+    await runAddCommand(args);
+    return;
+  }
   if (command === "mcp" || args.includes("mcp") && command !== "help") {
     if (hasHelpFlag(args)) {
       printMcpHelp();
@@ -7289,7 +7561,7 @@ async function main() {
       console.log(currentVersion);
       process.exit(0);
     }
-    const mcpBinary = path13.join(PKG_ROOT3, "bin", "gripm-mcp.js");
+    const mcpBinary = path14.join(PKG_ROOT3, "bin", "gripm-mcp.js");
     const { pathToFileURL: pathToFileURL2 } = await import("node:url");
     await import(pathToFileURL2(mcpBinary).href);
     return;
@@ -7307,7 +7579,7 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-    const syncScript = path13.join(PKG_ROOT3, "scripts", "sync-playbook.mjs");
+    const syncScript = path14.join(PKG_ROOT3, "scripts", "sync-playbook.mjs");
     const branchIdx = args.findIndex((a) => a === "--branch" || a === "-b");
     const branch = branchIdx !== -1 ? args[branchIdx + 1] : void 0;
     const remoteIdx = args.findIndex((a) => a === "--remote");
@@ -7319,9 +7591,9 @@ async function main() {
     let targetRepo2 = process.cwd();
     const repoIdx2 = args.findIndex((a) => a === "--repo" || a === "-r");
     if (repoIdx2 !== -1 && args[repoIdx2 + 1]) {
-      targetRepo2 = path13.resolve(args[repoIdx2 + 1]);
+      targetRepo2 = path14.resolve(args[repoIdx2 + 1]);
     }
-    if (fs13.existsSync(syncScript)) {
+    if (fs14.existsSync(syncScript)) {
       const { pathToFileURL: pathToFileURL2 } = await import("node:url");
       const { runPlaybookSync } = await import(pathToFileURL2(syncScript).href);
       await runPlaybookSync(targetRepo2, { branch, remote, source, dryRun, force });
@@ -7351,34 +7623,34 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-    const absoluteFilePath = path13.resolve(filePath);
-    if (!fs13.existsSync(absoluteFilePath)) {
+    const absoluteFilePath = path14.resolve(filePath);
+    if (!fs14.existsSync(absoluteFilePath)) {
       console.error(`Error: El archivo "${filePath}" no existe.`);
       process.exitCode = 1;
       return;
     }
     const repoIdx2 = args.findIndex((a) => a === "--repo" || a === "-r");
-    const targetRepo2 = repoIdx2 !== -1 && args[repoIdx2 + 1] ? path13.resolve(args[repoIdx2 + 1]) : process.cwd();
+    const targetRepo2 = repoIdx2 !== -1 && args[repoIdx2 + 1] ? path14.resolve(args[repoIdx2 + 1]) : process.cwd();
     const dryRun = args.includes("--dry-run");
     const prefixIdx = args.findIndex((a) => a === "--prefix");
     const customPrefix = prefixIdx !== -1 ? args[prefixIdx + 1]?.toUpperCase() : void 0;
-    const fileContent = fs13.readFileSync(absoluteFilePath, "utf8");
+    const fileContent = fs14.readFileSync(absoluteFilePath, "utf8");
     const result = parseUniversalExport(fileContent);
     if (result.items.length === 0) {
       console.log(`
-  ${c.yellow("\u25B2")}  No se detectaron tareas para importar en ${path13.basename(filePath)} (${result.label}).`);
+  ${c2.yellow("\u25B2")}  No se detectaron tareas para importar en ${path14.basename(filePath)} (${result.label}).`);
       return;
     }
     console.log(`
-  ${c.cyan("\u2139")}  ${c.bold(result.label)}`);
-    const tasksDir2 = path13.join(targetRepo2, "backlog/tasks");
-    if (!dryRun && !fs13.existsSync(tasksDir2)) {
-      fs13.mkdirSync(tasksDir2, { recursive: true });
+  ${c2.cyan("\u2139")}  ${c2.bold(result.label)}`);
+    const tasksDir2 = path14.join(targetRepo2, "backlog/tasks");
+    if (!dryRun && !fs14.existsSync(tasksDir2)) {
+      fs14.mkdirSync(tasksDir2, { recursive: true });
     }
     let prefix = customPrefix;
     let maxNum = 0;
-    if (fs13.existsSync(tasksDir2)) {
-      const taskFiles = fs13.readdirSync(tasksDir2).filter((f) => f.endsWith(".md"));
+    if (fs14.existsSync(tasksDir2)) {
+      const taskFiles = fs14.readdirSync(tasksDir2).filter((f) => f.endsWith(".md"));
       const prefixCounts = {};
       for (const f of taskFiles) {
         const m = f.match(/^([A-Za-z0-9_-]+)-(\d+)/);
@@ -7405,9 +7677,9 @@ async function main() {
       const identity = resolveProjectIdentity(targetRepo2);
       prefix = identity.codePrefix || "TASK";
     }
-    console.log(`  ${c.dim("Prefijo de tareas:")} ${c.bold(prefix)} (pr\xF3ximo correlativo: ${prefix}-${String(maxNum + 1).padStart(3, "0")})`);
+    console.log(`  ${c2.dim("Prefijo de tareas:")} ${c2.bold(prefix)} (pr\xF3ximo correlativo: ${prefix}-${String(maxNum + 1).padStart(3, "0")})`);
     if (dryRun) {
-      console.log(`  ${c.yellow("Modo simulaci\xF3n (--dry-run):")} Ning\xFAn archivo ser\xE1 modificado.
+      console.log(`  ${c2.yellow("Modo simulaci\xF3n (--dry-run):")} Ning\xFAn archivo ser\xE1 modificado.
 `);
     }
     let importedCount = 0;
@@ -7420,17 +7692,17 @@ async function main() {
       if (dryRun) {
         console.log(`  [SIMULADO] ${taskId} \xB7 ${item.title} (${item.status}, ${item.priority})`);
       } else {
-        fs13.writeFileSync(path13.join(tasksDir2, filename), taskContent, "utf8");
+        fs14.writeFileSync(path14.join(tasksDir2, filename), taskContent, "utf8");
       }
       importedCount++;
     }
     if (dryRun) {
       console.log(`
-  ${c.green("\u2714")}  Simulaci\xF3n completada: ${importedCount} tareas listas para importar.`);
+  ${c2.green("\u2714")}  Simulaci\xF3n completada: ${importedCount} tareas listas para importar.`);
     } else {
       console.log(`
-  ${c.green("\u2714")}  ${importedCount} tareas importadas con \xE9xito en backlog/tasks/`);
-      console.log(`  ${c.dim('Ejecuta "npm run backlog:sync" para consolidar BACKLOG.md.')}`);
+  ${c2.green("\u2714")}  ${importedCount} tareas importadas con \xE9xito en backlog/tasks/`);
+      console.log(`  ${c2.dim('Ejecuta "npm run backlog:sync" para consolidar BACKLOG.md.')}`);
     }
     return;
   }
@@ -7457,16 +7729,16 @@ async function main() {
     const token = process.env.GRIPM_TOKEN || crypto2.randomBytes(16).toString("hex");
     process.env.GRIPM_TOKEN = token;
     console.warn(`
-  ${c.yellow("\u25B2")}  ${c.yellow("Advertencia de seguridad: Enlazando a 0.0.0.0 (red local).")}`);
-    console.log(`  ${c.dim("\u279C")}  ${c.dim("Token de acceso:")}  ${token}`);
-    console.log(`  ${c.dim("\u279C")}  ${c.dim("Acceso local:")}    ${c.cyan("http://localhost:4100/")}`);
-    console.log(`  ${c.dim("\u279C")}  ${c.dim("Acceso en LAN:")}    ${c.cyan(`http://<IP-LAN>:4100/?token=${token}`)}
+  ${c2.yellow("\u25B2")}  ${c2.yellow("Advertencia de seguridad: Enlazando a 0.0.0.0 (red local).")}`);
+    console.log(`  ${c2.dim("\u279C")}  ${c2.dim("Token de acceso:")}  ${token}`);
+    console.log(`  ${c2.dim("\u279C")}  ${c2.dim("Acceso local:")}    ${c2.cyan("http://localhost:4100/")}`);
+    console.log(`  ${c2.dim("\u279C")}  ${c2.dim("Acceso en LAN:")}    ${c2.cyan(`http://<IP-LAN>:4100/?token=${token}`)}
 `);
   }
   let targetRepo = process.cwd();
   const repoIdx = args.findIndex((a) => a === "--repo" || a === "-r");
   if (repoIdx !== -1 && args[repoIdx + 1]) {
-    targetRepo = path13.resolve(args[repoIdx + 1]);
+    targetRepo = path14.resolve(args[repoIdx + 1]);
   }
   const shouldOpen = !args.includes("--no-open");
   const isHub = args.includes("--hub") || args.includes("--multi");
@@ -7514,17 +7786,17 @@ async function main() {
     });
     process.exit(result && result.integrityWarning ? 2 : 0);
   }
-  const tasksDir = path13.join(targetRepo, "backlog/tasks");
-  const gripmJson = path13.join(targetRepo, ".gripm/backlog.json");
+  const tasksDir = path14.join(targetRepo, "backlog/tasks");
+  const gripmJson = path14.join(targetRepo, ".gripm/backlog.json");
   let storageType = "markdown";
-  if (fs13.existsSync(tasksDir)) {
+  if (fs14.existsSync(tasksDir)) {
     storageType = "markdown";
-  } else if (fs13.existsSync(gripmJson)) {
+  } else if (fs14.existsSync(gripmJson)) {
     storageType = "json";
   } else {
     storageType = "markdown";
   }
-  const isHomeDirectory = path13.resolve(targetRepo).toLowerCase() === path13.resolve(os3.homedir()).toLowerCase();
+  const isHomeDirectory = path14.resolve(targetRepo).toLowerCase() === path14.resolve(os3.homedir()).toLowerCase();
   const isExplicitProject = args.includes("--repo") || args.includes("-r") || args.includes("--init");
   if (!isHomeDirectory || isExplicitProject) {
     try {
@@ -7533,7 +7805,7 @@ async function main() {
       const projectName = identity.name;
       const projectId = identity.id;
       const codePrefix = identity.codePrefix;
-      const existingIdx = registry.projects.findIndex((p) => p.id === projectId || p.repoPath && path13.resolve(p.repoPath) === targetRepo);
+      const existingIdx = registry.projects.findIndex((p) => p.id === projectId || p.repoPath && path14.resolve(p.repoPath) === targetRepo);
       const projectMeta = {
         id: projectId,
         name: projectName,
@@ -7561,13 +7833,13 @@ async function main() {
   const resolvedPort = await findAvailablePort(port, host);
   if (resolvedPort !== port) {
     console.log(`
-  ${c.yellow("\u25B2")}  Puerto ${port} ocupado en el sistema. Utilizando puerto disponible ${resolvedPort}...`);
+  ${c2.yellow("\u25B2")}  Puerto ${port} ocupado en el sistema. Utilizando puerto disponible ${resolvedPort}...`);
   }
   if (isDev) {
     const { createServer } = await import("vite");
     server = await createServer({
       root: PKG_ROOT3,
-      configFile: path13.resolve(PKG_ROOT3, "vite.config.ts"),
+      configFile: path14.resolve(PKG_ROOT3, "vite.config.ts"),
       server: {
         port: resolvedPort,
         host,
@@ -7583,15 +7855,15 @@ async function main() {
   } else {
     let serveFile2 = function(filePath, req, res) {
       try {
-        const stat = fs13.statSync(filePath);
+        const stat = fs14.statSync(filePath);
         if (stat.isDirectory()) {
-          const indexInDir = path13.join(filePath, "index.html");
-          if (fs13.existsSync(indexInDir) && fs13.statSync(indexInDir).isFile()) {
+          const indexInDir = path14.join(filePath, "index.html");
+          if (fs14.existsSync(indexInDir) && fs14.statSync(indexInDir).isFile()) {
             return serveFile2(indexInDir, req, res);
           }
           return false;
         }
-        const ext = path13.extname(filePath).toLowerCase();
+        const ext = path14.extname(filePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || "application/octet-stream";
         res.setHeader("Content-Type", contentType);
         res.setHeader("Content-Length", stat.size);
@@ -7608,7 +7880,7 @@ async function main() {
           return true;
         }
         res.statusCode = 200;
-        const stream = fs13.createReadStream(filePath);
+        const stream = fs14.createReadStream(filePath);
         stream.on("error", () => {
           if (!res.headersSent) {
             res.statusCode = 500;
@@ -7630,22 +7902,22 @@ async function main() {
         res.end("Bad Request");
         return;
       }
-      const safePath = path13.normalize(path13.join(distDir, pathname));
+      const safePath = path14.normalize(path14.join(distDir, pathname));
       if (!safePath.startsWith(distDir)) {
         res.statusCode = 403;
         res.end("Forbidden");
         return;
       }
-      if (fs13.existsSync(safePath) && safePath !== distDir) {
+      if (fs14.existsSync(safePath) && safePath !== distDir) {
         if (serveFile2(safePath, req, res)) return;
       }
-      const safePublicPath = path13.normalize(path13.join(publicDir, pathname));
-      if (safePublicPath.startsWith(publicDir) && fs13.existsSync(safePublicPath) && safePublicPath !== publicDir) {
+      const safePublicPath = path14.normalize(path14.join(publicDir, pathname));
+      if (safePublicPath.startsWith(publicDir) && fs14.existsSync(safePublicPath) && safePublicPath !== publicDir) {
         if (serveFile2(safePublicPath, req, res)) return;
       }
-      const indexPath = path13.join(distDir, "index.html");
+      const indexPath = path14.join(distDir, "index.html");
       if (pathname === "/" || pathname === "") {
-        if (fs13.existsSync(indexPath)) {
+        if (fs14.existsSync(indexPath)) {
           if (serveFile2(indexPath, req, res)) return;
         }
         res.statusCode = 503;
@@ -7653,8 +7925,8 @@ async function main() {
         res.end("<h1>dist/index.html no encontrado</h1><p>Ejecuta <code>npm run build</code> antes de iniciar gripm en produccion.</p>");
         return;
       }
-      const hasExtension = path13.extname(pathname).length > 0;
-      if (!hasExtension && fs13.existsSync(indexPath)) {
+      const hasExtension = path14.extname(pathname).length > 0;
+      if (!hasExtension && fs14.existsSync(indexPath)) {
         if (serveFile2(indexPath, req, res)) return;
       }
       res.statusCode = 404;
@@ -7666,9 +7938,9 @@ async function main() {
     let apiMiddleware = null;
     let closeWatchers2 = null;
     try {
-      const serverBundle = path13.join(PKG_ROOT3, "bin", "server.js");
+      const serverBundle = path14.join(PKG_ROOT3, "bin", "server.js");
       let gripmApi2;
-      if (fs13.existsSync(serverBundle)) {
+      if (fs14.existsSync(serverBundle)) {
         const { pathToFileURL: pathToFileURL2 } = await import("node:url");
         const mod = await import(pathToFileURL2(serverBundle).href);
         gripmApi2 = mod.gripmApi;
@@ -7687,8 +7959,8 @@ async function main() {
       });
     } catch {
     }
-    const distDir = path13.resolve(PKG_ROOT3, "dist");
-    const publicDir = path13.resolve(PKG_ROOT3, "public");
+    const distDir = path14.resolve(PKG_ROOT3, "dist");
+    const publicDir = path14.resolve(PKG_ROOT3, "public");
     const MIME_TYPES = {
       ".html": "text/html; charset=utf-8",
       ".js": "application/javascript; charset=utf-8",
@@ -7736,11 +8008,11 @@ async function main() {
     url = `http://${displayHost}:${actualPort}`;
   }
   console.log(`
-  ${c.bold("gripm")} ${c.dim(`v${currentVersion}`)}  ${c.green("listo")}
+  ${c2.bold("gripm")} ${c2.dim(`v${currentVersion}`)}  ${c2.green("listo")}
 
-  ${c.green("\u279C")}  ${c.bold("Tablero:")}     ${c.cyan(url)}
-  ${c.dim("\u279C")}  ${c.dim("Proyecto:")}    ${targetRepo}
-  ${c.dim("\u279C")}  ${c.dim("Modo:")}        ${storageType.toUpperCase()} ${c.dim("(tiempo real)")}
+  ${c2.green("\u279C")}  ${c2.bold("Tablero:")}     ${c2.cyan(url)}
+  ${c2.dim("\u279C")}  ${c2.dim("Proyecto:")}    ${targetRepo}
+  ${c2.dim("\u279C")}  ${c2.dim("Modo:")}        ${storageType.toUpperCase()} ${c2.dim("(tiempo real)")}
 `);
   const cachedUpdate = getCachedUpdateInfo(currentVersion);
   if (cachedUpdate && cachedUpdate.hasUpdate) {

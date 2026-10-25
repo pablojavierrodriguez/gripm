@@ -17,6 +17,7 @@ import { runInitWizard } from './initScaffold.js';
 import { runUninstallCommand } from './uninstall.js';
 import { findAvailablePort } from './portUtils.js';
 import { parseUniversalExport, formatTaskMarkdown } from '../src/utils/universalImporter.ts';
+import { runAddCommand, printAddHelp } from './cliAdd.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,7 @@ function printMainHelp() {
     gripm <comando> [opciones]     Ejecuta un subcomando específico
 
   Comandos:
+    gripm add "<título>" [opciones] Captura rápida de tareas sin abrir el navegador
     gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
     gripm playbook sync            Sincroniza materiales de Gripm Playbook en el proyecto actual
     gripm import --file <ruta>     Importa tareas de Jira, Linear o CSV al backlog local
@@ -179,7 +181,15 @@ async function main() {
     '--remote',
     '--source', '--from',
     '--file', '-f',
-    '--prefix'
+    '--prefix',
+    '--title', '-t',
+    '--priority',
+    '--type',
+    '--due', '--due-date',
+    '--description', '-d', '--desc',
+    '--estimate', '-e',
+    '--labels', '--label', '-l',
+    '--sprint', '-s'
   ]);
 
   const nonFlagArgs = [];
@@ -194,7 +204,7 @@ async function main() {
   }
 
   const command = nonFlagArgs[0];
-  if (command && !['mcp', 'playbook', 'help', 'import'].includes(command)) {
+  if (command && !['mcp', 'playbook', 'help', 'import', 'add'].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
@@ -203,6 +213,10 @@ async function main() {
   // Handle 'help' subcommand alias
   if (command === 'help') {
     const sub = nonFlagArgs[1];
+    if (sub === 'add') {
+      printAddHelp();
+      process.exit(0);
+    }
     if (sub === 'mcp') {
       printMcpHelp();
       process.exit(0);
@@ -217,6 +231,16 @@ async function main() {
     }
     printMainHelp();
     process.exit(0);
+  }
+
+  // DEV-329: Handle 'add' subcommand
+  if (command === 'add' || (args[0] === 'add') || (args.includes('add') && command !== 'help')) {
+    if (hasHelpFlag(args)) {
+      printAddHelp();
+      process.exit(0);
+    }
+    await runAddCommand(args);
+    return;
   }
 
   // DEV-150 / DEV-295: Handle 'mcp' subcommand directly without starting Vite (positional or non-positional)

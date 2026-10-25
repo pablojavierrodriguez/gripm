@@ -10,6 +10,7 @@ import {
   normalizeType,
   generateTaskFilename,
   generateMonolithicBacklogMd,
+  formatPriorityForMd,
   type BacklogMdTask
 } from '../../scripts/backlogMdParser.ts';
 import {
@@ -1095,6 +1096,8 @@ export class BacklogService {
       type: data.type || 'feature',
       createdDate: today,
       updatedDate: today,
+      startDate: data.startDate || data.start_date || undefined,
+      dueDate: data.dueDate || data.due_date || data.targetDate || data.target_date || undefined,
       milestone: rawRel || undefined,
       sprint: legSprint || undefined,
       targetSprint: legSprint || undefined,
@@ -1724,7 +1727,7 @@ export class BacklogService {
       title: t.title,
       status: normalizeStatus(t.status),
       type: t.type,
-      priority: t.priority,
+      priority: formatPriorityForMd(t.priority),
       milestone: t.milestone || t.targetSprint,
       description: t.description || '',
       acceptanceCriteria: t.acceptanceCriteriaList || t.acceptanceCriteria || []

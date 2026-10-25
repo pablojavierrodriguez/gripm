@@ -89,6 +89,12 @@ gripm
 ```
 El CLI abrirá automáticamente el tablero visual en tu navegador predeterminado (`http://localhost:4100`).
 
+### 4. Captura rápida de tareas desde el CLI (Opcional)
+```bash
+gripm add "Corregir bug de timeout en autenticación" --priority high --type bug --due 2026-11-30 --labels auth,seguridad
+```
+Registra tareas directamente en el almacenamiento del proyecto (`backlog/tasks/*.md` o `.gripm/backlog.json`) desde tu terminal sin abrir el navegador.
+
 ---
 
 ## 🤖 Conecta tu Agente de IA (Cursor, Claude, Antigravity)
@@ -418,6 +424,7 @@ npm link
 *Ahora los comandos `gripm` y `gripm-mcp` ejecutarán directamente tu copia local.*
 
 ### 3. Modos y Banderas Avanzadas del CLI
+- `gripm add "<título>" [opciones]`: Captura rápida de tareas desde la terminal sin abrir el navegador. Soporta `--priority <p0-p3|low-urgent>`, `--type <feature|bug|spike|chore|task>`, `--due <YYYY-MM-DD>`, `--estimate <valor>`, `--labels <tag1,tag2>`, `--sprint <nombre>` y `--json`.
 - `--hub`: Fuerza el modo hub multi-proyecto (gestiona todos los proyectos registrados en `~/.gripm/registry.json`).
 - `--port <número>`: Especifica un puerto personalizado (ej: `gripm --port 4200`).
 - `--repo <ruta>`: Apunta a un proyecto explícito en lugar de la carpeta actual. Aplica a Board, MCP y `playbook sync`.

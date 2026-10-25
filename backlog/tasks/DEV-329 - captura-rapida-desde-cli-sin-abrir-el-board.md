@@ -1,16 +1,16 @@
 ---
 id: DEV-329
 title: "Captura rápida desde CLI sin abrir el board"
-status: ideas
+status: ready
 created_date: '2026-10-22'
-updated_date: '2026-10-22'
+updated_date: '2026-10-25'
 labels:
   - "cli"
   - "product"
   - "dx"
+dependencies: []
 priority: medium
 type: feature
-dependencies: []
 ---
 
 ## Description
@@ -26,11 +26,11 @@ Es una iniciativa de descubrimiento: definir el contrato del comando (flags, sal
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `gripm add` crea una tarea en el engine de storage activo del proyecto usando el mismo camino de escritura que el board.
-- [ ] #2 La tarea resultante pasa `npm run backlog:check` sin correcciones posteriores.
-- [ ] #3 El comando falla con mensaje accionable cuando el directorio no es un proyecto gripm inicializado.
-- [ ] #4 Los flags documentados (título, fecha, prioridad, tipo) tienen cobertura de test o verificación ejecutable.
-- [ ] #5 El uso queda documentado junto al resto de flags CLI del README.
+- [x] #1 `gripm add` crea una tarea en el engine de storage activo del proyecto usando el mismo camino de escritura que el board.
+- [x] #2 La tarea resultante pasa `npm run backlog:check` sin correcciones posteriores.
+- [x] #3 El comando falla con mensaje accionable cuando el directorio no es un proyecto gripm inicializado.
+- [x] #4 Los flags documentados (título, fecha, prioridad, tipo) tienen cobertura de test o verificación ejecutable.
+- [x] #5 El uso queda documentado junto al resto de flags CLI del README.
 <!-- AC:END -->
 
 ## Implementation Plan

@@ -89,6 +89,12 @@ gripm
 ```
 The CLI will automatically launch the visual board in your default browser (`http://localhost:4100`).
 
+### 4. Quick capture tasks from the CLI (Optional)
+```bash
+gripm add "Fix authentication timeout bug" --priority high --type bug --due 2026-11-30 --labels auth,security
+```
+Capture tasks directly into the project storage (`backlog/tasks/*.md` or `.gripm/backlog.json`) from your terminal without opening the browser.
+
 ---
 
 ## 🤖 Connect your AI Agent (Cursor, Claude, Antigravity)
@@ -418,6 +424,7 @@ npm link
 *Now `gripm` and `gripm-mcp` commands will execute your local fork directly.*
 
 ### 3. Advanced CLI Modes & Flags
+- `gripm add "<title>" [options]`: Quick task capture from the terminal without opening the browser. Supports `--priority <p0-p3|low-urgent>`, `--type <feature|bug|spike|chore|task>`, `--due <YYYY-MM-DD>`, `--estimate <val>`, `--labels <tag1,tag2>`, `--sprint <name>`, and `--json`.
 - `--hub`: Forces multi-project hub mode (manages all registered projects in `~/.gripm/registry.json`).
 - `--port <number>`: Specifies a custom port (e.g., `gripm --port 4200`).
 - `--repo <path>`: Points to an explicit project directory instead of the current folder.

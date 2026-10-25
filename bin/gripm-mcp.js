@@ -2281,6 +2281,8 @@ var BacklogService = class _BacklogService {
         type: data.type || "feature",
         createdDate: today,
         updatedDate: today,
+        startDate: data.startDate || data.start_date || void 0,
+        dueDate: data.dueDate || data.due_date || data.targetDate || data.target_date || void 0,
         milestone: rawRel || void 0,
         sprint: legSprint || void 0,
         targetSprint: legSprint || void 0,
@@ -2793,7 +2795,7 @@ previousStatus: "${previousStatus}"
       title: t.title,
       status: normalizeStatus(t.status),
       type: t.type,
-      priority: t.priority,
+      priority: formatPriorityForMd(t.priority),
       milestone: t.milestone || t.targetSprint,
       description: t.description || "",
       acceptanceCriteria: t.acceptanceCriteriaList || t.acceptanceCriteria || []

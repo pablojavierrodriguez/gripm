@@ -64,6 +64,7 @@ const STEPS = [
   ['sandbox', 'scripts/verify-sandbox.js'],
   ['dist', 'scripts/verify-dist.js'],
   ['density-1366', 'scripts/verify-density-1366.js'],
+  ['cli-add', 'scripts/test-cli-add.js'],
 ];
 
 const DEFAULT_TIMEOUT_SECONDS = 180;
