@@ -1740,6 +1740,55 @@ var init_fs_lock = __esm({
   }
 });
 
+// server/services/taskCache.ts
+function getTaskCacheEntry(filePath) {
+  return taskCache.get(filePath);
+}
+function setTaskCacheEntry(filePath, entry) {
+  taskCache.set(filePath, entry);
+}
+function recordCacheHit() {
+  cacheHits++;
+}
+function recordCacheMiss() {
+  cacheMisses++;
+}
+function invalidateTaskCache(filePath) {
+  if (filePath) {
+    taskCache.delete(filePath);
+  } else {
+    taskCache.clear();
+  }
+}
+function clearTaskCache() {
+  taskCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+}
+function getTaskCacheStats() {
+  return {
+    size: taskCache.size,
+    hits: cacheHits,
+    misses: cacheMisses
+  };
+}
+function pruneStaleCacheEntries(tasksDir, activeFilePaths) {
+  for (const cachedPath of taskCache.keys()) {
+    if (cachedPath.startsWith(tasksDir) && !activeFilePaths.has(cachedPath)) {
+      taskCache.delete(cachedPath);
+    }
+  }
+}
+var taskCache, cacheHits, cacheMisses;
+var init_taskCache = __esm({
+  "server/services/taskCache.ts"() {
+    "use strict";
+    taskCache = /* @__PURE__ */ new Map();
+    cacheHits = 0;
+    cacheMisses = 0;
+  }
+});
+
 // server/services/backlogService.ts
 import fs8 from "node:fs";
 import path8 from "node:path";
@@ -2078,9 +2127,26 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const raw = fs8.readFileSync(path8.join(tasksDir, f), "utf8");
-        const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
-        const parsed = parseBacklogMd(raw, fallbackId);
+        const fullPath = path8.join(tasksDir, f);
+        const stat = fs8.statSync(fullPath);
+        const cached = getTaskCacheEntry(fullPath);
+        let parsed;
+        if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+          recordCacheHit();
+          parsed = cached.parsed;
+        } else {
+          recordCacheMiss();
+          const raw = fs8.readFileSync(fullPath, "utf8");
+          const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
+          parsed = parseBacklogMd(raw, fallbackId);
+          const canonical = mapMarkdownTaskToCanonical(parsed, project, f, stat);
+          setTaskCacheEntry(fullPath, {
+            mtimeMs: stat.mtimeMs,
+            size: stat.size,
+            parsed,
+            canonical: { ...canonical }
+          });
+        }
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
           found = f;
           break;
@@ -2092,9 +2158,23 @@ function findTaskFile(project, id) {
   if (!found) return null;
   const filePath = path8.join(tasksDir, found);
   try {
+    const stat = fs8.statSync(filePath);
+    const cached = getTaskCacheEntry(filePath);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      recordCacheHit();
+      return { filePath, filename: found, task: cached.parsed };
+    }
+    recordCacheMiss();
     const raw = fs8.readFileSync(filePath, "utf8");
     const fallbackId = found.split("-")[0] || found.replace(/\.md$/, "");
     const task = parseBacklogMd(raw, fallbackId);
+    const canonical = mapMarkdownTaskToCanonical(task, project, found, stat);
+    setTaskCacheEntry(filePath, {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      parsed: task,
+      canonical: { ...canonical }
+    });
     return { filePath, filename: found, task };
   } catch {
     return { filePath, filename: found, task: {} };
@@ -2282,6 +2362,8 @@ var init_backlogService = __esm({
     init_registry();
     init_atomicWrite();
     init_fs_lock();
+    init_taskCache();
+    init_taskCache();
     ConflictError = class _ConflictError extends Error {
       conflict = true;
       currentMtime;
@@ -2307,20 +2389,37 @@ var init_backlogService = __esm({
           if (fs8.existsSync(tasksDir)) {
             const files = fs8.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
             files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
+            const activePaths = /* @__PURE__ */ new Set();
             let orderIdx = 1;
             for (const file of files) {
               try {
                 const fullPath = path8.join(tasksDir, file);
-                const raw = fs8.readFileSync(fullPath, "utf8");
-                const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
-                const parsed = parseBacklogMd(raw, fallbackId);
+                activePaths.add(fullPath);
                 const stat = fs8.statSync(fullPath);
-                const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
+                const cached = getTaskCacheEntry(fullPath);
+                let canonical;
+                if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+                  recordCacheHit();
+                  canonical = { ...cached.canonical };
+                } else {
+                  recordCacheMiss();
+                  const raw = fs8.readFileSync(fullPath, "utf8");
+                  const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
+                  const parsed = parseBacklogMd(raw, fallbackId);
+                  canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
+                  setTaskCacheEntry(fullPath, {
+                    mtimeMs: stat.mtimeMs,
+                    size: stat.size,
+                    parsed,
+                    canonical: { ...canonical }
+                  });
+                }
                 if (canonical.order === 0) canonical.order = orderIdx++;
                 items.push(canonical);
               } catch {
               }
             }
+            pruneStaleCacheEntries(tasksDir, activePaths);
           }
         } else {
           const jsonPath = resolveJsonBacklogPath(project);
@@ -2583,6 +2682,7 @@ var init_backlogService = __esm({
             const filepath = path8.join(tasksDir, filename);
             const serialized = serializeBacklogMd(taskData);
             atomicWriteFileSync2(filepath, serialized, "utf8");
+            invalidateTaskCache(filepath);
             const fileStat = fs8.existsSync(filepath) ? fs8.statSync(filepath) : void 0;
             const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
             return { ok: true, task: canonical, savedFile: filepath };
@@ -2723,6 +2823,7 @@ var init_backlogService = __esm({
           }
           const serialized = serializeBacklogMd(current2);
           atomicWriteFileSync2(filePath, serialized, "utf8");
+          invalidateTaskCache(filePath);
           const freshStat = fs8.existsSync(filePath) ? fs8.statSync(filePath) : void 0;
           const canonical = mapMarkdownTaskToCanonical(current2, project, filename, freshStat);
           const resp2 = { ok: true, updatedTask: canonical, filePath };
@@ -2967,6 +3068,7 @@ var init_backlogService = __esm({
             const archiveDir = path8.join(project.repoPath, project.backlogDir || "backlog", "archive");
             if (!fs8.existsSync(archiveDir)) fs8.mkdirSync(archiveDir, { recursive: true });
             fs8.renameSync(filePath, path8.join(archiveDir, filename));
+            invalidateTaskCache(filePath);
             return { ok: true, id: taskId, purged: true };
           }
           const previousStatus = task.status || "draft";
@@ -2989,6 +3091,7 @@ previousStatus: "${previousStatus}"
 `);
           }
           atomicWriteFileSync2(filePath, updated, "utf8");
+          invalidateTaskCache(filePath);
           return { ok: true, id: taskId, softDeleted: true };
         }
         const jsonPath = resolveJsonBacklogPath(project);
@@ -3033,6 +3136,7 @@ previousStatus: "${previousStatus}"
           raw = raw.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
           raw = raw.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, "");
           atomicWriteFileSync2(filePath, raw, "utf8");
+          invalidateTaskCache(filePath);
           return true;
         }
         const jsonPath = resolveJsonBacklogPath(project);
@@ -3636,6 +3740,7 @@ previousStatus: "${previousStatus}"
           const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
           const targetFilePath = path8.join(tasksDir, targetFilename);
           atomicWriteFileSync2(targetFilePath, content, "utf8");
+          invalidateTaskCache(targetFilePath);
           return;
         }
         const jsonPath = resolveJsonBacklogPath(project);
@@ -3658,6 +3763,10 @@ previousStatus: "${previousStatus}"
         currentBacklog.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
         atomicWriteFileSync2(jsonPath, JSON.stringify(currentBacklog, null, 2), "utf8");
       }
+      static getTaskCacheStats = getTaskCacheStats;
+      static clearTaskCache = clearTaskCache;
+      static invalidateTaskCache = invalidateTaskCache;
+      static loadProjectBacklog = _BacklogService.readProjectBacklog;
     };
   }
 });

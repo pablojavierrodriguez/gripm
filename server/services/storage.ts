@@ -4,7 +4,12 @@ import {
   findTaskFile
 } from './backlogService.ts';
 
-export { parseReleaseNotesMd } from './backlogService.ts';
+export {
+  parseReleaseNotesMd,
+  getTaskCacheStats,
+  clearTaskCache,
+  invalidateTaskCache
+} from './backlogService.ts';
 
 /**
  * Reads full project backlog (items, releases, sprints) with ZERO disk mutations.
@@ -13,6 +18,11 @@ export { parseReleaseNotesMd } from './backlogService.ts';
 export function readProjectBacklog(project: ProjectMeta): ProjectBacklog {
   return BacklogService.readProjectBacklog(project);
 }
+
+/**
+ * Alias for readProjectBacklog for backwards compatibility (DEV-283).
+ */
+export const loadProjectBacklog = readProjectBacklog;
 
 /**
  * Atomically writes releases and sprints to disk (markdown) or updates backlog.json (JSON).

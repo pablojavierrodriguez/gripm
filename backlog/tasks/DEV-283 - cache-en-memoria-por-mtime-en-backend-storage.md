@@ -1,9 +1,9 @@
 ---
 id: DEV-283
 title: "Caché en memoria por mtime para lecturas de tareas en el backend storage"
-status: draft
+status: review
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-26'
 labels:
   - "performance"
   - "backend"
@@ -35,14 +35,21 @@ Optimización del rendimiento de I/O en disco en el servicio de almacenamiento d
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
-- [ ] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
-- [ ] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
-- [ ] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
-- [ ] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
+- [x] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
+- [x] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
+- [x] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
+- [x] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
+- [x] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
+<!-- SECTION:NOTES:BEGIN -->
 - Archivo principal: `server/services/storage.ts`.
 - Verificar que las pruebas existentes en `scripts/verify-integration.js` y `scripts/run-tests.js` sigan pasando sin falsos positivos de caché.
+<!-- SECTION:NOTES:END -->

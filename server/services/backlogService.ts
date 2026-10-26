@@ -19,6 +19,22 @@ import {
 } from './registry.ts';
 import { atomicWriteFileSync } from './atomicWrite.ts';
 import { withFileLockSync } from '../utils/fs-lock.ts';
+import {
+  getTaskCacheEntry,
+  setTaskCacheEntry,
+  recordCacheHit,
+  recordCacheMiss,
+  invalidateTaskCache,
+  clearTaskCache,
+  getTaskCacheStats,
+  pruneStaleCacheEntries
+} from './taskCache.ts';
+
+export {
+  getTaskCacheStats,
+  clearTaskCache,
+  invalidateTaskCache
+} from './taskCache.ts';
 
 // ---------------------------------------------------------------------------
 // Types and Interfaces
@@ -534,9 +550,26 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
   if (!found) {
     for (const f of files) {
       try {
-        const raw = fs.readFileSync(path.join(tasksDir, f), 'utf8');
-        const fallbackId = f.split('-')[0] || f.replace(/\.md$/, '');
-        const parsed = parseBacklogMd(raw, fallbackId);
+        const fullPath = path.join(tasksDir, f);
+        const stat = fs.statSync(fullPath);
+        const cached = getTaskCacheEntry(fullPath);
+        let parsed: BacklogMdTask;
+        if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+          recordCacheHit();
+          parsed = cached.parsed;
+        } else {
+          recordCacheMiss();
+          const raw = fs.readFileSync(fullPath, 'utf8');
+          const fallbackId = f.split('-')[0] || f.replace(/\.md$/, '');
+          parsed = parseBacklogMd(raw, fallbackId);
+          const canonical = mapMarkdownTaskToCanonical(parsed, project, f, stat);
+          setTaskCacheEntry(fullPath, {
+            mtimeMs: stat.mtimeMs,
+            size: stat.size,
+            parsed,
+            canonical: { ...canonical }
+          });
+        }
         if (parsed.id && parsed.id.toLowerCase() === cleanId) {
           found = f;
           break;
@@ -548,9 +581,23 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
   if (!found) return null;
   const filePath = path.join(tasksDir, found);
   try {
+    const stat = fs.statSync(filePath);
+    const cached = getTaskCacheEntry(filePath);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      recordCacheHit();
+      return { filePath, filename: found, task: cached.parsed };
+    }
+    recordCacheMiss();
     const raw = fs.readFileSync(filePath, 'utf8');
     const fallbackId = found.split('-')[0] || found.replace(/\.md$/, '');
     const task = parseBacklogMd(raw, fallbackId);
+    const canonical = mapMarkdownTaskToCanonical(task, project, found, stat);
+    setTaskCacheEntry(filePath, {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      parsed: task,
+      canonical: { ...canonical }
+    });
     return { filePath, filename: found, task };
   } catch {
     return { filePath, filename: found, task: {} };
@@ -808,19 +855,39 @@ export class BacklogService {
         const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
         files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
+        const activePaths = new Set<string>();
         let orderIdx = 1;
         for (const file of files) {
           try {
             const fullPath = path.join(tasksDir, file);
-            const raw = fs.readFileSync(fullPath, 'utf8');
-            const fallbackId = file.split('-')[0] || file.replace(/\.md$/, '');
-            const parsed = parseBacklogMd(raw, fallbackId);
+            activePaths.add(fullPath);
             const stat = fs.statSync(fullPath);
-            const canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
+            const cached = getTaskCacheEntry(fullPath);
+
+            let canonical: any;
+            if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+              recordCacheHit();
+              canonical = { ...cached.canonical };
+            } else {
+              recordCacheMiss();
+              const raw = fs.readFileSync(fullPath, 'utf8');
+              const fallbackId = file.split('-')[0] || file.replace(/\.md$/, '');
+              const parsed = parseBacklogMd(raw, fallbackId);
+              canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
+              setTaskCacheEntry(fullPath, {
+                mtimeMs: stat.mtimeMs,
+                size: stat.size,
+                parsed,
+                canonical: { ...canonical }
+              });
+            }
+
             if (canonical.order === 0) canonical.order = orderIdx++;
             items.push(canonical);
           } catch {}
         }
+
+        pruneStaleCacheEntries(tasksDir, activePaths);
       }
     } else {
       const jsonPath = resolveJsonBacklogPath(project);
@@ -1133,6 +1200,7 @@ export class BacklogService {
 
       const serialized = serializeBacklogMd(taskData);
       atomicWriteFileSync(filepath, serialized, 'utf8');
+      invalidateTaskCache(filepath);
 
       const fileStat = fs.existsSync(filepath) ? fs.statSync(filepath) : undefined;
       const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
@@ -1300,6 +1368,7 @@ export class BacklogService {
 
       const serialized = serializeBacklogMd(current);
       atomicWriteFileSync(filePath, serialized, 'utf8');
+      invalidateTaskCache(filePath);
 
       const freshStat = fs.existsSync(filePath) ? fs.statSync(filePath) : undefined;
       const canonical = mapMarkdownTaskToCanonical(current, project, filename, freshStat);
@@ -1611,6 +1680,7 @@ export class BacklogService {
         const archiveDir = path.join(project.repoPath, project.backlogDir || 'backlog', 'archive');
         if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
         fs.renameSync(filePath, path.join(archiveDir, filename));
+        invalidateTaskCache(filePath);
         return { ok: true, id: taskId, purged: true };
       }
 
@@ -1631,6 +1701,7 @@ export class BacklogService {
       }
 
       atomicWriteFileSync(filePath, updated, 'utf8');
+      invalidateTaskCache(filePath);
       return { ok: true, id: taskId, softDeleted: true };
     }
 
@@ -1687,6 +1758,7 @@ export class BacklogService {
       raw = raw.replace(/^[pP]revious[sS]tatus:.*\r?\n?/gm, '');
 
       atomicWriteFileSync(filePath, raw, 'utf8');
+      invalidateTaskCache(filePath);
       return true;
     }
 
@@ -2368,6 +2440,7 @@ export class BacklogService {
       const targetFilePath = path.join(tasksDir, targetFilename);
 
       atomicWriteFileSync(targetFilePath, content, 'utf8');
+      invalidateTaskCache(targetFilePath);
       return;
     }
 
@@ -2393,6 +2466,11 @@ export class BacklogService {
     currentBacklog.lastUpdated = new Date().toISOString();
     atomicWriteFileSync(jsonPath, JSON.stringify(currentBacklog, null, 2), 'utf8');
   }
+
+  static getTaskCacheStats = getTaskCacheStats;
+  static clearTaskCache = clearTaskCache;
+  static invalidateTaskCache = invalidateTaskCache;
+  static loadProjectBacklog = BacklogService.readProjectBacklog;
 }
 
 export function getNextTaskId(project: ProjectMeta, options?: { withoutLock?: boolean }): string {

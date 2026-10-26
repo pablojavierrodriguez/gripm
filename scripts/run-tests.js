@@ -67,6 +67,7 @@ const STEPS = [
   ['density-1366', 'scripts/verify-density-1366.js'],
   ['cli-add', 'scripts/test-cli-add.js'],
   ['deploy-prod', 'scripts/test-deploy-prod.js'],
+  ['task-cache', 'scripts/test-task-cache.js'],
 ];
 
 const DEFAULT_TIMEOUT_SECONDS = 180;
