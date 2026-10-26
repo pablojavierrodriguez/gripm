@@ -249,7 +249,7 @@ npm run dev
 Suite de verificación de calidad:
 ```bash
 npm run lint          # Tipado estricto con TypeScript (tsc --noEmit)
-npm test              # Suite unificada de pruebas headless (18 pasos secuenciales)
+npm test              # Suite unificada de pruebas headless (26 pasos secuenciales)
 npm run backlog:check # Verificación de coherencia del backlog y tareas
 npm run build         # Bundle de assets con Vite y empaquetado de binarios
 ```

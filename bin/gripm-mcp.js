@@ -2,7 +2,7 @@
 
 // scripts/mcp-server.ts
 import fs8 from "node:fs";
-import path8 from "node:path";
+import path9 from "node:path";
 import readline from "node:readline";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -390,7 +390,7 @@ function atomicWriteFileSync2(filePath, content, options) {
 
 // server/services/backlogService.ts
 import fs6 from "node:fs";
-import path6 from "node:path";
+import path7 from "node:path";
 import { execSync } from "node:child_process";
 
 // scripts/backlogMdParser.ts
@@ -1485,6 +1485,7 @@ function withFileLockSync(targetPath, fn, options) {
 }
 
 // server/services/taskCache.ts
+import path6 from "node:path";
 var taskCache = /* @__PURE__ */ new Map();
 var cacheHits = 0;
 var cacheMisses = 0;
@@ -1520,8 +1521,9 @@ function getTaskCacheStats() {
   };
 }
 function pruneStaleCacheEntries(tasksDir, activeFilePaths) {
+  const normalizedDir = path6.resolve(tasksDir);
   for (const cachedPath of taskCache.keys()) {
-    if (cachedPath.startsWith(tasksDir) && !activeFilePaths.has(cachedPath)) {
+    if (path6.dirname(path6.resolve(cachedPath)) === normalizedDir && !activeFilePaths.has(cachedPath)) {
       taskCache.delete(cachedPath);
     }
   }
@@ -1540,36 +1542,36 @@ var ConflictError = class _ConflictError extends Error {
     Object.setPrototypeOf(this, _ConflictError.prototype);
   }
 };
-var DEMO_FILE2 = fs6.existsSync(path6.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path6.resolve(PKG_ROOT, "data/demo-backlog.json") : path6.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var DEMO_FILE2 = fs6.existsSync(path7.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path7.resolve(PKG_ROOT, "data/demo-backlog.json") : path7.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
-    return path6.join(project.repoPath, ".gripm/backlog.json");
+    return path7.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path6.join(PKG_ROOT, `data/${project.id}-backlog.json`);
+  return path7.join(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
 function getProjectTasksDir(project) {
   if (!project.repoPath) return "";
-  return path6.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+  return path7.join(project.repoPath, project.backlogDir || "backlog", "tasks");
 }
 function getProjectSprintsPath(project) {
   if (!project.repoPath) return "";
-  return path6.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+  return path7.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
 }
 function getProjectReleasesPath(project) {
   if (!project.repoPath) return "";
-  return path6.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+  return path7.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
 }
 function getProjectRetrospectivesPath(project) {
   if (!project.repoPath) return "";
-  return path6.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
+  return path7.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
 }
 function getProjectTaskAllocationLockPath(project) {
   if (project.repoPath) {
-    const baseDir = path6.join(project.repoPath, project.backlogDir || "backlog");
-    return path6.join(baseDir, ".task-allocation.lock");
+    const baseDir = path7.join(project.repoPath, project.backlogDir || "backlog");
+    return path7.join(baseDir, ".task-allocation.lock");
   }
-  return path6.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
+  return path7.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
 }
 function validateVerifyCommand(cmd, repoPath) {
   if (!cmd || typeof cmd !== "string") {
@@ -1622,7 +1624,7 @@ function validateVerifyCommand(cmd, repoPath) {
   let pkgScripts = {};
   let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    const pkgPath = path6.join(repoPath, "package.json");
+    const pkgPath = path7.join(repoPath, "package.json");
     if (fs6.existsSync(pkgPath)) {
       const pkg = JSON.parse(fs6.readFileSync(pkgPath, "utf8"));
       if (pkg.scripts && typeof pkg.scripts === "object") {
@@ -1787,13 +1789,13 @@ function resolveLegibleSprint(project, val) {
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
-    path6.join(repoPath, "docs/RELEASE_NOTES.md"),
-    path6.join(repoPath, "docs/releasenotes.md"),
-    path6.join(repoPath, "RELEASE_NOTES.md"),
-    path6.join(repoPath, "releasenotes.md"),
-    path6.join(repoPath, "docs/CHANGELOG.md"),
-    path6.join(repoPath, "CHANGELOG.md"),
-    path6.join(repoPath, "changelog.md")
+    path7.join(repoPath, "docs/RELEASE_NOTES.md"),
+    path7.join(repoPath, "docs/releasenotes.md"),
+    path7.join(repoPath, "RELEASE_NOTES.md"),
+    path7.join(repoPath, "releasenotes.md"),
+    path7.join(repoPath, "docs/CHANGELOG.md"),
+    path7.join(repoPath, "CHANGELOG.md"),
+    path7.join(repoPath, "changelog.md")
   ];
   let notesContent = "";
   for (const p of possiblePaths) {
@@ -1875,7 +1877,7 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const fullPath = path6.join(tasksDir, f);
+        const fullPath = path7.join(tasksDir, f);
         const stat = fs6.statSync(fullPath);
         const cached = getTaskCacheEntry(fullPath);
         let parsed;
@@ -1904,13 +1906,13 @@ function findTaskFile(project, id) {
     }
   }
   if (!found) return null;
-  const filePath = path6.join(tasksDir, found);
+  const filePath = path7.join(tasksDir, found);
   try {
     const stat = fs6.statSync(filePath);
     const cached = getTaskCacheEntry(filePath);
     if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
       recordCacheHit();
-      return { filePath, filename: found, task: cached.parsed };
+      return { filePath, filename: found, task: structuredClone(cached.parsed) };
     }
     recordCacheMiss();
     const raw = fs6.readFileSync(filePath, "utf8");
@@ -1920,7 +1922,7 @@ function findTaskFile(project, id) {
     setTaskCacheEntry(filePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
-      parsed: task,
+      parsed: structuredClone(task),
       canonical: { ...canonical }
     });
     return { filePath, filename: found, task };
@@ -2118,7 +2120,7 @@ var BacklogService = class _BacklogService {
         let orderIdx = 1;
         for (const file of files) {
           try {
-            const fullPath = path6.join(tasksDir, file);
+            const fullPath = path7.join(tasksDir, file);
             activePaths.add(fullPath);
             const stat = fs6.statSync(fullPath);
             const cached = getTaskCacheEntry(fullPath);
@@ -2404,7 +2406,7 @@ var BacklogService = class _BacklogService {
         const tasksDir = getProjectTasksDir(project);
         if (!fs6.existsSync(tasksDir)) fs6.mkdirSync(tasksDir, { recursive: true });
         const filename = generateTaskFilename(code, taskData.title);
-        const filepath = path6.join(tasksDir, filename);
+        const filepath = path7.join(tasksDir, filename);
         const serialized = serializeBacklogMd(taskData);
         atomicWriteFileSync2(filepath, serialized, "utf8");
         invalidateTaskCache(filepath);
@@ -2790,9 +2792,9 @@ var BacklogService = class _BacklogService {
         throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
       }
       if (isPurge) {
-        const archiveDir = path6.join(project.repoPath, project.backlogDir || "backlog", "archive");
+        const archiveDir = path7.join(project.repoPath, project.backlogDir || "backlog", "archive");
         if (!fs6.existsSync(archiveDir)) fs6.mkdirSync(archiveDir, { recursive: true });
-        fs6.renameSync(filePath, path6.join(archiveDir, filename));
+        fs6.renameSync(filePath, path7.join(archiveDir, filename));
         invalidateTaskCache(filePath);
         return { ok: true, id: taskId, purged: true };
       }
@@ -2899,7 +2901,7 @@ previousStatus: "${previousStatus}"
     const content = generateMonolithicBacklogMd(project.name, mdTasks);
     let savedPath;
     if (options?.save !== false && project.repoPath) {
-      savedPath = path6.join(project.repoPath, "BACKLOG.md");
+      savedPath = path7.join(project.repoPath, "BACKLOG.md");
       atomicWriteFileSync2(savedPath, content, "utf8");
     }
     return {
@@ -2924,7 +2926,7 @@ previousStatus: "${previousStatus}"
       if (fs6.existsSync(tasksDir)) {
         const files = fs6.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const file of files) {
-          const filePath = path6.join(tasksDir, file);
+          const filePath = path7.join(tasksDir, file);
           const content2 = fs6.readFileSync(filePath, "utf8");
           const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
           if (!fmMatch) continue;
@@ -2956,7 +2958,7 @@ previousStatus: "${previousStatus}"
     let backlogPath = null;
     let changesWritten = false;
     if (project.repoPath) {
-      backlogPath = path6.join(project.repoPath, "BACKLOG.md");
+      backlogPath = path7.join(project.repoPath, "BACKLOG.md");
       let existingContent = "";
       if (fs6.existsSync(backlogPath)) {
         try {
@@ -3247,9 +3249,9 @@ previousStatus: "${previousStatus}"
     if (isBacklogMdProject(project)) {
       if (project.repoPath) {
         try {
-          const dir = path6.join(project.repoPath, project.backlogDir || "backlog");
+          const dir = path7.join(project.repoPath, project.backlogDir || "backlog");
           if (!fs6.existsSync(dir)) fs6.mkdirSync(dir, { recursive: true });
-          const releasesPath = path6.join(dir, "releases.json");
+          const releasesPath = path7.join(dir, "releases.json");
           withFileLockSync(releasesPath, () => {
             let releasesToWrite = data.releases || [];
             if (fs6.existsSync(releasesPath)) {
@@ -3272,7 +3274,7 @@ previousStatus: "${previousStatus}"
             atomicWriteFileSync2(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
           });
           if (data.sprints !== void 0) {
-            atomicWriteFileSync2(path6.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+            atomicWriteFileSync2(path7.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
           }
         } catch (err) {
           console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
@@ -3463,7 +3465,7 @@ previousStatus: "${previousStatus}"
       if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
       const content = serializeBacklogMd(taskData);
       const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-      const targetFilePath = path6.join(tasksDir, targetFilename);
+      const targetFilePath = path7.join(tasksDir, targetFilename);
       atomicWriteFileSync2(targetFilePath, content, "utf8");
       invalidateTaskCache(targetFilePath);
       return;
@@ -3496,13 +3498,13 @@ previousStatus: "${previousStatus}"
 
 // server/services/fsExplorer.ts
 import fs7 from "node:fs";
-import path7 from "node:path";
+import path8 from "node:path";
 import os2 from "node:os";
 function getAllowedBrowseRoots() {
   const roots = [];
   const homedir = os2.homedir();
   if (homedir) {
-    roots.push(path7.resolve(homedir));
+    roots.push(path8.resolve(homedir));
     try {
       roots.push(fs7.realpathSync(homedir));
     } catch {
@@ -3510,7 +3512,7 @@ function getAllowedBrowseRoots() {
   }
   const cwd = process.cwd();
   if (cwd) {
-    roots.push(path7.resolve(cwd));
+    roots.push(path8.resolve(cwd));
     try {
       roots.push(fs7.realpathSync(cwd));
     } catch {
@@ -3518,7 +3520,7 @@ function getAllowedBrowseRoots() {
   }
   const tmpdir = os2.tmpdir();
   if (tmpdir) {
-    roots.push(path7.resolve(tmpdir));
+    roots.push(path8.resolve(tmpdir));
     try {
       roots.push(fs7.realpathSync(tmpdir));
     } catch {
@@ -3529,7 +3531,7 @@ function getAllowedBrowseRoots() {
     if (reg && Array.isArray(reg.projects)) {
       for (const p of reg.projects) {
         if (p.repoPath) {
-          roots.push(path7.resolve(p.repoPath));
+          roots.push(path8.resolve(p.repoPath));
           try {
             roots.push(fs7.realpathSync(p.repoPath));
           } catch {
@@ -3541,9 +3543,9 @@ function getAllowedBrowseRoots() {
   }
   const extra = process.env.GRIPM_ALLOWED_PATHS;
   if (extra) {
-    for (const p of extra.split(path7.delimiter)) {
+    for (const p of extra.split(path8.delimiter)) {
       if (p.trim()) {
-        roots.push(path7.resolve(p.trim()));
+        roots.push(path8.resolve(p.trim()));
         try {
           roots.push(fs7.realpathSync(p.trim()));
         } catch {
@@ -3556,12 +3558,12 @@ function getAllowedBrowseRoots() {
 function isSystemRootDir(targetPath) {
   if (!targetPath || typeof targetPath !== "string") return true;
   try {
-    const resolved = path7.resolve(targetPath);
-    const parsed = path7.parse(resolved);
+    const resolved = path8.resolve(targetPath);
+    const parsed = path8.parse(resolved);
     if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
     const tmp = os2.tmpdir();
     if (tmp) {
-      if (isPathContained(resolved, path7.resolve(tmp))) return false;
+      if (isPathContained(resolved, path8.resolve(tmp))) return false;
       try {
         const realTmp = fs7.realpathSync(tmp);
         if (realTmp && isPathContained(resolved, realTmp)) return false;
@@ -3582,25 +3584,25 @@ function isSystemRootDir(targetPath) {
       "/proc",
       "/dev"
     ];
-    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path7.sep));
+    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path8.sep));
   } catch {
     return true;
   }
 }
 function isPathContained(targetPath, rootDir) {
-  const relative = path7.relative(rootDir, targetPath);
-  return !relative.startsWith("..") && !path7.isAbsolute(relative);
+  const relative = path8.relative(rootDir, targetPath);
+  return !relative.startsWith("..") && !path8.isAbsolute(relative);
 }
 function isAllowedBrowsePath(targetPath, extraRoots = []) {
   if (!targetPath || typeof targetPath !== "string") return false;
   try {
-    const normalized = path7.resolve(path7.normalize(targetPath));
+    const normalized = path8.resolve(path8.normalize(targetPath));
     if (isSystemRootDir(normalized)) return false;
     const baseRoots = getAllowedBrowseRoots();
     const roots = [...baseRoots];
     for (const er of extraRoots) {
       if (er) {
-        roots.push(path7.resolve(er));
+        roots.push(path8.resolve(er));
         try {
           roots.push(fs7.realpathSync(er));
         } catch {
@@ -3614,16 +3616,16 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
     while (true) {
       try {
         const resolvedAncestor = fs7.realpathSync(current);
-        realPath = remainingSegments.length > 0 ? path7.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
+        realPath = remainingSegments.length > 0 ? path8.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
         break;
       } catch (err) {
         if (err && (err.code === "ENOENT" || err.code === "ENOTDIR")) {
-          const parent = path7.dirname(current);
+          const parent = path8.dirname(current);
           if (parent === current) {
             realPath = current;
             break;
           }
-          remainingSegments.unshift(path7.basename(current));
+          remainingSegments.unshift(path8.basename(current));
           current = parent;
         } else {
           return false;
@@ -3639,11 +3641,11 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
 
 // scripts/mcp-server.ts
 var __filename3 = fileURLToPath3(import.meta.url);
-var __dirname3 = path8.dirname(__filename3);
-var ROOT_DIR = path8.resolve(__dirname3, "..");
+var __dirname3 = path9.dirname(__filename3);
+var ROOT_DIR = path9.resolve(__dirname3, "..");
 var currentVersion = "0.5.0";
 try {
-  const pkg = JSON.parse(fs8.readFileSync(path8.join(ROOT_DIR, "package.json"), "utf8"));
+  const pkg = JSON.parse(fs8.readFileSync(path9.join(ROOT_DIR, "package.json"), "utf8"));
   if (pkg.version) currentVersion = pkg.version;
 } catch {
 }
@@ -3696,7 +3698,7 @@ function getRegistry2() {
   let cliRepo = null;
   const repoIdx = args.findIndex((a) => a === "--repo" || a === "-r" || a === "-p");
   if (repoIdx !== -1 && args[repoIdx + 1]) {
-    cliRepo = path8.resolve(args[repoIdx + 1]);
+    cliRepo = path9.resolve(args[repoIdx + 1]);
     if (!fs8.existsSync(cliRepo) || !fs8.statSync(cliRepo).isDirectory()) {
       throw new Error(`[MCP Security] Error: La ruta provista en --repo '${cliRepo}' no existe o no es un directorio.`);
     }
@@ -3709,10 +3711,10 @@ function getRegistry2() {
     }
   }
   const targetRepo = cliRepo || process.cwd();
-  const hasMdBacklog = fs8.existsSync(path8.join(targetRepo, "backlog/tasks"));
-  const hasJsonBacklog = fs8.existsSync(path8.join(targetRepo, ".gripm/backlog.json"));
+  const hasMdBacklog = fs8.existsSync(path9.join(targetRepo, "backlog/tasks"));
+  const hasJsonBacklog = fs8.existsSync(path9.join(targetRepo, ".gripm/backlog.json"));
   if (hasMdBacklog || hasJsonBacklog || cliRepo) {
-    const existing = reg.projects.find((p) => p.repoPath && path8.resolve(p.repoPath) === targetRepo);
+    const existing = reg.projects.find((p) => p.repoPath && path9.resolve(p.repoPath) === targetRepo);
     const identity = resolveProjectIdentity(targetRepo);
     if (existing) {
       if (identity.id && identity.id !== existing.id) {
@@ -4176,9 +4178,9 @@ async function handleToolCall(rawName, args) {
     if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     let releases = [];
     const repoPath = targetProject.repoPath || ROOT_DIR;
-    const releasesJsonPath = path8.join(repoPath, targetProject.backlogDir || "backlog", "releases.json");
-    const gripmReleasesPath = path8.join(repoPath, ".gripm/releases.json");
-    const dataReleasesPath = path8.join(ROOT_DIR, "data/releases.json");
+    const releasesJsonPath = path9.join(repoPath, targetProject.backlogDir || "backlog", "releases.json");
+    const gripmReleasesPath = path9.join(repoPath, ".gripm/releases.json");
+    const dataReleasesPath = path9.join(ROOT_DIR, "data/releases.json");
     if (fs8.existsSync(releasesJsonPath)) {
       try {
         releases = JSON.parse(fs8.readFileSync(releasesJsonPath, "utf8"));
@@ -4200,11 +4202,11 @@ async function handleToolCall(rawName, args) {
     const codePrefix = (targetProject.codePrefix || "").toUpperCase().trim();
     if (releases.length === 0) {
       const notesPaths = [
-        path8.join(repoPath, "docs/RELEASE_NOTES.md"),
-        path8.join(repoPath, "docs/releasenotes.md"),
-        path8.join(repoPath, "RELEASE_NOTES.md"),
-        path8.join(repoPath, "releasenotes.md"),
-        path8.join(repoPath, "CHANGELOG.md")
+        path9.join(repoPath, "docs/RELEASE_NOTES.md"),
+        path9.join(repoPath, "docs/releasenotes.md"),
+        path9.join(repoPath, "RELEASE_NOTES.md"),
+        path9.join(repoPath, "releasenotes.md"),
+        path9.join(repoPath, "CHANGELOG.md")
       ];
       for (const np of notesPaths) {
         if (fs8.existsSync(np)) {
@@ -4300,13 +4302,13 @@ async function handleToolCall(rawName, args) {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
     if (!targetProject) throw new Error("Proyecto no encontrado.");
     const sprintKey = String(args.sprintId || args.sprintName || "sprint").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-    const retrosDir = path8.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
+    const retrosDir = path9.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
     if (!fs8.existsSync(retrosDir)) {
       fs8.mkdirSync(retrosDir, { recursive: true });
     }
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const sprintTitle = args.sprintName || args.sprintId;
-    const filePath = path8.join(retrosDir, `${sprintKey}-retro.md`);
+    const filePath = path9.join(retrosDir, `${sprintKey}-retro.md`);
     const mdContent = `# Retrospectiva - ${sprintTitle}
 
 **Fecha:** ${today}  
@@ -4338,7 +4340,7 @@ ${Array.isArray(args.actions) && args.actions.length > 0 ? args.actions.map((act
   if (name === "gripm_list_retros") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
     if (!targetProject) throw new Error("Proyecto no encontrado.");
-    const retrosDir = path8.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
+    const retrosDir = path9.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
     if (!fs8.existsSync(retrosDir)) {
       return { ok: true, retros: [] };
     }
@@ -4346,7 +4348,7 @@ ${Array.isArray(args.actions) && args.actions.length > 0 ? args.actions.map((act
     const retros = [];
     for (const f of files) {
       try {
-        const full = path8.join(retrosDir, f);
+        const full = path9.join(retrosDir, f);
         const raw = fs8.readFileSync(full, "utf8");
         const titleMatch = raw.match(/^#\s+(.+)$/m);
         const dateMatch = raw.match(/\*\*Fecha:\*\*\s*([^\n]+)/);

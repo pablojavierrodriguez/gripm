@@ -1,7 +1,7 @@
 ---
 id: DEV-342
 title: "Sincronizacion y adopcion de Gripm Playbook v2.7.1"
-status: ready
+status: done
 created_date: '2026-10-26'
 updated_date: '2026-10-26'
 labels:

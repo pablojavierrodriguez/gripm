@@ -1,7 +1,7 @@
 ---
 id: DEV-340
 title: "Blindaje mecanico del despliegue a produccion en Vercel (Anti-Dev-Production-Deploy)"
-status: ready
+status: done
 created_date: '2026-10-25'
 updated_date: '2026-10-26'
 labels:

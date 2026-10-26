@@ -2,7 +2,7 @@
 
 // scripts/gripm-cli.ts
 import fs6 from "node:fs";
-import path6 from "node:path";
+import path7 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 import { execSync as execSync2, execFileSync, spawnSync } from "node:child_process";
 
@@ -955,7 +955,7 @@ function resolveProjectIdentity(repoPath) {
 
 // server/services/backlogService.ts
 import fs5 from "node:fs";
-import path5 from "node:path";
+import path6 from "node:path";
 import { execSync } from "node:child_process";
 
 // server/services/registry.ts
@@ -1195,6 +1195,7 @@ function withFileLockSync(targetPath, fn, options) {
 }
 
 // server/services/taskCache.ts
+import path5 from "node:path";
 var taskCache = /* @__PURE__ */ new Map();
 var cacheHits = 0;
 var cacheMisses = 0;
@@ -1230,8 +1231,9 @@ function getTaskCacheStats() {
   };
 }
 function pruneStaleCacheEntries(tasksDir, activeFilePaths) {
+  const normalizedDir = path5.resolve(tasksDir);
   for (const cachedPath of taskCache.keys()) {
-    if (cachedPath.startsWith(tasksDir) && !activeFilePaths.has(cachedPath)) {
+    if (path5.dirname(path5.resolve(cachedPath)) === normalizedDir && !activeFilePaths.has(cachedPath)) {
       taskCache.delete(cachedPath);
     }
   }
@@ -1250,36 +1252,36 @@ var ConflictError = class _ConflictError extends Error {
     Object.setPrototypeOf(this, _ConflictError.prototype);
   }
 };
-var DEMO_FILE2 = fs5.existsSync(path5.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path5.resolve(PKG_ROOT, "data/demo-backlog.json") : path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var DEMO_FILE2 = fs5.existsSync(path6.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path6.resolve(PKG_ROOT, "data/demo-backlog.json") : path6.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
-    return path5.join(project.repoPath, ".gripm/backlog.json");
+    return path6.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path5.join(PKG_ROOT, `data/${project.id}-backlog.json`);
+  return path6.join(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
 function getProjectTasksDir(project) {
   if (!project.repoPath) return "";
-  return path5.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+  return path6.join(project.repoPath, project.backlogDir || "backlog", "tasks");
 }
 function getProjectSprintsPath(project) {
   if (!project.repoPath) return "";
-  return path5.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+  return path6.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
 }
 function getProjectReleasesPath(project) {
   if (!project.repoPath) return "";
-  return path5.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+  return path6.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
 }
 function getProjectRetrospectivesPath(project) {
   if (!project.repoPath) return "";
-  return path5.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
+  return path6.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
 }
 function getProjectTaskAllocationLockPath(project) {
   if (project.repoPath) {
-    const baseDir = path5.join(project.repoPath, project.backlogDir || "backlog");
-    return path5.join(baseDir, ".task-allocation.lock");
+    const baseDir = path6.join(project.repoPath, project.backlogDir || "backlog");
+    return path6.join(baseDir, ".task-allocation.lock");
   }
-  return path5.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
+  return path6.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
 }
 function validateVerifyCommand(cmd, repoPath) {
   if (!cmd || typeof cmd !== "string") {
@@ -1332,7 +1334,7 @@ function validateVerifyCommand(cmd, repoPath) {
   let pkgScripts = {};
   let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    const pkgPath = path5.join(repoPath, "package.json");
+    const pkgPath = path6.join(repoPath, "package.json");
     if (fs5.existsSync(pkgPath)) {
       const pkg = JSON.parse(fs5.readFileSync(pkgPath, "utf8"));
       if (pkg.scripts && typeof pkg.scripts === "object") {
@@ -1497,13 +1499,13 @@ function resolveLegibleSprint(project, val) {
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
-    path5.join(repoPath, "docs/RELEASE_NOTES.md"),
-    path5.join(repoPath, "docs/releasenotes.md"),
-    path5.join(repoPath, "RELEASE_NOTES.md"),
-    path5.join(repoPath, "releasenotes.md"),
-    path5.join(repoPath, "docs/CHANGELOG.md"),
-    path5.join(repoPath, "CHANGELOG.md"),
-    path5.join(repoPath, "changelog.md")
+    path6.join(repoPath, "docs/RELEASE_NOTES.md"),
+    path6.join(repoPath, "docs/releasenotes.md"),
+    path6.join(repoPath, "RELEASE_NOTES.md"),
+    path6.join(repoPath, "releasenotes.md"),
+    path6.join(repoPath, "docs/CHANGELOG.md"),
+    path6.join(repoPath, "CHANGELOG.md"),
+    path6.join(repoPath, "changelog.md")
   ];
   let notesContent = "";
   for (const p of possiblePaths) {
@@ -1585,7 +1587,7 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const fullPath = path5.join(tasksDir, f);
+        const fullPath = path6.join(tasksDir, f);
         const stat = fs5.statSync(fullPath);
         const cached = getTaskCacheEntry(fullPath);
         let parsed;
@@ -1614,13 +1616,13 @@ function findTaskFile(project, id) {
     }
   }
   if (!found) return null;
-  const filePath = path5.join(tasksDir, found);
+  const filePath = path6.join(tasksDir, found);
   try {
     const stat = fs5.statSync(filePath);
     const cached = getTaskCacheEntry(filePath);
     if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
       recordCacheHit();
-      return { filePath, filename: found, task: cached.parsed };
+      return { filePath, filename: found, task: structuredClone(cached.parsed) };
     }
     recordCacheMiss();
     const raw = fs5.readFileSync(filePath, "utf8");
@@ -1630,7 +1632,7 @@ function findTaskFile(project, id) {
     setTaskCacheEntry(filePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
-      parsed: task,
+      parsed: structuredClone(task),
       canonical: { ...canonical }
     });
     return { filePath, filename: found, task };
@@ -1828,7 +1830,7 @@ var BacklogService = class _BacklogService {
         let orderIdx = 1;
         for (const file of files) {
           try {
-            const fullPath = path5.join(tasksDir, file);
+            const fullPath = path6.join(tasksDir, file);
             activePaths.add(fullPath);
             const stat = fs5.statSync(fullPath);
             const cached = getTaskCacheEntry(fullPath);
@@ -2114,7 +2116,7 @@ var BacklogService = class _BacklogService {
         const tasksDir = getProjectTasksDir(project);
         if (!fs5.existsSync(tasksDir)) fs5.mkdirSync(tasksDir, { recursive: true });
         const filename = generateTaskFilename(code, taskData.title);
-        const filepath = path5.join(tasksDir, filename);
+        const filepath = path6.join(tasksDir, filename);
         const serialized = serializeBacklogMd(taskData);
         atomicWriteFileSync(filepath, serialized, "utf8");
         invalidateTaskCache(filepath);
@@ -2500,9 +2502,9 @@ var BacklogService = class _BacklogService {
         throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
       }
       if (isPurge) {
-        const archiveDir = path5.join(project.repoPath, project.backlogDir || "backlog", "archive");
+        const archiveDir = path6.join(project.repoPath, project.backlogDir || "backlog", "archive");
         if (!fs5.existsSync(archiveDir)) fs5.mkdirSync(archiveDir, { recursive: true });
-        fs5.renameSync(filePath, path5.join(archiveDir, filename));
+        fs5.renameSync(filePath, path6.join(archiveDir, filename));
         invalidateTaskCache(filePath);
         return { ok: true, id: taskId, purged: true };
       }
@@ -2609,7 +2611,7 @@ previousStatus: "${previousStatus}"
     const content = generateMonolithicBacklogMd(project.name, mdTasks);
     let savedPath;
     if (options?.save !== false && project.repoPath) {
-      savedPath = path5.join(project.repoPath, "BACKLOG.md");
+      savedPath = path6.join(project.repoPath, "BACKLOG.md");
       atomicWriteFileSync(savedPath, content, "utf8");
     }
     return {
@@ -2634,7 +2636,7 @@ previousStatus: "${previousStatus}"
       if (fs5.existsSync(tasksDir)) {
         const files = fs5.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const file of files) {
-          const filePath = path5.join(tasksDir, file);
+          const filePath = path6.join(tasksDir, file);
           const content2 = fs5.readFileSync(filePath, "utf8");
           const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
           if (!fmMatch) continue;
@@ -2666,7 +2668,7 @@ previousStatus: "${previousStatus}"
     let backlogPath = null;
     let changesWritten = false;
     if (project.repoPath) {
-      backlogPath = path5.join(project.repoPath, "BACKLOG.md");
+      backlogPath = path6.join(project.repoPath, "BACKLOG.md");
       let existingContent = "";
       if (fs5.existsSync(backlogPath)) {
         try {
@@ -2957,9 +2959,9 @@ previousStatus: "${previousStatus}"
     if (isBacklogMdProject(project)) {
       if (project.repoPath) {
         try {
-          const dir = path5.join(project.repoPath, project.backlogDir || "backlog");
+          const dir = path6.join(project.repoPath, project.backlogDir || "backlog");
           if (!fs5.existsSync(dir)) fs5.mkdirSync(dir, { recursive: true });
-          const releasesPath = path5.join(dir, "releases.json");
+          const releasesPath = path6.join(dir, "releases.json");
           withFileLockSync(releasesPath, () => {
             let releasesToWrite = data.releases || [];
             if (fs5.existsSync(releasesPath)) {
@@ -2982,7 +2984,7 @@ previousStatus: "${previousStatus}"
             atomicWriteFileSync(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
           });
           if (data.sprints !== void 0) {
-            atomicWriteFileSync(path5.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+            atomicWriteFileSync(path6.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
           }
         } catch (err) {
           console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
@@ -3173,7 +3175,7 @@ previousStatus: "${previousStatus}"
       if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
       const content = serializeBacklogMd(taskData);
       const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-      const targetFilePath = path5.join(tasksDir, targetFilename);
+      const targetFilePath = path6.join(tasksDir, targetFilename);
       atomicWriteFileSync(targetFilePath, content, "utf8");
       invalidateTaskCache(targetFilePath);
       return;
@@ -3206,8 +3208,8 @@ previousStatus: "${previousStatus}"
 
 // scripts/gripm-cli.ts
 var __filename3 = fileURLToPath3(import.meta.url);
-var __dirname3 = path6.dirname(__filename3);
-var ROOT_DIR = path6.resolve(__dirname3, "..");
+var __dirname3 = path7.dirname(__filename3);
+var ROOT_DIR = path7.resolve(__dirname3, "..");
 function getRegistry() {
   const reg = loadRegistryFile(ROOT_DIR);
   if (!reg || !Array.isArray(reg.projects)) {
@@ -3222,7 +3224,7 @@ function getProject(projectId) {
     if (found) return found;
   }
   const cwd = process.cwd();
-  const matched = registry.projects.find((p) => p.repoPath && path6.normalize(p.repoPath) === path6.normalize(cwd));
+  const matched = registry.projects.find((p) => p.repoPath && path7.normalize(p.repoPath) === path7.normalize(cwd));
   if (matched) {
     const identity = resolveProjectIdentity(matched.repoPath || cwd);
     return {
@@ -3232,8 +3234,8 @@ function getProject(projectId) {
       codePrefix: identity.codePrefix || matched.codePrefix
     };
   }
-  const hasMdBacklog = fs6.existsSync(path6.join(cwd, "backlog/tasks"));
-  const hasJsonBacklog = fs6.existsSync(path6.join(cwd, ".gripm/backlog.json"));
+  const hasMdBacklog = fs6.existsSync(path7.join(cwd, "backlog/tasks"));
+  const hasJsonBacklog = fs6.existsSync(path7.join(cwd, ".gripm/backlog.json"));
   if (hasMdBacklog || hasJsonBacklog) {
     const identity = resolveProjectIdentity(cwd);
     return {
@@ -3269,7 +3271,7 @@ function loadTasks(project, options = {}) {
           if (tabIdx === -1) continue;
           const meta = chunk.slice(0, tabIdx).trim().split(/\s+/);
           const relPath = chunk.slice(tabIdx + 1);
-          entries.push({ sha: meta[1], relPath, file: path6.basename(relPath) });
+          entries.push({ sha: meta[1], relPath, file: path7.basename(relPath) });
         }
         entries.sort((a, b) => a.file.localeCompare(b.file, void 0, { numeric: true }));
         const res = spawnSync("git", ["cat-file", "--batch"], {
@@ -3394,7 +3396,7 @@ async function main() {
       description: t.description || "",
       acceptanceCriteria: t.acceptanceCriteria || []
     }));
-    const exportPath = path6.join(project.repoPath || process.cwd(), "BACKLOG.md");
+    const exportPath = path7.join(project.repoPath || process.cwd(), "BACKLOG.md");
     if (args.includes("--check")) {
       let existing = "";
       if (isStaged) {

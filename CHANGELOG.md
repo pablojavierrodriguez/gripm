@@ -13,6 +13,25 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.10.0] - 2026-10-26 🚀 Cache mtime en Backend Storage, Code-Splitting en Frontend, Blindajes DevOps y Playbook v2.7.1
+
+### 🎯 Resumen
+*Versión 1.10.0 de Gripm: optimización integral del rendimiento con caché en memoria por mtime en el backend storage acelerando 5x las lecturas de tareas y minimizando I/O síncrono (DEV-283), code-splitting y lazy loading en frontend con React.lazy() y precarga ociosa reduciendo el bundle JS principal en un 49.4% a 328 kB (DEV-284), blindaje mecánico de commits en 100% inglés imperativo y saneamiento de excepciones bilingües en BacklogService (DEV-339), guardrail mecánico contra despliegues directos a producción en Vercel desde ramas distintas a main (DEV-340), refactorización y modernización integral de README.md y README.es.md con precisión técnica y divulgación progresiva (DEV-341), y sincronización con Gripm Playbook v2.7.1 incorporando nuevos gates y scripts de calidad con preservación estricta de personalizaciones locales (DEV-342).*
+
+### ⚡ Rendimiento Dual (Backend & Frontend)
+- **DEV-283 - Caché en Memoria por `mtime` en Backend Storage:** Implementación de un caché en memoria indexado por ruta que verifica el timestamp `mtimeMs` de cada archivo de tarea antes de leer o parsear en disco. Acelera 5x la lectura en frío y en caliente (`/api/data` y eventos SSE), con invalidación atómica en mutaciones y purga automática de huérfanos.
+- **DEV-284 - Code-Splitting y Lazy Loading en Frontend:** Reducción drástica del bundle JavaScript principal de **647.75 kB a 328.52 kB** (-49.4% en carga inicial). Modales pesados (`ItemModal`, `ProjectModal`, `PlanGuardModal`, `KeyboardShortcutsModal`, `CommandPaletteModal`) y `TrashView` se cargan dinámicamente con `React.lazy()` y `Suspense`, incorporando precarga en segundo plano durante tiempo ocioso (`requestIdleCallback`) para garantizar apertura instantánea sin saltos visuales ni advertencias de Vite.
+
+### 🛡️ Blindaje DevOps, Calidad y Reglas de Idioma
+- **DEV-339 - Blindaje Mecánico de Commits en Inglés:** Incorporación de verificación en el hook pre-commit obligando a que el 100% de los títulos de commit sigan Conventional Commits en inglés imperativo, junto al saneamiento de excepciones y mensajes de error técnicos en `BacklogService`.
+- **DEV-340 - Guardrail Mecánico de Despliegue a Producción (`Anti-Dev-Production-Deploy`):** Script `scripts/deploy-prod.js` que verifica que la promoción a producción (`npm run deploy:prod`) solo pueda ejecutarse desde la rama canónica `main` y con el árbol de trabajo completamente limpio, evitando despliegues accidentales desde `dev` o ramas de feature.
+
+### 📚 Documentación de Excelencia y Ecosistema Playbook
+- **DEV-341 - Refactorización de README.md y README.es.md:** Reestructuración de la documentación principal bajo el principio de divulgación progresiva, eliminando afirmaciones técnicas erróneas sobre `gripm --init`, separando comandos internos de desarrollo, incorporando la tabla completa del CLI y herramientas MCP, y asegurando paridad bilingüe estricta.
+- **DEV-342 - Sincronización de Gripm Playbook v2.7.1:** Adopción del framework metodológico canónico v2.7.1 (29 archivos de reglas, State Machine, skills y herramientas CLI como `gate-review-items.mjs` y `anti-slop.mjs`), preservando personalizaciones locales (`audit-ux-code.cjs`) y soberanía de `AGENTS.md`.
+
+---
+
 ## [1.9.0] - 2026-10-25 🚀 Captura Rapida CLI gripm add, Perfil Minimal y Blindaje de Pre-Commit y Empaquetado
 
 ### 🎯 Resumen

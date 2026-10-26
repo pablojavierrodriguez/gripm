@@ -171,9 +171,47 @@ Contenido cambiado externamente
   const res7 = storage.readProjectBacklog(tempProject);
   assert(res7.items.length === 1, 'Solo debe quedar 1 tarea en disco.');
   const st7 = getTaskCacheStats();
-  // Ensure deleted file is not retained in cache
-  assert(!getTaskCacheStats().size || true, 'Caché limpio de archivos eliminados.');
+  assert(st7.size === 1, 'El caché debe tener exactamente 1 entrada tras purgar la huérfana.');
   console.log('✅ Test 5 aprobado: Entradas huérfanas purgadas tras borrado en disco.\n');
+
+  // TEST 6: Cache poisoning immunity on rejected Gatekeeper mutations
+  console.log('--- Test 6: Inmunidad ante Envenenamiento de Caché por Rechazo del Gatekeeper ---');
+  fs.writeFileSync(file1, `---
+id: TMP-001
+title: Titulo Original Intacto
+status: doing
+---
+## Description
+Con AC pendiente
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Criterio sin completar
+<!-- AC:END -->
+`, 'utf8');
+  clearTaskCache();
+  // Warm the cache
+  storage.readProjectBacklog(tempProject);
+
+  // Attempt invalid transition to ready while mutating title -> Gatekeeper must throw
+  let threwGatekeeper = false;
+  try {
+    BacklogService.updateTask(tempProject, 'TMP-001', {
+      status: 'ready',
+      title: 'Titulo Envenenado Rechazado'
+    });
+  } catch {
+    threwGatekeeper = true;
+  }
+  assert(threwGatekeeper, 'El Gatekeeper debe rechazar el paso a ready con AC sin tildar.');
+
+  // Subsequent valid update (toggling AC #1 without passing title) must NOT persist the poisoned title
+  BacklogService.updateTask(tempProject, 'TMP-001', { toggleAcIndex: 1 });
+  const res8 = storage.readProjectBacklog(tempProject);
+  const taskAfterReject = res8.items.find(i => i.id === 'TMP-001');
+  assert(taskAfterReject.title === 'Titulo Original Intacto', `El título en caché no debe contaminarse tras un fallo del Gatekeeper (recibido: ${taskAfterReject.title}).`);
+  assert(taskAfterReject.status === 'doing', `El estado en caché no debe contaminarse tras un fallo del Gatekeeper (recibido: ${taskAfterReject.status}).`);
+  console.log('✅ Test 6 aprobado: Inmunidad total contra envenenamiento de caché en mutaciones abortadas.\n');
 
   // Cleanup temp dir
   fs.rmSync(tempDir, { recursive: true, force: true });

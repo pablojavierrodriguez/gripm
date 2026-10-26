@@ -585,7 +585,7 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
     const cached = getTaskCacheEntry(filePath);
     if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
       recordCacheHit();
-      return { filePath, filename: found, task: cached.parsed };
+      return { filePath, filename: found, task: structuredClone(cached.parsed) };
     }
     recordCacheMiss();
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -595,7 +595,7 @@ export function findTaskFile(project: ProjectMeta, id: string): { filePath: stri
     setTaskCacheEntry(filePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
-      parsed: task,
+      parsed: structuredClone(task),
       canonical: { ...canonical }
     });
     return { filePath, filename: found, task };

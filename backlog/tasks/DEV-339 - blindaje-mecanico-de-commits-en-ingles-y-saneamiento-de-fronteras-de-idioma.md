@@ -1,8 +1,8 @@
 ---
 id: DEV-339
 title: "Saneamiento de excepciones en inglés en BacklogService y adopción de commit-msg hook"
-status: ready
-release: ""
+status: done
+release: "1.10.0"
 created_date: '2026-10-25'
 updated_date: '2026-10-26'
 labels:

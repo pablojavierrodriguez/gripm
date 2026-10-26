@@ -1,7 +1,7 @@
 ---
 id: DEV-283
 title: "Caché en memoria por mtime para lecturas de tareas en el backend storage"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-26'
 labels:

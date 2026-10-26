@@ -3,7 +3,7 @@
 
 ## Resumen de Estados
 
-### 💡 Ideas / Discovery (9)
+### 💡 Ideas / Discovery (10)
 
 #### [DEV-061] Monitoreo y Telemetría de Agent Skills: Métricas de Uso, Frecuencia, Última Invocación y Auditoría
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -175,142 +175,45 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (6)
+#### [DEV-343] Sistema de Personalidades Visuales y Estilos Sensoriales (Style Themes) en Gripm
+- **Prioridad**: `medium` | **Tipo**: `feature`
 
-#### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
+Exploración, especificación y diseño de un sistema de personalidades visuales y estilos sensoriales (**Style Themes**) para Gripm Board, complementando ortogonalmente al modo lumínico existente (`dark` / `light` / `system`).
 
-Optimización del rendimiento de I/O en disco en el servicio de almacenamiento del backend ([server/services/storage.ts](file:///c:/Users/Pablo/Proyectos/gripm/server/services/storage.ts)) para evitar la lectura y parseo redundante de cientos de archivos Markdown en cada solicitud.
+### 1. Visión y Fundamentos
+El objetivo es permitir a los desarrolladores y product managers personalizar la atmósfera de su cockpit de ingeniería sin alterar la densidad de información ni la usabilidad:
+- **Doble eje ortogonal:** Separar el *Modo Lumínico* (Dark, Light, System) del *Estilo Sensorial* (paleta cromática, geometría de bordes, elevación y relieve de tarjetas).
+- **Alineación con la identidad de Gripm:** Cockpit ágil para pair programming con agentes de IA, sobrio, técnico, enfocado y con artesanía de diseño superior. Prohibido adoptar nomenclaturas o marcas de aplicaciones externas.
 
-### Problemas identificados:
-1. **Lectura síncrona bloqueante masiva:** Cada petición a `/api/data` (al cargar el tablero, tras guardar tareas o al dispararse eventos SSE) ejecuta `loadProjectBacklog`, el cual itera síncronamente sobre todos los archivos `.md` de `backlog/tasks/` (278 archivos en proyectos medianos).
-2. Para cada archivo realiza `fs.statSync`, `fs.readFileSync` y `parseBacklogMd` (análisis léxico de frontmatter y expresiones regulares), congelando el event loop de Node.js durante 50-150 ms en cada ciclo.
-3. El 99% de las veces, los archivos en disco no han cambiado entre una solicitud y la siguiente.
+### 2. Personalidades Visuales Propuestas (Nativas de Gripm)
+1. **Indigo Cockpit** (Canónico / Por defecto):
+   - *Rasgo:* Balanceado y técnico.
+   - *Atmósfera:* Fondo deep navy slate (`#080c14`), superficies glass sutiles, acento Índigo Eléctrico (`#6366f1`) y radios suaves estándar (`12px`).
+2. **OLED Focus**:
+   - *Rasgo:* Minimalista de alto contraste.
+   - *Atmósfera:* Negro absoluto OLED (`#030305`), grafito técnico mate (`#0e0e12`), hairlines ultrafinos y acento Esmeralda Técnico (`#10b981`). Radios compactos (`8px`) para maximizar concentración y reducir fatiga ocular en sesiones nocturnas.
+3. **Cobalt Precision**:
+   - *Rasgo:* Estructurado y arquitectónico.
+   - *Atmósfera:* Azul marino abismal (`#070e1e`), tarjetas navy estructurado (`#101c38`), acento Azul Cobalto Puro (`#3b82f6`) y esquinas rectas (`6px`).
+4. **Phosphor Console** (Exploratorio):
+   - *Rasgo:* Consola hacker / Retro-Dev.
+   - *Atmósfera:* Carbón profundo con acento Ámbar / Oro neón (`#f59e0b`), tipografía mono acentuada y estética de terminal para desarrolladores.
 
-### Solución propuesta:
-- Implementar una estructura de caché en memoria (`Map<string, { mtimeMs: number, item: any }>`) indexada por la ruta absoluta del archivo de tarea.
-- Al listar archivos en `loadProjectBacklog`, obtener únicamente el `stat` rápido del archivo: si `fileStat.mtimeMs` coincide con el valor en caché, reutilizar la tarea parseada en memoria sin llamar a `fs.readFileSync` ni `parseBacklogMd`.
-- Invalidar o actualizar la entrada puntual en el caché cuando se realicen escrituras a través de las funciones de mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, `restoreBacklogMdItem`, `purgeBacklogMdItem`).
-- Limpiar entradas obsoletas si se eliminan archivos de disco.
-
-**Criterios de Aceptación:**
-- [x] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
-- [x] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
-- [x] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
-- [x] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
-- [x] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
-
----
-
-#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
-
-### Problemas identificados:
-1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
-2. **Componentes gigantes en el chunk raíz:**
-   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
-   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
-   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
-3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
-
-### Solución propuesta:
-- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
-- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
-- Cargar de forma diferida los modales secundarios de configuración o importación.
-- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
+### 3. Consideraciones Técnicas y Guardrails
+- **Persistencia y Gobernanza:** Configuración persistida en `.gripm/config.json` bajo `styleTheme` y en `localStorage` con la clave canónica `gripm_style_theme`. Normalizador defensivo `normalizeStyleTheme` con fallback a `indigo`.
+- **Transiciones cinematográficas:** Integración con la `View Transitions API` nativa existente en Gripm (`theme-animating` / crossfade fluido de 280ms).
+- **Cumplimiento estricto de guardrails:**
+  - `UX-011`: Cero dispersión tipográfica; uso exclusivo de la escala canónica (`text-xs`, `text-sm`).
+  - `Anti-Em-Dash`: Uso exclusivo del guión simple ` - `.
+  - Tap targets mínimos de 44px en móviles y contraste WCAG AA.
 
 **Criterios de Aceptación:**
-- [x] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
-- [x] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
-- [x] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
-- [x] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
-- [x] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
-
----
-
-#### [DEV-339] Saneamiento de excepciones en inglés en BacklogService y adopción de commit-msg hook
-- **Prioridad**: `medium` | **Tipo**: `chore`
-
-Como producto de software consumidor de `@gripm/playbook`, Gripm Board (`@gripm/board`) debe mantener su stock técnico y mensajes de servidor alineados con los estándares de la industria en inglés.
-
-Actualmente existen discrepancias internas:
-1. `server/services/backlogService.ts` arroja excepciones de validación en español (`[Validation] Parámetro 'taskId' requerido...`, `Tarea no encontrada`), mientras que `server/routes/api.ts`, los esquemas del servidor MCP y los middlewares de seguridad operan 100% en inglés.
-2. Los hooks locales (`.githooks/`) carecen de un `commit-msg` activo que prevenga commits accidentales en español en el desarrollo diario del producto.
-
-La definición metodológica canónica del framework se transfiere a `@gripm/playbook` (PLAY-047), limitando esta tarea estrictamente al saneamiento del stock de código de Gripm Board y a la adopción del hook local.
-
-**Criterios de Aceptación:**
-- [x] #1 Saneamiento de excepciones en BacklogService: Auditar y migrar todas las excepciones de validación y errores arrojados en `server/services/backlogService.ts` a inglés técnico (`[Validation] Parameter 'taskId' is required and must be a non-empty string`, `Task ${taskId} not found`, etc.), manteniendo consistencia con `server/routes/api.ts`.
-- [x] #2 Paridad y actualización de pruebas: Actualizar las aserciones de mensajes de error en la suite de pruebas (`scripts/test-backlog-service.js`, `scripts/verify-integration.js`, etc.) para verificar los nuevos textos en inglés sin regresiones.
-- [x] #3 Adopción local del hook commit-msg: Incorporar `.githooks/commit-msg` en el repositorio para validar formato Conventional Commits en inglés imperativo y actualizar `scripts/prepare-hooks.js` para asegurar su configuración automática en el entorno de desarrollo.
-- [x] #4 Verificación integral: `npx tsc --noEmit`, `npm test`, `npm run backlog:check` y `node scripts/verify-changes.js --all` pasan con código 0.
-
----
-
-#### [DEV-340] Blindaje mecanico del despliegue a produccion en Vercel (Anti-Dev-Production-Deploy)
-- **Prioridad**: `high` | **Tipo**: `tech_debt`
-
-Históricamente, los despliegues de producción hacia Vercel (`https://gripm.vercel.app`) se ejecutaban manualmente mediante `npx vercel --prod --yes` desde la terminal local mientras los desarrolladores o agentes se encontraban situados en la rama de integración `dev`. Esto provocaba que en el dashboard de Vercel todos los despliegues de producción quedaran etiquetados formalmente con la rama `dev`, introduciendo un grave riesgo de "State Lie" (desplegar código inestable no auditado) y una inconsistencia con el trunk canónico de release `main`.
-
-Esta tarea implementa el guardrail mecánico `scripts/deploy-prod.js` y el comando de npm `npm run deploy:prod`, asegurando que cualquier intento de despliegue a producción aborte de inmediato si no se ejecuta sobre el trunk canónico `main` y con un working tree completamente limpio.
-
-**Criterios de Aceptación:**
-- [x] #1 Guardrail mecánico `scripts/deploy-prod.js` que verifica que la rama actual sea estrictamente `main` antes de permitir cualquier deploy a producción.
-- [x] #2 `scripts/deploy-prod.js` aborta con código 1 y banner explicativo si se invoca desde `dev` o cualquier otra rama no-main.
-- [x] #3 `scripts/deploy-prod.js` verifica que el working tree esté limpio sin cambios sin commitear antes de desplegar.
-- [x] #4 Script `npm run deploy:prod` registrado en `package.json` y vinculado al guardrail mecánico.
-- [x] #5 Documentación de `AGENTS.md` actualizada con la regla canónica Anti-Dev-Production-Deploy y el flujo de promoción desde `main`.
-- [x] #6 Suite de pruebas automatizadas en `scripts/test-deploy-prod.js` que valida que el guardrail aborte en ramas incorrectas o con árbol sucio.
-- [x] #7 `npx tsc --noEmit` con 0 errores y `npm test` con suite unificada en verde.
-
----
-
-#### [DEV-341] Refactorizacion y alineacion de calidad de README.md y README.es.md con buenas practicas modernas
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Refactorización integral de la documentación principal (`README.md` y `README.es.md`) para alinearla con las mejores prácticas de herramientas de desarrollo modernas (DevTools, CLI y AI-pair programming):
-
-1. **Corrección de discrepancias técnicas contra el código real**:
-   - Eliminar afirmaciones incorrectas sobre `gripm --init` (que prometía instalar `backlog:check`, `backlog:sync` y hooks pre-commit en repositorios de consumidores, cuando en realidad solo configura los scripts `"board"` y `"mcp"`).
-   - Eliminar la exposición de scripts de desarrollo interno del repositorio (`npm run backlog:check`, `npm run audit:ux`) presentados erróneamente como comandos de usuario de `@gripm/board`.
-   - Documentar el subcomando existente de importación universal (`gripm import --file <ruta>` para Jira, Linear y CSV).
-   - Documentar la totalidad de comandos y flags reales del CLI en una tabla canónica accesible para usuarios finales (incluyendo `gripm add`, `--port`, `--repo`, `--no-open`, `--host 0.0.0.0` y modo `--hub`).
-
-2. **Excelencia editorial, marketing y sobriedad técnica**:
-   - Eliminar la sobrecarga de emojis en cada encabezado H2 (sustituyendo la estética de plantilla por tipografía limpia y sobria).
-   - Reorganizar la narrativa bajo el principio de Divulgación Progresiva: Hero con propuesta de valor clara -> Why Gripm (comparativa local-first + MCP) -> Quickstart en 3 pasos -> Integración con Agentes de IA (MCP) -> Vistas del producto -> Referencia de CLI y almacenamiento -> Ecosistema (`@gripm/playbook`) y Contribución en bloques `<details>`.
-   - Limpiar advertencias defensivas y trasladar guías de privacidad y desinstalación a bloques de referencia.
-   - Paridad estricta y bilingüe entre `README.md` (English) y `README.es.md` (Español).
-
-**Criterios de Aceptación:**
-- [x] #1 `README.md` y `README.es.md` reflejan con exactitud técnica las opciones y comportamiento real de `gripm --init` según `scripts/initScaffold.js`.
-- [x] #2 Los scripts de desarrollo interno del repositorio quedan separados de la guía de usuario y no se presentan como comandos del paquete `@gripm/board`.
-- [x] #3 Se documenta el comando `gripm import` y las opciones completas del CLI en una tabla estructurada para usuarios finales.
-- [x] #4 Los 12 encabezados H2 adoptan una jerarquía tipográfica limpia y sobria sin prefijos de emojis artificiales en cada título.
-- [x] #5 La integración con agentes de IA y el servidor MCP documenta el snippet JSON y la compuerta de calidad de forma concisa con tabla de herramientas en `<details>`.
-- [x] #6 El Hero incluye badges estándar (npm version, Node >= 20, MCP Ready, License, Live Demo) y enlace directo a `gripm.vercel.app`.
-- [x] #7 Paridad total de contenido y estructura entre `README.md` (inglés) y `README.es.md` (español), respetando la regla Anti-Em-Dash.
-- [x] #8 La suite de verificación (`npm test` y `npm run backlog:check`) aprueba con código 0.
-
----
-
-#### [DEV-342] Sincronizacion y adopcion de Gripm Playbook v2.7.1
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-Sincronización y adopción en Gripm Board del framework metodológico autónomo `@gripm/playbook@2.7.1` upstream:
-- Sincronización de reglas metodológicas y skills del framework en `.agents/` (`TEAM_PLAYBOOK.md`, `STATE_MACHINE.md`, `git-workflow.md`, `pm-orchestrator`, `principal-engineer`, `qa-auditor`, `code-level-ux-auditor`).
-- Incorporación de las nuevas utilidades y gates (`gate-review-items.mjs`, `validate-commit-msg.mjs`, `anti-slop.mjs`, `cli-router.mjs`).
-- Preservación de personalizaciones locales protegidas (`scripts/audit-ux-code.cjs`) y gobernanza de `AGENTS.md`.
-- Verificación exhaustiva de la Pirámide de Verificación (tipado, 26 tests headless, `verify-changes.js --all`, `backlog:check`).
-
-**Criterios de Aceptación:**
-- [x] #1 Ejecutar la sincronización de `@gripm/playbook@2.7.1` desde `../gripm-playbook` con `node scripts/sync-playbook.mjs --source ../gripm-playbook --yes`.
-- [x] #2 `.playbook-lock.json` se actualiza reflejando la versión `2.7.1` preservando la protección de `scripts/audit-ux-code.cjs`.
-- [x] #3 Las reglas y skills en `.agents/` y herramientas en `scripts/` quedan actualizadas con paridad total con upstream.
-- [x] #4 `AGENTS.md` de Gripm Board se preserva intacto sin sobreescrituras no deseadas.
-- [x] #5 La suite de pruebas unificada (`npm test`), tipado (`tsc --noEmit`), y verificación de cambios (`node scripts/verify-changes.js --all`) aprueban con código 0.
+- [ ] #1 Refinamiento y aprobación de los 3 estilos sensoriales nativos (Indigo Cockpit, OLED Focus, Cobalt Precision) y sus tokens de diseño en Dark y Light
+- [ ] #2 Definición del contrato de configuración en GripmConfig (campo opcional styleTheme) y clave canónica gripm_style_theme en storage.ts
+- [ ] #3 Especificación del catálogo de variables CSS semánticas en index.css bajo el selector [data-style-theme="..."]
+- [ ] #4 Diseño de la UI de selección de estilos en SettingsView / VisualTab con swatches geométricos, badges de rasgos y vista previa
+- [ ] #5 Integración con View Transitions API garantizando transiciones suaves sin jank visual
+- [ ] #6 Validación de la Pirámide de Verificación (npx tsc --noEmit, npm test, audit:ux y verify-changes.js)
 
 ---
 
@@ -834,7 +737,7 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 
 ---
 
-### ✅ Done / Deployed (302)
+### ✅ Done / Deployed (308)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -6952,6 +6855,59 @@ Optimización del rendimiento en tiempo de ejecución del tablero Kanban ([src/c
 
 ---
 
+#### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Optimización del rendimiento de I/O en disco en el servicio de almacenamiento del backend ([server/services/storage.ts](file:///c:/Users/Pablo/Proyectos/gripm/server/services/storage.ts)) para evitar la lectura y parseo redundante de cientos de archivos Markdown en cada solicitud.
+
+### Problemas identificados:
+1. **Lectura síncrona bloqueante masiva:** Cada petición a `/api/data` (al cargar el tablero, tras guardar tareas o al dispararse eventos SSE) ejecuta `loadProjectBacklog`, el cual itera síncronamente sobre todos los archivos `.md` de `backlog/tasks/` (278 archivos en proyectos medianos).
+2. Para cada archivo realiza `fs.statSync`, `fs.readFileSync` y `parseBacklogMd` (análisis léxico de frontmatter y expresiones regulares), congelando el event loop de Node.js durante 50-150 ms en cada ciclo.
+3. El 99% de las veces, los archivos en disco no han cambiado entre una solicitud y la siguiente.
+
+### Solución propuesta:
+- Implementar una estructura de caché en memoria (`Map<string, { mtimeMs: number, item: any }>`) indexada por la ruta absoluta del archivo de tarea.
+- Al listar archivos en `loadProjectBacklog`, obtener únicamente el `stat` rápido del archivo: si `fileStat.mtimeMs` coincide con el valor en caché, reutilizar la tarea parseada en memoria sin llamar a `fs.readFileSync` ni `parseBacklogMd`.
+- Invalidar o actualizar la entrada puntual en el caché cuando se realicen escrituras a través de las funciones de mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, `restoreBacklogMdItem`, `purgeBacklogMdItem`).
+- Limpiar entradas obsoletas si se eliminan archivos de disco.
+
+**Criterios de Aceptación:**
+- [x] #1 `loadProjectBacklog` en `storage.ts` utiliza un caché en memoria validado contra `fileStat.mtimeMs` para omitir lecturas de archivos sin modificaciones
+- [x] #2 Las operaciones de escritura y mutación (`saveBacklogMdItem`, `softDeleteBacklogMdItem`, etc.) actualizan o invalidan inmediatamente la entrada correspondiente del caché
+- [x] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
+- [x] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
+- [x] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
+
+---
+
+#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
+
+### Problemas identificados:
+1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
+2. **Componentes gigantes en el chunk raíz:**
+   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
+   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
+   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
+3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
+
+### Solución propuesta:
+- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
+- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
+- Cargar de forma diferida los modales secundarios de configuración o importación.
+- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
+
+**Criterios de Aceptación:**
+- [x] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
+- [x] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
+- [x] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
+- [x] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
+- [x] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
+
+---
+
 #### [DEV-287] Refinamiento de etiqueta de filtro de estados: 'Estados activos' / 'Active statuses' para eliminar ambigüedad
 - **Prioridad**: `low` | **Tipo**: `ux`
 
@@ -8281,6 +8237,90 @@ La falla se originó por una combinación de factores:
 - [x] #3 `.github/workflows/ci.yml` retira `NODE_OPTIONS: "--experimental-strip-types"` global redundante de `jobs.verify.env` y `jobs.ui-smoke.env`.
 - [x] #4 `scripts/test-clean-room.js` pasa exitosamente incluso si se invoca con `NODE_OPTIONS="--experimental-strip-types"`.
 - [x] #5 La suite completa `npm test` pasa con código 0 y `node scripts/verify-changes.js --all` sale con código 0.
+
+---
+
+#### [DEV-339] Saneamiento de excepciones en inglés en BacklogService y adopción de commit-msg hook
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Como producto de software consumidor de `@gripm/playbook`, Gripm Board (`@gripm/board`) debe mantener su stock técnico y mensajes de servidor alineados con los estándares de la industria en inglés.
+
+Actualmente existen discrepancias internas:
+1. `server/services/backlogService.ts` arroja excepciones de validación en español (`[Validation] Parámetro 'taskId' requerido...`, `Tarea no encontrada`), mientras que `server/routes/api.ts`, los esquemas del servidor MCP y los middlewares de seguridad operan 100% en inglés.
+2. Los hooks locales (`.githooks/`) carecen de un `commit-msg` activo que prevenga commits accidentales en español en el desarrollo diario del producto.
+
+La definición metodológica canónica del framework se transfiere a `@gripm/playbook` (PLAY-047), limitando esta tarea estrictamente al saneamiento del stock de código de Gripm Board y a la adopción del hook local.
+
+**Criterios de Aceptación:**
+- [x] #1 Saneamiento de excepciones en BacklogService: Auditar y migrar todas las excepciones de validación y errores arrojados en `server/services/backlogService.ts` a inglés técnico (`[Validation] Parameter 'taskId' is required and must be a non-empty string`, `Task ${taskId} not found`, etc.), manteniendo consistencia con `server/routes/api.ts`.
+- [x] #2 Paridad y actualización de pruebas: Actualizar las aserciones de mensajes de error en la suite de pruebas (`scripts/test-backlog-service.js`, `scripts/verify-integration.js`, etc.) para verificar los nuevos textos en inglés sin regresiones.
+- [x] #3 Adopción local del hook commit-msg: Incorporar `.githooks/commit-msg` en el repositorio para validar formato Conventional Commits en inglés imperativo y actualizar `scripts/prepare-hooks.js` para asegurar su configuración automática en el entorno de desarrollo.
+- [x] #4 Verificación integral: `npx tsc --noEmit`, `npm test`, `npm run backlog:check` y `node scripts/verify-changes.js --all` pasan con código 0.
+
+---
+
+#### [DEV-340] Blindaje mecanico del despliegue a produccion en Vercel (Anti-Dev-Production-Deploy)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Históricamente, los despliegues de producción hacia Vercel (`https://gripm.vercel.app`) se ejecutaban manualmente mediante `npx vercel --prod --yes` desde la terminal local mientras los desarrolladores o agentes se encontraban situados en la rama de integración `dev`. Esto provocaba que en el dashboard de Vercel todos los despliegues de producción quedaran etiquetados formalmente con la rama `dev`, introduciendo un grave riesgo de "State Lie" (desplegar código inestable no auditado) y una inconsistencia con el trunk canónico de release `main`.
+
+Esta tarea implementa el guardrail mecánico `scripts/deploy-prod.js` y el comando de npm `npm run deploy:prod`, asegurando que cualquier intento de despliegue a producción aborte de inmediato si no se ejecuta sobre el trunk canónico `main` y con un working tree completamente limpio.
+
+**Criterios de Aceptación:**
+- [x] #1 Guardrail mecánico `scripts/deploy-prod.js` que verifica que la rama actual sea estrictamente `main` antes de permitir cualquier deploy a producción.
+- [x] #2 `scripts/deploy-prod.js` aborta con código 1 y banner explicativo si se invoca desde `dev` o cualquier otra rama no-main.
+- [x] #3 `scripts/deploy-prod.js` verifica que el working tree esté limpio sin cambios sin commitear antes de desplegar.
+- [x] #4 Script `npm run deploy:prod` registrado en `package.json` y vinculado al guardrail mecánico.
+- [x] #5 Documentación de `AGENTS.md` actualizada con la regla canónica Anti-Dev-Production-Deploy y el flujo de promoción desde `main`.
+- [x] #6 Suite de pruebas automatizadas en `scripts/test-deploy-prod.js` que valida que el guardrail aborte en ramas incorrectas o con árbol sucio.
+- [x] #7 `npx tsc --noEmit` con 0 errores y `npm test` con suite unificada en verde.
+
+---
+
+#### [DEV-341] Refactorizacion y alineacion de calidad de README.md y README.es.md con buenas practicas modernas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Refactorización integral de la documentación principal (`README.md` y `README.es.md`) para alinearla con las mejores prácticas de herramientas de desarrollo modernas (DevTools, CLI y AI-pair programming):
+
+1. **Corrección de discrepancias técnicas contra el código real**:
+   - Eliminar afirmaciones incorrectas sobre `gripm --init` (que prometía instalar `backlog:check`, `backlog:sync` y hooks pre-commit en repositorios de consumidores, cuando en realidad solo configura los scripts `"board"` y `"mcp"`).
+   - Eliminar la exposición de scripts de desarrollo interno del repositorio (`npm run backlog:check`, `npm run audit:ux`) presentados erróneamente como comandos de usuario de `@gripm/board`.
+   - Documentar el subcomando existente de importación universal (`gripm import --file <ruta>` para Jira, Linear y CSV).
+   - Documentar la totalidad de comandos y flags reales del CLI en una tabla canónica accesible para usuarios finales (incluyendo `gripm add`, `--port`, `--repo`, `--no-open`, `--host 0.0.0.0` y modo `--hub`).
+
+2. **Excelencia editorial, marketing y sobriedad técnica**:
+   - Eliminar la sobrecarga de emojis en cada encabezado H2 (sustituyendo la estética de plantilla por tipografía limpia y sobria).
+   - Reorganizar la narrativa bajo el principio de Divulgación Progresiva: Hero con propuesta de valor clara -> Why Gripm (comparativa local-first + MCP) -> Quickstart en 3 pasos -> Integración con Agentes de IA (MCP) -> Vistas del producto -> Referencia de CLI y almacenamiento -> Ecosistema (`@gripm/playbook`) y Contribución en bloques `<details>`.
+   - Limpiar advertencias defensivas y trasladar guías de privacidad y desinstalación a bloques de referencia.
+   - Paridad estricta y bilingüe entre `README.md` (English) y `README.es.md` (Español).
+
+**Criterios de Aceptación:**
+- [x] #1 `README.md` y `README.es.md` reflejan con exactitud técnica las opciones y comportamiento real de `gripm --init` según `scripts/initScaffold.js`.
+- [x] #2 Los scripts de desarrollo interno del repositorio quedan separados de la guía de usuario y no se presentan como comandos del paquete `@gripm/board`.
+- [x] #3 Se documenta el comando `gripm import` y las opciones completas del CLI en una tabla estructurada para usuarios finales.
+- [x] #4 Los 12 encabezados H2 adoptan una jerarquía tipográfica limpia y sobria sin prefijos de emojis artificiales en cada título.
+- [x] #5 La integración con agentes de IA y el servidor MCP documenta el snippet JSON y la compuerta de calidad de forma concisa con tabla de herramientas en `<details>`.
+- [x] #6 El Hero incluye badges estándar (npm version, Node >= 20, MCP Ready, License, Live Demo) y enlace directo a `gripm.vercel.app`.
+- [x] #7 Paridad total de contenido y estructura entre `README.md` (inglés) y `README.es.md` (español), respetando la regla Anti-Em-Dash.
+- [x] #8 La suite de verificación (`npm test` y `npm run backlog:check`) aprueba con código 0.
+
+---
+
+#### [DEV-342] Sincronizacion y adopcion de Gripm Playbook v2.7.1
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Sincronización y adopción en Gripm Board del framework metodológico autónomo `@gripm/playbook@2.7.1` upstream:
+- Sincronización de reglas metodológicas y skills del framework en `.agents/` (`TEAM_PLAYBOOK.md`, `STATE_MACHINE.md`, `git-workflow.md`, `pm-orchestrator`, `principal-engineer`, `qa-auditor`, `code-level-ux-auditor`).
+- Incorporación de las nuevas utilidades y gates (`gate-review-items.mjs`, `validate-commit-msg.mjs`, `anti-slop.mjs`, `cli-router.mjs`).
+- Preservación de personalizaciones locales protegidas (`scripts/audit-ux-code.cjs`) y gobernanza de `AGENTS.md`.
+- Verificación exhaustiva de la Pirámide de Verificación (tipado, 26 tests headless, `verify-changes.js --all`, `backlog:check`).
+
+**Criterios de Aceptación:**
+- [x] #1 Ejecutar la sincronización de `@gripm/playbook@2.7.1` desde `../gripm-playbook` con `node scripts/sync-playbook.mjs --source ../gripm-playbook --yes`.
+- [x] #2 `.playbook-lock.json` se actualiza reflejando la versión `2.7.1` preservando la protección de `scripts/audit-ux-code.cjs`.
+- [x] #3 Las reglas y skills en `.agents/` y herramientas en `scripts/` quedan actualizadas con paridad total con upstream.
+- [x] #4 `AGENTS.md` de Gripm Board se preserva intacto sin sobreescrituras no deseadas.
+- [x] #5 La suite de pruebas unificada (`npm test`), tipado (`tsc --noEmit`), y verificación de cambios (`node scripts/verify-changes.js --all`) aprueban con código 0.
 
 ---
 

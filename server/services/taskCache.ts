@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { BacklogMdTask } from '../../scripts/backlogMdParser.ts';
 
 export interface TaskCacheEntry {
@@ -59,8 +60,9 @@ export function getTaskCacheStats(): TaskCacheStats {
  * Prunes cached entries for files that were deleted from disk in a specific tasks directory.
  */
 export function pruneStaleCacheEntries(tasksDir: string, activeFilePaths: Set<string>): void {
+  const normalizedDir = path.resolve(tasksDir);
   for (const cachedPath of taskCache.keys()) {
-    if (cachedPath.startsWith(tasksDir) && !activeFilePaths.has(cachedPath)) {
+    if (path.dirname(path.resolve(cachedPath)) === normalizedDir && !activeFilePaths.has(cachedPath)) {
       taskCache.delete(cachedPath);
     }
   }

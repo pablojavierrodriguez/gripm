@@ -1,7 +1,7 @@
 ---
 id: DEV-284
 title: "Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios"
-status: ready
+status: done
 created_date: '2026-10-15'
 updated_date: '2026-10-26'
 labels:

@@ -249,7 +249,7 @@ npm run dev
 Verification suite:
 ```bash
 npm run lint          # TypeScript strict typechecking (tsc --noEmit)
-npm test              # Unified headless test suite (18 sequential steps)
+npm test              # Unified headless test suite (26 sequential steps)
 npm run backlog:check # Backlog and task integrity verification
 npm run build         # Bundle Vite assets and package binaries
 ```
