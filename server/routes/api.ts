@@ -281,7 +281,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
           if (err?.message && (err.message.includes('Gatekeeper') || err.message.includes('[Validation]'))) {
             return sendJson(res, 400, { error: err.message });
           }
-          if (err?.message && err.message.includes('no encontrada')) {
+          if (err?.message && (err.message.includes('not found') || err.message.includes('no encontrada'))) {
             continue;
           }
           return sendJson(res, 400, { error: err.message });

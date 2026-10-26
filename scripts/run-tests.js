@@ -45,6 +45,7 @@ const STEPS = [
   ['parser', 'scripts/test-parser.js'],
   ['integration', 'scripts/verify-integration.js'],
   ['backlog-service', 'scripts/test-backlog-service.js'],
+  ['commit-msg', 'scripts/test-commit-msg.js'],
   ['api-security', 'scripts/test-api-security.js'],
   ['package-smoke', 'scripts/test-package-smoke.js'],
   ['clean-room', 'scripts/test-clean-room.js'],

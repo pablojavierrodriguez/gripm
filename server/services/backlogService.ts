@@ -339,12 +339,12 @@ export function validateGatekeeperTransition(
     const acs = task.acceptanceCriteriaList || task.acceptanceCriteria || [];
     const unchecked = acs.filter((ac: any) => !ac.checked);
     if (unchecked.length > 0) {
-      const taskId = task.code || task.id || 'desconocida';
+      const taskId = task.code || task.id || 'unknown';
       const uncheckedList = unchecked.map((ac: any) => ` - [ ] #${ac.index} ${ac.text}`).join('\n');
       throw new Error(
-        `[MCP Gatekeeper] Transición rechazada: No se puede mover la tarea '${taskId}' a '${normTarget}' porque tiene ${unchecked.length} criterio(s) de aceptación sin cumplir:\n` +
+        `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because it has ${unchecked.length} uncompleted acceptance criteria:\n` +
         `${uncheckedList}\n\n` +
-        `Acción correctiva: Completa la implementación de cada criterio pendiente y márcalo como completado (- [x]) antes de certificar la tarea como '${normTarget}'.`
+        `Corrective action: Complete the implementation of each pending criterion and mark it as completed (- [x]) before certifying the task as '${normTarget}'.`
       );
     }
 
@@ -354,9 +354,9 @@ export function validateGatekeeperTransition(
       const validation = validateVerifyCommand(verifyCmd, execCwd);
       if (!validation.valid) {
         throw new Error(
-          `[MCP Gatekeeper Security] Transición rechazada: El comando de verificación '${verifyCmd}' no está permitido al intentar mover '${task.code || task.id}' a '${normTarget}':\n` +
+          `[MCP Gatekeeper Security] Transition rejected: Verification command '${verifyCmd}' is not permitted when attempting to move '${task.code || task.id}' to '${normTarget}':\n` +
           `${validation.reason}\n\n` +
-          `Acción correctiva: Utiliza únicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
+          `Corrective action: Use only scripts defined in package.json (e.g. 'npm test', 'npm run <script>') or authorized tools ('npx tsc --noEmit').`
         );
       }
 
@@ -370,9 +370,9 @@ export function validateGatekeeperTransition(
       } catch (execErr: any) {
         const outMsg = (execErr.stderr || execErr.stdout || execErr.message || '').toString().trim();
         throw new Error(
-          `[MCP Gatekeeper] Transición rechazada: El comando de verificación '${verifyCmd}' falló al intentar mover '${task.code || task.id}' a '${normTarget}':\n` +
+          `[MCP Gatekeeper] Transition rejected: Verification command '${verifyCmd}' failed when attempting to move '${task.code || task.id}' to '${normTarget}':\n` +
           `${outMsg}\n\n` +
-          `Acción correctiva: Revisa los errores del script de verificación, soluciona los fallos y vuelve a intentar certificar la tarea.`
+          `Corrective action: Check the verification script errors, fix the issues, and retry certifying the task.`
         );
       }
     }
@@ -925,7 +925,7 @@ export class BacklogService {
     options?: { includeDeleted?: boolean }
   ): { found: boolean; project: any; task: any } {
     if (!taskId || typeof taskId !== 'string' || !taskId.trim()) {
-      throw new Error(`[Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+      throw new Error(`[Validation] Parameter 'taskId' is required and must be a non-empty string.`);
     }
 
     const cleanId = taskId.toLowerCase();
@@ -946,7 +946,7 @@ export class BacklogService {
       }
     }
 
-    throw new Error(`Tarea ${taskId} no encontrada.`);
+    throw new Error(`Task ${taskId} not found.`);
   }
 
   /**
@@ -1179,7 +1179,7 @@ export class BacklogService {
     options?: TaskMutationOptions
   ): { ok: boolean; updatedTask: any; filePath?: string; warning?: string; audit?: GatekeeperAudit } {
     if (!taskId || typeof taskId !== 'string' || !taskId.trim()) {
-      throw new Error(`[Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+      throw new Error(`[Validation] Parameter 'taskId' is required and must be a non-empty string.`);
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -1189,7 +1189,7 @@ export class BacklogService {
     if (isBacklogMdProject(project) && project.repoPath) {
       const fileInfo = findTaskFile(project, taskId);
       if (!fileInfo) {
-        throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+        throw new Error(`Task ${taskId} not found to update.`);
       }
 
       const { filePath, filename, task: current } = fileInfo;
@@ -1201,7 +1201,7 @@ export class BacklogService {
         if (currentMtime > options.expectedMtime) {
           const canonicalCurrent = mapMarkdownTaskToCanonical(current, project, filename, fileStat);
           throw new ConflictError(
-            `La tarea "${current.id}" fue modificada en disco por otro proceso o agente.`,
+            `Task "${current.id}" was modified on disk by another process or agent.`,
             currentMtime,
             canonicalCurrent
           );
@@ -1275,12 +1275,12 @@ export class BacklogService {
         }));
       } else if (norm.toggleAcIndex !== undefined) {
         if (typeof norm.toggleAcIndex !== 'number' || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
-          throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
+          throw new Error(`[Validation] Invalid parameter 'toggleAcIndex': must be a positive integer (1-indexed), received '${norm.toggleAcIndex}'.`);
         }
         const acList = current.acceptanceCriteria || [];
         const foundAc = acList.find((ac: any) => ac.index === norm.toggleAcIndex);
         if (!foundAc) {
-          throw new Error(`[Validation] Criterio de aceptación #${norm.toggleAcIndex} no encontrado en la tarea '${current.id}'.`);
+          throw new Error(`[Validation] Acceptance criterion #${norm.toggleAcIndex} not found in task '${current.id}'.`);
         }
         current.acceptanceCriteria = acList.map((ac: any) =>
           ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
@@ -1306,10 +1306,10 @@ export class BacklogService {
       const resp: any = { ok: true, updatedTask: canonical, filePath };
 
       if (norm.usedUpdatesObject) {
-        resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+        resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
       }
       if (options?.force) {
-        const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id}', omitiendo las validaciones del Gatekeeper.`;
+        const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id}', bypassing Gatekeeper validations.`;
         resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
         resp.audit = {
           bypassedGatekeeper: true,
@@ -1322,7 +1322,7 @@ export class BacklogService {
     // JSON Storage
     const jsonPath = resolveJsonBacklogPath(project);
     if (!fs.existsSync(jsonPath)) {
-      throw new Error(`Archivo de backlog JSON no encontrado en ${jsonPath}.`);
+      throw new Error(`JSON backlog file not found at ${jsonPath}.`);
     }
 
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
@@ -1333,7 +1333,7 @@ export class BacklogService {
     );
 
     if (idx < 0) {
-      throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+      throw new Error(`Task ${taskId} not found to update.`);
     }
 
     const current = data.items[idx];
@@ -1346,7 +1346,7 @@ export class BacklogService {
     if (!options?.force && typeof options?.expectedMtime === 'number') {
       if (currentMtime > options.expectedMtime) {
         throw new ConflictError(
-          `La tarea "${current.code || current.id}" fue modificada en disco por otro proceso o agente.`,
+          `Task "${current.code || current.id}" was modified on disk by another process or agent.`,
           currentMtime,
           current
         );
@@ -1417,12 +1417,12 @@ export class BacklogService {
       }));
     } else if (norm.toggleAcIndex !== undefined) {
       if (typeof norm.toggleAcIndex !== 'number' || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
-        throw new Error(`[Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
+        throw new Error(`[Validation] Invalid parameter 'toggleAcIndex': must be a positive integer (1-indexed), received '${norm.toggleAcIndex}'.`);
       }
       const acList = current.acceptanceCriteriaList || [];
       const foundAc = acList.find((ac: any) => ac.index === norm.toggleAcIndex);
       if (!foundAc) {
-        throw new Error(`[Validation] Criterio de aceptación #${norm.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+        throw new Error(`[Validation] Acceptance criterion #${norm.toggleAcIndex} not found in task '${current.id || current.code}'.`);
       }
       current.acceptanceCriteriaList = acList.map((ac: any) =>
         ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
@@ -1445,10 +1445,10 @@ export class BacklogService {
 
     const resp: any = { ok: true, updatedTask: current, filePath: jsonPath };
     if (norm.usedUpdatesObject) {
-      resp.warning = "Aviso: Se aplicó 'status' recibido dentro del objeto 'updates'. Para máxima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+      resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
     }
     if (options?.force) {
-      const forceWarning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización de la tarea '${current.id || current.code}', omitiendo las validaciones del Gatekeeper.`;
+      const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
       resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
       resp.audit = {
         bypassedGatekeeper: true,
@@ -1502,11 +1502,11 @@ export class BacklogService {
         storageType: project.storageType || 'markdown',
         updatedCount,
         updatedIds,
-        ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {})
+        ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} task(s) failed to update.` } : {})
       };
 
       if (options?.force) {
-        resp.warning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+        resp.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
         resp.audit = {
           bypassedGatekeeper: true,
           timestamp: new Date().toISOString()
@@ -1572,11 +1572,11 @@ export class BacklogService {
       storageType: project.storageType || 'markdown',
       updatedCount,
       updatedIds,
-      ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {})
+      ...(failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} task(s) failed to update.` } : {})
     };
 
     if (options?.force) {
-      resp.warning = `[MCP Gatekeeper Audit] Se utilizó 'force: true' para forzar la actualización masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+      resp.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
       resp.audit = {
         bypassedGatekeeper: true,
         timestamp: new Date().toISOString()
@@ -2353,7 +2353,7 @@ export class BacklogService {
                     atomicWriteFileSync(releasesPath, JSON.stringify(relsData, null, 2), 'utf8');
                   }
                 } catch (syncErr: any) {
-                  console.warn('[gripm BacklogService] Error sincronizando releases.json al guardar tarea:', syncErr.message);
+                  console.warn('[gripm BacklogService] Error syncing releases.json when saving task:', syncErr.message);
                 }
               }
             });

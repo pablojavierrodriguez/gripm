@@ -1918,13 +1918,13 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
     const acs = task.acceptanceCriteriaList || task.acceptanceCriteria || [];
     const unchecked = acs.filter((ac) => !ac.checked);
     if (unchecked.length > 0) {
-      const taskId = task.code || task.id || "desconocida";
+      const taskId = task.code || task.id || "unknown";
       const uncheckedList = unchecked.map((ac) => ` - [ ] #${ac.index} ${ac.text}`).join("\n");
       throw new Error(
-        `[MCP Gatekeeper] Transici\xF3n rechazada: No se puede mover la tarea '${taskId}' a '${normTarget}' porque tiene ${unchecked.length} criterio(s) de aceptaci\xF3n sin cumplir:
+        `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because it has ${unchecked.length} uncompleted acceptance criteria:
 ${uncheckedList}
 
-Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y m\xE1rcalo como completado (- [x]) antes de certificar la tarea como '${normTarget}'.`
+Corrective action: Complete the implementation of each pending criterion and mark it as completed (- [x]) before certifying the task as '${normTarget}'.`
       );
     }
     const verifyCmd = options?.verifyCommand;
@@ -1933,10 +1933,10 @@ Acci\xF3n correctiva: Completa la implementaci\xF3n de cada criterio pendiente y
       const validation = validateVerifyCommand(verifyCmd, execCwd);
       if (!validation.valid) {
         throw new Error(
-          `[MCP Gatekeeper Security] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' no est\xE1 permitido al intentar mover '${task.code || task.id}' a '${normTarget}':
+          `[MCP Gatekeeper Security] Transition rejected: Verification command '${verifyCmd}' is not permitted when attempting to move '${task.code || task.id}' to '${normTarget}':
 ${validation.reason}
 
-Acci\xF3n correctiva: Utiliza \xFAnicamente scripts definidos en package.json (ej: 'npm test', 'npm run <script>') o herramientas autorizadas ('npx tsc --noEmit').`
+Corrective action: Use only scripts defined in package.json (e.g. 'npm test', 'npm run <script>') or authorized tools ('npx tsc --noEmit').`
         );
       }
       try {
@@ -1949,10 +1949,10 @@ Acci\xF3n correctiva: Utiliza \xFAnicamente scripts definidos en package.json (e
       } catch (execErr) {
         const outMsg = (execErr.stderr || execErr.stdout || execErr.message || "").toString().trim();
         throw new Error(
-          `[MCP Gatekeeper] Transici\xF3n rechazada: El comando de verificaci\xF3n '${verifyCmd}' fall\xF3 al intentar mover '${task.code || task.id}' a '${normTarget}':
+          `[MCP Gatekeeper] Transition rejected: Verification command '${verifyCmd}' failed when attempting to move '${task.code || task.id}' to '${normTarget}':
 ${outMsg}
 
-Acci\xF3n correctiva: Revisa los errores del script de verificaci\xF3n, soluciona los fallos y vuelve a intentar certificar la tarea.`
+Corrective action: Check the verification script errors, fix the issues, and retry certifying the task.`
         );
       }
     }
@@ -2405,7 +2405,7 @@ var init_backlogService = __esm({
        */
       static getTask(project, taskId, options) {
         if (!taskId || typeof taskId !== "string" || !taskId.trim()) {
-          throw new Error(`[Validation] Par\xE1metro 'taskId' requerido y debe ser un string no vac\xEDo.`);
+          throw new Error(`[Validation] Parameter 'taskId' is required and must be a non-empty string.`);
         }
         const cleanId = taskId.toLowerCase();
         const includeDeleted = options?.includeDeleted !== false;
@@ -2422,7 +2422,7 @@ var init_backlogService = __esm({
             };
           }
         }
-        throw new Error(`Tarea ${taskId} no encontrada.`);
+        throw new Error(`Task ${taskId} not found.`);
       }
       /**
        * Calculates dashboard / metrics statistics over active tasks (excluding isDeleted).
@@ -2619,7 +2619,7 @@ var init_backlogService = __esm({
        */
       static updateTask(project, taskId, updates, options) {
         if (!taskId || typeof taskId !== "string" || !taskId.trim()) {
-          throw new Error(`[Validation] Par\xE1metro 'taskId' requerido y debe ser un string no vac\xEDo.`);
+          throw new Error(`[Validation] Parameter 'taskId' is required and must be a non-empty string.`);
         }
         const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
         const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -2627,7 +2627,7 @@ var init_backlogService = __esm({
         if (isBacklogMdProject(project) && project.repoPath) {
           const fileInfo = findTaskFile(project, taskId);
           if (!fileInfo) {
-            throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+            throw new Error(`Task ${taskId} not found to update.`);
           }
           const { filePath, filename, task: current2 } = fileInfo;
           const fileStat = fs8.existsSync(filePath) ? fs8.statSync(filePath) : void 0;
@@ -2636,7 +2636,7 @@ var init_backlogService = __esm({
             if (currentMtime2 > options.expectedMtime) {
               const canonicalCurrent = mapMarkdownTaskToCanonical(current2, project, filename, fileStat);
               throw new ConflictError(
-                `La tarea "${current2.id}" fue modificada en disco por otro proceso o agente.`,
+                `Task "${current2.id}" was modified on disk by another process or agent.`,
                 currentMtime2,
                 canonicalCurrent
               );
@@ -2703,12 +2703,12 @@ var init_backlogService = __esm({
             }));
           } else if (norm.toggleAcIndex !== void 0) {
             if (typeof norm.toggleAcIndex !== "number" || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
-              throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
+              throw new Error(`[Validation] Invalid parameter 'toggleAcIndex': must be a positive integer (1-indexed), received '${norm.toggleAcIndex}'.`);
             }
             const acList = current2.acceptanceCriteria || [];
             const foundAc = acList.find((ac) => ac.index === norm.toggleAcIndex);
             if (!foundAc) {
-              throw new Error(`[Validation] Criterio de aceptaci\xF3n #${norm.toggleAcIndex} no encontrado en la tarea '${current2.id}'.`);
+              throw new Error(`[Validation] Acceptance criterion #${norm.toggleAcIndex} not found in task '${current2.id}'.`);
             }
             current2.acceptanceCriteria = acList.map(
               (ac) => ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
@@ -2727,10 +2727,10 @@ var init_backlogService = __esm({
           const canonical = mapMarkdownTaskToCanonical(current2, project, filename, freshStat);
           const resp2 = { ok: true, updatedTask: canonical, filePath };
           if (norm.usedUpdatesObject) {
-            resp2.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+            resp2.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
           }
           if (options?.force) {
-            const forceWarning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n de la tarea '${current2.id}', omitiendo las validaciones del Gatekeeper.`;
+            const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current2.id}', bypassing Gatekeeper validations.`;
             resp2.warning = resp2.warning ? `${resp2.warning} ${forceWarning}` : forceWarning;
             resp2.audit = {
               bypassedGatekeeper: true,
@@ -2741,7 +2741,7 @@ var init_backlogService = __esm({
         }
         const jsonPath = resolveJsonBacklogPath(project);
         if (!fs8.existsSync(jsonPath)) {
-          throw new Error(`Archivo de backlog JSON no encontrado en ${jsonPath}.`);
+          throw new Error(`JSON backlog file not found at ${jsonPath}.`);
         }
         const data = JSON.parse(fs8.readFileSync(jsonPath, "utf8"));
         const cleanId = String(taskId).toLowerCase();
@@ -2749,7 +2749,7 @@ var init_backlogService = __esm({
           (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
         );
         if (idx < 0) {
-          throw new Error(`Tarea ${taskId} no encontrada para actualizar.`);
+          throw new Error(`Task ${taskId} not found to update.`);
         }
         const current = data.items[idx];
         const jsonStat = fs8.existsSync(jsonPath) ? fs8.statSync(jsonPath) : void 0;
@@ -2757,7 +2757,7 @@ var init_backlogService = __esm({
         if (!options?.force && typeof options?.expectedMtime === "number") {
           if (currentMtime > options.expectedMtime) {
             throw new ConflictError(
-              `La tarea "${current.code || current.id}" fue modificada en disco por otro proceso o agente.`,
+              `Task "${current.code || current.id}" was modified on disk by another process or agent.`,
               currentMtime,
               current
             );
@@ -2822,12 +2822,12 @@ var init_backlogService = __esm({
           }));
         } else if (norm.toggleAcIndex !== void 0) {
           if (typeof norm.toggleAcIndex !== "number" || !Number.isInteger(norm.toggleAcIndex) || norm.toggleAcIndex < 1) {
-            throw new Error(`[Validation] Par\xE1metro 'toggleAcIndex' inv\xE1lido: debe ser un entero positivo (1-indexed), recibido '${norm.toggleAcIndex}'.`);
+            throw new Error(`[Validation] Invalid parameter 'toggleAcIndex': must be a positive integer (1-indexed), received '${norm.toggleAcIndex}'.`);
           }
           const acList = current.acceptanceCriteriaList || [];
           const foundAc = acList.find((ac) => ac.index === norm.toggleAcIndex);
           if (!foundAc) {
-            throw new Error(`[Validation] Criterio de aceptaci\xF3n #${norm.toggleAcIndex} no encontrado en la tarea '${current.id || current.code}'.`);
+            throw new Error(`[Validation] Acceptance criterion #${norm.toggleAcIndex} not found in task '${current.id || current.code}'.`);
           }
           current.acceptanceCriteriaList = acList.map(
             (ac) => ac.index === norm.toggleAcIndex ? { ...ac, checked: !ac.checked } : ac
@@ -2843,10 +2843,10 @@ var init_backlogService = __esm({
         current.mtime = freshJsonStat ? Math.round(freshJsonStat.mtimeMs) : Date.now();
         const resp = { ok: true, updatedTask: current, filePath: jsonPath };
         if (norm.usedUpdatesObject) {
-          resp.warning = "Aviso: Se aplic\xF3 'status' recibido dentro del objeto 'updates'. Para m\xE1xima compatibilidad con AGENTS.md se recomienda pasar 'status' como campo top-level.";
+          resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
         }
         if (options?.force) {
-          const forceWarning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n de la tarea '${current.id || current.code}', omitiendo las validaciones del Gatekeeper.`;
+          const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
           resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
           resp.audit = {
             bypassedGatekeeper: true,
@@ -2882,10 +2882,10 @@ var init_backlogService = __esm({
             storageType: project.storageType || "markdown",
             updatedCount: updatedCount2,
             updatedIds: updatedIds2,
-            ...failedUpdates2.length > 0 ? { failedUpdates: failedUpdates2, error: `${failedUpdates2.length} tarea(s) fallaron al actualizarse.` } : {}
+            ...failedUpdates2.length > 0 ? { failedUpdates: failedUpdates2, error: `${failedUpdates2.length} task(s) failed to update.` } : {}
           };
           if (options?.force) {
-            resp2.warning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+            resp2.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
             resp2.audit = {
               bypassedGatekeeper: true,
               timestamp: (/* @__PURE__ */ new Date()).toISOString()
@@ -2939,10 +2939,10 @@ var init_backlogService = __esm({
           storageType: project.storageType || "markdown",
           updatedCount,
           updatedIds,
-          ...failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} tarea(s) fallaron al actualizarse.` } : {}
+          ...failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} task(s) failed to update.` } : {}
         };
         if (options?.force) {
-          resp.warning = `[MCP Gatekeeper Audit] Se utiliz\xF3 'force: true' para forzar la actualizaci\xF3n masiva de tareas, omitiendo las validaciones del Gatekeeper.`;
+          resp.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
           resp.audit = {
             bypassedGatekeeper: true,
             timestamp: (/* @__PURE__ */ new Date()).toISOString()
@@ -3624,7 +3624,7 @@ previousStatus: "${previousStatus}"
                         atomicWriteFileSync2(releasesPath, JSON.stringify(relsData, null, 2), "utf8");
                       }
                     } catch (syncErr) {
-                      console.warn("[gripm BacklogService] Error sincronizando releases.json al guardar tarea:", syncErr.message);
+                      console.warn("[gripm BacklogService] Error syncing releases.json when saving task:", syncErr.message);
                     }
                   }
                 });
@@ -4682,7 +4682,7 @@ async function handleApiRequest(req, res) {
           if (err?.message && (err.message.includes("Gatekeeper") || err.message.includes("[Validation]"))) {
             return sendJson(res, 400, { error: err.message });
           }
-          if (err?.message && err.message.includes("no encontrada")) {
+          if (err?.message && (err.message.includes("not found") || err.message.includes("no encontrada"))) {
             continue;
           }
           return sendJson(res, 400, { error: err.message });

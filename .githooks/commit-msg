@@ -1,0 +1,15 @@
+#!/bin/sh
+# gripm Commit-Msg Hook: Conventional Commits in technical English enforcement (DEV-339)
+#
+# CONTRATO: Este hook valida que el mensaje de commit siga el estandar
+# Conventional Commits en ingles tecnico imperativo, bloqueando commits
+# accidentales en espanol o con formato defectuoso.
+
+node scripts/validate-commit-msg.js "$1"
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  exit 1
+fi
+
+exit 0

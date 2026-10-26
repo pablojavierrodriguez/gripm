@@ -409,12 +409,12 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
     if (args.limit !== undefined) {
       if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit <= 0) {
-        throw new Error(`[MCP Validation] Parámetro 'limit' inválido: debe ser un entero positivo, recibido '${args.limit}'.`);
+        throw new Error(`[MCP Validation] Invalid parameter 'limit': must be a positive integer, received '${args.limit}'.`);
       }
     }
     if (args.offset !== undefined) {
       if (typeof args.offset !== 'number' || !Number.isInteger(args.offset) || args.offset < 0) {
-        throw new Error(`[MCP Validation] Parámetro 'offset' inválido: debe ser un entero no negativo, recibido '${args.offset}'.`);
+        throw new Error(`[MCP Validation] Invalid parameter 'offset': must be a non-negative integer, received '${args.offset}'.`);
       }
     }
 
@@ -526,7 +526,7 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
 
   if (name === 'gripm_get_task') {
     if (!args.taskId || typeof args.taskId !== 'string' || !args.taskId.trim()) {
-      throw new Error(`[MCP Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+      throw new Error(`[MCP Validation] Parameter 'taskId' is required and must be a non-empty string.`);
     }
     const cleanId = String(args.taskId).toLowerCase();
     const candidateProjects = args.projectId
@@ -542,25 +542,25 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
         if (res.found) return res;
       } catch {}
     }
-    throw new Error(`Tarea ${args.taskId} no encontrada.`);
+    throw new Error(`Task ${args.taskId} not found.`);
   }
 
   if (name === 'gripm_create_task') {
     const project = registry.projects.find(p => p.id === args.projectId) 
       || registry.projects.find(p => p.id === registry.activeProjectId) 
       || registry.projects[0];
-    if (!project) throw new Error('Proyecto no encontrado.');
+    if (!project) throw new Error('Project not found.');
 
     return BacklogService.createTask(project as any, args);
   }
 
   if (name === 'gripm_update_task') {
     if (!args.taskId || typeof args.taskId !== 'string' || !args.taskId.trim()) {
-      throw new Error(`[MCP Validation] Parámetro 'taskId' requerido y debe ser un string no vacío.`);
+      throw new Error(`[MCP Validation] Parameter 'taskId' is required and must be a non-empty string.`);
     }
     if (args.toggleAcIndex !== undefined) {
       if (typeof args.toggleAcIndex !== 'number' || !Number.isInteger(args.toggleAcIndex) || args.toggleAcIndex < 1) {
-        throw new Error(`[MCP Validation] Parámetro 'toggleAcIndex' inválido: debe ser un entero positivo (1-indexed), recibido '${args.toggleAcIndex}'.`);
+        throw new Error(`[MCP Validation] Invalid parameter 'toggleAcIndex': must be a positive integer (1-indexed), received '${args.toggleAcIndex}'.`);
       }
     }
 
@@ -582,13 +582,13 @@ async function handleToolCall(rawName: string, args: any): Promise<any> {
         if (err.message && err.message.includes('[MCP Gatekeeper')) {
           throw err;
         }
-        if (err.message && err.message.includes('no encontrada')) {
+        if (err.message && (err.message.includes('not found') || err.message.includes('no encontrada'))) {
           continue;
         }
         throw err;
       }
     }
-    throw new Error(`Tarea ${args.taskId} no encontrada para actualizar.`);
+    throw new Error(`Task ${args.taskId} not found to update.`);
   }
 
   if (name === 'gripm_export_backlog') {

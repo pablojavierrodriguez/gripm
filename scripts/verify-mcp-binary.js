@@ -399,13 +399,13 @@ function runAssertions() {
 
   // DEV-224: Assert Gatekeeper enforcement
   const gatekeeperRes = responses.find(r => r.id === 6);
-  if (!gatekeeperRes?.result?.isError || !gatekeeperRes.result.content[0].text.includes('[MCP Gatekeeper] Transición rechazada')) {
+  if (!gatekeeperRes?.result?.isError || (!gatekeeperRes.result.content[0].text.includes('[MCP Gatekeeper] Transición rechazada') && !gatekeeperRes.result.content[0].text.includes('[MCP Gatekeeper] Transition rejected'))) {
     throw new Error(`DEV-224: Se esperaba rechazo de Gatekeeper por ACs incompletos, recibido: ${JSON.stringify(gatekeeperRes)}`);
   }
   console.log('✅ [6/8] DEV-224 Gatekeeper: Rechazó correctamente transición a ready con ACs pendientes');
 
   const verifyCmdFailRes = responses.find(r => r.id === 7);
-  if (!verifyCmdFailRes?.result?.isError || (!verifyCmdFailRes.result.content[0].text.includes('falló al intentar mover') && !verifyCmdFailRes.result.content[0].text.includes('[MCP Gatekeeper Security]'))) {
+  if (!verifyCmdFailRes?.result?.isError || (!verifyCmdFailRes.result.content[0].text.includes('falló al intentar mover') && !verifyCmdFailRes.result.content[0].text.includes('failed when attempting to move') && !verifyCmdFailRes.result.content[0].text.includes('[MCP Gatekeeper Security]'))) {
     throw new Error(`DEV-224: Se esperaba fallo por verifyCommand fallido, recibido: ${JSON.stringify(verifyCmdFailRes)}`);
   }
   console.log('✅ [7/17] DEV-224 Gatekeeper: Rechazó correctamente por verifyCommand no autorizado/fallido');
@@ -435,18 +435,18 @@ function runAssertions() {
 
   // SEC-05: Assert invalid limit parameter rejected
   const limitRes = responses.find(r => r.id === 10);
-  if (!limitRes?.result?.isError || !limitRes.result.content[0].text.includes("Parámetro 'limit' inválido")) {
+  if (!limitRes?.result?.isError || (!limitRes.result.content[0].text.includes("Parámetro 'limit' inválido") && !limitRes.result.content[0].text.includes("Invalid parameter 'limit'"))) {
     throw new Error(`SEC-05: Se esperaba rechazo de limit no numérico, recibido: ${JSON.stringify(limitRes)}`);
   }
   console.log('✅ [11/17] SEC-05 Validación de schema: Rechazó limit inválido');
 
   // SEC-05: Assert negative and out-of-bounds toggleAcIndex rejected
   const negativeAcRes = responses.find(r => r.id === 11);
-  if (!negativeAcRes?.result?.isError || !negativeAcRes.result.content[0].text.includes("Parámetro 'toggleAcIndex' inválido")) {
+  if (!negativeAcRes?.result?.isError || (!negativeAcRes.result.content[0].text.includes("Parámetro 'toggleAcIndex' inválido") && !negativeAcRes.result.content[0].text.includes("Invalid parameter 'toggleAcIndex'"))) {
     throw new Error(`SEC-05: Se esperaba rechazo de toggleAcIndex negativo, recibido: ${JSON.stringify(negativeAcRes)}`);
   }
   const notFoundAcRes = responses.find(r => r.id === 12);
-  if (!notFoundAcRes?.result?.isError || !notFoundAcRes.result.content[0].text.includes("no encontrado")) {
+  if (!notFoundAcRes?.result?.isError || (!notFoundAcRes.result.content[0].text.includes("no encontrado") && !notFoundAcRes.result.content[0].text.includes("not found"))) {
     throw new Error(`SEC-05: Se esperaba rechazo de toggleAcIndex inexistente, recibido: ${JSON.stringify(notFoundAcRes)}`);
   }
   console.log('✅ [12/17] SEC-05 Validación de schema: Rechazó toggleAcIndex negativo y fuera de rango');

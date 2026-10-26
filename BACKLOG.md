@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-25 por gripm
+> Consolidado generado el 2026-10-26 por gripm
 
 ## Resumen de Estados
 
@@ -172,6 +172,27 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 - [ ] #3 El proceso es transaccional: una importación interrumpida no deja el backlog a medias.
 - [ ] #4 El resultado pasa `npm run backlog:sync` y `npm run backlog:check` con código 0.
 - [ ] #5 Duplicados y conflictos de ID se detectan y reportan antes de escribir, sin sobrescribir tareas existentes.
+
+---
+
+### 🚀 Ready for Deploy (1)
+
+#### [DEV-339] Saneamiento de excepciones en inglés en BacklogService y adopción de commit-msg hook
+- **Prioridad**: `medium` | **Tipo**: `chore`
+
+Como producto de software consumidor de `@gripm/playbook`, Gripm Board (`@gripm/board`) debe mantener su stock técnico y mensajes de servidor alineados con los estándares de la industria en inglés.
+
+Actualmente existen discrepancias internas:
+1. `server/services/backlogService.ts` arroja excepciones de validación en español (`[Validation] Parámetro 'taskId' requerido...`, `Tarea no encontrada`), mientras que `server/routes/api.ts`, los esquemas del servidor MCP y los middlewares de seguridad operan 100% en inglés.
+2. Los hooks locales (`.githooks/`) carecen de un `commit-msg` activo que prevenga commits accidentales en español en el desarrollo diario del producto.
+
+La definición metodológica canónica del framework se transfiere a `@gripm/playbook` (PLAY-047), limitando esta tarea estrictamente al saneamiento del stock de código de Gripm Board y a la adopción del hook local.
+
+**Criterios de Aceptación:**
+- [x] #1 Saneamiento de excepciones en BacklogService: Auditar y migrar todas las excepciones de validación y errores arrojados en `server/services/backlogService.ts` a inglés técnico (`[Validation] Parameter 'taskId' is required and must be a non-empty string`, `Task ${taskId} not found`, etc.), manteniendo consistencia con `server/routes/api.ts`.
+- [x] #2 Paridad y actualización de pruebas: Actualizar las aserciones de mensajes de error en la suite de pruebas (`scripts/test-backlog-service.js`, `scripts/verify-integration.js`, etc.) para verificar los nuevos textos en inglés sin regresiones.
+- [x] #3 Adopción local del hook commit-msg: Incorporar `.githooks/commit-msg` en el repositorio para validar formato Conventional Commits en inglés imperativo y actualizar `scripts/prepare-hooks.js` para asegurar su configuración automática en el entorno de desarrollo.
+- [x] #4 Verificación integral: `npx tsc --noEmit`, `npm test`, `npm run backlog:check` y `node scripts/verify-changes.js --all` pasan con código 0.
 
 ---
 

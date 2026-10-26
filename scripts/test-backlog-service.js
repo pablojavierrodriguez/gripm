@@ -101,7 +101,10 @@ try {
   } catch (err) {
     gatekeeperBlocked = true;
     assert.ok(err.message.includes('Gatekeeper'), 'El error debe ser emitido por el Gatekeeper');
-    assert.ok(err.message.includes('sin cumplir') || err.message.includes('criterio'), 'Debe mencionar ACs sin cumplir');
+    assert.ok(
+      err.message.includes('uncompleted') || err.message.includes('criteria') || err.message.includes('sin cumplir'),
+      'Debe mencionar ACs sin cumplir'
+    );
   }
   assert.strictEqual(gatekeeperBlocked, true, 'updateTask a ready sin ACs completos debe ser bloqueado por Gatekeeper');
 
@@ -121,7 +124,29 @@ try {
   const cleanReadyRes = BacklogService.updateTask(project, 'DEV-001', { status: 'ready' });
   assert.strictEqual(cleanReadyRes.ok, true, 'Con ACs completos debe pasar a ready sin force');
   assert.strictEqual(cleanReadyRes.updatedTask.status, 'ready');
-  console.log('✅ Test 3 aprobado: Gatekeeper de certificación estricto en updateTask.');
+
+  // 3.3: DEV-339: Verificación de excepciones y validaciones técnicas en inglés
+  assert.throws(
+    () => BacklogService.getTask(project, ''),
+    /\[Validation\] Parameter 'taskId' is required and must be a non-empty string\./,
+    'getTask con taskId vacío debe arrojar validación en inglés'
+  );
+  assert.throws(
+    () => BacklogService.getTask(project, 'NON_EXISTENT_XYZ'),
+    /Task NON_EXISTENT_XYZ not found\./,
+    'getTask con ID inexistente debe arrojar error en inglés'
+  );
+  assert.throws(
+    () => BacklogService.updateTask(project, 'DEV-001', { toggleAcIndex: -5 }),
+    /\[Validation\] Invalid parameter 'toggleAcIndex': must be a positive integer \(1-indexed\), received '-5'\./,
+    'toggleAcIndex inválido debe arrojar error de validación en inglés'
+  );
+  assert.throws(
+    () => BacklogService.updateTask(project, 'DEV-001', { toggleAcIndex: 999 }),
+    /\[Validation\] Acceptance criterion #999 not found in task 'DEV-001'\./,
+    'toggleAcIndex fuera de rango debe arrojar error en inglés'
+  );
+  console.log('✅ Test 3 aprobado: Gatekeeper de certificación estricto y excepciones en inglés en updateTask.');
 
   // =========================================================================
   // TEST 4: Gatekeeper en bulkUpdateTasks (AC 3)
