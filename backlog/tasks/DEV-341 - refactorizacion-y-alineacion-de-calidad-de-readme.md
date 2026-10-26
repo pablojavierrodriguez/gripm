@@ -1,7 +1,7 @@
 ---
 id: DEV-341
 title: "Refactorizacion y alineacion de calidad de README.md y README.es.md con buenas practicas modernas"
-status: review
+status: ready
 created_date: '2026-10-26'
 updated_date: '2026-10-26'
 labels:
