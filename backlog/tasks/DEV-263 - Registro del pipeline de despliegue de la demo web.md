@@ -19,7 +19,7 @@ type: chore
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 La demo web de DEV-222 está publicada en `https://gripm.vercel.app` y el despliegue es
-**deliberadamente manual**: `vercel deploy --prod` desde una máquina con la sesión iniciada.
+**deliberadamente manual**: `npm run deploy:prod` desde una máquina con la sesión iniciada y parada en `main` (blindado por DEV-340).
 
 > [!IMPORTANT]
 > **El deploy manual es la decisión, no la deuda.** Se evaluó conectar el repositorio de
@@ -34,7 +34,7 @@ menores que sí quedan abiertas. No es urgente.
 
 | Aspecto | Estado |
 | :--- | :--- |
-| Método de despliegue | Manual, `vercel deploy --prod` desde la CLI |
+| Método de despliegue | Manual, `npm run deploy:prod` desde `main` (DEV-340) |
 | `gripm.vercel.app` | **Es la URL de producción del proyecto.** El segundo deploy la devolvió como `productionUrl` de sí mismo, así que los deploys siguientes la sirven |
 | Build en Vercel | `npm run build` sobre Node `24.x`, salida `dist/` |
 | `.vercelignore` | Presente; protege el backlog y el `.env.local` con el OIDC token |

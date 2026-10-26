@@ -28,7 +28,13 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 - **El Backlog no es un estado:** Es la dimensión de planificación y el inventario de trabajo no iniciado. Toda tarea en el Backlog tiene asignado legítimamente el estado canónico `draft` (o `ideas` si es descubrimiento).
 - **Línea de Llegada del Desarrollador (`ready`):** La meta terminal del desarrollador y del agente es `ready`. Queda terminantemente prohibido marcar `done` durante el desarrollo.
 - **Invariante Fundamental:** **No puede haber un ítem en producción que no esté en `done`, ni un ítem en `done` que no esté desplegado en producción**. El paso de `ready` a `done` lo realiza el empaquetado/despliegue del release (Release Assembler).
-- **Despliegue Completo de Producción:** El cierre de una versión no concluye con el push del tag o el tarball de npm. Si el proyecto mantiene una instancia web en producción (Vercel Sandbox `https://gripm.vercel.app`), es **obligatorio ejecutar la promoción de producción**: `npx vercel --prod --yes` y verificar su accesibilidad HTTP antes de dar por cerrado el release.
+- **Despliegue Completo de Producción (Anti-Dev-Production-Deploy, DEV-340):** El cierre de una versión no concluye con el push del tag o el tarball de npm. Si el proyecto mantiene una instancia web en producción (Vercel Sandbox `https://gripm.vercel.app`), es **obligatorio ejecutar la promoción de producción única y exclusivamente desde el trunk canónico `main`**:
+  ```bash
+  git checkout main
+  npm run deploy:prod
+  git checkout dev
+  ```
+  `npm run deploy:prod` cuenta con un guardrail mecánico (`scripts/deploy-prod.js`) que aborta de inmediato si se invoca desde `dev` o con el árbol sucio, garantizando que Vercel solo reciba builds autorizados y etiquetados en `main`.
 - **Desacople Sprint vs. Release:** Sprints y releases no tienen vinculación 1:1. Un release se compone exclusivamente por el **valor entregado** agrupando cualquier ítem disponible en `ready` (sea histórico o del sprint actual), con o sin sprint activo.
 - **Trazabilidad Total:** Todo cambio de código (incluidos micro-refinamientos visuales o de texto) debe tener un criterio de aceptación (AC) o tarea asociada. Incluir el archivo `.md` de la tarea en el mismo commit que el código.
 - **Sincronización Inmediata:** Al crear o modificar cualquier archivo en `backlog/tasks/`, ejecutar `npm run backlog:sync` en el mismo movimiento para regenerar `BACKLOG.md` y mantener la coherencia del consolidado con el árbol de tareas.
@@ -128,6 +134,7 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 23. **Visibilidad de versión en entornos Sandbox (DEV-288):** Todo despliegue web/sandbox debe exponer su versión canónica visiblemente (ej. en el modal de atajos de teclado o cabecera) para permitir la certificación inmediata por parte de usuarios y QA sin recurrir a la consola de desarrollo.
 24. **Documentación bilingüe en un único archivo (DEV-309):** Para documentos comunitarios y de gobernanza (`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, etc.), se unifican ambos idiomas en el mismo archivo: versión en inglés arriba, versión en español debajo, con selector de anclajes de navegación rápida en la cabecera (`🌐 [English](#...) | [Español](#...)`). Queda prohibido bifurcar la documentación en archivos paralelos `*.es.md` (exceptuando temporalmente `README.md` / `README.es.md`).
 25. **Cero guiones largos artificiales (Anti-Em-Dash / Anti-IA):** Queda terminantemente prohibido el uso de guiones largos (em-dash ` - ` o en-dash ` - `) en títulos de navegador, interfaces de usuario, opciones de select, nombres de releases, notas de versión, `CHANGELOG.md`, `releases.json`, `BACKLOG.md` y documentación. Utilizar **siempre y exclusivamente** el guión simple estándar `-` con espacios (` - `). El uso de ` - ` es un cliché estilístico artificial que degrada la identidad y calidad del producto.
+26. **Cero despliegues a producción desde `dev` (Anti-Dev-Production-Deploy, DEV-340):** Queda terminantemente prohibido ejecutar `vercel --prod` o promover a producción desde la rama `dev` o ramas de trabajo. La producción debe originarse única y exclusivamente en `main` mediante `npm run deploy:prod` tras certificar la Pirámide de Verificación y mergear a `main`.
 
 ---
 

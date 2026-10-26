@@ -89,6 +89,7 @@
     "changelog": "node scripts/generate-changelog.cjs",
     "lint": "tsc --noEmit",
     "format": "node scripts/verify-backlog-sync.js --fix",
+    "deploy:prod": "node scripts/deploy-prod.js",
     "prepublishOnly": "npm run build && npm run publish:check",
     "prepack": "node scripts/prepack-strip-scripts.js",
     "postpack": "node scripts/postpack-restore-scripts.js",

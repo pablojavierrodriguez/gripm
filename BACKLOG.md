@@ -175,7 +175,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🚀 Ready for Deploy (2)
 
 #### [DEV-339] Saneamiento de excepciones en inglés en BacklogService y adopción de commit-msg hook
 - **Prioridad**: `medium` | **Tipo**: `chore`
@@ -193,6 +193,24 @@ La definición metodológica canónica del framework se transfiere a `@gripm/pla
 - [x] #2 Paridad y actualización de pruebas: Actualizar las aserciones de mensajes de error en la suite de pruebas (`scripts/test-backlog-service.js`, `scripts/verify-integration.js`, etc.) para verificar los nuevos textos en inglés sin regresiones.
 - [x] #3 Adopción local del hook commit-msg: Incorporar `.githooks/commit-msg` en el repositorio para validar formato Conventional Commits en inglés imperativo y actualizar `scripts/prepare-hooks.js` para asegurar su configuración automática en el entorno de desarrollo.
 - [x] #4 Verificación integral: `npx tsc --noEmit`, `npm test`, `npm run backlog:check` y `node scripts/verify-changes.js --all` pasan con código 0.
+
+---
+
+#### [DEV-340] Blindaje mecanico del despliegue a produccion en Vercel (Anti-Dev-Production-Deploy)
+- **Prioridad**: `high` | **Tipo**: `tech_debt`
+
+Históricamente, los despliegues de producción hacia Vercel (`https://gripm.vercel.app`) se ejecutaban manualmente mediante `npx vercel --prod --yes` desde la terminal local mientras los desarrolladores o agentes se encontraban situados en la rama de integración `dev`. Esto provocaba que en el dashboard de Vercel todos los despliegues de producción quedaran etiquetados formalmente con la rama `dev`, introduciendo un grave riesgo de "State Lie" (desplegar código inestable no auditado) y una inconsistencia con el trunk canónico de release `main`.
+
+Esta tarea implementa el guardrail mecánico `scripts/deploy-prod.js` y el comando de npm `npm run deploy:prod`, asegurando que cualquier intento de despliegue a producción aborte de inmediato si no se ejecuta sobre el trunk canónico `main` y con un working tree completamente limpio.
+
+**Criterios de Aceptación:**
+- [x] #1 Guardrail mecánico `scripts/deploy-prod.js` que verifica que la rama actual sea estrictamente `main` antes de permitir cualquier deploy a producción.
+- [x] #2 `scripts/deploy-prod.js` aborta con código 1 y banner explicativo si se invoca desde `dev` o cualquier otra rama no-main.
+- [x] #3 `scripts/deploy-prod.js` verifica que el working tree esté limpio sin cambios sin commitear antes de desplegar.
+- [x] #4 Script `npm run deploy:prod` registrado en `package.json` y vinculado al guardrail mecánico.
+- [x] #5 Documentación de `AGENTS.md` actualizada con la regla canónica Anti-Dev-Production-Deploy y el flujo de promoción desde `main`.
+- [x] #6 Suite de pruebas automatizadas en `scripts/test-deploy-prod.js` que valida que el guardrail aborte en ramas incorrectas o con árbol sucio.
+- [x] #7 `npx tsc --noEmit` con 0 errores y `npm test` con suite unificada en verde.
 
 ---
 
@@ -471,7 +489,7 @@ Permitir que múltiples sesiones de agentes (o un agente y el desarrollador) tra
 - **Prioridad**: `low` | **Tipo**: `chore`
 
 La demo web de DEV-222 está publicada en `https://gripm.vercel.app` y el despliegue es
-**deliberadamente manual**: `vercel deploy --prod` desde una máquina con la sesión iniciada.
+**deliberadamente manual**: `npm run deploy:prod` desde una máquina con la sesión iniciada y parada en `main` (blindado por DEV-340).
 
 > [!IMPORTANT]
 > **El deploy manual es la decisión, no la deuda.** Se evaluó conectar el repositorio de
