@@ -47,6 +47,21 @@ export default defineConfig(async () => {
         ]
       }
     },
+    build: {
+      chunkSizeWarningLimit: 500,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-lucide';
+            }
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+              return 'vendor-react';
+            }
+          }
+        }
+      }
+    },
     server: {
       headers: {
         'X-Frame-Options': 'DENY',

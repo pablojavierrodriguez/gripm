@@ -46,12 +46,6 @@ import {
 import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
-import { ItemModal } from './components/ItemModal';
-import { ProjectModal } from './components/ProjectModal';
-import { PlanGuardModal } from './components/PlanGuardModal';
-import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
-import { CommandPaletteModal } from './components/CommandPaletteModal';
-import { TrashView } from './components/TrashView';
 import { ToastContainer, type ToastMessage } from './components/Toast';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
@@ -61,12 +55,22 @@ import { hasActiveFocusTrap } from './hooks/useFocusTrap';
 
 type AppActiveTab = ActiveTab;
 
+// DEV-284: Code-splitting and lazy loading for heavy views and modals
 const SprintView = lazy(() => import('./components/SprintView').then(m => ({ default: m.SprintView })));
 const TimelineView = lazy(() => import('./components/TimelineView').then(m => ({ default: m.TimelineView })));
 const MetricsView = lazy(() => import('./components/MetricsView').then(m => ({ default: m.MetricsView })));
 const ImportWizardModal = lazy(() => import('./components/ImportWizardModal').then(m => ({ default: m.ImportWizardModal })));
 const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
+const TrashView = lazy(() => import('./components/TrashView').then(m => ({ default: m.TrashView })));
+const ItemModal = lazy(() => import('./components/ItemModal').then(m => ({ default: m.ItemModal })));
+const ProjectModal = lazy(() => import('./components/ProjectModal').then(m => ({ default: m.ProjectModal })));
+const PlanGuardModal = lazy(() => import('./components/PlanGuardModal').then(m => ({ default: m.PlanGuardModal })));
+const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal').then(m => ({ default: m.KeyboardShortcutsModal })));
+const CommandPaletteModal = lazy(() => import('./components/CommandPaletteModal').then(m => ({ default: m.CommandPaletteModal })));
+
+// Preload heavy modals in background during idle time (DEV-284)
+const preloadItemModal = () => import('./components/ItemModal');
 
 const ViewLoadingFallback = () => (
   <div className="flex-1 flex items-center justify-center min-h-[300px] text-slate-400 dark:text-slate-500 text-xs gap-2">
@@ -420,6 +424,25 @@ export function App() {
 
     return unsubscribe;
   }, []);
+
+  // DEV-284: Preload ItemModal on idle so card clicks are instantaneous without layout shift
+  useEffect(() => {
+    if (!loading && boardData) {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        const handle = (window as unknown as { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(() => {
+          preloadItemModal();
+        });
+        return () => {
+          if ('cancelIdleCallback' in window) {
+            (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
+          }
+        };
+      } else {
+        const timer = setTimeout(preloadItemModal, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, boardData]);
 
   // Keyboard Shortcuts: 'N' for new item, '1'-'4' for tabs, '⌘+,' for settings (DEV-305)
   useEffect(() => {
@@ -1545,11 +1568,13 @@ export function App() {
 
         {activeTab === 'trash' && (
           <div className="flex-1 flex flex-col min-h-0">
-            <TrashView
-              trashedItems={trashedItems}
-              onRestore={handleRestoreFromTrash}
-              onPurge={handlePurgeItem}
-            />
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <TrashView
+                trashedItems={trashedItems}
+                onRestore={handleRestoreFromTrash}
+                onPurge={handlePurgeItem}
+              />
+            </Suspense>
           </div>
         )}
 
@@ -1599,49 +1624,61 @@ export function App() {
         )}
       </main>
 
-      {/* Item Detail / Edit / Create Modal */}
-      <ItemModal
-        isOpen={itemModalOpen}
-        onClose={() => {
-          setItemModalOpen(false);
-          setEditingItem(null);
-          setDefaultNewSprint('');
-        }}
-        item={editingItem}
-        defaultStatus={defaultNewStatus}
-        defaultSprint={defaultNewSprint}
-        projects={projects}
-        availableModules={availableModules}
-        availableSprints={sprintNamesForAutocomplete}
-        availableReleases={availableReleases}
-        sprints={projectSprints}
-        releases={projectReleases}
-        onSave={handleSaveItem}
-        onDelete={handleDeleteItem}
-        onUnlinkChild={handleUnlinkChildTask}
-        activeProjectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
-        config={config}
-        allItems={boardData?.items || []}
-      />
+      {/* Item Detail / Edit / Create Modal (DEV-284: Code-splitting) */}
+      {itemModalOpen && (
+        <Suspense fallback={null}>
+          <ItemModal
+            isOpen={itemModalOpen}
+            onClose={() => {
+              setItemModalOpen(false);
+              setEditingItem(null);
+              setDefaultNewSprint('');
+            }}
+            item={editingItem}
+            defaultStatus={defaultNewStatus}
+            defaultSprint={defaultNewSprint}
+            projects={projects}
+            availableModules={availableModules}
+            availableSprints={sprintNamesForAutocomplete}
+            availableReleases={availableReleases}
+            sprints={projectSprints}
+            releases={projectReleases}
+            onSave={handleSaveItem}
+            onDelete={handleDeleteItem}
+            onUnlinkChild={handleUnlinkChildTask}
+            activeProjectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
+            config={config}
+            allItems={boardData?.items || []}
+          />
+        </Suspense>
+      )}
 
-      {/* Project Modal */}
-      <ProjectModal
-        isOpen={projectModalOpen}
-        onClose={() => setProjectModalOpen(false)}
-        onSave={handleCreateProject}
-      />
+      {/* Project Modal (DEV-284: Code-splitting) */}
+      {projectModalOpen && (
+        <Suspense fallback={null}>
+          <ProjectModal
+            isOpen={projectModalOpen}
+            onClose={() => setProjectModalOpen(false)}
+            onSave={handleCreateProject}
+          />
+        </Suspense>
+      )}
 
       {/* Plan Guard Modal (verifies plan before moving to In Progress) */}
-      <PlanGuardModal
-        isOpen={planGuardOpen}
-        item={planGuardItem}
-        onClose={() => {
-          setPlanGuardOpen(false);
-          setPlanGuardItem(null);
-        }}
-        onConfirmStart={handleConfirmStartWithPlan}
-        onShowToast={showToast}
-      />
+      {planGuardOpen && (
+        <Suspense fallback={null}>
+          <PlanGuardModal
+            isOpen={planGuardOpen}
+            item={planGuardItem}
+            onClose={() => {
+              setPlanGuardOpen(false);
+              setPlanGuardItem(null);
+            }}
+            onConfirmStart={handleConfirmStartWithPlan}
+            onShowToast={showToast}
+          />
+        </Suspense>
+      )}
 
       {/* Import Wizard Modal (DEV-018: Legacy Markdown Import / DEV-303: Code-splitting) */}
       {importWizardOpen && (
@@ -1659,41 +1696,49 @@ export function App() {
         </Suspense>
       )}
 
-      {/* Keyboard Shortcuts Modal (DEV-254) */}
-      <KeyboardShortcutsModal
-        isOpen={shortcutsModalOpen}
-        onClose={() => setShortcutsModalOpen(false)}
-        updateAvailable={boardData?.updateAvailable}
-      />
+      {/* Keyboard Shortcuts Modal (DEV-254 / DEV-284) */}
+      {shortcutsModalOpen && (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsModal
+            isOpen={shortcutsModalOpen}
+            onClose={() => setShortcutsModalOpen(false)}
+            updateAvailable={boardData?.updateAvailable}
+          />
+        </Suspense>
+      )}
 
-      {/* Command Palette Modal (DEV-255) */}
-      <CommandPaletteModal
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        items={boardData?.items || []}
-        projects={projects}
-        activeProjectId={selectedProjectId}
-        onSelectProject={setSelectedProjectId}
-        onSelectItem={(item) => {
-          setEditingItem(item);
-          setItemModalOpen(true);
-        }}
-        onNewItem={() => {
-          setEditingItem(null);
-          setDefaultNewStatus('draft');
-          setItemModalOpen(true);
-        }}
-        onNewProject={() => setProjectModalOpen(true)}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        config={config}
-        isDarkMode={isDarkMode}
-        onToggleTheme={handleToggleTheme}
-        onResyncDocs={handleResyncDocs}
-        onOpenShortcuts={() => setShortcutsModalOpen(true)}
-        language={language}
-        onToggleLanguage={() => setLanguage(language === 'es' ? 'en' : 'es')}
-      />
+      {/* Command Palette Modal (DEV-255 / DEV-284) */}
+      {commandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPaletteModal
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+            items={boardData?.items || []}
+            projects={projects}
+            activeProjectId={selectedProjectId}
+            onSelectProject={setSelectedProjectId}
+            onSelectItem={(item) => {
+              setEditingItem(item);
+              setItemModalOpen(true);
+            }}
+            onNewItem={() => {
+              setEditingItem(null);
+              setDefaultNewStatus('draft');
+              setItemModalOpen(true);
+            }}
+            onNewProject={() => setProjectModalOpen(true)}
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            config={config}
+            isDarkMode={isDarkMode}
+            onToggleTheme={handleToggleTheme}
+            onResyncDocs={handleResyncDocs}
+            onOpenShortcuts={() => setShortcutsModalOpen(true)}
+            language={language}
+            onToggleLanguage={() => setLanguage(language === 'es' ? 'en' : 'es')}
+          />
+        </Suspense>
+      )}
 
       {/* Mobile Bottom Navigation Bar (DEV-007) */}
       <nav 

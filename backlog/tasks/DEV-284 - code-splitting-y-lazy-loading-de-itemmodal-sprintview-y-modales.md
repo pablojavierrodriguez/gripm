@@ -1,9 +1,9 @@
 ---
 id: DEV-284
 title: "Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios"
-status: draft
+status: ready
 created_date: '2026-10-15'
-updated_date: '2026-10-15'
+updated_date: '2026-10-26'
 labels:
   - "performance"
   - "frontend"
@@ -38,14 +38,27 @@ Optimización del tamaño del bundle JavaScript inicial en Vite mediante la apli
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
-- [ ] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
-- [ ] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
-- [ ] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
-- [ ] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
+- [x] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
+- [x] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
+- [x] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
+- [x] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
+- [x] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Migrar `ItemModal`, `TrashView`, `ProjectModal`, `PlanGuardModal`, `KeyboardShortcutsModal` y `CommandPaletteModal` a dynamic imports con `React.lazy()` en `src/App.tsx`.
+2. Envolver los componentes en `Suspense` condicionales para evitar sobrecarga en el DOM y carga de bundles iniciales.
+3. Incorporar mecanismo de precarga inteligente en segundo plano (`preloadItemModal` vía `requestIdleCallback`) para garantizar apertura instantánea de tarjetas sin parpadeos visuales.
+4. Configurar `build.rollupOptions.output.manualChunks` en `vite.config.ts` segregando `vendor-react` y `vendor-lucide`.
+5. Validar reducción del bundle (<400 kB) y ejecutar la Pirámide de Verificación completa.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
-- Archivos a modificar: `src/App.tsx`, `vite.config.ts`.
-- Verificar que el fallback de `Suspense` sea estéticamente consistente con el diseño de la aplicación.
+<!-- SECTION:NOTES:BEGIN -->
+- Reducción del chunk principal de 647.75 kB a 327.66 kB (reducción del 49.4% en JavaScript inicial).
+- 0 advertencias de Vite por tamaño de chunk (`chunkSizeWarningLimit`).
+- Suite de pruebas completa aprobada (26 pasos secuenciales, código 0) y validación de tipos estricta (`tsc --noEmit`).
+<!-- SECTION:NOTES:END -->

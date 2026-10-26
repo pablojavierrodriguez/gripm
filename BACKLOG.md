@@ -175,7 +175,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (4)
+### 🚀 Ready for Deploy (5)
 
 #### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
@@ -199,6 +199,34 @@ Optimización del rendimiento de I/O en disco en el servicio de almacenamiento d
 - [x] #3 Los cambios externos en disco (ej. ediciones manuales o cambios por agentes/git) se detectan automáticamente mediante la discrepancia de `mtimeMs`
 - [x] #4 El tiempo de respuesta de `/api/data` se reduce de más de 80ms a menos de 10ms en llamadas subsiguientes
 - [x] #5 La suite de pruebas y sincronización de backlog aprueban limpiamente (`npm test` y `npm run backlog:check`)
+
+---
+
+#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
+
+### Problemas identificados:
+1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
+2. **Componentes gigantes en el chunk raíz:**
+   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
+   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
+   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
+3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
+
+### Solución propuesta:
+- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
+- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
+- Cargar de forma diferida los modales secundarios de configuración o importación.
+- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
+
+**Criterios de Aceptación:**
+- [x] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
+- [x] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
+- [x] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
+- [x] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
+- [x] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
 
 ---
 
@@ -268,7 +296,7 @@ Refactorización integral de la documentación principal (`README.md` y `README.
 
 ---
 
-### 📋 Backlog / Draft (19)
+### 📋 Backlog / Draft (18)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -579,34 +607,6 @@ naturaleza distinta.
 - [ ] #6 Texto y atajos en ambos idiomas (`es.json` y `en.json`), sin literales sueltos
 - [ ] #7 Cero hallazgos nuevos de `UX-010` o `UX-011`: los botones icon-only llevan nombre accesible y los tamaños usan la escala canónica
 - [ ] #8 `npx tsc --noEmit` con 0 errores, `npm test` con 17/17, `npm run test:ui` en verde y `npm run backlog:check` con código 0
-
----
-
-#### [DEV-284] Code-splitting y lazy loading de ItemModal, SprintView y modales secundarios
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Optimización del tamaño del bundle JavaScript inicial en Vite mediante la aplicación de `React.lazy()` y dynamic imports para vistas y modales pesados que no son requeridos en el primer renderizado del tablero Kanban.
-
-### Problemas identificados:
-1. **Bundle monolítico inicial:** El bundle de producción genera un archivo principal `dist/assets/index-*.js` de **647 kB minificado** (163 kB gzipped), activando advertencias de Vite (`(!) Some chunks are larger than 500 kB after minification`).
-2. **Componentes gigantes en el chunk raíz:**
-   - [`ItemModal.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/ItemModal.tsx) (128 kB, 2.290 líneas) solo se requiere cuando el usuario abre una tarjeta.
-   - [`SprintView.tsx`](file:///c:/Users/Pablo/Proyectos/gripm/src/components/SprintView.tsx) (88 kB, 1.690 líneas) solo se requiere si la pestaña `sprint` está activa.
-   - Modales como `ImportWizardModal`, `PlanGuardModal`, `FolderPickerModal`, `KeyboardShortcutsModal` y `ProjectModal` están incluidos en el bundle principal.
-3. El tiempo de descarga inicial, parseo y compilación del motor JavaScript en navegadores móviles o equipos de baja potencia se degrada innecesariamente.
-
-### Solución propuesta:
-- Declarar `ItemModal` con `React.lazy()` envuelto en `Suspense` dentro de [src/App.tsx](file:///c:/Users/Pablo/Proyectos/gripm/src/App.tsx).
-- Declarar `SprintView` con `React.lazy()` y Suspense, replicando el patrón ya utilizado para `SettingsView` y `ReleaseAssembler`.
-- Cargar de forma diferida los modales secundarios de configuración o importación.
-- Configurar `build.rollupOptions.output.manualChunks` en [vite.config.ts](file:///c:/Users/Pablo/Proyectos/gripm/vite.config.ts) para aislar chunks lógicos limpios (`react-vendor`, `icons-vendor`, etc.) si resulta beneficioso.
-
-**Criterios de Aceptación:**
-- [ ] #1 `ItemModal` y `SprintView` se cargan de forma dinámica mediante `React.lazy()` y `Suspense`
-- [ ] #2 Los modales secundarios no bloquean la carga ni forman parte indivisible del bundle raíz
-- [ ] #3 El tamaño del chunk JS principal generado por `npm run build` disminuye por debajo de 400 kB minificado
-- [ ] #4 La interacción de apertura de tarjetas y navegación entre pestañas es fluida y sin parpadeos visuales
-- [ ] #5 La suite de pruebas de UI y build (`npm test` y `npm run build`) pasan con código 0
 
 ---
 
