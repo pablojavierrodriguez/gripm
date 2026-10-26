@@ -175,7 +175,7 @@ Es una iniciativa de descubrimiento: elegir primero el formato de origen de mayo
 
 ---
 
-### 🚀 Ready for Deploy (5)
+### 🚀 Ready for Deploy (6)
 
 #### [DEV-283] Caché en memoria por mtime para lecturas de tareas en el backend storage
 - **Prioridad**: `high` | **Tipo**: `tech_debt`
@@ -293,6 +293,24 @@ Refactorización integral de la documentación principal (`README.md` y `README.
 - [x] #6 El Hero incluye badges estándar (npm version, Node >= 20, MCP Ready, License, Live Demo) y enlace directo a `gripm.vercel.app`.
 - [x] #7 Paridad total de contenido y estructura entre `README.md` (inglés) y `README.es.md` (español), respetando la regla Anti-Em-Dash.
 - [x] #8 La suite de verificación (`npm test` y `npm run backlog:check`) aprueba con código 0.
+
+---
+
+#### [DEV-342] Sincronizacion y adopcion de Gripm Playbook v2.7.1
+- **Prioridad**: `high` | **Tipo**: `chore`
+
+Sincronización y adopción en Gripm Board del framework metodológico autónomo `@gripm/playbook@2.7.1` upstream:
+- Sincronización de reglas metodológicas y skills del framework en `.agents/` (`TEAM_PLAYBOOK.md`, `STATE_MACHINE.md`, `git-workflow.md`, `pm-orchestrator`, `principal-engineer`, `qa-auditor`, `code-level-ux-auditor`).
+- Incorporación de las nuevas utilidades y gates (`gate-review-items.mjs`, `validate-commit-msg.mjs`, `anti-slop.mjs`, `cli-router.mjs`).
+- Preservación de personalizaciones locales protegidas (`scripts/audit-ux-code.cjs`) y gobernanza de `AGENTS.md`.
+- Verificación exhaustiva de la Pirámide de Verificación (tipado, 26 tests headless, `verify-changes.js --all`, `backlog:check`).
+
+**Criterios de Aceptación:**
+- [x] #1 Ejecutar la sincronización de `@gripm/playbook@2.7.1` desde `../gripm-playbook` con `node scripts/sync-playbook.mjs --source ../gripm-playbook --yes`.
+- [x] #2 `.playbook-lock.json` se actualiza reflejando la versión `2.7.1` preservando la protección de `scripts/audit-ux-code.cjs`.
+- [x] #3 Las reglas y skills en `.agents/` y herramientas en `scripts/` quedan actualizadas con paridad total con upstream.
+- [x] #4 `AGENTS.md` de Gripm Board se preserva intacto sin sobreescrituras no deseadas.
+- [x] #5 La suite de pruebas unificada (`npm test`), tipado (`tsc --noEmit`), y verificación de cambios (`node scripts/verify-changes.js --all`) aprueban con código 0.
 
 ---
 
