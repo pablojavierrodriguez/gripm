@@ -101,7 +101,7 @@ This serves two concrete purposes:
 
 The `pm-orchestrator` coordinates from the host thread and **dispatches clean-context sub-agents** with explicit input/output contracts:
 
-1. Initialize the sprint document from `docs/sprints/SPRINT_SPEC_TEMPLATE.md` (Mode 3, when operating with sprints) or outline the plan in chat (Mode 2).
+1. Initialize the sprint document (Mode 3, when operating with sprints) or outline the plan in chat (Mode 2).
 2. **Dispatch `market-researcher` Sub-Agent** (when applicable): `TypeName: "research"`, read-only + web search; receives problem statement and domain; reads `.agents/skills/market-researcher/SKILL.md` and returns `[RESEARCH]` brief with >= 3 benchmarks and domain edge-case table.
 3. **Dispatch `product-designer` Sub-Agent** (Modes 2 and 3): `TypeName: "research"` (or `"self"` if generating visual assets); receives brief + ACs + project design tokens; reads `.agents/skills/product-designer/SKILL.md` and returns `[DESIGN SPEC]` covering all 7 states, >= 44×44px touch targets, Purpose Test verdicts, and copy veracity.
 4. Present the plan to the user for formal approval before writing code.

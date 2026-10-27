@@ -4,7 +4,6 @@ title: "Adopcion de Arquitectura Zero-Clutter y Confinamiento en .gripm"
 status: ready
 created_date: '2026-10-27'
 updated_date: '2026-10-27'
-claimed_by: 'antigravity:qa-auditor'
 labels:
   - "architecture"
   - "refactor"
