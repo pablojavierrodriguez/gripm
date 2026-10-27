@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-26 por gripm
+> Consolidado generado el 2026-10-27 por gripm
 
 ## Resumen de Estados
 
@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (1)
+### 🚀 Ready for Deploy (2)
 
 #### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -252,6 +252,25 @@ Evolucionar el asistente de inicializacion `gripm --init` (`scripts/initScaffold
 - [x] #6 La seleccion de Gripm Playbook dentro de gripm --init respeta la seleccion interactiva de harnesses y stack packs de Playbook sin forzar defaults a ciegas.
 - [x] #7 Las flags no interactivas (--minimal, --full, --yes, --with-playbook, --no-playbook) conservan paridad y automatizacion en CI.
 - [x] #8 La suite de pruebas y verificacion de backlog aprueba con codigo 0 (npm test y npm run backlog:check).
+
+---
+
+#### [DEV-346] Documentacion de Arquitectura Bilingue Unificada: ARCHITECTURE.md
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Unificación bilingüe en un solo archivo (inglés primero, español debajo) para la documentación técnica de arquitectura (`docs/ARCHITECTURE.md`), alineándola con el estándar de documentación comunitaria y técnica de gripm (DEV-309 / Gotcha 24 en `AGENTS.md`) y actualizando el inventario de componentes y servicios al estado del arte v1.10.0.
+
+### Diagnóstico y Justificación:
+
+1. **Alineación con el Estándar de Documentación (DEV-309):** `docs/ARCHITECTURE.md` quedó redactado únicamente en español tras DEV-306, mientras que las reglas de gobernanza del repositorio (`AGENTS.md` y `gripm-playbook/AGENTS.md`) estipulan inglés como idioma técnico primario y unificación bilingüe en un solo archivo con anclajes rápidos en cabecera (`🌐 [English](#gripm-system-architecture) | [Español](#arquitectura-del-sistema-gripm)`).
+2. **Actualización Arquitectónica v1.10.0:** Incorporar componentes y subsistemas introducidos recientemente: vistas lazy-loaded (`TimelineView`, `MetricsView`, `ImportWizardModal`), servicios de persistencia y caché de concurrencia optimista (`taskCache.ts`, `atomicWrite.ts`), middleware de seguridad (`server/middleware/security.ts`), y onboarding de suite con presets en el CLI (`gripm init`).
+3. **Guardrail Anti-Em-Dash:** Cumplimiento estricto de la regla 25 sin uso de guiones largos artificiales (em-dash o en-dash).
+
+**Criterios de Aceptación:**
+- [x] #1 `docs/ARCHITECTURE.md` unifica en un solo archivo la versión canónica en inglés arriba y la versión en español adaptada y actualizada debajo, con selector de anclaje bilingüe.
+- [x] #2 Ambas versiones documentan con precisión la topología actual v1.10.0: UI modular y code-splitting (`TimelineView`, `MetricsView`), servicios de backend (`taskCache`, `atomicWrite`, `server/middleware/security.ts`) y runtime dual (Daemon local vs Sandbox Vercel).
+- [x] #3 Se respeta la regla Anti-Em-Dash (uso exclusivo de guión estándar `-` con espacios).
+- [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js --all`).
 
 ---
 
