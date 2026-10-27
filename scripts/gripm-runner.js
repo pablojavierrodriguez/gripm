@@ -189,7 +189,10 @@ async function main() {
     '--description', '-d', '--desc',
     '--estimate', '-e',
     '--labels', '--label', '-l',
-    '--sprint', '-s'
+    '--sprint', '-s',
+    '--name',
+    '--id',
+    '--mode'
   ]);
 
   const nonFlagArgs = [];
@@ -482,14 +485,31 @@ async function main() {
     const isFull = args.includes('--full');
     const isWithPlaybook = args.includes('--with-playbook') || args.includes('--playbook');
     const isNoPlaybook = args.includes('--no-playbook');
+    const isNoBoard = args.includes('--no-board');
+    const isBoard = args.includes('--board');
+    const prefixIdx = args.findIndex(a => a === '--prefix');
+    const cliPrefix = prefixIdx !== -1 && args[prefixIdx + 1] ? args[prefixIdx + 1].toUpperCase() : undefined;
+    const nameIdx = args.findIndex(a => a === '--name');
+    const cliName = nameIdx !== -1 && args[nameIdx + 1] ? args[nameIdx + 1] : undefined;
+    const idIdx = args.findIndex(a => a === '--id');
+    const cliId = idIdx !== -1 && args[idIdx + 1] ? args[idIdx + 1] : undefined;
+    const modeIdx = args.findIndex(a => a === '--mode');
+    const rawMode = modeIdx !== -1 && args[modeIdx + 1] ? args[modeIdx + 1].toLowerCase() : undefined;
+    const cliSpeedMode = rawMode === 'quick' || rawMode === 'granular' ? rawMode : undefined;
+    const cliInstMode = rawMode === 'single' || rawMode === 'multi' ? rawMode : undefined;
     
     await runInitWizard(targetRepo, {
       yes: isYes,
       minimal: isMinimal,
       full: isFull,
       profile: isMinimal ? 'minimal' : (isFull ? 'full' : undefined),
-      mode: isHubInit ? 'multi' : (isSingleInit ? 'single' : undefined),
+      mode: isHubInit ? 'multi' : (isSingleInit ? 'single' : cliInstMode),
+      speedMode: cliSpeedMode,
       language: cliLang,
+      name: cliName,
+      id: cliId,
+      codePrefix: cliPrefix,
+      board: isNoBoard ? false : (isBoard ? true : undefined),
       playbook: isNoPlaybook ? false : (isWithPlaybook ? true : undefined),
       skill: args.includes('--no-skill') ? false : (args.includes('--skill') ? true : undefined),
       agentsMd: args.includes('--no-agents') ? false : (args.includes('--agents') ? true : undefined),

@@ -66,6 +66,7 @@ const STEPS = [
   ['dist', 'scripts/verify-dist.js'],
   ['density-1366', 'scripts/verify-density-1366.js'],
   ['cli-add', 'scripts/test-cli-add.js'],
+  ['init-suite', 'scripts/test-init-suite.js'],
   ['deploy-prod', 'scripts/test-deploy-prod.js'],
   ['task-cache', 'scripts/test-task-cache.js'],
 ];
