@@ -5,7 +5,7 @@
 # Conventional Commits en ingles tecnico imperativo, bloqueando commits
 # accidentales en espanol o con formato defectuoso.
 
-node scripts/validate-commit-msg.js "$1"
+node scripts/validate-commit-msg.mjs "$1"
 RESULT=$?
 
 if [ $RESULT -ne 0 ]; then

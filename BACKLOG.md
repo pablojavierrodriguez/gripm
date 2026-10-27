@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (2)
+### 🚀 Ready for Deploy (3)
 
 #### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -252,6 +252,40 @@ Evolucionar el asistente de inicializacion `gripm --init` (`scripts/initScaffold
 - [x] #6 La seleccion de Gripm Playbook dentro de gripm --init respeta la seleccion interactiva de harnesses y stack packs de Playbook sin forzar defaults a ciegas.
 - [x] #7 Las flags no interactivas (--minimal, --full, --yes, --with-playbook, --no-playbook) conservan paridad y automatizacion en CI.
 - [x] #8 La suite de pruebas y verificacion de backlog aprueba con codigo 0 (npm test y npm run backlog:check).
+
+---
+
+#### [DEV-345] Adopcion de Arquitectura Zero-Clutter y Confinamiento en .gripm
+- **Prioridad**: `high` | **Tipo**: `refactor`
+
+Adopcion formal en el repositorio de Gripm Board de la arquitectura **Zero-Clutter** establecida en Gripm Playbook (PLAY-041 y PLAY-051) e integracion con el flujo de onboarding modular de la Suite (DEV-344).
+
+Bajo este principio, la raiz del repositorio consumidor debe permanecer completamente limpia y libre de artefactos o metadatos de herramientas satelite:
+1. **Confinamiento de Metadatos en `.gripm/`:**
+   - `.playbook-lock.json` se traslada a `.gripm/playbook-lock.json`.
+   - `audit-ux-baseline.json` se traslada a `.gripm/audit-ux-baseline.json`.
+   - `.uxaudit.json` se traslada a `.gripm/.uxaudit.json`.
+   - Purga de la carpeta obsoleta `.playbook-backups/` en raiz (los respaldos se ubican en `.gripm/backups/`).
+2. **Seleccion Modular y Sincronizacion de Scripts:**
+   - Incorporacion de `scripts/lib/selection.mjs` y extension de `scripts/init.mjs` y `scripts/sync-playbook.mjs` con flags de granularidad (`--select`, `--no-docs`, `--no-agents`) para permitir a repositorios consumidores adoptar solo los componentes necesarios sin contaminar la raiz con documentacion o artefactos superfluos.
+   - Purgar plantillas opt-in no utilizadas en flujo Kanban continuo (`docs/DOMAIN_TEMPLATE.md` y `docs/sprints/`), manteniendo el arbol de documentacion vivo y enfocado.
+3. **Erradicacion de Duplicados y Scripts Obsoletos:**
+   - Eliminacion de `scripts/validate-commit-msg.js`, unificando en el validador sincronizado `scripts/validate-commit-msg.mjs` (actualizando `.githooks/commit-msg` y `scripts/test-commit-msg.js` con soporte integral para Anti-Em-Dash, Conventional Commits y bypass de Git).
+   - Limpieza de residuos de `.agents/teamwork/` en el arbol local.
+4. **Actualizacion de Scripts de Auditoria, Verificacion y UX:**
+   - Sincronizacion de `scripts/audit-ux-code.cjs` con la version canonica de Playbook con resolucion nativa en `.gripm/`.
+   - Adaptacion de `scripts/verify-audit-ux-baseline.js` para resolver el baseline desde `.gripm/audit-ux-baseline.json`.
+   - Adaptacion de `scripts/verify-publish-surface.js` para asegurar que `.gripm/` y metadatos queden formalmente excluidos del tarball npm.
+   - Ajuste de etiquetas de accesibilidad a11y (UX-010) en `CompleteSprintModal.tsx` y `TaxonomyTab.tsx` para satisfacer el baseline estricto.
+
+**Criterios de Aceptación:**
+- [x] #1 Archivos de metadata confinados en .gripm/ (.gripm/playbook-lock.json, .gripm/audit-ux-baseline.json, .gripm/.uxaudit.json) y carpeta .playbook-backups de raiz eliminada.
+- [x] #2 scripts/validate-commit-msg.js eliminado, unificando la validacion en scripts/validate-commit-msg.mjs con .githooks/commit-msg y scripts/test-commit-msg.js en verde.
+- [x] #3 scripts/audit-ux-code.cjs sincronizado con soporte para .gripm/ y scripts/verify-audit-ux-baseline.js adaptado con resolucion defensiva.
+- [x] #4 Residuos de plantillas innecesarias eliminados (docs/DOMAIN_TEMPLATE.md, docs/sprints) y .agents/teamwork/ limpio.
+- [x] #5 Motor de seleccion modular incorporado (scripts/lib/selection.mjs) y scripts/init.mjs / scripts/sync-playbook.mjs actualizados con soporte granular.
+- [x] #6 Accesibilidad UX-010 verificada en componentes modificados y superficie de publicacion protegida contra fugas de .gripm/.
+- [x] #7 La Piramide de Verificacion pasa al 100% (tsc, npm test, publish:check, backlog:check, verify-changes --all).
 
 ---
 

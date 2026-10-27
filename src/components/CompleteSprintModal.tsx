@@ -343,6 +343,7 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
                                   <button
                                     type="button"
                                     disabled={createdActions[idx]}
+                                    aria-label={createdActions[idx] ? t('completeSprint.cardCreated') : t('completeSprint.createCard')}
                                     onClick={() => handleCreateTaskFromAction(act, idx)}
                                     className={`px-2 py-0.5 text-[10px] rounded flex items-center gap-1 ${
                                       createdActions[idx] 

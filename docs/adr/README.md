@@ -29,7 +29,7 @@ Escribí un ADR cuando la decisión **no es derivable del código** y su reversi
 - Refactors sin cambio de trade-offs.
 - Bug fixes que restauran el comportamiento ya documentado.
 
-Cuando la decisión nace de una tarea del backlog, el ADR referencia el ID de esa tarea (`DEV-129`, `DEV-190`, ...). El campo `ADR Recorded` de [`docs/sprints/SPRINT_SPEC_TEMPLATE.md`](../sprints/SPRINT_SPEC_TEMPLATE.md) apunta a la ruta del ADR correspondiente.
+Cuando la decisión nace de una tarea del backlog, el ADR referencia el ID de esa tarea (`DEV-129`, `DEV-190`, ...). En proyectos que operan con sprints, el campo `ADR Recorded` de la especificación de sprint (`SPRINT_SPEC_TEMPLATE.md`) apunta a la ruta del ADR correspondiente.
 
 ---
 

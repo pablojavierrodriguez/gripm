@@ -12,10 +12,10 @@
  * .agents/skills/code-level-ux-auditor/SKILL.md.
  *
  * Design constraints:
- * - Stack agnostic. Rules that depend on a library (date-fns, framer-motion)
+ *  - Stack agnostic. Rules that depend on a library (date-fns, framer-motion)
  *    declare `requires.deps` and are skipped when the dependency is absent.
- * - Project agnostic. No file names, no project names, no hardcoded paths.
- * - Never crashes on a missing source directory or a non-JS project.
+ *  - Project agnostic. No file names, no project names, no hardcoded paths.
+ *  - Never crashes on a missing source directory or a non-JS project.
  *
  * Usage:
  *   node scripts/audit-ux-code.cjs [options]
@@ -49,12 +49,27 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// ROOT is the project being audited. When the script is synced into a target
-// repo it lands in <target>/scripts/, so __dirname/.. is already correct.
-// AUDIT_UX_ROOT allows pointing the auditor at another project explicitly.
-const ROOT = process.env.AUDIT_UX_ROOT
-  ? path.resolve(process.env.AUDIT_UX_ROOT)
-  : path.resolve(__dirname, '..');
+// ROOT is the project being audited. AUDIT_UX_ROOT or --root/--cwd points explicitly.
+// Defaults to process.cwd() for consumer portability.
+function resolveAuditRoot() {
+  if (process.env.AUDIT_UX_ROOT) return path.resolve(process.env.AUDIT_UX_ROOT);
+  for (let i = 2; i < process.argv.length; i++) {
+    if ((process.argv[i] === '--root' || process.argv[i] === '--cwd') && process.argv[i + 1]) {
+      return path.resolve(process.argv[i + 1]);
+    }
+    if (process.argv[i].startsWith('--root=')) return path.resolve(process.argv[i].split('=')[1]);
+    if (process.argv[i].startsWith('--cwd=')) return path.resolve(process.argv[i].split('=')[1]);
+  }
+  const isInNodeModules = __dirname.split(path.sep).includes('node_modules');
+  const scriptParent = path.resolve(__dirname, '..');
+  const cwd = process.cwd();
+  if (isInNodeModules) return cwd;
+  if (cwd !== scriptParent && (fs.existsSync(path.join(cwd, 'package.json')) || fs.existsSync(path.join(cwd, 'src')))) {
+    return cwd;
+  }
+  return scriptParent;
+}
+const ROOT = resolveAuditRoot();
 const RULES_PATH = path.join(__dirname, 'ux-rules.json');
 const CONFIG_NAME = '.uxaudit.json';
 const BASELINE_NAME = 'audit-ux-baseline.json';
@@ -100,6 +115,8 @@ function parseArgs(argv) {
     src: null,
     config: null,
     strict: false,
+    canonicalOnly: false,
+    only: null,
     format: 'human',
     listRules: false,
     rules: [],
@@ -111,9 +128,15 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     switch (arg) {
+      case '--root':
+      case '--cwd':
+        i += 1;
+        break;
       case '--src': opts.src = argv[++i]; break;
       case '--config': opts.config = argv[++i]; break;
       case '--strict': opts.strict = true; break;
+      case '--canonical-only': opts.canonicalOnly = true; break;
+      case '--only': opts.only = argv[++i]; break;
       case '--format': opts.format = argv[++i]; break;
       case '--list-rules': opts.listRules = true; break;
       case '--rule': opts.rules.push(argv[++i]); break;
@@ -122,12 +145,19 @@ function parseArgs(argv) {
       case '--help':
       case '-h': opts.help = true; break;
       default:
+        if (arg.startsWith('--root=') || arg.startsWith('--cwd=')) {
+          break;
+        }
         if (arg.startsWith('--')) fatal(`Unknown option: ${arg}`);
     }
   }
 
   if (!['human', 'json'].includes(opts.format)) {
     fatal(`Unknown --format "${opts.format}". Expected "human" or "json".`);
+  }
+
+  if (opts.only && !['canonical', 'local'].includes(opts.only)) {
+    fatal(`Unknown --only "${opts.only}". Expected "canonical" or "local".`);
   }
 
   return opts;
@@ -164,7 +194,10 @@ function loadRules() {
     seen.add(rule.id);
   }
 
-  return { version: parsed.version || 1, rules: parsed.rules };
+  return {
+    version: parsed.version || 1,
+    rules: parsed.rules.map((rule) => ({ ...rule, origin: 'canonical' })),
+  };
 }
 
 /**
@@ -178,7 +211,7 @@ function loadRules() {
  * "my UX-009 is touch target" while the skill documents something else, so a
  * local catalog using that pattern is rejected rather than merged.
  */
-function loadLocalRules(relativePath, root) {
+function loadLocalRules(relativePath, root, canonical) {
   const localPath = path.resolve(root, relativePath);
 
   if (!fs.existsSync(localPath)) {
@@ -196,13 +229,24 @@ function loadLocalRules(relativePath, root) {
     fatal(`Local rule catalog ${localPath} has no "rules" array.`);
   }
 
+  const canonicalMap = new Map((canonical?.rules || []).map((r) => [r.id, r]));
+
   for (const rule of parsed.rules) {
-    if (typeof rule.id === 'string' && /^UX-\d{3}$/.test(rule.id)) {
-      fatal(
-        `Local rule ${rule.id} uses the reserved canonical pattern. ` +
-        'UX-NNN belongs to scripts/ux-rules.json so that one id means one thing ' +
-        'across every consumer. Give the local rule its own prefix.',
-      );
+    if (typeof rule.id === 'string') {
+      if (canonicalMap.has(rule.id)) {
+        const canonicalRule = canonicalMap.get(rule.id);
+        fatal(
+          `Local rule ${rule.id} collides with canonical rule "${canonicalRule.title}". ` +
+          'A local catalog adds rules; it cannot redefine shared ones.',
+        );
+      }
+      if (/^UX-\d{3}$/.test(rule.id)) {
+        fatal(
+          `Local rule ${rule.id} uses the reserved canonical pattern. ` +
+          'UX-NNN belongs to scripts/ux-rules.json so that one id means one thing ' +
+          'across every consumer. Give the local rule its own prefix.',
+        );
+      }
     }
   }
 
@@ -213,17 +257,7 @@ function loadCatalog(config, root) {
   const canonical = loadRules();
   if (!config || !config.rules) return { ...canonical, localRules: [] };
 
-  const local = loadLocalRules(config.rules, root);
-
-  const canonicalIds = new Set(canonical.rules.map((rule) => rule.id));
-  for (const rule of local.rules) {
-    if (canonicalIds.has(rule.id)) {
-      fatal(
-        `Local rule ${rule.id} collides with a canonical signature. ` +
-        'A local catalog adds rules; it cannot redefine shared ones.',
-      );
-    }
-  }
+  const local = loadLocalRules(config.rules, root, canonical);
 
   const merged = [
     ...canonical.rules.map((rule) => ({ ...rule, origin: 'canonical' })),
@@ -246,10 +280,29 @@ function loadCatalog(config, root) {
   return { version: canonical.version, rules: merged, localRules: local.rules, localPath: local.localPath };
 }
 
+function resolveConfigFile(explicitPath, root = ROOT) {
+  if (explicitPath) return path.resolve(root, explicitPath);
+  const gripmConfigDot = path.join(root, '.gripm', CONFIG_NAME);
+  if (fs.existsSync(gripmConfigDot)) return gripmConfigDot;
+  const gripmConfigNoDot = path.join(root, '.gripm', 'uxaudit.json');
+  if (fs.existsSync(gripmConfigNoDot)) return gripmConfigNoDot;
+  return path.join(root, CONFIG_NAME);
+}
+
+function resolveBaselineFile(root = ROOT, forWrite = false) {
+  const gripmBaseline = path.join(root, '.gripm', BASELINE_NAME);
+  const rootBaseline = path.join(root, BASELINE_NAME);
+  if (forWrite) {
+    if (fs.existsSync(rootBaseline) && !fs.existsSync(gripmBaseline)) return rootBaseline;
+    if (fs.existsSync(path.join(root, '.gripm'))) return gripmBaseline;
+    return rootBaseline;
+  }
+  if (fs.existsSync(gripmBaseline)) return gripmBaseline;
+  return rootBaseline;
+}
+
 function loadConfig(opts, root = ROOT) {
-  const configPath = opts.config
-    ? path.resolve(root, opts.config)
-    : path.join(root, CONFIG_NAME);
+  const configPath = resolveConfigFile(opts.config, root);
 
   if (!fs.existsSync(configPath)) return { configPath, config: {} };
 
@@ -470,15 +523,25 @@ function findTagEnd(text, from) {
   return -1;
 }
 
+/** Stands in for a label expression that survived `stripExpressions`. */
+const EXPRESSION_LABEL = 'label';
+
 /**
  * Removes `{...}` expression containers, respecting nesting and quotes.
  *
  * A JSX expression renders whatever it evaluates to, not its own source, so the
- * source cannot be read as visible text. However, i18n translation calls like
- * {t('...')} or {i18n.t('...')} produce visible localized text and are preserved
- * as visible placeholder tokens to avoid false positives on icon+label buttons.
+ * source cannot be read as visible text - with one exception, `keep`. An
+ * expression sitting in the CHILD LIST that is itself a label does render text:
+ * `{t('header.newItem')}` is the whole reason an internationalized control used
+ * to be indistinguishable from an icon-only one.
+ *
+ * LOCATION is the entire distinction, never "stop stripping". Attributes never
+ * reach this function (they live in the opening tag, which the child-region
+ * segments skip), so `onClick={() => go()}` is still discarded - and
+ * `isTextExpression` rejects any arrow outright, so a handler that somehow landed
+ * in a child position could not become a label either.
  */
-function stripExpressions(source) {
+function stripExpressions(source, keep = () => false) {
   let out = '';
   let i = 0;
 
@@ -497,34 +560,26 @@ function stripExpressions(source) {
     }
 
     if (ch === '{') {
-      let depth = 0;
       const start = i;
+      let depth = 0;
+      let closed = -1;
       while (i < source.length) {
-        const c = source[i];
-        if (c === '"' || c === "'" || c === '`') {
-          const q = c;
-          i += 1;
-          while (i < source.length && source[i] !== q) {
-            if (source[i] === '\\') i += 1;
-            i += 1;
-          }
-          i += 1;
-          continue;
-        }
-        if (c === '{') depth += 1;
-        else if (c === '}') {
+        if (source[i] === '{') depth += 1;
+        else if (source[i] === '}') {
           depth -= 1;
           if (depth === 0) {
             i += 1;
+            closed = i;
             break;
           }
         }
         i += 1;
       }
-      const expr = source.slice(start, i);
-      if (/\b(?:i18n\.)?t\s*\(/.test(expr)) {
-        out += '__I18N_LABEL__';
-      }
+
+      // An unterminated `{` is unbalanced markup, not an expression. It is
+      // dropped either way; `keep` simply gets no chance to vouch for it.
+      const inner = closed === -1 ? source.slice(start + 1) : source.slice(start + 1, closed - 1);
+      if (keep(inner)) out += EXPRESSION_LABEL;
       continue;
     }
 
@@ -533,6 +588,60 @@ function stripExpressions(source) {
   }
 
   return out;
+}
+
+/**
+ * Whether a child-position expression is itself a visible label.
+ *
+ * A call or a literal renders text - `t('common.delete')`, `i18n.t('x')` and
+ * `` `Saved ${n}` `` are the everyday spelling of a localized label. Anything
+ * that builds a subtree (`{cond && <X />}`, `{items.map(...)}`) renders
+ * elements, not text, and whatever text it eventually shows belongs to that
+ * subtree, which is parsed and weighted on its own.
+ *
+ * Quoted arguments are blanked before the verdict so a key cannot decide it:
+ * `t('is it?')` is a label, `cond && label` is not. `=>` is rejected outright - * an arrow is code, never a name.
+ */
+function isTextExpression(inner) {
+  const code = inner.trim().replace(/\?\./g, '.');
+  if (!code) return false;
+
+  let bare = '';
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quote = ch;
+      i += 1;
+      while (i < code.length && code[i] !== quote) i += code[i] === '\\' ? 2 : 1;
+      i += 1;
+      bare += quote + quote;
+      continue;
+    }
+    bare += ch;
+    i += 1;
+  }
+
+  if (/=>|[&|]|\?/.test(bare)) return false;
+  if (/^[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(.*\)$/s.test(bare)) return true;
+  if (/^(?:''|""|``)$/.test(bare)) return true;
+  return /^(?:\d[\d_]*(?:\.\d+)?|true|false)$/.test(bare);
+}
+
+/**
+ * Characters that can only precede a child element from inside an expression.
+ *
+ * `{cond && <span>Guardar</span>}` is not a label. When the condition is false
+ * the control renders no name at all, and deciding which branch is live is the
+ * author's call, not the detector's - counting that subtree upwards would
+ * silence a finding for a control whose accessible name is not guaranteed.
+ */
+const CONDITIONAL_PREFIX = /[&|?:(]/;
+
+function isConditionalChild(child, text) {
+  let i = child.at - 1;
+  while (i >= 0 && /\s/.test(text[i])) i -= 1;
+  return i >= 0 && CONDITIONAL_PREFIX.test(text[i]);
 }
 
 /**
@@ -583,7 +692,16 @@ function buildUnits(lines) {
     frame.closeAt = closeAt;
 
     const start = Math.min(frame.startLine, endLine);
+    const ancestors = [];
+    let curr = frame.parent;
+    while (curr) {
+      if (curr.name) ancestors.push(curr.name);
+      curr = curr.parent;
+    }
+
     const unit = {
+      name: frame.name || null,
+      ancestors,
       startLine: start + 1,
       headEndLine: frame.headEndLine,
       endLine: Math.max(start, endLine) + 1,
@@ -684,8 +802,10 @@ function buildUnits(lines) {
   // leak and point at the wrapper instead of the element rendering the value.
   // Renderable text, bottom-up: an element's own text plus the text its
   // descendants render. Attributes are excluded by construction (they live in
-  // the opening tag, which the segments skip) and `{...}` expressions are
-  // dropped because they render nothing on their own.
+  // the opening tag, which the segments skip). A `{...}` expression in the child
+  // list counts only when it is itself a label (`{t('x')}`); a subtree built by
+  // one (`{cond && <span/>}`) is never pulled upwards, because neither it nor
+  // the condition that guards it guarantees a name.
   //
   // Descendant text has to be included. A control labelled `<Icon /><span>
   // Guardar</span>` shows "Guardar" to the user, so counting only the element's
@@ -704,13 +824,13 @@ function buildUnits(lines) {
     frame.unit.ownContent =
       text.slice(frame.at, frame.tagEnd + 1) + segments.join('') + text.slice(frame.closeAt, frame.spanEnd + 1);
 
-    frame.unit.textContent = stripExpressions(segments.join(''));
+    frame.unit.textContent = stripExpressions(segments.join(''), isTextExpression);
   }
 
   for (const frame of allFrames.slice().reverse()) {
     if (!frame.children.length) continue;
     frame.unit.textContent = frame.children.reduce(
-      (sum, child) => sum + child.unit.textContent,
+      (sum, child) => sum + (isConditionalChild(child, text) ? '' : child.unit.textContent),
       frame.unit.textContent,
     );
   }
@@ -724,6 +844,8 @@ function buildUnits(lines) {
   for (let n = 0; n < lines.length; n += 1) {
     if (covered.has(n + 1) || !lines[n].trim()) continue;
     units.push({
+      name: null,
+      ancestors: [],
       startLine: n + 1,
       headEndLine: n,
       endLine: n + 1,
@@ -772,6 +894,35 @@ function hasVisibleText(unit) {
 }
 
 /**
+ * Checks if a JSX component name matches a target token.
+ * Matches exact name ("Dialog") or dotted compound names ("Dialog.Content" matches "Dialog" or "Dialog.Content").
+ */
+function matchesComponentName(componentName, token) {
+  if (!componentName || !token) return false;
+  if (componentName === token) return true;
+  if (componentName.startsWith(token + '.')) return true;
+  return false;
+}
+
+/**
+ * Checks whether an element unit is rendered inside ANY of the specified component tokens.
+ * Evaluates the element itself and all of its enclosing AST ancestors.
+ */
+function isWithinComponent(unit, tokens) {
+  if (!tokens || !tokens.length) return true;
+  const candidates = [];
+  if (unit && unit.name) candidates.push(unit.name);
+  if (unit && Array.isArray(unit.ancestors)) {
+    candidates.push(...unit.ancestors);
+  }
+  if (!candidates.length) return false;
+
+  return tokens.some((token) =>
+    candidates.some((candidate) => matchesComponentName(candidate, token))
+  );
+}
+
+/**
  * Decides whether a rule matches one element unit.
  *
  * The unit carries two granularities and each check kind reads the right one:
@@ -807,6 +958,8 @@ function lineMatches(rule, unit, lines, unitIndex, content) {
   if (anyInScope(check.unlessContent || [])) return false;
   if ((check.needsContent || []).length && !anyInScope(check.needsContent)) return false;
   if (check.unlessVisibleText && hasVisibleText(unit)) return false;
+  if ((check.withinComponent || []).length && !isWithinComponent(unit, check.withinComponent)) return false;
+  if ((check.unlessComponent || []).length && isWithinComponent(unit, check.unlessComponent)) return false;
 
   const radius = typeof check.window === 'number' ? check.window : 6;
   if ((check.nearby || []).length || (check.unlessNearby || []).length) {
@@ -820,6 +973,12 @@ function lineMatches(rule, unit, lines, unitIndex, content) {
 
 function auditFile(filePath, rules, deps, disabledRules, root = ROOT) {
   const findings = [];
+  // The fingerprint embeds this path, so a baseline written on Windows must
+  // match the same snapshot read on macOS and vice versa. Without the
+  // normalization the keys are `src\App.tsx` on one platform and `src/App.tsx`
+  // on the other, nothing matches, and the gate silently reports every
+  // accepted observation as new - the same normalization `applyExcludes`
+  // already performs for `exclude` globs.
   const relPath = toPosixPath(path.relative(root, filePath));
 
   let content;
@@ -846,6 +1005,7 @@ function auditFile(filePath, rules, deps, disabledRules, root = ROOT) {
 
       findings.push({
         rule: rule.id,
+        origin: rule.origin || 'canonical',
         title: rule.title,
         severity: rule.severity,
         file: relPath,
@@ -882,13 +1042,18 @@ function printHuman(report, opts) {
   };
 
   for (const finding of findings) {
-    console.log(`  ${icons[finding.severity]} [${c.bold(finding.rule)}] ${finding.file}:${finding.line}`);
+    const originTag = finding.origin === 'local' ? ` ${c.dim('[local]')}` : ` ${c.dim('[canonical]')}`;
+    console.log(`  ${icons[finding.severity]} [${c.bold(finding.rule)}]${originTag} ${finding.file}:${finding.line}`);
     console.log(`    ${finding.message}`);
     if (finding.fix) console.log(`    ${c.dim('fix:')} ${finding.fix}`);
     console.log('');
   }
 
-  console.log(`  ${c.bold('Summary:')} ${summary.ERROR} error(s), ${summary.WARNING} warning(s), ${summary.INFO} suggestion(s).\n`);
+  const originBreakdown =
+    typeof summary.canonical === 'number' && typeof summary.local === 'number'
+      ? ` (${summary.canonical} canonical, ${summary.local} local)`
+      : '';
+  console.log(`  ${c.bold('Summary:')} ${summary.ERROR} error(s), ${summary.WARNING} warning(s), ${summary.INFO} suggestion(s)${originBreakdown}.\n`);
 }
 
 function printJson(report) {
@@ -915,7 +1080,7 @@ function fingerprint(finding) {
 }
 
 function loadBaseline(root = ROOT) {
-  const file = path.join(root, BASELINE_NAME);
+  const file = resolveBaselineFile(root, false);
   if (!fs.existsSync(file)) return { version: BASELINE_VERSION, entries: {} };
 
   try {
@@ -923,7 +1088,7 @@ function loadBaseline(root = ROOT) {
     if (parsed.version !== BASELINE_VERSION) {
       console.warn(
         `  ${c.yellow('▲')} Baseline is v${parsed.version}, this auditor expects v${BASELINE_VERSION}. ` +
-        `Regenerate it with: npm run audit:ux -- --update-baseline`,
+        `Regenerate it with: node scripts/audit-ux-code.cjs --update-baseline`,
       );
       return { version: BASELINE_VERSION, entries: {} };
     }
@@ -935,9 +1100,21 @@ function loadBaseline(root = ROOT) {
   return { version: BASELINE_VERSION, entries: {} };
 }
 
-function writeBaseline(findings, root = ROOT) {
+function writeBaseline(findings, root = ROOT, partialRuleIds = null) {
   const entries = {};
+
+  if (partialRuleIds instanceof Set) {
+    const existing = loadBaseline(root);
+    for (const [key, count] of Object.entries(existing.entries || {})) {
+      const ruleId = key.split('|')[0];
+      if (!partialRuleIds.has(ruleId)) {
+        entries[key] = count;
+      }
+    }
+  }
+
   for (const finding of findings) {
+    if (partialRuleIds instanceof Set && !partialRuleIds.has(finding.rule)) continue;
     const key = fingerprint(finding);
     entries[key] = (entries[key] || 0) + 1;
   }
@@ -949,7 +1126,9 @@ function writeBaseline(findings, root = ROOT) {
     entries,
   };
 
-  fs.writeFileSync(path.join(root || ROOT, BASELINE_NAME), `${JSON.stringify(payload, null, 2)}\n`);
+  const targetPath = resolveBaselineFile(root || ROOT, true);
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, `${JSON.stringify(payload, null, 2)}\n`);
   return entries;
 }
 
@@ -1035,7 +1214,7 @@ function main() {
 
   if (!srcDir) {
     if (opts.format === 'json') {
-      printJson({ rulesVersion: catalog.version, srcDir: null, summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0 }, findings: [] });
+      printJson({ rulesVersion: catalog.version, srcDir: null, summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0, canonical: 0, local: 0 }, findings: [] });
     } else if (!opts.quiet) {
       console.log(`  ${c.dim('ℹ')} No JavaScript/TypeScript source directory found (looked for src, app, frontend, web, client).`);
       console.log(`    ${c.dim('Nothing to audit. Pass --src <dir> to point the auditor somewhere else.')}\n`);
@@ -1064,8 +1243,12 @@ function main() {
     || a.rule.localeCompare(b.rule)
   ));
 
-  const summary = { total: findings.length, ERROR: 0, WARNING: 0, INFO: 0 };
-  for (const finding of findings) summary[finding.severity] += 1;
+  const summary = { total: findings.length, ERROR: 0, WARNING: 0, INFO: 0, canonical: 0, local: 0 };
+  for (const finding of findings) {
+    summary[finding.severity] += 1;
+    if (finding.origin === 'local') summary.local += 1;
+    else summary.canonical += 1;
+  }
 
   // A snapshot of already-reviewed observations lets a project adopt the
   // auditor on a codebase that already carries hundreds of findings, without
@@ -1073,7 +1256,24 @@ function main() {
   const { keys: unreviewed } = diffAgainstBaseline(findings, ROOT);
 
   if (opts.updateBaseline) {
-    const entries = writeBaseline(findings.filter((f) => f.severity !== 'ERROR'));
+    let partialRuleIds = null;
+    if (opts.only === 'local') {
+      partialRuleIds = new Set((catalog.localRules || []).map((r) => r.id));
+    } else if (opts.only === 'canonical') {
+      partialRuleIds = new Set(catalog.rules.filter((r) => r.origin !== 'local').map((r) => r.id));
+    }
+    if (opts.rules.length > 0) {
+      const requested = new Set(opts.rules);
+      partialRuleIds = partialRuleIds
+        ? new Set([...partialRuleIds].filter((id) => requested.has(id)))
+        : requested;
+    }
+
+    const entries = writeBaseline(
+      findings.filter((f) => f.severity !== 'ERROR'),
+      ROOT,
+      partialRuleIds,
+    );
     const total = Object.values(entries).reduce((sum, n) => sum + n, 0);
 
     if (opts.format === 'json') {
@@ -1085,7 +1285,7 @@ function main() {
       });
     } else if (!opts.quiet) {
       console.log(`\n  ${c.green('✔')} Baseline written: ${BASELINE_NAME} (${total} observation(s), ${Object.keys(entries).length} unique signature(s)).`);
-      console.log(`    ${c.dim('Run `npm run audit:ux` again to see only what is new.')}\n`);
+      console.log(`    ${c.dim('Run `node scripts/audit-ux-code.cjs` again to see only what is new.')}\n`);
     }
     return;
   }
@@ -1093,8 +1293,12 @@ function main() {
   const reported = findings.filter((f) => unreviewed.has(f));
   const absorbed = findings.length - reported.length;
 
-  const finalSummary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0 };
-  for (const finding of reported) finalSummary[finding.severity] += 1;
+  const finalSummary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0, canonical: 0, local: 0 };
+  for (const finding of reported) {
+    finalSummary[finding.severity] += 1;
+    if (finding.origin === 'local') finalSummary.local += 1;
+    else finalSummary.canonical += 1;
+  }
 
   const report = {
     rulesVersion: catalog.version,
@@ -1116,11 +1320,17 @@ function main() {
     console.log(`  ${c.yellow('▲')} ${unreadable.length} directory(ies) could not be read and were skipped.\n`);
   }
 
-  const blocked = finalSummary.ERROR > 0 || (opts.strict && finalSummary.WARNING > 0);
+  const gatingFindings = opts.canonicalOnly
+    ? reported.filter((f) => f.origin !== 'local')
+    : reported;
+  const gatingErrors = gatingFindings.filter((f) => f.severity === 'ERROR').length;
+  const gatingWarnings = gatingFindings.filter((f) => f.severity === 'WARNING').length;
+
+  const blocked = gatingErrors > 0 || (opts.strict && gatingWarnings > 0);
   if (blocked) {
     if (opts.format === 'json') process.exitCode = 1;
     else {
-      console.error(`  ${c.red('✖')} audit-ux failed: ${finalSummary.ERROR} error(s)${opts.strict ? `, ${finalSummary.WARNING} warning(s)` : ''}.\n`);
+      console.error(`  ${c.red('✖')} audit-ux failed: ${gatingErrors} error(s)${opts.strict ? `, ${gatingWarnings} warning(s)` : ''}${opts.canonicalOnly ? ' (canonical only)' : ''}.\n`);
       process.exitCode = 1;
     }
   }
@@ -1158,7 +1368,7 @@ function auditProject(options = {}) {
     return {
       rulesVersion: catalog.version,
       srcDir: null,
-      summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0 },
+      summary: { total: 0, ERROR: 0, WARNING: 0, INFO: 0, canonical: 0, local: 0 },
       findings: [],
       unreadable: [],
       absorbed: 0,
@@ -1196,8 +1406,12 @@ function auditProject(options = {}) {
     absorbed = findings.length - reported.length;
   }
 
-  const summary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0 };
-  for (const finding of reported) summary[finding.severity] += 1;
+  const summary = { total: reported.length, ERROR: 0, WARNING: 0, INFO: 0, canonical: 0, local: 0 };
+  for (const finding of reported) {
+    summary[finding.severity] += 1;
+    if (finding.origin === 'local') summary.local += 1;
+    else summary.canonical += 1;
+  }
 
   return {
     rulesVersion: catalog.version,
@@ -1217,6 +1431,8 @@ module.exports = {
   buildUnits,
   lineMatches,
   hasVisibleText,
+  isWithinComponent,
+  matchesComponentName,
   fingerprint,
 };
 

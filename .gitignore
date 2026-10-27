@@ -30,9 +30,10 @@ lerna-debug.log*
 data/*
 !data/demo-backlog.json
 
-# gripm local cache
+# gripm local cache & backups
 .gripm/update-cache.json
 .gripm/*.tmp
+.gripm/backups/
 
 .vercel
 .env*

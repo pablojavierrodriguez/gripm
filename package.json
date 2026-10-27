@@ -75,7 +75,7 @@
     "mcp": "node bin/gripm-mcp.js",
     "tasks": "node --experimental-strip-types scripts/gripm-cli.ts list --open",
     "backlog:check": "node scripts/verify-backlog-sync.js",
-    "gate:review": "npm run backlog:check",
+    "gate:review": "node scripts/gate-review-items.mjs",
     "backlog:sync": "node scripts/verify-backlog-sync.js --fix",
     "playbook:check": "node scripts/sync-playbook.mjs --dry-run",
     "playbook:sync": "node scripts/sync-playbook.mjs",
