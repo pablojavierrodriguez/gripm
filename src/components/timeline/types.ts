@@ -1,10 +1,13 @@
-import type { BacklogItem, GripmConfig, ItemStatus, Sprint, Release } from '../../types';
+import type { BacklogItem, GripmConfig, FilterState, ItemStatus, Sprint, Release } from '../../types';
+
+export type TimelineSortMode = 'natural' | 'chronological';
 
 export interface TimelineViewProps {
   items: BacklogItem[];
   allItems?: BacklogItem[];
   sprints?: Sprint[];
   releases?: Release[];
+  filters?: FilterState;
   onClickItem: (item: BacklogItem) => void;
   onUpdateItem?: (itemData: Partial<BacklogItem>) => Promise<void> | void;
   config?: GripmConfig | null;
@@ -25,6 +28,7 @@ export interface TimelineRow {
   isEpic: boolean;
   children?: TimelineRow[];
   progressPercent: number;
+  isContextParent?: boolean;
 }
 
 export interface DragState {

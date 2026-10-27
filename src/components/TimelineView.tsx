@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import type { TimelineViewProps, TimeScale } from './timeline/types';
+import type { TimelineViewProps, TimeScale, TimelineSortMode } from './timeline/types';
 import type { Sprint, Release } from '../types';
 import { isSprintModuleActive } from '../types';
 import { useTranslation } from '../utils/i18n';
@@ -15,6 +15,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   allItems,
   sprints = [],
   releases = [],
+  filters,
   onClickItem,
   onUpdateItem,
   config: _config
@@ -29,9 +30,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
   }, [isSprintEnabled, scale]);
 
-  const [search, setSearch] = useState('');
   const [groupByParent, setGroupByParent] = useState(true);
   const [expandedEpics, setExpandedEpics] = useState<Record<string, boolean>>({});
+
+  // Sort mode: 'natural' (default, matches board/backlog order) or 'chronological' (by startDate)
+  const [sortMode, setSortMode] = useState<TimelineSortMode>(() => {
+    try {
+      const saved = localStorage.getItem('gripm_roadmap_sort_mode');
+      if (saved === 'natural' || saved === 'chronological') return saved;
+    } catch {}
+    return 'natural';
+  });
+
+  const handleSortModeChange = (mode: TimelineSortMode) => {
+    setSortMode(mode);
+    try {
+      localStorage.setItem('gripm_roadmap_sort_mode', mode);
+    } catch {}
+  };
 
   // Resizable sidebar width (persisted in localStorage)
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
@@ -46,7 +62,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   });
 
   const canvasScrollRef = useRef<HTMLDivElement>(null);
-  const dataset = allItems && allItems.length > 0 ? allItems : items;
+
+  // DEV-349: Respect active filters from FilterBar (items).
+  // By default, exclude 'done' tasks unless explicitly requested in filter statuses or includePreviousDone.
+  const isDoneExplicitlyIncluded = Boolean(
+    filters?.statuses?.includes('done') || filters?.includePreviousDone
+  );
+
+  const activeFilteredItems = useMemo(() => {
+    if (isDoneExplicitlyIncluded) return items;
+    return items.filter((it) => it.status !== 'done');
+  }, [items, isDoneExplicitlyIncluded]);
 
   // Sprints & Releases fast lookup maps
   const sprintsMap = useMemo(() => {
@@ -107,22 +133,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     document.addEventListener('mouseup', onMouseUp);
   }, [sidebarWidth]);
 
-  // Search filtering
-  const filteredItems = useMemo(() => {
-    if (!search.trim()) return dataset;
-    const q = search.trim().toLowerCase();
-    return dataset.filter(
-      (it) =>
-        it.title.toLowerCase().includes(q) ||
-        it.code.toLowerCase().includes(q) ||
-        (it.module && it.module.toLowerCase().includes(q))
-    );
-  }, [dataset, search]);
-
-  // Build hierarchy tree
+  // Build hierarchy tree with context parents from allItems and selected sortMode
   const hierarchyRows = useMemo(() => {
-    return buildHierarchyRows(filteredItems, groupByParent, sprintsMap, releasesMap);
-  }, [filteredItems, groupByParent, sprintsMap, releasesMap]);
+    return buildHierarchyRows(
+      activeFilteredItems,
+      groupByParent,
+      sprintsMap,
+      releasesMap,
+      allItems || [],
+      sortMode
+    );
+  }, [activeFilteredItems, groupByParent, sprintsMap, releasesMap, allItems, sortMode]);
 
   // Expand all epics by default
   useEffect(() => {
@@ -172,9 +193,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50 dark:bg-[#070b12] text-slate-900 dark:text-slate-100 overflow-hidden select-none">
       <TimelineToolbar
-        totalItemsCount={filteredItems.length}
-        search={search}
-        onSearchChange={setSearch}
+        totalItemsCount={activeFilteredItems.length}
+        sortMode={sortMode}
+        onSortModeChange={handleSortModeChange}
         actionFeedback={actionFeedback}
         todayMarkerPx={todayMarkerPx}
         onScrollToToday={scrollToToday}

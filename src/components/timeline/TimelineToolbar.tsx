@@ -1,12 +1,12 @@
 import React from 'react';
-import { Calendar, Search, Sparkles, Clock, Layers } from 'lucide-react';
-import type { TimeScale, ActionFeedback } from './types';
+import { Calendar, Search, Sparkles, Clock, Layers, ArrowUpDown } from 'lucide-react';
+import type { TimeScale, ActionFeedback, TimelineSortMode } from './types';
 import { useTranslation } from '../../utils/i18n';
 
 interface TimelineToolbarProps {
   totalItemsCount: number;
-  search: string;
-  onSearchChange: (value: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
   actionFeedback: ActionFeedback | null;
   todayMarkerPx: number | null;
   onScrollToToday: () => void;
@@ -15,6 +15,8 @@ interface TimelineToolbarProps {
   scale: TimeScale;
   onScaleChange: (scale: TimeScale) => void;
   isSprintEnabled: boolean;
+  sortMode: TimelineSortMode;
+  onSortModeChange: (mode: TimelineSortMode) => void;
 }
 
 export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
@@ -28,7 +30,9 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
   onToggleGroupByParent,
   scale,
   onScaleChange,
-  isSprintEnabled
+  isSprintEnabled,
+  sortMode,
+  onSortModeChange
 }) => {
   const { t } = useTranslation();
 
@@ -44,24 +48,26 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
               {t('roadmap.title') || 'Roadmap'}
             </h1>
             <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-              {totalItemsCount} {totalItemsCount === 1 ? 'ítem' : 'ítems'}
+              {totalItemsCount} {totalItemsCount === 1 ? (t('roadmap.item') || 'ítem') : (t('roadmap.items') || 'ítems')}
             </span>
           </div>
         </div>
 
-        <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
-
-        {/* Search Input */}
-        <div className="relative w-48 sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t('roadmap.searchPlaceholder') || 'Buscar tareas o épicas...'}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors"
-          />
-        </div>
+        {onSearchChange && (
+          <>
+            <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
+            <div className="relative w-48 sm:w-64">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={search || ''}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={t('roadmap.searchPlaceholder') || 'Buscar tareas o épicas...'}
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right Controls */}
@@ -81,6 +87,36 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
             <span>{actionFeedback.message}</span>
           </div>
         )}
+
+        {/* Sort Mode Selector */}
+        <div className="flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => onSortModeChange('natural')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+              sortMode === 'natural'
+                ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-xs font-semibold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+            title={t('roadmap.sortBoardTooltip') || 'Orden natural del tablero / backlog'}
+          >
+            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+            <span>{t('roadmap.sortBoard') || 'Tablero'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSortModeChange('chronological')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+              sortMode === 'chronological'
+                ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-xs font-semibold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+            title={t('roadmap.sortChronologicalTooltip') || 'Orden cronológico por fecha de inicio'}
+          >
+            <Clock className="w-3 h-3 text-slate-400" />
+            <span>{t('roadmap.sortChronological') || 'Cronológico'}</span>
+          </button>
+        </div>
 
         {/* Today Button */}
         {todayMarkerPx !== null && (

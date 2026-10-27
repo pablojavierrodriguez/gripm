@@ -1,7 +1,7 @@
 ---
 id: DEV-349
 title: "Armonizacion de filtros globales y ordenamiento predeterminado en TimelineView"
-status: draft
+status: ready
 created_date: '2026-10-27'
 updated_date: '2026-10-27'
 labels:
@@ -10,7 +10,7 @@ labels:
   - "ux"
   - "sorting"
 dependencies:
-  - DEV-348
+  - "DEV-348"
 priority: high
 type: feature
 estimate: 2
@@ -31,8 +31,18 @@ Ademas, el orden de aparicion en el timeline carece de criterio unificado:
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] La vista de Timeline respeta de forma predeterminada los filtros activos en `FilterBar` (estados activos, exclusion de done/cancelled/ideas salvo seleccion expresa)
-- [ ] El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
-- [ ] El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
-- [ ] Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
+- [x] #1 La vista de Timeline respeta de forma predeterminada los filtros activos en `FilterBar` (estados activos, exclusion de done/cancelled/ideas salvo seleccion expresa)
+- [x] #2 El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
+- [x] #3 El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
+- [x] #4 Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Recibir `filters` desde `App.tsx` en `TimelineViewProps` y utilizar `visibleItems` (`items`) en lugar de saltar a `allItems`.
+2. Excluir por defecto tareas en `done` a menos que estén explícitamente solicitadas en `filters.statuses` o `filters.includePreviousDone`.
+3. Soportar padres de contexto (`isContextParent: true`): si una tarea hija coincide con los filtros activos pero su épica padre no, la épica se renderiza atenuada como contenedor sin reinyectar tareas no deseadas.
+4. Integrar selector de ordenamiento `sortMode` ('natural' vs 'chronological') en `TimelineToolbar` con persistencia en `localStorage`.
+5. Eliminar el input redundante de búsqueda local en `TimelineToolbar` para unificar la búsqueda en `FilterBar`.
+<!-- SECTION:PLAN:END -->

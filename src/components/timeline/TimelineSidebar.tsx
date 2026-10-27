@@ -47,7 +47,7 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                 <div
                   className={`h-11 px-3 flex items-center justify-between min-w-0 gap-2 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors cursor-pointer ${
                     row.isEpic ? 'bg-slate-50/70 dark:bg-white/[0.015]' : ''
-                  }`}
+                  } ${row.isContextParent ? 'opacity-80 italic' : ''}`}
                   onClick={() => {
                     if (row.isEpic && hasChildren) {
                       onToggleEpic(row.item.id);
@@ -85,6 +85,12 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({
                     >
                       {row.item.type.slice(0, 4)}
                     </span>
+
+                    {row.isContextParent && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-sans font-medium not-italic shrink-0">
+                        {t('roadmap.contextParent') || 'Contexto'}
+                      </span>
+                    )}
 
                     <span className="text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0 font-medium">
                       {row.item.code}

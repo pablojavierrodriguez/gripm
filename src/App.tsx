@@ -1602,6 +1602,7 @@ export function App() {
               allItems={allProjectItems}
               sprints={projectSprints}
               releases={projectReleases}
+              filters={filters}
               onClickItem={(item) => {
                 setEditingItem(item);
                 setItemModalOpen(true);

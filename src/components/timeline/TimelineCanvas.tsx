@@ -174,7 +174,9 @@ export const TimelineCanvas: React.FC<TimelineCanvasProps> = ({
                       isDraggingEpic ? 'shadow-xl ring-2 ring-indigo-500/80 z-30 scale-[1.01]' : ''
                     } ${
                       row.isEpic
-                        ? 'bg-purple-600/95 border-purple-500 text-white'
+                        ? row.isContextParent
+                          ? 'bg-purple-600/50 border-purple-400/50 text-white/90 border-dashed'
+                          : 'bg-purple-600/95 border-purple-500 text-white'
                         : getStatusColor(row.item.status)
                     }`}
                   >
