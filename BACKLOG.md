@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (3)
+### 🚀 Ready for Deploy (4)
 
 #### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -308,7 +308,21 @@ Unificación bilingüe en un solo archivo (inglés primero, español debajo) par
 
 ---
 
-### 📋 Backlog / Draft (18)
+#### [DEV-347] Fix: Elevacion de capa y portal para AdvancedFiltersPopover sobre vistas de tablero y timeline
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En la vista de Timeline/Roadmap (y potencialmente en vistas con contenedores de alto apilamiento), el panel desplegable de filtros avanzados (`AdvancedFiltersPopover`) queda visualmente ocluido o renderizado por detras de la lista lateral izquierda de tareas y de los contenedores con `backdrop-blur` o `z-index` local.
+
+Esto ocurre porque `FilterBar` declara `relative z-10` con `backdrop-blur-sm`, generando un contexto de apilamiento local en el que el sidebar de Timeline (`z-10` posterior en el DOM) se superpone. Conforme al guardrail #11 de AGENTS.md (DEV-129, DEV-130), los modales y popovers flotantes deben desacoplarse o montarse con elevacion asegurada (`createPortal` o elevacion superior coordinada) para no sufrir recortes por stacking context o containing blocks.
+
+**Criterios de Aceptación:**
+- [x] #1 El popover de filtros avanzados se renderiza siempre por encima de la barra lateral de tareas del Roadmap y del lienzo de tiempo sin quedar tapado
+- [x] #2 El posicionamiento del popover permanece anclado al boton de activacion de filtros o flotante con visibilidad completa en viewports compactos y desktop
+- [x] #3 El cierre por click exterior y teclado (Escape) se mantiene operativo
+
+---
+
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -825,6 +839,82 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 - [ ] #5 Queda documentado en un lugar de gobernanza (AGENTS.md, gate o skill) que los ACs tildados antes del 2026-10-05 no son verificables por git, para que futuras auditorias no repitan este rastreo.
 - [ ] #6 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras cualquier cambio sobre DEV-026.
 - [ ] #7 `node scripts/verify-changes.js --all` sale con codigo 0.
+
+---
+
+#### [DEV-348] Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El componente `TimelineView.tsx` cuenta actualmente con 1299 lineas de codigo, superando el limite maximo de 1000 LOC establecido en las directrices de arquitectura y `check-loc` de AGENTS.md. 
+
+Agrupa de forma monolitica la resolucion de fechas, calculo de geometria temporal, arbol jerarquico de epicas/tareas, barra superior de herramientas, redimensionamiento de sidebar, lienzo Gantt con drag & drop y gestion de scroll. Es necesario descomponerlo en submódulos especializados dentro de `src/components/timeline/`:
+- `timeline/dateEngine.ts`: resolucion pura de fechas (UTC), duraciones, escalas y conversion fecha a px.
+- `timeline/buildHierarchy.ts`: calculo de arbol jerarquico, grupos y ordenamiento.
+- `timeline/TimelineToolbar.tsx`: controles superiores de escala, busqueda, filtros y acciones.
+- `timeline/TimelineSidebar.tsx`: arbol lateral de jerarquia con conectores y chevrons.
+- `timeline/TimelineCanvas.tsx`: cuadricula temporal, columnas, marcador de hoy y filas de barras.
+- `timeline/useTimelineDrag.ts`: hook de interaccion para arrastrar y redimensionar fechas o sprints.
+
+**Criterios de Aceptación:**
+- [ ] #1 `TimelineView.tsx` orquesta submódulos y ningun archivo en `src/components/timeline/` supera las 500 LOC
+- [ ] #2 Se extrae la logica pura de fechas a `dateEngine.ts` con cobertura de pruebas unitarias
+- [ ] #3 Se preserva la paridad funcional existente sin regresiones visuales o de interaccion
+- [ ] #4 `npm run check-loc` y `npm test` finalizan en verde
+
+---
+
+#### [DEV-349] Armonizacion de filtros globales y ordenamiento predeterminado en TimelineView
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Actualmente `TimelineView` ignora los filtros globales aplicados en el encabezado (`FilterBar`), consumiendo indiscriminadamente `dataset = allItems || items`, lo que provoca que se listen 200+ tareas (incluyendo completadas, canceladas o ideas que el usuario tiene ocultas en el tablero principal).
+
+Ademas, el orden de aparicion en el timeline carece de criterio unificado:
+1. **Filtros por Defecto:** Timeline debe respetar los items filtrados por el encabezado general (`items`), manteniendo la sincronia con el Board y Backlog. Tareas en `done` y `cancelled` deben permanecer ocultas por defecto a menos que el usuario active explicitamente los filtros de visualizacion correspondientes.
+2. **Items Padre / Contexto:** Si una epica o contenedor no coincide con el filtro pero sus hijos si, el padre se renderiza atenuado o los hijos se agrupan respetando la coherencia sin reinyectar tareas no deseadas.
+3. **Orden Predeterminado:** Adoptar por defecto el orden canónico configurado en el proyecto (orden natural del backlog / board: `order` o jerarquia), permitiendo al usuario alternar entre orden natural y orden cronologico por fecha de inicio.
+4. **Unificacion de Busqueda:** Eliminar el campo de busqueda redundante local o sincronizarlo bidireccionalmente con la barra superior.
+
+**Criterios de Aceptación:**
+- [ ] #1 La vista de Timeline respeta de forma predeterminada los filtros activos en `FilterBar` (estados activos, exclusion de done/cancelled/ideas salvo seleccion expresa)
+- [ ] #2 El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
+- [ ] #3 El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
+- [ ] #4 Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
+
+---
+
+#### [DEV-350] Resolucion de agrupamiento jerarquico, colapso/expansion y gestion de items sin fechas
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En la vista de Roadmap se presentan anomalias criticas de jerarquia, agrupamiento y visualizacion de tareas:
+1. **Colapso/Expansion Inoperativo:** Al agrupar por epicas, no es posible colapsar o expandir cuando el item padre no fue tipado estrictamente como `type: epic | initiative` o cuando las referencias (`parentId` / `epic`) no resuelven a un ID padre existente.
+2. **Modo Plano con Formato Inadecuado:** Al desactivar el agrupamiento, tareas individuales continuan mostrando estilo visual de agrupador/padre (badge de epica, porcentaje de avance simulado, bloqueo de manijas de redimensionamiento temporal).
+3. **Desbordamiento por Codigos Largos:** Tareas con codigos extensos (ej. `DOM-BENCHMARK-POST-DESARROLLOS` o `DOM-C4`) colapsan el ancho disponible para el titulo y desencadenan truncamiento abrupto en barras de Gantt y sidebar.
+4. **Items sin Fechas (Seccion Sin Planificar):** Dejar de asignar fechas arbitrarias (ej. `createdAt + 14 dias`) a items que no cuentan con `startDate`, `dueDate` ni herencia de Sprint/Release. Reubicarlos de forma clara en una seccion o carril dedicado de tareas "Sin planificar".
+5. **Warning en Desplazamiento de Epicas con Hijos:** Cuando el usuario arrastra la barra de una epica cuyas fechas provienen de sus hijos, emitir un aviso informativo o advertencia (toast/confirmacion) indicando que las fechas estan consolidadas a partir de las tareas contenidas.
+
+**Criterios de Aceptación:**
+- [ ] #1 El agrupamiento jerarquico admite cualquier referencia valida de contenedor o padre y los chevrons de colapsar/expandir operan correctamente en cada grupo
+- [ ] #2 En modo sin agrupar (lista plana), las tareas se presentan como filas estandar sin simular porcentajes ni estilos de contenedor
+- [ ] #3 Los codigos extensos se ajustan ergonomicamente sin ocluir los titulos de tarea ni desbordar la celda
+- [ ] #4 Las tareas sin fechas no inventan rangos temporales en la grilla y se muestran agrupadas en el panel / seccion 'Sin planificar'
+- [ ] #5 Al intentar desplazar una epica con fechas calculadas de hijos se muestra una advertencia explicativa
+
+---
+
+#### [DEV-351] Escala semanal con anchos proporcionales de grilla y sincronizacion de scroll vertical
+- **Prioridad**: `medium` | **Tipo**: `enhancement`
+
+Mejora de la precision temporal y ergonomia visual del lienzo de Roadmap:
+1. **Escala Semanal:** Incorporar la opcion de escala de tiempo semanal (`Semanas` / `Weeks`), permitiendo visualizar hitos con granularidad de semanas ISO (iniciando lunes) y subdivision de dias para una planificacion mas detallada.
+2. **Anchos Proporcionales de Grilla:** Sustituir anchos rigidos arbitrarios por calculos proporcionales a los dias reales de cada mes (evitando el desfase visual entre meses de 28, 30 y 31 dias).
+3. **Sincronizacion de Scroll Vertical:** Unificar o ligar el scroll vertical de la lista lateral izquierda con el lienzo de barras de Gantt para que nunca se desalineen las filas al desplazarse en backlogs con muchas tareas.
+4. **Pulido de i18n y Etiquetas:** Erradicar textos duros en espanol cuando el idioma configurado es ingles (ej. `ítems`, `Sin Sprint`, `Ir a Hoy`) y formatear de manera sobria las etiquetas de cabecera.
+
+**Criterios de Aceptación:**
+- [ ] #1 Selector de escala incluye la vista 'Semanas' con numeracion ISO y fechas de inicio/fin de semana
+- [ ] #2 Las columnas mensuales y semanales ajustan su ancho exactamente a la cantidad real de dias correspondientes
+- [ ] #3 El scroll vertical entre el panel de jerarquia y el lienzo de barras se mantiene 100% alineado
+- [ ] #4 Todas las cadenas de texto del componente utilizan las claves de i18n correspondientes sin texto duro
 
 ---
 
