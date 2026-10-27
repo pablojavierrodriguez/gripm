@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (4)
+### 🚀 Ready for Deploy (5)
 
 #### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -322,7 +322,28 @@ Esto ocurre porque `FilterBar` declara `relative z-10` con `backdrop-blur-sm`, g
 
 ---
 
-### 📋 Backlog / Draft (22)
+#### [DEV-348] Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El componente `TimelineView.tsx` cuenta actualmente con 1299 lineas de codigo, superando el limite maximo de 1000 LOC establecido en las directrices de arquitectura y `check-loc` de AGENTS.md. 
+
+Agrupa de forma monolitica la resolucion de fechas, calculo de geometria temporal, arbol jerarquico de epicas/tareas, barra superior de herramientas, redimensionamiento de sidebar, lienzo Gantt con drag & drop y gestion de scroll. Es necesario descomponerlo en submódulos especializados dentro de `src/components/timeline/`:
+- `timeline/dateEngine.ts`: resolucion pura de fechas (UTC), duraciones, escalas y conversion fecha a px.
+- `timeline/buildHierarchy.ts`: calculo de arbol jerarquico, grupos y ordenamiento.
+- `timeline/TimelineToolbar.tsx`: controles superiores de escala, busqueda, filtros y acciones.
+- `timeline/TimelineSidebar.tsx`: arbol lateral de jerarquia con conectores y chevrons.
+- `timeline/TimelineCanvas.tsx`: cuadricula temporal, columnas, marcador de hoy y filas de barras.
+- `timeline/useTimelineDrag.ts`: hook de interaccion para arrastrar y redimensionar fechas o sprints.
+
+**Criterios de Aceptación:**
+- [x] #1 `TimelineView.tsx` orquesta submódulos y ningun archivo en `src/components/timeline/` supera las 500 LOC
+- [x] #2 Se extrae la logica pura de fechas a `dateEngine.ts` con cobertura de pruebas unitarias
+- [x] #3 Se preserva la paridad funcional existente sin regresiones visuales o de interaccion
+- [x] #4 `npm run check-loc` y `npm test` finalizan en verde
+
+---
+
+### 📋 Backlog / Draft (21)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -839,27 +860,6 @@ La secuencia mas parsimoniosa es: DEV-026 puso los binarios como `devboard` en s
 - [ ] #5 Queda documentado en un lugar de gobernanza (AGENTS.md, gate o skill) que los ACs tildados antes del 2026-10-05 no son verificables por git, para que futuras auditorias no repitan este rastreo.
 - [ ] #6 `npm run backlog:sync` y `npm run backlog:check` salen con codigo 0 tras cualquier cambio sobre DEV-026.
 - [ ] #7 `node scripts/verify-changes.js --all` sale con codigo 0.
-
----
-
-#### [DEV-348] Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-El componente `TimelineView.tsx` cuenta actualmente con 1299 lineas de codigo, superando el limite maximo de 1000 LOC establecido en las directrices de arquitectura y `check-loc` de AGENTS.md. 
-
-Agrupa de forma monolitica la resolucion de fechas, calculo de geometria temporal, arbol jerarquico de epicas/tareas, barra superior de herramientas, redimensionamiento de sidebar, lienzo Gantt con drag & drop y gestion de scroll. Es necesario descomponerlo en submódulos especializados dentro de `src/components/timeline/`:
-- `timeline/dateEngine.ts`: resolucion pura de fechas (UTC), duraciones, escalas y conversion fecha a px.
-- `timeline/buildHierarchy.ts`: calculo de arbol jerarquico, grupos y ordenamiento.
-- `timeline/TimelineToolbar.tsx`: controles superiores de escala, busqueda, filtros y acciones.
-- `timeline/TimelineSidebar.tsx`: arbol lateral de jerarquia con conectores y chevrons.
-- `timeline/TimelineCanvas.tsx`: cuadricula temporal, columnas, marcador de hoy y filas de barras.
-- `timeline/useTimelineDrag.ts`: hook de interaccion para arrastrar y redimensionar fechas o sprints.
-
-**Criterios de Aceptación:**
-- [ ] #1 `TimelineView.tsx` orquesta submódulos y ningun archivo en `src/components/timeline/` supera las 500 LOC
-- [ ] #2 Se extrae la logica pura de fechas a `dateEngine.ts` con cobertura de pruebas unitarias
-- [ ] #3 Se preserva la paridad funcional existente sin regresiones visuales o de interaccion
-- [ ] #4 `npm run check-loc` y `npm test` finalizan en verde
 
 ---
 

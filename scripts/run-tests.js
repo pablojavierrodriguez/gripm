@@ -69,6 +69,7 @@ const STEPS = [
   ['init-suite', 'scripts/test-init-suite.js'],
   ['deploy-prod', 'scripts/test-deploy-prod.js'],
   ['task-cache', 'scripts/test-task-cache.js'],
+  ['timeline-date-engine', 'scripts/test-timeline-date-engine.js'],
 ];
 
 const DEFAULT_TIMEOUT_SECONDS = 180;
