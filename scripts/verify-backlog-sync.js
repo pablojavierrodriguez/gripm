@@ -82,14 +82,26 @@ if (isHookMode) {
     process.exit(0);
   }
 
-  // 1. Si hay tareas en el stage, BACKLOG.md debe estar incluido en el stage
+  // 1. Si hay tareas en el stage, BACKLOG.md debe estar incluido en el stage (a menos que ya esté 100% sincronizado)
   if (stagedTasks.length > 0 && !isBacklogStaged) {
-    console.error(`\n  ${c.red('✖')} Commit rechazado: Se detectaron tareas modificadas en el commit pero "BACKLOG.md" no está incluido en el índice:`);
-    stagedTasks.forEach(t => console.error(`    ${c.dim('•')} ${t}`));
-    console.error(`\n    ${c.yellow('▲')} Para mantener la coherencia del consolidado con el árbol de tareas:`);
-    console.error('      1. npm run backlog:sync    # Sincroniza y actualiza BACKLOG.md');
-    console.error('      2. git add BACKLOG.md      # Incluye el consolidado en el commit\n');
-    process.exit(1);
+    const exportScript = path.join(ROOT_DIR, 'scripts/gripm-cli.ts');
+    let isAlreadySynced = false;
+    if (fs.existsSync(exportScript)) {
+      try {
+        execSync(`node --experimental-strip-types "${exportScript}" export --check --staged`, { cwd: currentRepoDir, stdio: 'pipe' });
+        isAlreadySynced = true;
+      } catch {
+        isAlreadySynced = false;
+      }
+    }
+    if (!isAlreadySynced) {
+      console.error(`\n  ${c.red('✖')} Commit rechazado: Se detectaron tareas modificadas en el commit pero "BACKLOG.md" no está incluido en el índice:`);
+      stagedTasks.forEach(t => console.error(`    ${c.dim('•')} ${t}`));
+      console.error(`\n    ${c.yellow('▲')} Para mantener la coherencia del consolidado con el árbol de tareas:`);
+      console.error('      1. npm run backlog:sync    # Sincroniza y actualiza BACKLOG.md');
+      console.error('      2. git add BACKLOG.md      # Incluye el consolidado en el commit\n');
+      process.exit(1);
+    }
   }
 
   // 2. Si BACKLOG.md está en el stage, verificar que no referencie tareas no trackeadas (archivos fantasma)

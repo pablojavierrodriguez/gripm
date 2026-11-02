@@ -1,4 +1,4 @@
-import type { BacklogItem, BoardData, Project, Release, StorageType, GripmConfig, Sprint } from '../types';
+import type { BacklogItem, BoardData, Project, Release, StorageType, GripmConfig, Sprint, RepoHealthReport, TodoImportItem, ImportTodosResult } from '../types';
 
 /**
  * DEV-222 - Contrato de la capa de datos.
@@ -98,6 +98,11 @@ export interface GripmApi {
    * un `.catch(() => {})`.
    */
   fetchRetros(projectId?: string): Promise<{ retros?: any[] }>;
+
+  // --- Auditoría de código (DEV-356) ---------------------------------------
+  fetchAudit(projectId?: string): Promise<RepoHealthReport>;
+  refreshAudit(projectId?: string): Promise<RepoHealthReport>;
+  importTodos(items: TodoImportItem[], projectId?: string): Promise<ImportTodosResult>;
 
   // --- Sistema de archivos (solo tiene sentido con daemon) -----------------
   browseDirectory(dir?: string): Promise<FsBrowseResult>;

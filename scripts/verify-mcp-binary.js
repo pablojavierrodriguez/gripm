@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-console.log('🧪 Iniciando prueba de bin/gripm-mcp.js y catálogo canónico de 12 tools gripm_* (DEV-154 / DEV-160 / DEV-161)...');
+console.log('🧪 Iniciando prueba de bin/gripm-mcp.js y catálogo canónico de 13 tools gripm_* (DEV-154 / DEV-160 / DEV-161 / DEV-357)...');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -305,6 +305,99 @@ send({
   }
 });
 
+// 18. DEV-357: Call gripm_get_repo_health with default arguments
+send({
+  jsonrpc: '2.0',
+  id: 18,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {}
+  }
+});
+
+// 19. DEV-357: Call gripm_get_repo_health with category: 'loc', limit: 2
+send({
+  jsonrpc: '2.0',
+  id: 19,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      category: 'loc',
+      limit: 2
+    }
+  }
+});
+
+// 20. DEV-357: Call gripm_get_repo_health with category: 'quality'
+send({
+  jsonrpc: '2.0',
+  id: 20,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      category: 'quality'
+    }
+  }
+});
+
+// 21. DEV-357: Call gripm_get_repo_health with category: 'tests'
+send({
+  jsonrpc: '2.0',
+  id: 21,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      category: 'tests'
+    }
+  }
+});
+
+// 22. DEV-357: Call gripm_get_repo_health with category: 'todos', limit: 1
+send({
+  jsonrpc: '2.0',
+  id: 22,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      category: 'todos',
+      limit: 1
+    }
+  }
+});
+
+// 23. DEV-357: Call gripm_get_repo_health with invalid limit (Must fail with validation error)
+send({
+  jsonrpc: '2.0',
+  id: 23,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      limit: -5
+    }
+  }
+});
+
+// 24. DEV-357: Call gripm_get_repo_health with invalid category (Must fail with validation error)
+send({
+  jsonrpc: '2.0',
+  id: 24,
+  method: 'tools/call',
+  params: {
+    name: 'gripm_get_repo_health',
+    arguments: {
+      category: 'invalid_cat_xyz'
+    }
+  }
+});
+
+let guardrailSent = false;
+let guardrailDisabledSent = false;
 let finished = false;
 function checkReady() {
   if (finished) return;
@@ -312,7 +405,84 @@ function checkReady() {
   const count = lines.filter(l => {
     try { return JSON.parse(l); } catch { return false; }
   }).length;
-  if (count >= 17) {
+
+  if (count >= 24 && !guardrailSent) {
+    guardrailSent = true;
+    // Set up guardrail fixture: .gripm/config.json with enforceLocCeiling: true
+    const gripmDir = path.join(tmpRepo, '.gripm');
+    fs.mkdirSync(gripmDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(gripmDir, 'config.json'),
+      JSON.stringify({ guardrails: { enforceLocCeiling: true } }, null, 2),
+      'utf8'
+    );
+    // Create large file exceeding 1000 LOC
+    const srcDir = path.join(tmpRepo, 'src');
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(srcDir, 'giantModule.ts'),
+      '// Large module\n' + 'export const a = 1;\n'.repeat(1050),
+      'utf8'
+    );
+
+    // 25. DEV-357: Attempt transition to ready with enforceLocCeiling: true and >1000 LOC file (Must fail)
+    send({
+      jsonrpc: '2.0',
+      id: 25,
+      method: 'tools/call',
+      params: {
+        name: 'gripm_update_task',
+        arguments: {
+          taskId: 'DEV-998',
+          status: 'ready'
+        }
+      }
+    });
+
+    // 26. DEV-357: Bypass guardrail using force: true (Must succeed with audit trace)
+    send({
+      jsonrpc: '2.0',
+      id: 26,
+      method: 'tools/call',
+      params: {
+        name: 'gripm_update_task',
+        arguments: {
+          taskId: 'DEV-998',
+          status: 'ready',
+          force: true
+        }
+      }
+    });
+    return;
+  }
+
+  if (count >= 26 && !guardrailDisabledSent) {
+    guardrailDisabledSent = true;
+    // Disable guardrail in config.json
+    const configPath = path.join(tmpRepo, '.gripm', 'config.json');
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ guardrails: { enforceLocCeiling: false } }, null, 2),
+      'utf8'
+    );
+
+    // 27. DEV-357: Transition to ready without strict guardrail (Must succeed non-blocking)
+    send({
+      jsonrpc: '2.0',
+      id: 27,
+      method: 'tools/call',
+      params: {
+        name: 'gripm_update_task',
+        arguments: {
+          taskId: 'DEV-998',
+          status: 'ready'
+        }
+      }
+    });
+    return;
+  }
+
+  if (count >= 27) {
     finished = true;
     clearTimeout(timeoutHandle);
     setImmediate(runAssertions);
@@ -357,7 +527,8 @@ function runAssertions() {
     'gripm_list_releases',
     'gripm_sync_backlog',
     'gripm_create_retro',
-    'gripm_list_retros'
+    'gripm_list_retros',
+    'gripm_get_repo_health'
   ];
 
   for (const expected of expectedTools) {
@@ -373,7 +544,7 @@ function runAssertions() {
     throw new Error(`Estado de primera clase 'ideas' ausente en enum de gripm_update_task: ${allowedStatuses.join(', ')}`);
   }
 
-  console.log(`✅ [2/5] tools/list OK: 12/12 herramientas canónicas gripm_* presentes con soporte de status 'ideas' (${toolNames.length} total)`);
+  console.log(`✅ [2/5] tools/list OK: ${expectedTools.length}/${expectedTools.length} herramientas canónicas gripm_* presentes con soporte de status 'ideas' (${toolNames.length} total)`);
 
   const releasesRes = responses.find(r => r.id === 3);
   if (!releasesRes || releasesRes.error) {
@@ -489,6 +660,92 @@ function runAssertions() {
     throw new Error(`DEV-244: Se esperaba rechazo por herramienta npx no permitida, recibido: ${JSON.stringify(unauthNpxRes)}`);
   }
   console.log('✅ [17/17] DEV-244 Gatekeeper: Rechazó herramienta npx fuera de la allowlist');
+
+  // DEV-357: gripm_get_repo_health tool assertions
+  const healthRes = responses.find(r => r.id === 18);
+  if (!healthRes || healthRes.error || healthRes.result?.isError) {
+    throw new Error(`DEV-357: Llamada a gripm_get_repo_health falló: ${JSON.stringify(healthRes)}`);
+  }
+  const healthData = JSON.parse(healthRes.result.content[0].text);
+  if (typeof healthData.score !== 'number' || !healthData.summary || !healthData.loc || !healthData.quality || !healthData.tests || !healthData.todos) {
+    throw new Error(`DEV-357: Estructura de gripm_get_repo_health no conforme: ${JSON.stringify(healthData)}`);
+  }
+  console.log(`✅ [18/27] DEV-357 gripm_get_repo_health: Diagnóstico general recibido (score: ${healthData.score}/100)`);
+
+  const locHealthRes = responses.find(r => r.id === 19);
+  if (!locHealthRes || locHealthRes.result?.isError) {
+    throw new Error(`DEV-357: gripm_get_repo_health (loc) falló: ${JSON.stringify(locHealthRes)}`);
+  }
+  const locHealthData = JSON.parse(locHealthRes.result.content[0].text);
+  if (!locHealthData.loc || !Array.isArray(locHealthData.loc.violations) || locHealthData.loc.violations.length > 2) {
+    throw new Error(`DEV-357: gripm_get_repo_health (loc) estructura o límite inválido: ${JSON.stringify(locHealthData)}`);
+  }
+  console.log(`✅ [19/27] DEV-357 gripm_get_repo_health (loc): Retorna violaciones LOC respetando limit`);
+
+  const qualityRes = responses.find(r => r.id === 20);
+  if (!qualityRes || qualityRes.result?.isError) {
+    throw new Error(`DEV-357: gripm_get_repo_health (quality) falló: ${JSON.stringify(qualityRes)}`);
+  }
+  const qualityData = JSON.parse(qualityRes.result.content[0].text);
+  if (!qualityData.quality || !Array.isArray(qualityData.quality.suppressions)) {
+    throw new Error(`DEV-357: gripm_get_repo_health (quality) estructura inválida: ${JSON.stringify(qualityData)}`);
+  }
+  console.log(`✅ [20/27] DEV-357 gripm_get_repo_health (quality): Retorna supresiones de calidad`);
+
+  const testsRes = responses.find(r => r.id === 21);
+  if (!testsRes || testsRes.result?.isError) {
+    throw new Error(`DEV-357: gripm_get_repo_health (tests) falló: ${JSON.stringify(testsRes)}`);
+  }
+  const testsData = JSON.parse(testsRes.result.content[0].text);
+  if (!testsData.tests || typeof testsData.tests.hasTests !== 'boolean') {
+    throw new Error(`DEV-357: gripm_get_repo_health (tests) estructura inválida: ${JSON.stringify(testsData)}`);
+  }
+  console.log(`✅ [21/27] DEV-357 gripm_get_repo_health (tests): Retorna framework y comandos de test`);
+
+  const todosRes = responses.find(r => r.id === 22);
+  if (!todosRes || todosRes.result?.isError) {
+    throw new Error(`DEV-357: gripm_get_repo_health (todos) falló: ${JSON.stringify(todosRes)}`);
+  }
+  const todosData = JSON.parse(todosRes.result.content[0].text);
+  if (!Array.isArray(todosData.todos) || todosData.todos.length > 1) {
+    throw new Error(`DEV-357: gripm_get_repo_health (todos) estructura o límite inválido: ${JSON.stringify(todosData)}`);
+  }
+  console.log(`✅ [22/27] DEV-357 gripm_get_repo_health (todos): Retorna lista de TODOs respetando limit`);
+
+  const badLimitRes = responses.find(r => r.id === 23);
+  if (!badLimitRes?.result?.isError || !badLimitRes.result.content[0].text.includes("Invalid parameter 'limit'")) {
+    throw new Error(`DEV-357: Se esperaba fallo por limit inválido en gripm_get_repo_health: ${JSON.stringify(badLimitRes)}`);
+  }
+  console.log(`✅ [23/27] DEV-357 gripm_get_repo_health: Rechazó limit inválido`);
+
+  const badCatRes = responses.find(r => r.id === 24);
+  if (!badCatRes?.result?.isError || !badCatRes.result.content[0].text.includes("Invalid parameter 'category'")) {
+    throw new Error(`DEV-357: Se esperaba fallo por category inválida en gripm_get_repo_health: ${JSON.stringify(badCatRes)}`);
+  }
+  console.log(`✅ [24/27] DEV-357 gripm_get_repo_health: Rechazó category inválida`);
+
+  // DEV-357: Guardrail enforcement and bypass assertions
+  const guardrailRejectRes = responses.find(r => r.id === 25);
+  if (!guardrailRejectRes?.result?.isError || !guardrailRejectRes.result.content[0].text.includes('[MCP Gatekeeper]') || !guardrailRejectRes.result.content[0].text.includes('1000 LOC ceiling')) {
+    throw new Error(`DEV-357: Se esperaba rechazo de Gatekeeper por techo de 1000 LOC, recibido: ${JSON.stringify(guardrailRejectRes)}`);
+  }
+  console.log(`✅ [25/27] DEV-357 Gatekeeper Guardrail: Rechazó transición a ready por superar 1000 LOC en archivo modificado`);
+
+  const guardrailForceRes = responses.find(r => r.id === 26);
+  if (guardrailForceRes?.result?.isError) {
+    throw new Error(`DEV-357: Transición con force: true falló: ${JSON.stringify(guardrailForceRes)}`);
+  }
+  const forcePayload = JSON.parse(guardrailForceRes.result.content[0].text);
+  if (!forcePayload.warning?.includes('[MCP Gatekeeper Audit]') || !forcePayload.audit?.bypassedGatekeeper) {
+    throw new Error(`DEV-357: Se esperaba warning y traza de auditoría en bypass de LOC ceiling: ${JSON.stringify(forcePayload)}`);
+  }
+  console.log(`✅ [26/27] DEV-357 Gatekeeper Guardrail: force: true sorteó el bloqueo preservando advertencia y traza de auditoría`);
+
+  const normalRes = responses.find(r => r.id === 27);
+  if (normalRes?.result?.isError) {
+    throw new Error(`DEV-357: Transición en configuración estándar/sin guardrails falló: ${JSON.stringify(normalRes)}`);
+  }
+  console.log(`✅ [27/27] DEV-357 Gatekeeper Guardrail: Configuración estándar/sin guardrail permite transición sin bloqueos`);
 
     console.log('🎉 MCP Server y catálogo gripm_* completamente validados!');
     process.exit(0);

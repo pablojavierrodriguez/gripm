@@ -47,11 +47,13 @@ import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
 import { ToastContainer, type ToastMessage } from './components/Toast';
+import { VercelAnalytics } from './components/VercelAnalytics';
 import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
 import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 import { filterItems, getAvailableModules } from './utils/filterItems';
 import { hasActiveFocusTrap } from './hooks/useFocusTrap';
+import { useRepoAudit } from './hooks/useRepoAudit';
 
 type AppActiveTab = ActiveTab;
 
@@ -68,6 +70,7 @@ const ProjectModal = lazy(() => import('./components/ProjectModal').then(m => ({
 const PlanGuardModal = lazy(() => import('./components/PlanGuardModal').then(m => ({ default: m.PlanGuardModal })));
 const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal').then(m => ({ default: m.KeyboardShortcutsModal })));
 const CommandPaletteModal = lazy(() => import('./components/CommandPaletteModal').then(m => ({ default: m.CommandPaletteModal })));
+const AuditModal = lazy(() => import('./components/audit/AuditModal').then(m => ({ default: m.AuditModal })));
 
 // Preload heavy modals in background during idle time (DEV-284)
 const preloadItemModal = () => import('./components/ItemModal');
@@ -195,6 +198,7 @@ export function App() {
   const [importWizardOpen, setImportWizardOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
 
   // Settings / Config State (DEV-006 & DEV-009)
   const [config, setConfig] = useState<GripmConfig>({});
@@ -376,6 +380,22 @@ export function App() {
     }
   }, [selectedProjectId, showToast, t]);
 
+  // Codebase Health & Diagnostic Audit Hook (DEV-356)
+  const {
+    report: auditReport,
+    isLoading: isAuditLoading,
+    isRefreshing: isAuditRefreshing,
+    isImporting: isAuditImporting,
+    refresh: refreshAuditData,
+    importTodos: importTodosAction,
+  } = useRepoAudit({
+    projectId: selectedProjectId,
+    onTodosImported: (count) => {
+      showToast(t('audit.importSuccessToast', { count }), 'success');
+      loadData(true);
+    },
+  });
+
   useEffect(() => {
     let cancelled = false;
     const switchProjectAndLoad = async () => {
@@ -481,6 +501,7 @@ export function App() {
         importWizardOpen ||
         shortcutsModalOpen ||
         commandPaletteOpen ||
+        auditModalOpen ||
         planGuardOpen
       ) {
         return;
@@ -517,6 +538,7 @@ export function App() {
     importWizardOpen,
     shortcutsModalOpen,
     commandPaletteOpen,
+    auditModalOpen,
     planGuardOpen,
   ]);
 
@@ -1393,6 +1415,9 @@ export function App() {
         config={config}
         singleProject={boardData ? Boolean(boardData.singleProject) : (config?.mode === 'single')}
         updateAvailable={boardData?.updateAvailable}
+        auditReport={auditReport}
+        isAuditLoading={isAuditLoading}
+        onOpenAudit={() => setAuditModalOpen(true)}
       />
 
       {/* DEV-222 - Banner de demo. La URL raíz ES la sandbox, así que quien llega no
@@ -1602,6 +1627,7 @@ export function App() {
               allItems={allProjectItems}
               sprints={projectSprints}
               releases={projectReleases}
+              filters={filters}
               onClickItem={(item) => {
                 setEditingItem(item);
                 setItemModalOpen(true);
@@ -1740,6 +1766,23 @@ export function App() {
         </Suspense>
       )}
 
+      {/* Codebase Health Diagnostic Modal (DEV-356) */}
+      {auditModalOpen && (
+        <Suspense fallback={null}>
+          <AuditModal
+            isOpen={auditModalOpen}
+            onClose={() => setAuditModalOpen(false)}
+            report={auditReport}
+            isLoading={isAuditLoading}
+            isRefreshing={isAuditRefreshing}
+            isImporting={isAuditImporting}
+            onRefresh={refreshAuditData}
+            onImportTodos={importTodosAction}
+            config={config}
+          />
+        </Suspense>
+      )}
+
       {/* Mobile Bottom Navigation Bar (DEV-007) */}
       <nav 
         aria-label={t('app.mobileNav')}
@@ -1837,6 +1880,9 @@ export function App() {
 
       {/* Floating Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* DEV-358: Vercel Web Analytics (solo activo en demo sandbox pública) */}
+      <VercelAnalytics />
 
     </div>
   );

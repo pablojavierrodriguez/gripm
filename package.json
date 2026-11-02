@@ -1,6 +1,6 @@
 {
   "name": "@gripm/board",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Agile engineering & Product Management cockpit for AI pair programming: Markdown-backed backlog, MCP server and CLI for developers and autonomous agents.",
   "keywords": [
     "gripm",
@@ -75,7 +75,8 @@
     "mcp": "node bin/gripm-mcp.js",
     "tasks": "node --experimental-strip-types scripts/gripm-cli.ts list --open",
     "backlog:check": "node scripts/verify-backlog-sync.js",
-    "gate:review": "npm run backlog:check",
+    "check-loc": "node scripts/check-loc.mjs",
+    "gate:review": "node scripts/gate-review-items.mjs",
     "backlog:sync": "node scripts/verify-backlog-sync.js --fix",
     "playbook:check": "node scripts/sync-playbook.mjs --dry-run",
     "playbook:sync": "node scripts/sync-playbook.mjs",
@@ -99,6 +100,7 @@
     "validate": "npm run verify:changes -- --all"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^1.56.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

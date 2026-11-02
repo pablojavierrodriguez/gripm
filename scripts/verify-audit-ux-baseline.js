@@ -23,8 +23,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const AUDITOR = path.join(ROOT, 'scripts', 'audit-ux-code.cjs');
 const RULES = path.join(ROOT, 'scripts', 'ux-rules.json');
-// Upstream anchors the snapshot at the project root (DEV-188), not next to the script.
-const BASELINE = path.join(ROOT, 'audit-ux-baseline.json');
+// Resolves the baseline in .gripm/ (Zero-Clutter architecture) or project root fallback.
+const BASELINE = fs.existsSync(path.join(ROOT, '.gripm', 'audit-ux-baseline.json'))
+  ? path.join(ROOT, '.gripm', 'audit-ux-baseline.json')
+  : path.join(ROOT, 'audit-ux-baseline.json');
 
 
 

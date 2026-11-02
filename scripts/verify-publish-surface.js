@@ -166,10 +166,12 @@ try {
     }
   }
 
-  // 4c. Chequeo A3 - exclusión estricta de código fuente, scripts de test y baselines (DEV-307).
-  const FORBIDDEN_DIRS = ['src/', 'server/', 'scripts/', '.githooks/'];
+  // 4c. Chequeo A3 - exclusión estricta de código fuente, scripts de test, metadatos y baselines (DEV-307, DEV-345).
+  const FORBIDDEN_DIRS = ['src/', 'server/', 'scripts/', '.githooks/', '.gripm/'];
   const FORBIDDEN_DEV_FILES = [
     'audit-ux-baseline.json',
+    '.playbook-lock.json',
+    '.uxaudit.json',
     'vite.config.ts',
     'tailwind.config.js',
     'postcss.config.js',

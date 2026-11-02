@@ -115,14 +115,17 @@
   "enabledTabs": {
     "kanban": true,
     "sprint": false,
-    "release": true
+    "release": true,
+    "timeline": true,
+    "metrics": false
   },
   "locale": "en",
   "defaultView": "kanban",
   "modules": {
-    "sprint": true,
+    "sprint": false,
     "release": true,
-    "calendar": false
+    "calendar": false,
+    "timeline": true
   },
   "rankingEnabled": true,
   "customItemTypes": [],
@@ -140,5 +143,23 @@
     "parent": true,
     "blocked": true,
     "estimate": true
+  },
+  "modulesList": [],
+  "audit": {
+    "rules": {
+      "loc": true,
+      "suppressions": true,
+      "debtMarkers": true,
+      "consoleLog": false,
+      "testRunner": true
+    },
+    "thresholds": {
+      "maxLines": 1000,
+      "warnLines": 500
+    },
+    "exclude": [
+      "scripts/test-audit-service.js",
+      "scripts/test-api-security.js"
+    ]
   }
 }

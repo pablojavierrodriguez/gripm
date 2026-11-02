@@ -228,6 +228,13 @@ export interface GripmConfig {
   locale?: 'es' | 'en';
   version?: string;
   showFilterBarStats?: boolean;
+  showAuditBadge?: boolean;
+  auditBadgeStyle?: 'full' | 'compact';
+  audit?: import('./types/audit').AuditConfig;
+  guardrails?: {
+    enforceLocCeiling?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export type DevBoardConfig = GripmConfig;
@@ -306,4 +313,7 @@ export interface UpdateInfo {
   latestVersion: string;
   url?: string;
 }
+
+export * from './types/audit';
+
 

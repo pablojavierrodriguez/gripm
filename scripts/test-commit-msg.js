@@ -2,7 +2,7 @@
 
 /**
  * scripts/test-commit-msg.js
- * Verification test for commit-msg hook and validate-commit-msg.js (DEV-339).
+ * Verification test for commit-msg hook and validate-commit-msg.mjs (DEV-339 / DEV-345).
  */
 
 import assert from 'node:assert';
@@ -11,12 +11,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateCommitMessage } from './validate-commit-msg.js';
+import { validateCommitMessage } from './validate-commit-msg.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
-const SCRIPT_PATH = path.join(ROOT, 'scripts/validate-commit-msg.js');
+const SCRIPT_PATH = path.join(ROOT, 'scripts/validate-commit-msg.mjs');
 
 console.log('🧪 Iniciando verificación del validador de commit-msg (DEV-339)...');
 
@@ -48,15 +48,13 @@ const gitAutomated = [
   'Revert "feat(DEV-100): add something"',
   'fixup! feat(DEV-100): add something',
   'squash! feat(DEV-100): add something',
-  '# This is a git comment\n# Another comment\n',
-  '',
 ];
 
 for (const msg of gitAutomated) {
   const res = validateCommitMessage(msg);
   assert.strictEqual(res.valid, true, `Commit automatizado de Git rechazado: "${msg}". Razón: ${res.reason}`);
 }
-console.log(`✅ [2/6] Commits de bypass de Git (Merge, Revert, squash/fixup, vacíos) aprobados.`);
+console.log(`✅ [2/6] Commits de bypass de Git (Merge, Revert, squash/fixup) aprobados.`);
 
 // 3. Format errors (non-Conventional)
 const formatErrors = [
@@ -66,6 +64,8 @@ const formatErrors = [
   'feat',
   'feat:',
   'fix(): empty scope',
+  '# This is a git comment\n# Another comment\n',
+  '',
 ];
 
 for (const msg of formatErrors) {

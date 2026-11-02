@@ -14,6 +14,7 @@ import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo, semverGreater
 import { atomicWriteFileSync } from '../server/services/atomicWrite.ts';
 import { BacklogService } from '../server/services/backlogService.ts';
 import { isAllowedBrowsePath, isSystemRootDir } from '../server/services/fsExplorer.ts';
+import { scanCodebase } from '../server/services/auditService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -374,6 +375,28 @@ const CANONICAL_TOOLS = [
       type: 'object',
       properties: {
         projectId: { type: 'string', description: 'Project ID.' }
+      }
+    }
+  },
+  {
+    name: 'gripm_get_repo_health',
+    description: 'Returns static architecture and code health diagnostic (LOC budgets, suppressions, test framework, and TODOs)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['all', 'loc', 'quality', 'suppressions', 'tests', 'todos'],
+          description: 'Category of health data to retrieve'
+        },
+        limit: {
+          type: 'number',
+          description: 'Limit of items to return in lists'
+        },
+        projectId: {
+          type: 'string',
+          description: 'Project ID or code to inspect (optional, defaults to active project).'
+        }
       }
     }
   }
@@ -837,6 +860,86 @@ ${Array.isArray(args.actions) && args.actions.length > 0
       ok: true,
       total: retros.length,
       retros
+    };
+  }
+
+  if (name === 'gripm_get_repo_health') {
+    if (args.limit !== undefined) {
+      if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit <= 0) {
+        throw new Error(`[MCP Validation] Invalid parameter 'limit': must be a positive integer, received '${args.limit}'.`);
+      }
+    }
+
+    const validCategories = ['all', 'loc', 'quality', 'suppressions', 'tests', 'todos'];
+    const category = args.category || 'all';
+    if (!validCategories.includes(category)) {
+      throw new Error(`[MCP Validation] Invalid parameter 'category': must be one of [${validCategories.join(', ')}], received '${category}'.`);
+    }
+
+    const targetProject = (args.projectId ? registry.projects.find(p => p.id === args.projectId) : null)
+      || registry.projects.find(p => p.id === registry.activeProjectId)
+      || registry.projects[0];
+
+    const repoPath = targetProject?.repoPath || ROOT_DIR;
+    const report = await scanCodebase(repoPath);
+    const limit = args.limit;
+
+    if (category === 'loc') {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        loc: {
+          maxLines: report.loc.maxLines,
+          warnLines: report.loc.warnLines,
+          violations: limit ? report.loc.violations.slice(0, limit) : report.loc.violations
+        }
+      };
+    }
+
+    if (category === 'quality' || category === 'suppressions') {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        quality: {
+          suppressions: limit ? report.quality.suppressions.slice(0, limit) : report.quality.suppressions
+        }
+      };
+    }
+
+    if (category === 'tests') {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        tests: report.tests
+      };
+    }
+
+    if (category === 'todos') {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        todos: limit ? report.todos.slice(0, limit) : report.todos
+      };
+    }
+
+    return {
+      projectId: targetProject?.id || null,
+      score: report.score,
+      summary: report.summary,
+      loc: {
+        maxLines: report.loc.maxLines,
+        warnLines: report.loc.warnLines,
+        violations: limit ? report.loc.violations.slice(0, limit) : report.loc.violations
+      },
+      quality: {
+        suppressions: limit ? report.quality.suppressions.slice(0, limit) : report.quality.suppressions
+      },
+      todos: limit ? report.todos.slice(0, limit) : report.todos,
+      tests: report.tests
     };
   }
 

@@ -437,6 +437,48 @@ export const httpAdapter: GripmApi = {
     }
     return true;
   },
+
+  // --- Auditoría de código (DEV-356) ---------------------------------------
+  async fetchAudit(projectId?: string) {
+    const query = projectId && projectId !== 'all' ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const res = await fetch(`${API_BASE}/audit${query}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Error fetching audit report: ${res.statusText}`);
+    }
+    const json = await res.json();
+    return json.data;
+  },
+
+  async refreshAudit(projectId?: string) {
+    const res = await fetch(`${API_BASE}/audit/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(projectId && projectId !== 'all' ? { projectId } : {}),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Error refreshing audit: ${res.statusText}`);
+    }
+    const json = await res.json();
+    return json.data;
+  },
+
+  async importTodos(items, projectId?: string) {
+    const res = await fetch(`${API_BASE}/audit/import-todos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items,
+        ...(projectId && projectId !== 'all' ? { projectId } : {})
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Error importing todos: ${res.statusText}`);
+    }
+    return res.json();
+  },
 };
 
 export type { BoardEvent };

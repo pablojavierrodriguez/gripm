@@ -28,6 +28,7 @@ import {
 import { parseLegacyMarkdown, type ParsedLegacyItem } from '../../src/utils/legacyParser.ts';
 import { resolveProjectIdentity } from '../../scripts/registryConfig.js';
 import { getCachedUpdateInfo, checkForUpdates } from '../../scripts/updateChecker.js';
+import { handleAuditRoutes, clearAuditCache } from './audit.ts';
 
 let appVersion = '1.0.0';
 try {
@@ -97,6 +98,12 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
       };
     }
 
+    // DEV-355: REST API routes for Codebase Health Audit & TODOs Import
+    if (pathname.startsWith('/api/audit')) {
+      const handled = await handleAuditRoutes(req, res, pathname, activeProject, registry);
+      if (handled) return;
+    }
+
     // GET /api/settings (DEV-006)
     if (req.method === 'GET' && pathname === '/api/settings') {
       const urlObj = new URL(`http://localhost${url}`);
@@ -120,6 +127,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         process.env.GRIPM_MODE = configToSave.mode;
       }
       const savedPath = writeProjectConfig(configToSave, project);
+      clearAuditCache(project?.repoPath);
 
       broadcastSse('settings_changed', {
         projectId: project?.id,

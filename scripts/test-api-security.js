@@ -722,5 +722,198 @@ class MockRequest extends EventEmitter {
   console.log('✅ Blindaje Integral de Seguridad (DEV-302, DEV-317): IPv6 loopback, Gatekeeper hardened, ancestros symlink, pathname router y contención validados');
 }
 
+// Test 23: Endpoints REST de Auditoría e Importación de TODOs a Tareas (DEV-355)
+{
+  const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-test-audit-api-'));
+  const srcDir = path.join(tmpRepo, 'src');
+  const tasksDir = path.join(tmpRepo, 'backlog', 'tasks');
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.mkdirSync(tasksDir, { recursive: true });
+
+  // Initial task DEV-001
+  const initialTaskContent = `---
+id: DEV-001
+title: "Initial Setup"
+status: draft
+type: feature
+labels: []
+priority: medium
+---
+
+## Description
+Initial setup task.
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Initial AC
+<!-- AC:END -->
+`;
+  fs.writeFileSync(path.join(tasksDir, 'DEV-001 - initial-setup.md'), initialTaskContent, 'utf8');
+
+  // Source files with TODOs
+  fs.writeFileSync(
+    path.join(srcDir, 'app.ts'),
+    [
+      '// Line 1: Main entry',
+      '// TODO: fix buffer overflow in parser',
+      'export function run() {',
+      '  // FIXME: memory leak in loop',
+      '  return 42;',
+      '}'
+    ].join('\n'),
+    'utf8'
+  );
+
+  async function callApi(method, urlPath, payload = null) {
+    const defaultHeaders = {
+      host: 'localhost:4100',
+      origin: 'http://localhost:4100',
+      ...(payload !== null ? { 'content-type': 'application/json' } : {})
+    };
+    const req = new MockRequest(method, urlPath, defaultHeaders);
+    const res = new MockResponse();
+    middlewareHandler(req, res, () => {});
+    if (payload !== null) {
+      req.emit('data', typeof payload === 'string' ? payload : JSON.stringify(payload));
+      req.emit('end');
+    }
+    if (!res.finished) {
+      await new Promise((r) => res.once('finish', r));
+    }
+    let json = null;
+    try {
+      json = JSON.parse(res.body);
+    } catch {}
+    return { status: res.statusCode, body: res.body, json };
+  }
+
+  try {
+    // 1. GET /api/audit (AC #1 & Cache 30s)
+    const encodedPath = encodeURIComponent(tmpRepo);
+    const getRes1 = await callApi('GET', `/api/audit?path=${encodedPath}`);
+    assert.strictEqual(getRes1.status, 200, 'GET /api/audit debe responder 200 OK');
+    assert.strictEqual(getRes1.json.ok, true, 'GET /api/audit debe devolver ok: true');
+    assert.strictEqual(typeof getRes1.json.data.score, 'number', 'Score de salud debe ser numérico');
+    assert.strictEqual(getRes1.json.data.summary.todosCount, 2, 'Debe detectar 2 TODOs iniciales');
+    assert.strictEqual(getRes1.json.cached, false, 'Primera llamada debe ser cache miss');
+
+    // Rapid polling: second GET should hit in-memory cache
+    const getRes2 = await callApi('GET', `/api/audit?path=${encodedPath}`);
+    assert.strictEqual(getRes2.status, 200, 'Segunda llamada GET /api/audit debe responder 200');
+    assert.strictEqual(getRes2.json.cached, true, 'Segunda llamada debe ser cache hit');
+
+    // 2. POST /api/audit/refresh (AC #2)
+    // Add third TODO to filesystem
+    fs.writeFileSync(
+      path.join(srcDir, 'extra.ts'),
+      '// HACK: bypass sandbox check\nexport const v = 1;\n',
+      'utf8'
+    );
+    const refreshRes = await callApi('POST', '/api/audit/refresh', { path: tmpRepo });
+    assert.strictEqual(refreshRes.status, 200, 'POST /api/audit/refresh debe responder 200 OK');
+    assert.strictEqual(refreshRes.json.ok, true, 'POST /api/audit/refresh debe devolver ok: true');
+    assert.strictEqual(refreshRes.json.data.summary.todosCount, 3, 'Refresh debe invalidar cache y detectar 3 TODOs');
+
+    // 3. POST /api/audit/import-todos with specific items (AC #3, #4, #5)
+    const importItemRes = await callApi('POST', '/api/audit/import-todos', {
+      path: tmpRepo,
+      items: [
+        {
+          file: 'src/app.ts',
+          line: 2,
+          type: 'TODO',
+          text: 'fix buffer overflow in parser',
+          snippet: 'const buf = Buffer.alloc(10);'
+        }
+      ]
+    });
+    assert.strictEqual(importItemRes.status, 200, 'POST /api/audit/import-todos debe responder 200 OK');
+    assert.strictEqual(importItemRes.json.ok, true, 'import-todos debe responder ok: true');
+    assert.strictEqual(importItemRes.json.importedCount, 1, 'importedCount debe ser 1');
+    assert.strictEqual(importItemRes.json.taskIds[0], 'DEV-002', 'ID asignado correlativo debe ser DEV-002');
+
+    // Verify task file created in backlog/tasks/
+    const taskFiles = fs.readdirSync(tasksDir).filter(f => f.startsWith('DEV-002'));
+    assert.strictEqual(taskFiles.length, 1, 'Debe existir el archivo DEV-002 en disco');
+    const taskContent = fs.readFileSync(path.join(tasksDir, taskFiles[0]), 'utf8');
+
+    // AC #4: Frontmatter YAML y estado draft
+    assert.ok(taskContent.includes("status: draft"), 'Tarea importada debe tener status: draft');
+    assert.ok(taskContent.includes("type: tech_debt"), 'Tarea importada debe tener type: tech_debt');
+    assert.ok(taskContent.includes("priority: medium"), 'Tarea importada debe tener priority: medium');
+    assert.ok(taskContent.includes("todo-import"), 'Tarea importada debe incluir label todo-import');
+    assert.ok(taskContent.includes("src/app.ts"), 'Descripción debe incluir archivo de origen');
+    assert.ok(taskContent.includes("const buf = Buffer.alloc(10);"), 'Descripción debe incluir snippet de código');
+
+    // AC #5: Regeneración automática de BACKLOG.md
+    const backlogMdPath = path.join(tmpRepo, 'BACKLOG.md');
+    assert.ok(fs.existsSync(backlogMdPath), 'BACKLOG.md debe haber sido generado automáticamente');
+    const backlogContent = fs.readFileSync(backlogMdPath, 'utf8');
+    assert.ok(backlogContent.includes('DEV-002'), 'BACKLOG.md debe contener la tarea DEV-002');
+
+    // 4. POST /api/audit/import-todos with { all: true }
+    const importAllRes = await callApi('POST', '/api/audit/import-todos', {
+      path: tmpRepo,
+      all: true
+    });
+    assert.strictEqual(importAllRes.status, 200, 'import-todos con all: true debe responder 200');
+    assert.strictEqual(importAllRes.json.ok, true);
+    assert.ok(importAllRes.json.importedCount >= 2, 'all: true debe importar los TODOs restantes');
+    assert.ok(importAllRes.json.taskIds.includes('DEV-003'), 'Debe generar DEV-003');
+    assert.ok(importAllRes.json.taskIds.includes('DEV-004'), 'Debe generar DEV-004');
+
+    // 5. Error handling: 400, 405 (AC #6)
+    // 400 on malformed payload
+    const badPayloadRes = await callApi('POST', '/api/audit/import-todos', {});
+    assert.strictEqual(badPayloadRes.status, 400, 'Payload sin items ni all debe responder 400');
+
+    const badItemRes = await callApi('POST', '/api/audit/import-todos', {
+      path: tmpRepo,
+      items: [{ file: 'foo.ts' }] // missing text
+    });
+    assert.strictEqual(badItemRes.status, 400, 'Item sin text debe responder 400');
+
+    // 400 on path traversal
+    const forbiddenPath = process.platform === 'win32' ? 'C:\\Windows\\System32' : '/etc/shadow';
+    const pathTraversalRes = await callApi('POST', '/api/audit/import-todos', {
+      path: forbiddenPath,
+      all: true
+    });
+    assert.strictEqual(pathTraversalRes.status, 400, 'Path traversal debe responder 400');
+
+    // 405 on invalid HTTP methods
+    const methodNotAllowed1 = await callApi('POST', '/api/audit', {});
+    assert.strictEqual(methodNotAllowed1.status, 405, 'POST /api/audit debe responder 405');
+
+    const methodNotAllowed2 = await callApi('GET', '/api/audit/refresh');
+    assert.strictEqual(methodNotAllowed2.status, 405, 'GET /api/audit/refresh debe responder 405');
+
+    const methodNotAllowed3 = await callApi('GET', '/api/audit/import-todos');
+    assert.strictEqual(methodNotAllowed3.status, 405, 'GET /api/audit/import-todos debe responder 405');
+
+    // 6. 500 on internal service error (AC #6)
+    const { BacklogService } = await import('../server/services/backlogService.ts');
+    const origCreateTask = BacklogService.createTask;
+    try {
+      BacklogService.createTask = () => { throw new Error('Simulated atomic write failure'); };
+      const err500Res = await callApi('POST', '/api/audit/import-todos', {
+        path: tmpRepo,
+        items: [{ file: 'src/app.ts', line: 1, text: 'trigger 500' }]
+      });
+      assert.strictEqual(err500Res.status, 500, 'Error interno durante importación debe responder 500');
+      assert.strictEqual(err500Res.json.ok, false, 'Error 500 debe tener ok: false');
+      assert.ok(err500Res.json.error.includes('Simulated atomic write failure'));
+    } finally {
+      BacklogService.createTask = origCreateTask;
+    }
+
+    console.log('✅ Endpoints REST de Auditoría e Importación de TODOs (DEV-355): GET 200, Cache 30s, Refresh, Import masivo, YAML draft, sync BACKLOG.md y errores 400/405/500 validados.');
+  } finally {
+    try {
+      fs.rmSync(tmpRepo, { recursive: true, force: true });
+    } catch {}
+  }
+}
+
 console.log('🎉 [Security Test] Todas las salvaguardas de seguridad pasaron exitosamente contra el middleware REAL.');
 
