@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { getKanbanColumnItems } from '../src/utils/kanbanColumnItems.ts';
 import { getStatusMeta, normalizeStatus } from '../src/utils/statusMeta.ts';
 import { ALL_OPTIONAL_COLS, normalizeVisibleCols } from '../src/utils/sprintVisibleCols.ts';
+import { isAnalyticsAllowed } from '../src/utils/analytics.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readLocale = (language) => JSON.parse(
@@ -153,4 +154,40 @@ assert(appSource.includes("<CommandPaletteModal"), 'App.tsx must mount CommandPa
 assert(appSource.includes("(e.key === 'k' || e.key === 'K')"), 'App.tsx must intercept Cmd+K / Ctrl+K (DEV-255)');
 assert(appSource.includes("e.stopImmediatePropagation()"), 'App.tsx must stop immediate propagation so FilterBar is superseded by palette (DEV-255)');
 
-console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, module consistency (DEV-241), Parent column migration (DEV-256) and Command Palette (DEV-255)');
+// DEV-356: Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web
+assert(esLocales['audit.healthScore'] && enLocales['audit.healthScore'], 'both locales must expose audit.healthScore (DEV-356)');
+assert(esLocales['audit.modalTitle'] && enLocales['audit.modalTitle'], 'both locales must expose audit.modalTitle (DEV-356)');
+assert(esLocales['audit.tabBudgets'] && enLocales['audit.tabBudgets'], 'both locales must expose audit.tabBudgets (DEV-356)');
+assert(esLocales['audit.tabTodos'] && enLocales['audit.tabTodos'], 'both locales must expose audit.tabTodos (DEV-356)');
+assert(esLocales['audit.tabQuality'] && enLocales['audit.tabQuality'], 'both locales must expose audit.tabQuality (DEV-356)');
+
+const auditBadgeSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'audit', 'AuditBadge.tsx'), 'utf8');
+assert(auditBadgeSource.includes('min-h-[44px] min-w-[44px]'), 'AuditBadge must have accessible touch target >= 44x44px (DEV-356)');
+assert(auditBadgeSource.includes('focus-visible:ring-2'), 'AuditBadge must implement accessible focus ring (DEV-356)');
+assert(!auditBadgeSource.includes('text-[10px]') && !auditBadgeSource.includes('text-[11px]'), 'AuditBadge must not use arbitrary font size classes (UX-011)');
+
+const auditModalSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'audit', 'AuditModal.tsx'), 'utf8');
+assert(auditModalSource.includes('useFocusTrap<HTMLDivElement>(isOpen, onClose)'), 'AuditModal must integrate useFocusTrap (DEV-356)');
+assert(auditModalSource.includes('<Modal'), 'AuditModal must use Modal primitive mounting via createPortal (DEV-356)');
+assert(auditModalSource.includes("activeTab === 'budgets'") && auditModalSource.includes("activeTab === 'todos'") && auditModalSource.includes("activeTab === 'quality'"), 'AuditModal must support budgets, todos and quality sections (DEV-356)');
+assert(!auditModalSource.includes('text-[10px]') && !auditModalSource.includes('text-[11px]'), 'AuditModal must not use arbitrary font size classes (UX-011)');
+
+const headerSourceUpdated = fs.readFileSync(path.join(ROOT, 'src', 'components', 'Header.tsx'), 'utf8');
+assert(headerSourceUpdated.includes('<AuditBadge'), 'Header must render AuditBadge (DEV-356)');
+assert(headerSourceUpdated.includes('onOpenAudit'), 'Header must support onOpenAudit callback (DEV-356)');
+
+const appSourceUpdated = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8');
+assert(appSourceUpdated.includes('<AuditModal'), 'App.tsx must mount AuditModal (DEV-356)');
+assert(appSourceUpdated.includes('useRepoAudit'), 'App.tsx must use useRepoAudit hook (DEV-356)');
+
+// DEV-358: Vercel Web Analytics & Privacy Guardrail
+assert(appSourceUpdated.includes('<VercelAnalytics'), 'App.tsx must mount VercelAnalytics component (DEV-358)');
+assert.equal(isAnalyticsAllowed(false, 'gripm.vercel.app'), false, 'Analytics must be disabled when not in sandbox mode (local daemon)');
+assert.equal(isAnalyticsAllowed(true, 'localhost'), false, 'Analytics must be disabled on localhost');
+assert.equal(isAnalyticsAllowed(true, '127.0.0.1'), false, 'Analytics must be disabled on 127.0.0.1');
+assert.equal(isAnalyticsAllowed(true, '192.168.1.10'), false, 'Analytics must be disabled on private LAN IP');
+assert.equal(isAnalyticsAllowed(true, '10.0.0.5'), false, 'Analytics must be disabled on 10.x LAN IP');
+assert.equal(isAnalyticsAllowed(true, 'workstation.local'), false, 'Analytics must be disabled on .local domain');
+assert.equal(isAnalyticsAllowed(true, 'gripm.vercel.app'), true, 'Analytics must be enabled on public vercel.app demo');
+
+console.log('✅ UI logic: Kanban grouping, legacy status aliases, localized status labels, Header/FilterBar stacking hierarchy, SettingsSwitch, module consistency (DEV-241), Parent column migration (DEV-256), Command Palette (DEV-255), Code Health Panel (DEV-356) and Vercel Analytics Guardrail (DEV-358)');
