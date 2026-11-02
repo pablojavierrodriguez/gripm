@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-10-27 por gripm
+> Consolidado generado el 2026-11-02 por gripm
 
 ## Resumen de Estados
 
@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (6)
+### 🚀 Ready for Deploy (13)
 
 #### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -359,6 +359,215 @@ Ademas, el orden de aparicion en el timeline carece de criterio unificado:
 - [x] #2 El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
 - [x] #3 El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
 - [x] #4 Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
+
+---
+
+#### [DEV-352] Epica: Motor de Diagnostico y Auditoria de Repositorio (gripm audit) y Gobernanza Multi-Perfil
+- **Prioridad**: `high` | **Tipo**: `epic`
+
+Iniciativa y epica paraguas para transformar a Gripm en el motor de diagnostico, auditoria tecnica y aseguramiento de calidad ("Staff Engineer mecanico") para repositorios de software, preservando al 100% las capacidades existentes y soportando diversos arquetipos de proyectos y usuarios.
+
+### Vision y Objetivos Centrales:
+1. **Valor Inmediato ("Aha! Moment" en 3 segundos):** Ofrecer una auditoria estatica instantanea al inicializar un repo (`gripm --init`) o bajo demanda (`gripm audit`), reportando salud modular (LOC budgets), practicas anti-slop (supresiones de linter/tipos), infraestructura de testing y tareas pendientes ocultas en comentarios del codigo.
+2. **Preservacion de Arquetipos y Flujos Existentes:** Mantener soporte estricto para desarrolladores individuales (modo minimalista/Kanban puro), equipos tradicionales (Sprints, Releases, Timeline, Changelog) y equipos AI-Native (gates mecanicos de ACs, auditoria de diffs y verificacion ciega).
+3. **Conversion de Deuda Tecnica en Trabajo Estructurado:** Permitir escanear comentarios `TODO:`, `FIXME:`, `HACK:`, `BUG:` en el codigo e importarlos opcionalmente como tareas formales en `backlog/tasks/`.
+4. **Visibilidad Total (CLI, REST API, UI Cockpit y Servidor MCP):** El diagnostico de salud no es solo una salida de consola; vive como endpoint en el servidor local, se visualiza en la interfaz web y se expone a los agentes de IA a traves del protocolo MCP.
+
+### Historias y Tareas que componen la Epica:
+- **DEV-353:** Core Engine: Servicio Unificado de Auditoria Estatica (`auditService`) y Scanners de Salud (LOC, Anti-Slop, Tests, TODOs).
+- **DEV-354:** CLI & Onboarding: Comando `gripm audit` y Diagnostico Inicial en `gripm --init` con Recomendacion de Perfil.
+- **DEV-355:** Backend REST API: Endpoints `/api/audit` e Importacion Masiva de TODOs a Tareas en `backlog/tasks/`.
+- **DEV-356:** Cockpit UI: Panel de Diagnostico y Salud del Repositorio en Header y Modal de Acciones Rapidas.
+- **DEV-357:** MCP & Gatekeeper: Herramienta `gripm_get_repo_health` y Guardrails Arquitectonicos en Transiciones de Tarea.
+
+**Criterios de Aceptación:**
+- [x] #1 Todas las tareas hijas (DEV-353, DEV-354, DEV-355, DEV-356, DEV-357) estan formalizadas y enlazadas en el backlog con criterios verificables y dependencias resueltas.
+- [x] #2 El flujo no rompe la configuracion existente en .gripm/config.json ni altera el comportamiento de repositorios configurados previamente.
+- [x] #3 La ejecucion de la suite de pruebas general (`npm test`) y validacion de backlog (`npm run backlog:check`) finaliza con codigo de salida 0.
+
+---
+
+#### [DEV-353] Core Engine: Servicio Unificado de Auditoria Estatica (auditService) y Scanners de Salud
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Crear el motor base de auditoria estatica de Gripm (`server/services/auditService.ts` y script exportable `scripts/audit-engine.mjs`) que permite inspeccionar un repositorio de forma headless, sin dependencias pesadas y en menos de 2 segundos.
+
+### Capacidades del Motor:
+1. **Scanner de Presupuestos de Codigo (LOC Budgets):**
+   - Basado en los estandares de `scripts/check-loc.mjs` (<1000 LOC techo rigido, 500-999 LOC advertencia).
+   - Respeta `.gitignore`, `.locignore` y carpetas de distribucion (`node_modules`, `dist`, `.git`, `coverage`, `.gripm`).
+   - Retorna lista clasificada de archivos criticos y advertencias.
+
+2. **Scanner Anti-Slop (Calidad y Supresiones):**
+   - Inspecciona archivos de codigo en busca de supresiones artificiales de tipado y linting: `@ts-ignore`, `@ts-nocheck`, `eslint-disable`, supresiones de pruebas y uso desmedido de `any`.
+   - Registra cantidad, ubicacion (archivo:linea) y fragmento de contexto.
+
+3. **Auto-Deteccion de Infraestructura de Pruebas:**
+   - Inspecciona `package.json` (`scripts`, `devDependencies`, `dependencies`) y archivos de configuracion (`vitest.config.*`, `jest.config.*`, `pytest.ini`, `Cargo.toml`, etc.).
+   - Identifica el test runner principal y el comando canónico de verificacion (`npm test`, `pytest`, `cargo test`, etc.).
+   - Evalua si el comando responde con exit code limpio (`exit 0`).
+
+4. **Scanner de Deuda Oculta (TODOs / FIXMEs):**
+   - Escanea comentarios en codigo fuente bajo el patron `// (TODO|FIXME|HACK|BUG): <texto>` o bloques multi-linea equivalentes.
+   - Retorna array estructurado de hallazgos: `{ id, file, line, type, text, snippet }`.
+
+5. **Puntuacion de Salud Ponderada (Health Score 0-100):**
+   - Genera un indice numerico transparente basado en penalizaciones objetivas (archivos sobredimensionados, supresiones de linter, ausencia de tests).
+
+**Criterios de Aceptación:**
+- [x] #1 El modulo server/services/auditService.ts expone la funcion asincrona scanCodebase(targetPath, options) y retorna un objeto de resultado tipado segun el contrato de salud.
+- [x] #2 El scanner de LOC detecta correctamente archivos superiores a 500 y 1000 lineas, omitiendo directorios ignorados estandar (node_modules, dist, .git).
+- [x] #3 El scanner Anti-Slop reporta con precision la presencia de @ts-ignore, @ts-nocheck y eslint-disable con su linea correspondiente.
+- [x] #4 El detector de tests identifica los principales runners (vitest, jest, node:test, pytest) y deduce el comando verifyCommand sugerido.
+- [x] #5 El detector de TODOs extrae comentarios de tipo TODO, FIXME, HACK y BUG con archivo, numero de linea y descripcion.
+- [x] #6 El calculo de score ponderado (0 a 100) es determinista y no arroja valores NaN o fuera de rango ante repositorios vacios o sin codigo fuente.
+- [x] #7 El tiempo de ejecucion sobre un repositorio de 500 archivos fuente no supera los 2000 ms.
+- [x] #8 Se incorpora prueba unitaria headless (test-audit-service.js) que valida todas las reglas y aprueba con codigo de salida 0 en npm test.
+
+---
+
+#### [DEV-354] CLI y Onboarding: Integracion de gripm audit y Diagnostico Inicial en gripm --init con Recomendacion de Perfil
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Integrar el motor de auditoria estatica (`DEV-353`) directamente en la experiencia de linea de comandos (`gripm audit`) y dentro del asistente de inicializacion de repositorios (`gripm --init` en `scripts/initScaffold.js`).
+
+### Objetivos y Comportamiento:
+1. **Comando de Terminal Dedicado (`gripm audit`):**
+   - Ejecuta la inspeccion completa del repositorio e imprime en consola un reporte visual estilizado con resumen de salud, alertas amarillas/rojas y lista de hallazgos.
+   - Soporta flags CLI: `--format json` (para integraciones en scripts o CI), `--strict` (retorna codigo 1 si hay fallas criticas de presupuesto o supresiones) y `--quiet`.
+
+2. **Diagnostico de Bienvenida en el Onboarding (`gripm --init`):**
+   - Al iniciar el wizard en un repositorio, Gripm ejecuta el diagnostico en los primeros 2 segundos antes de solicitar confirmaciones.
+   - Muestra una radiografia inmediata del stack detectado, infraestructura de pruebas y estado de deuda tecnica.
+   - **Recomendacion Inteligente de Perfil:** Si detecta TypeScript + suite de pruebas robusta, sugiere por defecto el perfil *AI-Native* o *Baterias Incluidas*. Si detecta un proyecto simple sin pruebas, sugiere el perfil *Minimalista* para no imponer friccion innecesaria.
+   - **Auto-Configuracion de Verificacion:** Popula automaticamente la clave `verifyCommand` en `.gripm/config.json` con el comando canónico detectado (ej. `npm test` o `npx tsc --noEmit`).
+
+3. **Opt-in de Importacion de TODOs en Init:**
+   - Si el scanner detecta comentarios `TODO:` o `FIXME:`, el wizard pregunta de forma interactiva si se desean importar como tareas en estado `draft` dentro de `backlog/tasks/`.
+   - Si el usuario aprueba, materializa los archivos `.md` correspondientes y ejecuta `backlog:sync` de inmediato.
+
+**Criterios de Aceptación:**
+- [x] #1 El binario bin/gripm-cli.js reconoce el comando audit (y npx @gripm/board audit) ejecutando el diagnostico y formateando la salida en consola.
+- [x] #2 La bandera --format json en gripm audit emite exclusivamente el JSON estructurado por stdout con exit code 0.
+- [x] #3 La bandera --strict en gripm audit retorna exit code 1 si existen archivos que superan 1000 LOC o supresiones criticas.
+- [x] #4 El wizard en scripts/initScaffold.js ejecuta el diagnostico al inicio e imprime la radiografia previa a la seleccion de presets.
+- [x] #5 El wizard preselecciona la opcion recomendada de perfil segun los hallazgos del scanner, preservando la soberania del usuario para cambiarla.
+- [x] #6 El wizard ofrece importar los TODOs encontrados creando tareas validas en backlog/tasks/ sin duplicar IDs y ejecutando backlog:sync.
+- [x] #7 El modo no interactivo (--yes o -y) ejecuta la inicializacion de forma predecible sin colgarse en prompts.
+- [x] #8 La suite de pruebas de CLI (test-init-suite.js y test-cli-add.js) cubre el nuevo comando y aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-355] Backend REST API: Endpoints de Auditoria e Importacion Masiva de TODOs a Tareas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Exponer las capacidades del motor de auditoria (`DEV-353`) a traves de endpoints REST en el servidor Express/Node.js de Gripm (`server/`), permitiendo al frontend web y a clientes externos consultar la salud del codigo y materializar tareas desde comentarios detectados.
+
+### Endpoints Requeridos:
+1. **`GET /api/audit`:**
+   - Retorna el diagnostico consolidado de salud del repositorio.
+   - Implementa cache ligero en memoria (TTL de 30 segundos) con revalidacion para no penalizar el rendimiento del servidor en consultas frecuentes.
+   - Retorna el resumen general, desglose de LOC, supresiones detectadas, estado de pruebas y lista de TODOs/FIXMEs.
+
+2. **`POST /api/audit/refresh`:**
+   - Invalida la cache de auditoria y fuerza un escaneo fresco del arbol de trabajo en disco.
+
+3. **`POST /api/audit/import-todos`:**
+   - Permite importar uno, varios o todos los TODOs detectados hacia `backlog/tasks/`.
+   - Body esperado: `{ items: Array<{ file: string, line: number, type: string, text: string }> }`.
+   - Lee el ID maximo de forma atomica al momento de la creacion para evitar colisiones.
+   - Genera archivos Markdown estructurados en `backlog/tasks/DEV-XXX - slug.md` con estado `draft`, descripcion con el snippet original y labels `['todo-import', 'tech_debt']`.
+   - Dispara la sincronizacion inmediata (`syncBacklog()`) para actualizar `BACKLOG.md` de forma atomica.
+
+**Criterios de Aceptación:**
+- [x] #1 El endpoint GET /api/audit responde con codigo 200 y el JSON tipado del reporte de salud.
+- [x] #2 El endpoint POST /api/audit/refresh invalida la cache y actualiza los datos del diagnostico ante cambios en el sistema de archivos.
+- [x] #3 El endpoint POST /api/audit/import-todos valida la carga util y crea las tareas en backlog/tasks/ con IDs correlativos unicos.
+- [x] #4 Las tareas importadas por la API quedan en estado draft con su respectivo frontmatter YAML valido y sin secciones malformadas.
+- [x] #5 La llamada de importacion regenera BACKLOG.md automaticamente manteniendo coherencia con el arbol de tareas en disco.
+- [x] #6 Se incorporan pruebas en scripts/test-backlog-service.js o test de API validando los endpoints y codigos de error (400, 500).
+- [x] #7 La suite de pruebas de API y seguridad responde con codigo de salida 0.
+
+---
+
+#### [DEV-356] Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Construir la experiencia visual en el Cockpit web (`src/`) para consultar el estado de salud del codigo y gestionar los hallazgos de auditoria sin interrumpir los flujos de trabajo habituales (Kanban, Sprints, Releases, Timeline).
+
+### Componentes de UI:
+1. **Health Badge en Header (`src/components/Header.tsx`):**
+   - Incorpora una pastilla sutil en la cabecera mostrando el puntaje de salud (`Salud: 85/100`) con indicador visual semantico (verde >= 80, amarillo 60-79, rojo < 60).
+   - Area tactil minima de 44x44px y anillo de foco accesible (`focus-visible:ring-2`).
+   - En perfiles *Minimalistas*, puede ocultarse o reducirse a un indicador discreto segun `.gripm/config.json` para respetar el principio Zero-Clutter.
+
+2. **Modal de Diagnostico y Acciones (`AuditModal.tsx`):**
+   - Renderizado via `createPortal(..., document.body)` para evitar colisiones de stacking context y overflow.
+   - Pestaña/Seccion 1 - **Presupuestos y Modularidad:** Lista de archivos que superan las 500 y 1000 lineas, con enlaces de referencia y conteo exacto de lineas.
+   - Pestaña/Seccion 2 - **TODOs en Codigo:** Listado de comentarios detectados con opcion de seleccion multiple y boton de accion rapida *"Importar seleccionados como tareas"*.
+   - Pestaña/Seccion 3 - **Calidad Anti-Slop:** Detalle de `@ts-ignore` y `eslint-disable` en el repositorio.
+   - Accion de re-escaneo manual con estado de carga ("Refrescar diagnostico").
+
+3. **Estandares de Diseno y Ergonomia:**
+   - Tipografia 100% canónica de Tailwind (`text-xs`, `text-sm`, `text-base`), prohibidas clases arbitrarias como `text-[10px]`.
+   - Soporte para temas claro y oscuro (`dark:`) sin perdida de contraste.
+   - Trampa de foco accesible y cierre mediante tecla Escape.
+
+**Criterios de Aceptación:**
+- [x] #1 El Header renderiza el indicador de salud consumiendo los datos de GET /api/audit sin provocar layout shifts (Zero-CLS).
+- [x] #2 Al hacer clic en el indicador de salud se abre el modal AuditModal montado en document.body mediante createPortal.
+- [x] #3 El modal permite navegar entre las secciones de modularidad, TODOs y supresiones de calidad con teclado y raton.
+- [x] #4 La lista de TODOs permite seleccionar elementos y ejecutar la importacion a traves de POST /api/audit/import-todos refrescando la vista del Backlog.
+- [x] #5 El boton de re-escaneo invoca POST /api/audit/refresh y actualiza las metricas en pantalla con feedback de carga.
+- [x] #6 No se introducen clases de tamano de fuente arbitrarias (cumplimiento de regla UX-011 verificable por audit-ux-baseline).
+- [x] #7 El modal cuenta con gestion de foco accesible, cierre con tecla Escape y tap targets superiores a 44x44px.
+- [x] #8 La suite de pruebas de UI y build de Vite (npm run build y npm test) aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-357] MCP y Gatekeeper: Herramienta repo_health y Guardrails Arquitectonicos en Transiciones de Tarea
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Conectar el motor de auditoria y diagnostico (`DEV-353`) al servidor MCP (`bin/gripm-mcp.js` y `scripts/mcp-server.ts`), otorgando a los agentes de IA (Cursor, Claude Code, Antigravity) visibilidad de la salud del repositorio e incorporando salvaguardas arquitectonicas opcionales en el Gatekeeper de certificacion.
+
+### Capacidades MCP:
+1. **Nueva Herramienta MCP `gripm_get_repo_health`:**
+   - Permite a los agentes consultar en cualquier momento la puntuacion de salud, los archivos cercanos al limite de lineas (>500 LOC), las supresiones detectadas y los tests configurados.
+   - Argumentos opcionales: `{ category: 'all' | 'loc' | 'suppressions' | 'tests', limit: number }`.
+   - Permite a los agentes evaluar el impacto de su trabajo antes de proponer cambios o solicitar certificacion.
+
+2. **Guardrails Arquitectonicos en el Gatekeeper (`gripm_update_task`):**
+   - Cuando un agente intenta transicionar una tarea a estado `ready`:
+     - El Gatekeeper valida los criterios de aceptacion tildados y el exit code de `verifyCommand` (como hace actualmente).
+     - **Guardrail de Modularidad Opt-in:** Si `.gripm/config.json` tiene activada la gobernanza estricta (`guardrails.enforceLocCeiling: true`), el gatekeeper verifica que ningun archivo tocado en el changeset supere el techo rigido de 1000 LOC.
+     - En caso de incumplimiento, rechaza la transicion con un mensaje descriptivo orientando al agente a modularizar antes de entregar.
+   - **Preservacion de la Soberania del PO:** El parametro `force: true` permite anular el bloqueo mecánico si el usuario humano asi lo autoriza expresamente, emitiendo un registro de advertencia en los logs.
+
+**Criterios de Aceptación:**
+- [x] #1 El servidor MCP registra la herramienta gripm_get_repo_health en su lista de herramientas expuestas via stdio.
+- [x] #2 La invocacion de gripm_get_repo_health retorna el diagnostico estructurado segun los parametros de categoria solicitados.
+- [x] #3 La herramienta gripm_update_task evalua los guardrails configurados al transicionar una tarea a estado ready.
+- [x] #4 Si enforceLocCeiling esta activo y se detectan archivos que superan 1000 LOC en el diff, la transicion a ready es rechazada con mensaje explicativo.
+- [x] #5 La bandera force: true permite a un usuario humano sortear la restriccion preservando la trazabilidad en la respuesta MCP.
+- [x] #6 En proyectos con configuracion estandar o minimalista (sin guardrails estrictos), el Gatekeeper conserva su comportamiento actual sin bloqueos adicionales.
+- [x] #7 La suite de pruebas del binario MCP (scripts/verify-mcp-binary.js y tests de integracion) aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-358] Configurar Vercel Web Analytics en la demo web estatica
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Configurar Vercel Web Analytics (`@vercel/analytics`) para la demo web pública desplegada en Vercel (`https://gripm.vercel.app`), permitiendo medir métricas de uso (visitantes únicos, páginas vistas, referrers, países y dispositivos).
+
+### Guardrail de Privacidad OSS / Local-First:
+- El tracking de telemetría debe activarse **única y exclusivamente** cuando la aplicación corre en la demo web pública alojada en Vercel (`isSandboxMode()` y hostname `vercel.app` o producción web).
+- En ejecuciones locales (CLI `gripm`, `board`, `npm run dev`, entorno local con daemon), el componente de Analytics no debe inicializarse bajo ninguna circunstancia, garantizando cero telemetría y privacidad absoluta para desarrolladores locales.
+
+**Criterios de Aceptación:**
+- [x] #1 El paquete @vercel/analytics esta incorporado en las dependencias del proyecto.
+- [x] #2 El componente Analytics se monta en la aplicacion condicionando su activacion exclusivamente a la demo web (isSandboxMode() y entorno web).
+- [x] #3 En ejecuciones locales con daemon o entornos de desarrollo local, Analytics no emite eventos ni rastrea actividad.
+- [x] #4 La suite de verificacion (npx tsc --noEmit, npm test, npm run backlog:check, npm run build) compila y pasa con codigo 0.
 
 ---
 

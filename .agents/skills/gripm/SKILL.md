@@ -69,6 +69,7 @@ The MCP server is included in the `@gripm/board` package. It exposes Board's bac
 | **`gripm_sync_backlog`** | Audits and reconciles out-of-sync tasks with acceptance criteria. | `projectId`, `autoFix` |
 | **`gripm_create_retro`** | Records a structured sprint retrospective in Markdown. | `projectId`, `sprintId`, `sprintName`, `date`, `author` |
 | **`gripm_list_retros`** | Lists recorded sprint retrospectives in `backlog/retros/`. | `projectId` |
+| **`gripm_get_repo_health`** | Returns static architecture and code health diagnostic (LOC budgets, suppressions, test framework, and TODOs). | `projectId`, `category`, `limit` |
 
 ---
 

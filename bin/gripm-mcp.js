@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 // scripts/mcp-server.ts
-import fs8 from "node:fs";
-import path9 from "node:path";
+import fs10 from "node:fs";
+import path11 from "node:path";
 import readline from "node:readline";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
+import { fileURLToPath as fileURLToPath5 } from "node:url";
 
 // scripts/registryConfig.js
 import fs from "node:fs";
@@ -389,8 +389,8 @@ function atomicWriteFileSync2(filePath, content, options) {
 }
 
 // server/services/backlogService.ts
-import fs6 from "node:fs";
-import path7 from "node:path";
+import fs7 from "node:fs";
+import path8 from "node:path";
 import { execSync } from "node:child_process";
 
 // scripts/backlogMdParser.ts
@@ -1252,28 +1252,342 @@ ${item.description}
   return lines.join("\n");
 }
 
-// server/services/registry.ts
+// scripts/check-loc.mjs
 import fs4 from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 var __filename2 = fileURLToPath2(import.meta.url);
 var __dirname2 = path4.dirname(__filename2);
-var PKG_ROOT = path4.resolve(__dirname2, "../../");
-var DEMO_FILE = fs4.existsSync(path4.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path4.resolve(PKG_ROOT, "data/demo-backlog.json") : path4.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var DEFAULT_MAX_LINES = 1e3;
+var DEFAULT_WARN_LINES = 500;
+var DEFAULT_EXTENSIONS = /* @__PURE__ */ new Set([
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".jsx",
+  ".py",
+  ".go",
+  ".rs",
+  ".rb",
+  ".php",
+  ".java",
+  ".c",
+  ".cpp",
+  ".h",
+  ".hpp",
+  ".cs",
+  ".swift",
+  ".kt",
+  ".sh",
+  ".bash",
+  ".ps1",
+  ".sql",
+  ".graphql",
+  ".proto"
+]);
+var DEFAULT_IGNORED_DIRS = /* @__PURE__ */ new Set([
+  "node_modules",
+  "dist",
+  "build",
+  "out",
+  "bin",
+  ".next",
+  ".nuxt",
+  ".turbo",
+  ".svelte-kit",
+  "coverage",
+  ".git",
+  ".vscode",
+  ".idea",
+  ".playbook-backups",
+  ".gripm",
+  ".agents",
+  "docs",
+  "tests",
+  "__tests__",
+  "fixtures"
+]);
+var CANDIDATE_SRC_DIRS = [
+  "src",
+  "app",
+  "lib",
+  "domain",
+  "packages",
+  "client",
+  "frontend"
+];
+function parseIgnoreLines(lines) {
+  return lines.map((line) => line.trim()).filter((line) => line && !line.startsWith("#")).map((pattern) => {
+    const isDirOnly = pattern.endsWith("/");
+    const clean = pattern.replace(/\/$/, "");
+    const escaped = clean.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+    return { pattern: clean, isDirOnly, regex: new RegExp(`(?:^|/)${escaped}(?:/|$)`) };
+  });
+}
+function parseIgnoreFile(filePath) {
+  if (!fs4.existsSync(filePath)) return [];
+  try {
+    const content = fs4.readFileSync(filePath, "utf8");
+    return parseIgnoreLines(content.split(/\r?\n/));
+  } catch {
+    return [];
+  }
+}
+function isIgnored(relPath, isDir, ignoreRules, ignoredDirs = DEFAULT_IGNORED_DIRS) {
+  const norm = relPath.replace(/\\/g, "/");
+  const parts = norm.split("/");
+  for (const part of parts) {
+    if (ignoredDirs.has(part)) return true;
+  }
+  const dirPart = isDir ? norm : parts.slice(0, -1).join("/");
+  for (const rule of ignoreRules) {
+    if (rule.isDirOnly) {
+      if (isDir && rule.regex.test(norm)) return true;
+      if (!isDir && dirPart && (rule.regex.test(dirPart) || parts.slice(0, -1).some((p) => rule.regex.test(p)))) {
+        return true;
+      }
+    } else {
+      if (rule.regex.test(norm)) return true;
+    }
+  }
+  return false;
+}
+function countFileLines(filePath) {
+  try {
+    const content = fs4.readFileSync(filePath, "utf8");
+    if (!content) return 0;
+    const lines = content.replace(/\r\n/g, "\n").split("\n");
+    if (lines.length > 0 && lines[lines.length - 1] === "") {
+      return lines.length - 1;
+    }
+    return lines.length;
+  } catch {
+    return 0;
+  }
+}
+function checkFileBudget(options = {}) {
+  const root = path4.resolve(options.root || options.cwd || options.path || process.cwd());
+  const maxLines = Number(options.maxLines ?? options.max ?? DEFAULT_MAX_LINES);
+  const warnLines = Number(options.warnLines ?? options.warn ?? DEFAULT_WARN_LINES);
+  const customExts = options.extensions ? new Set(options.extensions) : DEFAULT_EXTENSIONS;
+  const customIgnoredDirs = options.ignoredDirs ? new Set(options.ignoredDirs) : DEFAULT_IGNORED_DIRS;
+  const gitignoreRules = parseIgnoreFile(path4.join(root, ".gitignore"));
+  const gripmLocignoreNoDot = path4.join(root, ".gripm", "locignore");
+  const gripmLocignoreDot = path4.join(root, ".gripm", ".locignore");
+  const rootLocignore = path4.join(root, ".locignore");
+  const locignorePath = fs4.existsSync(gripmLocignoreNoDot) ? gripmLocignoreNoDot : fs4.existsSync(gripmLocignoreDot) ? gripmLocignoreDot : rootLocignore;
+  const locignoreRules = parseIgnoreFile(locignorePath);
+  const extraExcludes = Array.isArray(options.exclude) ? parseIgnoreLines(options.exclude) : options.exclude ? parseIgnoreLines([options.exclude]) : [];
+  const combinedRules = [...gitignoreRules, ...locignoreRules, ...extraExcludes];
+  const violations = [];
+  const warnings = [];
+  let scanned = 0;
+  function walk(currentDir) {
+    let entries = [];
+    try {
+      entries = fs4.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path4.join(currentDir, entry.name);
+      const rel = path4.relative(root, full);
+      if (entry.isDirectory()) {
+        if (!isIgnored(rel, true, combinedRules, customIgnoredDirs)) {
+          walk(full);
+        }
+      } else if (entry.isFile()) {
+        const ext = path4.extname(entry.name).toLowerCase();
+        if (customExts.has(ext) && !isIgnored(rel, false, combinedRules, customIgnoredDirs)) {
+          scanned++;
+          const lines = countFileLines(full);
+          const item = {
+            file: rel.replace(/\\/g, "/"),
+            lines,
+            maxLines,
+            warnLines
+          };
+          if (lines >= maxLines) {
+            violations.push(item);
+          } else if (lines >= warnLines) {
+            warnings.push(item);
+          }
+        }
+      }
+    }
+  }
+  if (options.src) {
+    const target = path4.resolve(root, options.src);
+    if (fs4.existsSync(target)) {
+      const stat = fs4.statSync(target);
+      if (stat.isDirectory()) {
+        walk(target);
+      } else if (stat.isFile()) {
+        const lines = countFileLines(target);
+        scanned = 1;
+        const rel = path4.relative(root, target).replace(/\\/g, "/");
+        const item = { file: rel, lines, maxLines, warnLines };
+        if (lines >= maxLines) violations.push(item);
+        else if (lines >= warnLines) warnings.push(item);
+      }
+    }
+  } else {
+    const detectedSrcDirs = CANDIDATE_SRC_DIRS.map((dir) => path4.join(root, dir)).filter((dir) => fs4.existsSync(dir) && fs4.statSync(dir).isDirectory());
+    if (detectedSrcDirs.length > 0) {
+      for (const dir of detectedSrcDirs) {
+        walk(dir);
+      }
+    } else {
+      walk(root);
+    }
+  }
+  violations.sort((a, b) => b.lines - a.lines);
+  warnings.sort((a, b) => b.lines - a.lines);
+  const strict = Boolean(options.strict);
+  return {
+    root,
+    scanned,
+    maxLines,
+    warnLines,
+    violations,
+    warnings,
+    hasDebt: violations.length > 0,
+    passed: strict ? violations.length === 0 : true,
+    strict
+  };
+}
+var isColorSupported = !("NO_COLOR" in process.env) && (process.env.FORCE_COLOR === "1" || process.stdout?.isTTY && process.env.TERM !== "dumb");
+var c = {
+  bold: (s) => isColorSupported ? `\x1B[1m${s}\x1B[22m` : s,
+  dim: (s) => isColorSupported ? `\x1B[2m${s}\x1B[22m` : s,
+  green: (s) => isColorSupported ? `\x1B[32m${s}\x1B[39m` : s,
+  yellow: (s) => isColorSupported ? `\x1B[33m${s}\x1B[39m` : s,
+  red: (s) => isColorSupported ? `\x1B[31m${s}\x1B[39m` : s,
+  cyan: (s) => isColorSupported ? `\x1B[36m${s}\x1B[39m` : s
+};
+function runCli(argv = process.argv.slice(2)) {
+  let targetPath = null;
+  let maxLines = DEFAULT_MAX_LINES;
+  let warnLines = DEFAULT_WARN_LINES;
+  let formatJson = false;
+  let strict = false;
+  const excludes = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--max" || arg === "--max-lines") {
+      maxLines = parseInt(argv[++i], 10);
+    } else if (arg === "--warn" || arg === "--warn-lines") {
+      warnLines = parseInt(argv[++i], 10);
+    } else if (arg === "--path" || arg === "--src" || arg === "--root" || arg === "--cwd") {
+      targetPath = argv[++i];
+    } else if (arg.startsWith("--root=") || arg.startsWith("--cwd=") || arg.startsWith("--path=")) {
+      targetPath = arg.split("=")[1];
+    } else if (arg === "--exclude") {
+      excludes.push(argv[++i]);
+    } else if (arg === "--strict") {
+      strict = true;
+    } else if (arg === "--json") {
+      formatJson = true;
+    } else if (arg === "--help" || arg === "-h") {
+      console.log(`
+Usage: node scripts/check-loc.mjs [options] [path]
+
+Options:
+  --max, --max-lines <n>   Ceiling lines limit (default: ${DEFAULT_MAX_LINES})
+  --warn, --warn-lines <n> Soft warning threshold (default: ${DEFAULT_WARN_LINES})
+  --path, --src <dir>      Directory or file to scan (default: auto-detect src/ or cwd)
+  --exclude <pattern>      Exclude file or directory pattern (repeatable)
+  --strict                 Exit 1 if any file reaches or exceeds limit (default: advisory exit 0)
+  --json                   Output results as JSON
+  --help, -h               Show this help message
+`);
+      process.exit(0);
+    } else if (!arg.startsWith("--")) {
+      targetPath = arg;
+    }
+  }
+  const result = checkFileBudget({
+    path: targetPath,
+    maxLines,
+    warnLines,
+    exclude: excludes,
+    strict
+  });
+  if (formatJson) {
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.passed ? 0 : 1);
+  }
+  console.log(`
+  ${c.bold("gripm")} ${c.dim("\xB7")} File Budget & Modularity Checker
+`);
+  console.log(`  Target:    ${c.cyan(result.root)}`);
+  console.log(`  Scanned:   ${result.scanned} source files`);
+  console.log(`  Limits:    Ceiling < ${result.maxLines} LOC \xB7 Warning >= ${result.warnLines} LOC`);
+  console.log(`  Mode:      ${result.strict ? c.red("Strict (blocking gate)") : c.dim("Advisory (PO sovereignty - non-blocking)")}
+`);
+  if (result.warnings.length > 0) {
+    console.log(`  ${c.yellow("\u25B2 Warnings (modular refactoring recommended):")}`);
+    for (const w of result.warnings) {
+      console.log(`    ${c.yellow("\u26A0")} ${w.file.padEnd(55)} ${c.bold(w.lines)} LOC`);
+    }
+    console.log("");
+  }
+  if (result.violations.length > 0) {
+    if (result.strict) {
+      console.log(`  ${c.red("\u2716 Violations (strict mode enabled - hard ceiling breached):")}`);
+      for (const v of result.violations) {
+        console.log(`    ${c.red("\u2716")} ${v.file.padEnd(55)} ${c.bold(v.lines)} LOC (exceeds ${result.maxLines})`);
+      }
+      console.log(`
+  ${c.red("\u2716 FILE BUDGET FAILED")} - ${result.violations.length} file(s) exceed ${result.maxLines} LOC.
+`);
+      process.exit(1);
+    } else {
+      console.log(`  ${c.yellow("\u25B2 Technical Debt Notice (files exceeding " + result.maxLines + " LOC):")}`);
+      for (const v of result.violations) {
+        console.log(`    ${c.yellow("\u26A0")} ${v.file.padEnd(55)} ${c.bold(v.lines)} LOC (exceeds ${result.maxLines})`);
+      }
+      console.log(`
+  ${c.dim("\u2139 PO Advisory: Large files increase maintenance risk and single points of failure.")}`);
+      console.log(`  ${c.dim("  Ensure a refactoring task is tracked and prioritized in the backlog (`backlog/tasks/`).")}`);
+      console.log(`  ${c.dim("  The final release decision belongs to the PO.")}
+`);
+      process.exit(0);
+    }
+  }
+  console.log(`  ${c.green("\u2714 All files within modular limits (< " + result.maxLines + " LOC).")}
+`);
+  process.exit(0);
+}
+var isDirectEntry = process.argv[1] && path4.resolve(process.argv[1]) === __filename2 && path4.basename(process.argv[1]).includes("check-loc");
+if (isDirectEntry) {
+  runCli();
+}
+
+// server/services/registry.ts
+import fs5 from "node:fs";
+import path5 from "node:path";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
+var __filename3 = fileURLToPath3(import.meta.url);
+var __dirname3 = path5.dirname(__filename3);
+var PKG_ROOT = path5.resolve(__dirname3, "../../");
+var DEMO_FILE = fs5.existsSync(path5.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path5.resolve(PKG_ROOT, "data/demo-backlog.json") : path5.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function detectProjectStorage(repoPath) {
   if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
-  const normalized = path4.normalize(repoPath.trim());
+  const normalized = path5.normalize(repoPath.trim());
   try {
-    if (fs4.existsSync(path4.join(normalized, "backlog", "tasks"))) {
+    if (fs5.existsSync(path5.join(normalized, "backlog", "tasks"))) {
       return { storageType: "markdown", backlogDir: "backlog" };
     }
-    if (fs4.existsSync(path4.join(normalized, ".backlog", "tasks"))) {
+    if (fs5.existsSync(path5.join(normalized, ".backlog", "tasks"))) {
       return { storageType: "markdown", backlogDir: ".backlog" };
     }
-    if (fs4.existsSync(path4.join(normalized, "backlog"))) {
+    if (fs5.existsSync(path5.join(normalized, "backlog"))) {
       return { storageType: "markdown", backlogDir: "backlog" };
     }
-    if (fs4.existsSync(path4.join(normalized, ".backlog"))) {
+    if (fs5.existsSync(path5.join(normalized, ".backlog"))) {
       return { storageType: "markdown", backlogDir: ".backlog" };
     }
   } catch {
@@ -1295,10 +1609,10 @@ function getRegistry() {
     reg = { activeProjectId: "", projects: [] };
   }
   const cwd = process.cwd();
-  const hasLocalGripm = fs4.existsSync(path4.join(cwd, ".gripm")) || fs4.existsSync(path4.join(cwd, "backlog"));
+  const hasLocalGripm = fs5.existsSync(path5.join(cwd, ".gripm")) || fs5.existsSync(path5.join(cwd, "backlog"));
   if (hasLocalGripm) {
-    const cwdResolved = path4.resolve(cwd);
-    const existingLocal = reg.projects.find((p) => p.repoPath && path4.resolve(p.repoPath) === cwdResolved);
+    const cwdResolved = path5.resolve(cwd);
+    const existingLocal = reg.projects.find((p) => p.repoPath && path5.resolve(p.repoPath) === cwdResolved);
     if (!existingLocal) {
       const detected = detectProjectStorage(cwdResolved);
       const identity = resolveProjectIdentity(cwdResolved);
@@ -1329,7 +1643,7 @@ function getRegistry() {
   }
   reg.projects = reg.projects.filter((p) => {
     if (p.isDemo || p.id === "demo") return true;
-    if (p.repoPath && !fs4.existsSync(p.repoPath)) return false;
+    if (p.repoPath && !fs5.existsSync(p.repoPath)) return false;
     return true;
   });
   if (reg.projects.length === 0) {
@@ -1359,10 +1673,10 @@ function getRegistry() {
 }
 
 // server/utils/fs-lock.ts
-import fs5 from "node:fs";
-import path5 from "node:path";
+import fs6 from "node:fs";
+import path6 from "node:path";
 function getLockFilePath(targetPath) {
-  const resolved = path5.resolve(targetPath);
+  const resolved = path6.resolve(targetPath);
   return resolved.endsWith(".lock") ? resolved : `${resolved}.lock`;
 }
 function sleepSync(ms) {
@@ -1382,12 +1696,12 @@ function calculateNextDelay(currentDelay, maxDelay) {
 }
 function checkAndCleanStaleLock(lockFilePath, staleTimeoutMs) {
   try {
-    const stat = fs5.statSync(lockFilePath);
+    const stat = fs6.statSync(lockFilePath);
     const age = Date.now() - stat.mtimeMs;
     let isStale = age > staleTimeoutMs;
     if (!isStale) {
       try {
-        const content = fs5.readFileSync(lockFilePath, "utf8");
+        const content = fs6.readFileSync(lockFilePath, "utf8");
         const payload = JSON.parse(content);
         if (typeof payload.expiresAt === "number" && Date.now() > payload.expiresAt) {
           isStale = true;
@@ -1397,7 +1711,7 @@ function checkAndCleanStaleLock(lockFilePath, staleTimeoutMs) {
     }
     if (isStale) {
       try {
-        fs5.unlinkSync(lockFilePath);
+        fs6.unlinkSync(lockFilePath);
         return true;
       } catch {
       }
@@ -1416,15 +1730,15 @@ function acquireLockSync(targetPath, options) {
   const minDelay = options?.minRetryDelayMs ?? 25;
   const maxDelay = options?.maxRetryDelayMs ?? 250;
   const staleTimeoutMs = options?.staleTimeoutMs ?? 5e3;
-  const dir = path5.dirname(lockFilePath);
-  if (!fs5.existsSync(dir)) {
-    fs5.mkdirSync(dir, { recursive: true });
+  const dir = path6.dirname(lockFilePath);
+  if (!fs6.existsSync(dir)) {
+    fs6.mkdirSync(dir, { recursive: true });
   }
   const startTime = Date.now();
   let currentDelay = minDelay;
   while (true) {
     try {
-      const fd = fs5.openSync(lockFilePath, "wx");
+      const fd = fs6.openSync(lockFilePath, "wx");
       const payload = {
         pid: process.pid,
         createdAt: Date.now(),
@@ -1432,16 +1746,16 @@ function acquireLockSync(targetPath, options) {
         metadata: options?.metadata
       };
       try {
-        fs5.writeFileSync(fd, JSON.stringify(payload), "utf8");
+        fs6.writeFileSync(fd, JSON.stringify(payload), "utf8");
       } finally {
         try {
-          fs5.closeSync(fd);
+          fs6.closeSync(fd);
         } catch {
         }
       }
       return {
         lockPath: lockFilePath,
-        targetPath: path5.resolve(targetPath),
+        targetPath: path6.resolve(targetPath),
         acquiredAt: Date.now(),
         release: () => releaseLockSync(lockFilePath)
       };
@@ -1466,8 +1780,8 @@ function acquireLockSync(targetPath, options) {
 function releaseLockSync(targetPath) {
   const lockFilePath = getLockFilePath(targetPath);
   try {
-    if (fs5.existsSync(lockFilePath)) {
-      fs5.unlinkSync(lockFilePath);
+    if (fs6.existsSync(lockFilePath)) {
+      fs6.unlinkSync(lockFilePath);
     }
   } catch (unlinkErr) {
     const err = unlinkErr;
@@ -1485,7 +1799,7 @@ function withFileLockSync(targetPath, fn, options) {
 }
 
 // server/services/taskCache.ts
-import path6 from "node:path";
+import path7 from "node:path";
 var taskCache = /* @__PURE__ */ new Map();
 var cacheHits = 0;
 var cacheMisses = 0;
@@ -1521,9 +1835,9 @@ function getTaskCacheStats() {
   };
 }
 function pruneStaleCacheEntries(tasksDir, activeFilePaths) {
-  const normalizedDir = path6.resolve(tasksDir);
+  const normalizedDir = path7.resolve(tasksDir);
   for (const cachedPath of taskCache.keys()) {
-    if (path6.dirname(path6.resolve(cachedPath)) === normalizedDir && !activeFilePaths.has(cachedPath)) {
+    if (path7.dirname(path7.resolve(cachedPath)) === normalizedDir && !activeFilePaths.has(cachedPath)) {
       taskCache.delete(cachedPath);
     }
   }
@@ -1542,36 +1856,36 @@ var ConflictError = class _ConflictError extends Error {
     Object.setPrototypeOf(this, _ConflictError.prototype);
   }
 };
-var DEMO_FILE2 = fs6.existsSync(path7.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path7.resolve(PKG_ROOT, "data/demo-backlog.json") : path7.resolve(PKG_ROOT, "src/data/demo-backlog.json");
+var DEMO_FILE2 = fs7.existsSync(path8.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path8.resolve(PKG_ROOT, "data/demo-backlog.json") : path8.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function resolveJsonBacklogPath(project) {
   if (project.isDemo) return DEMO_FILE2;
   if (project.repoPath) {
-    return path7.join(project.repoPath, ".gripm/backlog.json");
+    return path8.join(project.repoPath, ".gripm/backlog.json");
   }
-  return path7.join(PKG_ROOT, `data/${project.id}-backlog.json`);
+  return path8.join(PKG_ROOT, `data/${project.id}-backlog.json`);
 }
 function getProjectTasksDir(project) {
   if (!project.repoPath) return "";
-  return path7.join(project.repoPath, project.backlogDir || "backlog", "tasks");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "tasks");
 }
 function getProjectSprintsPath(project) {
   if (!project.repoPath) return "";
-  return path7.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "sprints.json");
 }
 function getProjectReleasesPath(project) {
   if (!project.repoPath) return "";
-  return path7.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "releases.json");
 }
 function getProjectRetrospectivesPath(project) {
   if (!project.repoPath) return "";
-  return path7.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
+  return path8.join(project.repoPath, project.backlogDir || "backlog", "retrospectives.json");
 }
 function getProjectTaskAllocationLockPath(project) {
   if (project.repoPath) {
-    const baseDir = path7.join(project.repoPath, project.backlogDir || "backlog");
-    return path7.join(baseDir, ".task-allocation.lock");
+    const baseDir = path8.join(project.repoPath, project.backlogDir || "backlog");
+    return path8.join(baseDir, ".task-allocation.lock");
   }
-  return path7.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
+  return path8.join(PKG_ROOT, `data/.${project.id}-task-allocation.lock`);
 }
 function validateVerifyCommand(cmd, repoPath) {
   if (!cmd || typeof cmd !== "string") {
@@ -1624,9 +1938,9 @@ function validateVerifyCommand(cmd, repoPath) {
   let pkgScripts = {};
   let pkgDeps = /* @__PURE__ */ new Set();
   try {
-    const pkgPath = path7.join(repoPath, "package.json");
-    if (fs6.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs6.readFileSync(pkgPath, "utf8"));
+    const pkgPath = path8.join(repoPath, "package.json");
+    if (fs7.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs7.readFileSync(pkgPath, "utf8"));
       if (pkg.scripts && typeof pkg.scripts === "object") {
         pkgScripts = pkg.scripts;
       }
@@ -1710,9 +2024,103 @@ function validateVerifyCommand(cmd, repoPath) {
     reason: `El ejecutable '${runner}' no est\xE1 permitido en verifyCommand. Solo se permiten scripts de package.json ('npm test', 'npm run <script>') o herramientas de verificaci\xF3n ('npx <herramienta>').`
   };
 }
+function getModifiedFiles(repoPath) {
+  try {
+    const out = execSync("git status --porcelain -z", {
+      cwd: repoPath,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 32 * 1024 * 1024
+    });
+    const items = out.split("\0").filter(Boolean);
+    const files = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD")) {
+        if (i + 1 < items.length) {
+          files.push(items[++i]);
+        }
+      } else if (item.length > 3) {
+        files.push(item.slice(3).trim());
+      }
+    }
+    return files;
+  } catch {
+    try {
+      let walk2 = function(dir) {
+        const entries = fs7.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist") continue;
+          const full = path8.join(dir, entry.name);
+          if (entry.isDirectory()) walk2(full);
+          else if (entry.isFile()) files.push(path8.relative(repoPath, full));
+        }
+      };
+      var walk = walk2;
+      const files = [];
+      walk2(repoPath);
+      return files;
+    } catch {
+      return [];
+    }
+  }
+}
 function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
   const normTarget = normalizeStatus(targetStatus);
   const isTransitionToTerminal = normTarget === "ready" || normTarget === "done";
+  const result = {};
+  if (normTarget === "ready") {
+    const execCwd = repoPath || process.cwd();
+    let enforceLocCeiling = false;
+    try {
+      const configPath = path8.join(execCwd, ".gripm", "config.json");
+      if (fs7.existsSync(configPath)) {
+        const cfg = JSON.parse(fs7.readFileSync(configPath, "utf8"));
+        if (cfg?.guardrails?.enforceLocCeiling === true) {
+          enforceLocCeiling = true;
+        }
+      }
+    } catch {
+    }
+    if (enforceLocCeiling) {
+      const gitignoreRules = parseIgnoreFile(path8.join(execCwd, ".gitignore"));
+      const locignoreRules = parseIgnoreFile(path8.join(execCwd, ".locignore"));
+      const gripmLocignore = parseIgnoreFile(path8.join(execCwd, ".gripm", "locignore"));
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+      const modified = getModifiedFiles(execCwd);
+      const violations = [];
+      for (const relFile of modified) {
+        const fullPath = path8.join(execCwd, relFile);
+        if (!fs7.existsSync(fullPath)) continue;
+        try {
+          const stat = fs7.statSync(fullPath);
+          if (!stat.isFile()) continue;
+        } catch {
+          continue;
+        }
+        const ext = path8.extname(relFile).toLowerCase();
+        if (!DEFAULT_EXTENSIONS.has(ext)) continue;
+        if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
+        const lines = countFileLines(fullPath);
+        if (lines > DEFAULT_MAX_LINES) {
+          violations.push({ file: relFile.replace(/\\/g, "/"), lines });
+        }
+      }
+      if (violations.length > 0) {
+        result.locViolations = violations;
+        if (!options?.force) {
+          const taskId = task.code || task.id || "unknown";
+          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`).join("\n");
+          throw new Error(
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:
+${violationsList}
+
+Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+          );
+        }
+      }
+    }
+  }
   if (!options?.force && isTransitionToTerminal) {
     const acs = task.acceptanceCriteriaList || task.acceptanceCriteria || [];
     const unchecked = acs.filter((ac) => !ac.checked);
@@ -1756,6 +2164,7 @@ Corrective action: Check the verification script errors, fix the issues, and ret
       }
     }
   }
+  return result;
 }
 function resolveLegibleSprint(project, val) {
   if (!val) return void 0;
@@ -1767,9 +2176,9 @@ function resolveLegibleSprint(project, val) {
   }
   if (!project.repoPath) return clean;
   const sprintsPath = getProjectSprintsPath(project);
-  if (fs6.existsSync(sprintsPath)) {
+  if (fs7.existsSync(sprintsPath)) {
     try {
-      const registeredSprints = JSON.parse(fs6.readFileSync(sprintsPath, "utf8"));
+      const registeredSprints = JSON.parse(fs7.readFileSync(sprintsPath, "utf8"));
       if (Array.isArray(registeredSprints) && registeredSprints.length > 0) {
         const matched = registeredSprints.find(
           (s) => s.id && s.id.toLowerCase() === lower || s.name && s.name.trim().toLowerCase() === lower
@@ -1789,19 +2198,19 @@ function resolveLegibleSprint(project, val) {
 function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
   if (!repoPath) return [];
   const possiblePaths = [
-    path7.join(repoPath, "docs/RELEASE_NOTES.md"),
-    path7.join(repoPath, "docs/releasenotes.md"),
-    path7.join(repoPath, "RELEASE_NOTES.md"),
-    path7.join(repoPath, "releasenotes.md"),
-    path7.join(repoPath, "docs/CHANGELOG.md"),
-    path7.join(repoPath, "CHANGELOG.md"),
-    path7.join(repoPath, "changelog.md")
+    path8.join(repoPath, "docs/RELEASE_NOTES.md"),
+    path8.join(repoPath, "docs/releasenotes.md"),
+    path8.join(repoPath, "RELEASE_NOTES.md"),
+    path8.join(repoPath, "releasenotes.md"),
+    path8.join(repoPath, "docs/CHANGELOG.md"),
+    path8.join(repoPath, "CHANGELOG.md"),
+    path8.join(repoPath, "changelog.md")
   ];
   let notesContent = "";
   for (const p of possiblePaths) {
-    if (fs6.existsSync(p)) {
+    if (fs7.existsSync(p)) {
       try {
-        notesContent = fs6.readFileSync(p, "utf8");
+        notesContent = fs7.readFileSync(p, "utf8");
         break;
       } catch {
       }
@@ -1867,9 +2276,9 @@ function parseReleaseNotesMd(repoPath, projectPrefix, knownItems = []) {
 function findTaskFile(project, id) {
   if (!project.repoPath) return null;
   const tasksDir = getProjectTasksDir(project);
-  if (!fs6.existsSync(tasksDir)) return null;
+  if (!fs7.existsSync(tasksDir)) return null;
   const cleanId = id.toLowerCase();
-  const files = fs6.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+  const files = fs7.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
   let found = files.find((f) => {
     const fLower = f.toLowerCase();
     return fLower.startsWith(`${cleanId} `) || fLower.startsWith(`${cleanId}-`) || fLower === `${cleanId}.md`;
@@ -1877,8 +2286,8 @@ function findTaskFile(project, id) {
   if (!found) {
     for (const f of files) {
       try {
-        const fullPath = path7.join(tasksDir, f);
-        const stat = fs6.statSync(fullPath);
+        const fullPath = path8.join(tasksDir, f);
+        const stat = fs7.statSync(fullPath);
         const cached = getTaskCacheEntry(fullPath);
         let parsed;
         if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
@@ -1886,7 +2295,7 @@ function findTaskFile(project, id) {
           parsed = cached.parsed;
         } else {
           recordCacheMiss();
-          const raw = fs6.readFileSync(fullPath, "utf8");
+          const raw = fs7.readFileSync(fullPath, "utf8");
           const fallbackId = f.split("-")[0] || f.replace(/\.md$/, "");
           parsed = parseBacklogMd(raw, fallbackId);
           const canonical = mapMarkdownTaskToCanonical(parsed, project, f, stat);
@@ -1906,16 +2315,16 @@ function findTaskFile(project, id) {
     }
   }
   if (!found) return null;
-  const filePath = path7.join(tasksDir, found);
+  const filePath = path8.join(tasksDir, found);
   try {
-    const stat = fs6.statSync(filePath);
+    const stat = fs7.statSync(filePath);
     const cached = getTaskCacheEntry(filePath);
     if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
       recordCacheHit();
       return { filePath, filename: found, task: structuredClone(cached.parsed) };
     }
     recordCacheMiss();
-    const raw = fs6.readFileSync(filePath, "utf8");
+    const raw = fs7.readFileSync(filePath, "utf8");
     const fallbackId = found.split("-")[0] || found.replace(/\.md$/, "");
     const task = parseBacklogMd(raw, fallbackId);
     const canonical = mapMarkdownTaskToCanonical(task, project, found, stat);
@@ -2113,16 +2522,16 @@ var BacklogService = class _BacklogService {
     let items = [];
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs6.existsSync(tasksDir)) {
-        const files = fs6.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs7.existsSync(tasksDir)) {
+        const files = fs7.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         files.sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
         const activePaths = /* @__PURE__ */ new Set();
         let orderIdx = 1;
         for (const file of files) {
           try {
-            const fullPath = path7.join(tasksDir, file);
+            const fullPath = path8.join(tasksDir, file);
             activePaths.add(fullPath);
-            const stat = fs6.statSync(fullPath);
+            const stat = fs7.statSync(fullPath);
             const cached = getTaskCacheEntry(fullPath);
             let canonical;
             if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
@@ -2130,7 +2539,7 @@ var BacklogService = class _BacklogService {
               canonical = { ...cached.canonical };
             } else {
               recordCacheMiss();
-              const raw = fs6.readFileSync(fullPath, "utf8");
+              const raw = fs7.readFileSync(fullPath, "utf8");
               const fallbackId = file.split("-")[0] || file.replace(/\.md$/, "");
               const parsed = parseBacklogMd(raw, fallbackId);
               canonical = mapMarkdownTaskToCanonical(parsed, project, file, stat);
@@ -2150,11 +2559,11 @@ var BacklogService = class _BacklogService {
       }
     } else {
       const jsonPath = resolveJsonBacklogPath(project);
-      if (fs6.existsSync(jsonPath)) {
+      if (fs7.existsSync(jsonPath)) {
         try {
-          const raw = fs6.readFileSync(jsonPath, "utf8");
+          const raw = fs7.readFileSync(jsonPath, "utf8");
           const data = JSON.parse(raw);
-          const jsonStat = fs6.statSync(jsonPath);
+          const jsonStat = fs7.statSync(jsonPath);
           const jsonMtime = Math.round(jsonStat.mtimeMs);
           items = (data.items || []).map((it) => ({
             ...it,
@@ -2317,8 +2726,8 @@ var BacklogService = class _BacklogService {
     }
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs6.existsSync(tasksDir)) {
-        const diskFiles = fs6.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs7.existsSync(tasksDir)) {
+        const diskFiles = fs7.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const f of diskFiles) {
           const m = f.match(regex);
           if (m) {
@@ -2404,13 +2813,13 @@ var BacklogService = class _BacklogService {
       };
       if (isBacklogMdProject(project) && project.repoPath) {
         const tasksDir = getProjectTasksDir(project);
-        if (!fs6.existsSync(tasksDir)) fs6.mkdirSync(tasksDir, { recursive: true });
+        if (!fs7.existsSync(tasksDir)) fs7.mkdirSync(tasksDir, { recursive: true });
         const filename = generateTaskFilename(code, taskData.title);
-        const filepath = path7.join(tasksDir, filename);
+        const filepath = path8.join(tasksDir, filename);
         const serialized = serializeBacklogMd(taskData);
         atomicWriteFileSync2(filepath, serialized, "utf8");
         invalidateTaskCache(filepath);
-        const fileStat = fs6.existsSync(filepath) ? fs6.statSync(filepath) : void 0;
+        const fileStat = fs7.existsSync(filepath) ? fs7.statSync(filepath) : void 0;
         const canonical = mapMarkdownTaskToCanonical(taskData, project, filename, fileStat);
         return { ok: true, task: canonical, savedFile: filepath };
       }
@@ -2426,9 +2835,9 @@ var BacklogService = class _BacklogService {
         completedAt: normalizedSt === "done" ? now : void 0
       };
       let existingData = { project: { ...project, storageType: "json" }, items: [], releases: [], sprints: [] };
-      if (fs6.existsSync(jsonPath)) {
+      if (fs7.existsSync(jsonPath)) {
         try {
-          existingData = JSON.parse(fs6.readFileSync(jsonPath, "utf8"));
+          existingData = JSON.parse(fs7.readFileSync(jsonPath, "utf8"));
         } catch {
         }
       }
@@ -2436,7 +2845,7 @@ var BacklogService = class _BacklogService {
       existingData.items.push(newItem);
       existingData.lastUpdated = now;
       atomicWriteFileSync2(jsonPath, JSON.stringify(existingData, null, 2), "utf8");
-      const jsonStat = fs6.existsSync(jsonPath) ? fs6.statSync(jsonPath) : void 0;
+      const jsonStat = fs7.existsSync(jsonPath) ? fs7.statSync(jsonPath) : void 0;
       newItem.mtime = jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
       return { ok: true, task: newItem, savedFile: jsonPath };
     });
@@ -2457,7 +2866,7 @@ var BacklogService = class _BacklogService {
         throw new Error(`Task ${taskId} not found to update.`);
       }
       const { filePath, filename, task: current2 } = fileInfo;
-      const fileStat = fs6.existsSync(filePath) ? fs6.statSync(filePath) : void 0;
+      const fileStat = fs7.existsSync(filePath) ? fs7.statSync(filePath) : void 0;
       const currentMtime2 = fileStat ? Math.round(fileStat.mtimeMs) : Date.now();
       if (!options?.force && typeof options?.expectedMtime === "number") {
         if (currentMtime2 > options.expectedMtime) {
@@ -2542,7 +2951,7 @@ var BacklogService = class _BacklogService {
         );
       }
       const targetStatus2 = norm.status || current2.status;
-      validateGatekeeperTransition(current2, targetStatus2, options, project.repoPath);
+      const gateResult2 = validateGatekeeperTransition(current2, targetStatus2, options, project.repoPath);
       if (current2.rawExtraFrontmatter) {
         delete current2.rawExtraFrontmatter.verifyCommand;
         delete current2.rawExtraFrontmatter.verify_command;
@@ -2551,14 +2960,17 @@ var BacklogService = class _BacklogService {
       const serialized = serializeBacklogMd(current2);
       atomicWriteFileSync2(filePath, serialized, "utf8");
       invalidateTaskCache(filePath);
-      const freshStat = fs6.existsSync(filePath) ? fs6.statSync(filePath) : void 0;
+      const freshStat = fs7.existsSync(filePath) ? fs7.statSync(filePath) : void 0;
       const canonical = mapMarkdownTaskToCanonical(current2, project, filename, freshStat);
       const resp2 = { ok: true, updatedTask: canonical, filePath };
       if (norm.usedUpdatesObject) {
         resp2.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
       }
       if (options?.force) {
-        const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current2.id}', bypassing Gatekeeper validations.`;
+        let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current2.id}', bypassing Gatekeeper validations.`;
+        if (gateResult2 && typeof gateResult2 === "object" && gateResult2.locViolations && gateResult2.locViolations.length > 0) {
+          forceWarning += ` Bypassed LOC ceiling guardrail: ${gateResult2.locViolations.map((v) => `${v.file} (${v.lines} lines)`).join(", ")}.`;
+        }
         resp2.warning = resp2.warning ? `${resp2.warning} ${forceWarning}` : forceWarning;
         resp2.audit = {
           bypassedGatekeeper: true,
@@ -2568,10 +2980,10 @@ var BacklogService = class _BacklogService {
       return resp2;
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs6.existsSync(jsonPath)) {
+    if (!fs7.existsSync(jsonPath)) {
       throw new Error(`JSON backlog file not found at ${jsonPath}.`);
     }
-    const data = JSON.parse(fs6.readFileSync(jsonPath, "utf8"));
+    const data = JSON.parse(fs7.readFileSync(jsonPath, "utf8"));
     const cleanId = String(taskId).toLowerCase();
     const idx = (data.items || []).findIndex(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -2580,7 +2992,7 @@ var BacklogService = class _BacklogService {
       throw new Error(`Task ${taskId} not found to update.`);
     }
     const current = data.items[idx];
-    const jsonStat = fs6.existsSync(jsonPath) ? fs6.statSync(jsonPath) : void 0;
+    const jsonStat = fs7.existsSync(jsonPath) ? fs7.statSync(jsonPath) : void 0;
     const currentMtime = typeof current.mtime === "number" ? current.mtime : jsonStat ? Math.round(jsonStat.mtimeMs) : Date.now();
     if (!options?.force && typeof options?.expectedMtime === "number") {
       if (currentMtime > options.expectedMtime) {
@@ -2662,19 +3074,22 @@ var BacklogService = class _BacklogService {
       );
     }
     const targetStatus = norm.status || current.status;
-    validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
+    const gateResult = validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
     delete current.verifyCommand;
     data.items[idx] = current;
     data.lastUpdated = now;
     atomicWriteFileSync2(jsonPath, JSON.stringify(data, null, 2), "utf8");
-    const freshJsonStat = fs6.existsSync(jsonPath) ? fs6.statSync(jsonPath) : void 0;
+    const freshJsonStat = fs7.existsSync(jsonPath) ? fs7.statSync(jsonPath) : void 0;
     current.mtime = freshJsonStat ? Math.round(freshJsonStat.mtimeMs) : Date.now();
     const resp = { ok: true, updatedTask: current, filePath: jsonPath };
     if (norm.usedUpdatesObject) {
       resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
     }
     if (options?.force) {
-      const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
+      let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
+      if (gateResult && typeof gateResult === "object" && gateResult.locViolations && gateResult.locViolations.length > 0) {
+        forceWarning += ` Bypassed LOC ceiling guardrail: ${gateResult.locViolations.map((v) => `${v.file} (${v.lines} lines)`).join(", ")}.`;
+      }
       resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
       resp.audit = {
         bypassedGatekeeper: true,
@@ -2742,9 +3157,13 @@ var BacklogService = class _BacklogService {
       };
     }
     const norm = normalizeTaskUpdates(project, updates);
+    let bulkLocViolations = [];
     if (norm.status) {
       for (const t of matchedTasks) {
-        validateGatekeeperTransition(t, norm.status, options, project.repoPath);
+        const gRes = validateGatekeeperTransition(t, norm.status, options, project.repoPath);
+        if (gRes && typeof gRes === "object" && gRes.locViolations && gRes.locViolations.length > 0) {
+          bulkLocViolations = gRes.locViolations;
+        }
       }
     }
     const updatedIds = [];
@@ -2770,7 +3189,11 @@ var BacklogService = class _BacklogService {
       ...failedUpdates.length > 0 ? { failedUpdates, error: `${failedUpdates.length} task(s) failed to update.` } : {}
     };
     if (options?.force) {
-      resp.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
+      let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
+      if (bulkLocViolations.length > 0) {
+        forceWarning += ` Bypassed LOC ceiling guardrail: ${bulkLocViolations.map((v) => `${v.file} (${v.lines} lines)`).join(", ")}.`;
+      }
+      resp.warning = forceWarning;
       resp.audit = {
         bypassedGatekeeper: true,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
@@ -2792,14 +3215,14 @@ var BacklogService = class _BacklogService {
         throw new Error("Cannot soft-delete a done item. Done items are protected historical records.");
       }
       if (isPurge) {
-        const archiveDir = path7.join(project.repoPath, project.backlogDir || "backlog", "archive");
-        if (!fs6.existsSync(archiveDir)) fs6.mkdirSync(archiveDir, { recursive: true });
-        fs6.renameSync(filePath, path7.join(archiveDir, filename));
+        const archiveDir = path8.join(project.repoPath, project.backlogDir || "backlog", "archive");
+        if (!fs7.existsSync(archiveDir)) fs7.mkdirSync(archiveDir, { recursive: true });
+        fs7.renameSync(filePath, path8.join(archiveDir, filename));
         invalidateTaskCache(filePath);
         return { ok: true, id: taskId, purged: true };
       }
       const previousStatus = task.status || "draft";
-      const raw = fs6.readFileSync(filePath, "utf8");
+      const raw = fs7.readFileSync(filePath, "utf8");
       let updated = raw;
       updated = updated.replace(/^[iI]s[dD]eleted:.*\r?\n?/gm, "");
       updated = updated.replace(/^[dD]eleted[aA]t:.*\r?\n?/gm, "");
@@ -2822,8 +3245,8 @@ previousStatus: "${previousStatus}"
       return { ok: true, id: taskId, softDeleted: true };
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs6.existsSync(jsonPath)) return { ok: false, id: taskId };
-    const data = JSON.parse(fs6.readFileSync(jsonPath, "utf8"));
+    if (!fs7.existsSync(jsonPath)) return { ok: false, id: taskId };
+    const data = JSON.parse(fs7.readFileSync(jsonPath, "utf8"));
     const cleanId = taskId.toLowerCase();
     const idx = (data.items || []).findIndex(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -2853,7 +3276,7 @@ previousStatus: "${previousStatus}"
       const fileInfo = findTaskFile(project, taskId);
       if (!fileInfo) return false;
       const { filePath } = fileInfo;
-      let raw = fs6.readFileSync(filePath, "utf8");
+      let raw = fs7.readFileSync(filePath, "utf8");
       const prevMatch = raw.match(/^[pP]revious[sS]tatus:\s*"?([^"\r\n]+)"?/m);
       const restoreStatus2 = prevMatch ? prevMatch[1].trim() : "draft";
       if (/^status:.*$/m.test(raw)) {
@@ -2867,8 +3290,8 @@ previousStatus: "${previousStatus}"
       return true;
     }
     const jsonPath = resolveJsonBacklogPath(project);
-    if (!fs6.existsSync(jsonPath)) return false;
-    const data = JSON.parse(fs6.readFileSync(jsonPath, "utf8"));
+    if (!fs7.existsSync(jsonPath)) return false;
+    const data = JSON.parse(fs7.readFileSync(jsonPath, "utf8"));
     const cleanId = taskId.toLowerCase();
     const item = (data.items || []).find(
       (i) => i.id && String(i.id).toLowerCase() === cleanId || i.code && String(i.code).toLowerCase() === cleanId
@@ -2901,7 +3324,7 @@ previousStatus: "${previousStatus}"
     const content = generateMonolithicBacklogMd(project.name, mdTasks);
     let savedPath;
     if (options?.save !== false && project.repoPath) {
-      savedPath = path7.join(project.repoPath, "BACKLOG.md");
+      savedPath = path8.join(project.repoPath, "BACKLOG.md");
       atomicWriteFileSync2(savedPath, content, "utf8");
     }
     return {
@@ -2923,11 +3346,11 @@ previousStatus: "${previousStatus}"
     const autoFix = options?.autoFix === true;
     if (isBacklogMdProject(project) && project.repoPath) {
       const tasksDir = getProjectTasksDir(project);
-      if (fs6.existsSync(tasksDir)) {
-        const files = fs6.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
+      if (fs7.existsSync(tasksDir)) {
+        const files = fs7.readdirSync(tasksDir).filter((f) => f.endsWith(".md"));
         for (const file of files) {
-          const filePath = path7.join(tasksDir, file);
-          const content2 = fs6.readFileSync(filePath, "utf8");
+          const filePath = path8.join(tasksDir, file);
+          const content2 = fs7.readFileSync(filePath, "utf8");
           const fmMatch = content2.match(/^---\r?\n([\s\S]*?)\r?\n---/);
           if (!fmMatch) continue;
           const fm = fmMatch[1];
@@ -2958,11 +3381,11 @@ previousStatus: "${previousStatus}"
     let backlogPath = null;
     let changesWritten = false;
     if (project.repoPath) {
-      backlogPath = path7.join(project.repoPath, "BACKLOG.md");
+      backlogPath = path8.join(project.repoPath, "BACKLOG.md");
       let existingContent = "";
-      if (fs6.existsSync(backlogPath)) {
+      if (fs7.existsSync(backlogPath)) {
         try {
-          existingContent = fs6.readFileSync(backlogPath, "utf8");
+          existingContent = fs7.readFileSync(backlogPath, "utf8");
         } catch {
         }
       }
@@ -2994,7 +3417,7 @@ previousStatus: "${previousStatus}"
     if (isBacklogMdProject(project)) {
       const tasksDir = getProjectTasksDir(project);
       try {
-        if (!fs6.existsSync(tasksDir)) {
+        if (!fs7.existsSync(tasksDir)) {
           return {
             project: { ...project, storageType: "markdown" },
             items: [],
@@ -3006,9 +3429,9 @@ previousStatus: "${previousStatus}"
         const items = _BacklogService.listTasks(project, { includeDeleted: true });
         let releases = [];
         const releasesPath = getProjectReleasesPath(project);
-        if (fs6.existsSync(releasesPath)) {
+        if (fs7.existsSync(releasesPath)) {
           try {
-            releases = JSON.parse(fs6.readFileSync(releasesPath, "utf8"));
+            releases = JSON.parse(fs7.readFileSync(releasesPath, "utf8"));
           } catch {
           }
         }
@@ -3021,7 +3444,7 @@ previousStatus: "${previousStatus}"
         if (releases.length > 0) {
           for (const rel of releases) {
             const vClean = (rel.version || "").replace(/^v/i, "");
-            const existingCodes = new Set((rel.itemCodes || []).map((c) => c.toUpperCase()));
+            const existingCodes = new Set((rel.itemCodes || []).map((c3) => c3.toUpperCase()));
             for (const it of items) {
               const itRel = (it.release || it.targetRelease || "").replace(/^v/i, "");
               const inReleases = (it.releases || []).some((r) => r.replace(/^v/i, "") === vClean);
@@ -3059,9 +3482,9 @@ previousStatus: "${previousStatus}"
         }
         let sprints = [];
         const sprintsPath = getProjectSprintsPath(project);
-        if (fs6.existsSync(sprintsPath)) {
+        if (fs7.existsSync(sprintsPath)) {
           try {
-            sprints = JSON.parse(fs6.readFileSync(sprintsPath, "utf8"));
+            sprints = JSON.parse(fs7.readFileSync(sprintsPath, "utf8"));
           } catch {
           }
         }
@@ -3117,7 +3540,7 @@ previousStatus: "${previousStatus}"
     }
     const filePath = resolveJsonBacklogPath(project);
     try {
-      if (!fs6.existsSync(filePath)) {
+      if (!fs7.existsSync(filePath)) {
         const initial = {
           project: { ...project, storageType: "json" },
           items: [],
@@ -3132,9 +3555,9 @@ previousStatus: "${previousStatus}"
         }
         return initial;
       }
-      const jsonStat = fs6.statSync(filePath);
+      const jsonStat = fs7.statSync(filePath);
       const jsonMtime = Math.round(jsonStat.mtimeMs);
-      const raw = fs6.readFileSync(filePath, "utf8");
+      const raw = fs7.readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
       let items = Array.isArray(parsed.items) ? parsed.items : [];
       items = items.map((it) => ({
@@ -3169,11 +3592,11 @@ previousStatus: "${previousStatus}"
    */
   static readReleases(project) {
     const filePath = getProjectReleasesPath(project);
-    if (!filePath || !fs6.existsSync(filePath)) return [];
+    if (!filePath || !fs7.existsSync(filePath)) return [];
     return withFileLockSync(filePath, () => {
       try {
-        if (!fs6.existsSync(filePath)) return [];
-        const content = fs6.readFileSync(filePath, "utf8");
+        if (!fs7.existsSync(filePath)) return [];
+        const content = fs7.readFileSync(filePath, "utf8");
         const parsed = JSON.parse(content);
         return Array.isArray(parsed) ? parsed : [];
       } catch {
@@ -3189,9 +3612,9 @@ previousStatus: "${previousStatus}"
     if (!filePath) return [];
     return withFileLockSync(filePath, () => {
       let current = [];
-      if (fs6.existsSync(filePath)) {
+      if (fs7.existsSync(filePath)) {
         try {
-          const content = fs6.readFileSync(filePath, "utf8");
+          const content = fs7.readFileSync(filePath, "utf8");
           const parsed = JSON.parse(content);
           if (Array.isArray(parsed)) current = parsed;
         } catch {
@@ -3208,11 +3631,11 @@ previousStatus: "${previousStatus}"
    */
   static readRetrospectives(project) {
     const filePath = getProjectRetrospectivesPath(project);
-    if (!filePath || !fs6.existsSync(filePath)) return [];
+    if (!filePath || !fs7.existsSync(filePath)) return [];
     return withFileLockSync(filePath, () => {
       try {
-        if (!fs6.existsSync(filePath)) return [];
-        const content = fs6.readFileSync(filePath, "utf8");
+        if (!fs7.existsSync(filePath)) return [];
+        const content = fs7.readFileSync(filePath, "utf8");
         const parsed = JSON.parse(content);
         return Array.isArray(parsed) ? parsed : [];
       } catch {
@@ -3228,9 +3651,9 @@ previousStatus: "${previousStatus}"
     if (!filePath) return [];
     return withFileLockSync(filePath, () => {
       let current = [];
-      if (fs6.existsSync(filePath)) {
+      if (fs7.existsSync(filePath)) {
         try {
-          const content = fs6.readFileSync(filePath, "utf8");
+          const content = fs7.readFileSync(filePath, "utf8");
           const parsed = JSON.parse(content);
           if (Array.isArray(parsed)) current = parsed;
         } catch {
@@ -3249,14 +3672,14 @@ previousStatus: "${previousStatus}"
     if (isBacklogMdProject(project)) {
       if (project.repoPath) {
         try {
-          const dir = path7.join(project.repoPath, project.backlogDir || "backlog");
-          if (!fs6.existsSync(dir)) fs6.mkdirSync(dir, { recursive: true });
-          const releasesPath = path7.join(dir, "releases.json");
+          const dir = path8.join(project.repoPath, project.backlogDir || "backlog");
+          if (!fs7.existsSync(dir)) fs7.mkdirSync(dir, { recursive: true });
+          const releasesPath = path8.join(dir, "releases.json");
           withFileLockSync(releasesPath, () => {
             let releasesToWrite = data.releases || [];
-            if (fs6.existsSync(releasesPath)) {
+            if (fs7.existsSync(releasesPath)) {
               try {
-                const diskReleases = JSON.parse(fs6.readFileSync(releasesPath, "utf8"));
+                const diskReleases = JSON.parse(fs7.readFileSync(releasesPath, "utf8"));
                 if (Array.isArray(diskReleases)) {
                   releasesToWrite = releasesToWrite.map((rel) => {
                     const diskMatch = diskReleases.find((dr) => dr.id === rel.id || dr.version === rel.version);
@@ -3274,7 +3697,7 @@ previousStatus: "${previousStatus}"
             atomicWriteFileSync2(releasesPath, JSON.stringify(releasesToWrite, null, 2), "utf8");
           });
           if (data.sprints !== void 0) {
-            atomicWriteFileSync2(path7.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
+            atomicWriteFileSync2(path8.join(dir, "sprints.json"), JSON.stringify(data.sprints || [], null, 2), "utf8");
           }
         } catch (err) {
           console.warn(`[gripm BacklogService] Warning writing releases/sprints: ${err.message}`);
@@ -3297,7 +3720,7 @@ previousStatus: "${previousStatus}"
     if (!project.repoPath && isBacklogMdProject(project)) return;
     if (isBacklogMdProject(project)) {
       const tasksDir = getProjectTasksDir(project);
-      if (!fs6.existsSync(tasksDir)) fs6.mkdirSync(tasksDir, { recursive: true });
+      if (!fs7.existsSync(tasksDir)) fs7.mkdirSync(tasksDir, { recursive: true });
       const fileInfo = findTaskFile(project, item.code || item.id);
       let existingFile = fileInfo?.filename;
       let existingTask = fileInfo?.task || {};
@@ -3407,9 +3830,9 @@ previousStatus: "${previousStatus}"
           const releasesPath = getProjectReleasesPath(project);
           if (releasesPath) {
             withFileLockSync(releasesPath, () => {
-              if (fs6.existsSync(releasesPath)) {
+              if (fs7.existsSync(releasesPath)) {
                 try {
-                  const relsData = JSON.parse(fs6.readFileSync(releasesPath, "utf8"));
+                  const relsData = JSON.parse(fs7.readFileSync(releasesPath, "utf8"));
                   const taskCode = (taskData.id || "").toUpperCase();
                   let changed = false;
                   const targetVersion = (rVal || (relArray[0] || "")).replace(/^v/i, "");
@@ -3417,7 +3840,7 @@ previousStatus: "${previousStatus}"
                   for (const rel of relsData) {
                     const vClean = (rel.version || "").replace(/^v/i, "");
                     if (!rel.itemCodes) rel.itemCodes = [];
-                    const idx2 = rel.itemCodes.findIndex((c) => c.toUpperCase() === taskCode);
+                    const idx2 = rel.itemCodes.findIndex((c3) => c3.toUpperCase() === taskCode);
                     if (targetVersion && vClean === targetVersion) {
                       versionFound = true;
                       if (idx2 < 0) {
@@ -3465,16 +3888,16 @@ previousStatus: "${previousStatus}"
       if (item.order !== void 0) taskData.rawExtraFrontmatter.order = item.order;
       const content = serializeBacklogMd(taskData);
       const targetFilename = existingFile || generateTaskFilename(taskData.id, taskData.title);
-      const targetFilePath = path7.join(tasksDir, targetFilename);
+      const targetFilePath = path8.join(tasksDir, targetFilename);
       atomicWriteFileSync2(targetFilePath, content, "utf8");
       invalidateTaskCache(targetFilePath);
       return;
     }
     const jsonPath = resolveJsonBacklogPath(project);
     let currentBacklog = { project, items: [] };
-    if (fs6.existsSync(jsonPath)) {
+    if (fs7.existsSync(jsonPath)) {
       try {
-        currentBacklog = JSON.parse(fs6.readFileSync(jsonPath, "utf8"));
+        currentBacklog = JSON.parse(fs7.readFileSync(jsonPath, "utf8"));
       } catch {
       }
     }
@@ -3497,32 +3920,32 @@ previousStatus: "${previousStatus}"
 };
 
 // server/services/fsExplorer.ts
-import fs7 from "node:fs";
-import path8 from "node:path";
+import fs8 from "node:fs";
+import path9 from "node:path";
 import os2 from "node:os";
 function getAllowedBrowseRoots() {
   const roots = [];
   const homedir = os2.homedir();
   if (homedir) {
-    roots.push(path8.resolve(homedir));
+    roots.push(path9.resolve(homedir));
     try {
-      roots.push(fs7.realpathSync(homedir));
+      roots.push(fs8.realpathSync(homedir));
     } catch {
     }
   }
   const cwd = process.cwd();
   if (cwd) {
-    roots.push(path8.resolve(cwd));
+    roots.push(path9.resolve(cwd));
     try {
-      roots.push(fs7.realpathSync(cwd));
+      roots.push(fs8.realpathSync(cwd));
     } catch {
     }
   }
   const tmpdir = os2.tmpdir();
   if (tmpdir) {
-    roots.push(path8.resolve(tmpdir));
+    roots.push(path9.resolve(tmpdir));
     try {
-      roots.push(fs7.realpathSync(tmpdir));
+      roots.push(fs8.realpathSync(tmpdir));
     } catch {
     }
   }
@@ -3531,9 +3954,9 @@ function getAllowedBrowseRoots() {
     if (reg && Array.isArray(reg.projects)) {
       for (const p of reg.projects) {
         if (p.repoPath) {
-          roots.push(path8.resolve(p.repoPath));
+          roots.push(path9.resolve(p.repoPath));
           try {
-            roots.push(fs7.realpathSync(p.repoPath));
+            roots.push(fs8.realpathSync(p.repoPath));
           } catch {
           }
         }
@@ -3543,11 +3966,11 @@ function getAllowedBrowseRoots() {
   }
   const extra = process.env.GRIPM_ALLOWED_PATHS;
   if (extra) {
-    for (const p of extra.split(path8.delimiter)) {
+    for (const p of extra.split(path9.delimiter)) {
       if (p.trim()) {
-        roots.push(path8.resolve(p.trim()));
+        roots.push(path9.resolve(p.trim()));
         try {
-          roots.push(fs7.realpathSync(p.trim()));
+          roots.push(fs8.realpathSync(p.trim()));
         } catch {
         }
       }
@@ -3558,14 +3981,14 @@ function getAllowedBrowseRoots() {
 function isSystemRootDir(targetPath) {
   if (!targetPath || typeof targetPath !== "string") return true;
   try {
-    const resolved = path8.resolve(targetPath);
-    const parsed = path8.parse(resolved);
+    const resolved = path9.resolve(targetPath);
+    const parsed = path9.parse(resolved);
     if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
     const tmp = os2.tmpdir();
     if (tmp) {
-      if (isPathContained(resolved, path8.resolve(tmp))) return false;
+      if (isPathContained(resolved, path9.resolve(tmp))) return false;
       try {
-        const realTmp = fs7.realpathSync(tmp);
+        const realTmp = fs8.realpathSync(tmp);
         if (realTmp && isPathContained(resolved, realTmp)) return false;
       } catch {
       }
@@ -3584,27 +4007,27 @@ function isSystemRootDir(targetPath) {
       "/proc",
       "/dev"
     ];
-    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path8.sep));
+    return restrictedPrefixes.some((p) => lower === p || lower.startsWith(p + path9.sep));
   } catch {
     return true;
   }
 }
 function isPathContained(targetPath, rootDir) {
-  const relative = path8.relative(rootDir, targetPath);
-  return !relative.startsWith("..") && !path8.isAbsolute(relative);
+  const relative = path9.relative(rootDir, targetPath);
+  return !relative.startsWith("..") && !path9.isAbsolute(relative);
 }
 function isAllowedBrowsePath(targetPath, extraRoots = []) {
   if (!targetPath || typeof targetPath !== "string") return false;
   try {
-    const normalized = path8.resolve(path8.normalize(targetPath));
+    const normalized = path9.resolve(path9.normalize(targetPath));
     if (isSystemRootDir(normalized)) return false;
     const baseRoots = getAllowedBrowseRoots();
     const roots = [...baseRoots];
     for (const er of extraRoots) {
       if (er) {
-        roots.push(path8.resolve(er));
+        roots.push(path9.resolve(er));
         try {
-          roots.push(fs7.realpathSync(er));
+          roots.push(fs8.realpathSync(er));
         } catch {
         }
       }
@@ -3615,17 +4038,17 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
     let realPath = normalized;
     while (true) {
       try {
-        const resolvedAncestor = fs7.realpathSync(current);
-        realPath = remainingSegments.length > 0 ? path8.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
+        const resolvedAncestor = fs8.realpathSync(current);
+        realPath = remainingSegments.length > 0 ? path9.join(resolvedAncestor, ...remainingSegments) : resolvedAncestor;
         break;
       } catch (err) {
         if (err && (err.code === "ENOENT" || err.code === "ENOTDIR")) {
-          const parent = path8.dirname(current);
+          const parent = path9.dirname(current);
           if (parent === current) {
             realPath = current;
             break;
           }
-          remainingSegments.unshift(path8.basename(current));
+          remainingSegments.unshift(path9.basename(current));
           current = parent;
         } else {
           return false;
@@ -3639,13 +4062,403 @@ function isAllowedBrowsePath(targetPath, extraRoots = []) {
   }
 }
 
+// scripts/audit-engine.mjs
+import fs9 from "node:fs";
+import path10 from "node:path";
+import { fileURLToPath as fileURLToPath4 } from "node:url";
+var __filename4 = fileURLToPath4(import.meta.url);
+var COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";
+var TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:\([^)]*\))?[:\-\s]|(TODO|FIXME|HACK|BUG|XXX)$|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
+var ANTI_SLOP_PATTERNS = {
+  tsIgnore: new RegExp(COMMENT_PREFIX + "@ts-ignore\\b"),
+  tsNocheck: new RegExp(COMMENT_PREFIX + "@ts-nocheck\\b"),
+  eslintDisable: new RegExp(COMMENT_PREFIX + "eslint-disable(?:-next-line|-line)?\\b"),
+  consoleLog: new RegExp("\\bconsole\\.log\\s*\\(")
+};
+var TS_IGNORE_RE = ANTI_SLOP_PATTERNS.tsIgnore;
+var TS_NOCHECK_RE = ANTI_SLOP_PATTERNS.tsNocheck;
+var ESLINT_DISABLE_RE = ANTI_SLOP_PATTERNS.eslintDisable;
+var CONSOLE_LOG_RE = ANTI_SLOP_PATTERNS.consoleLog;
+function detectStack(rootPath) {
+  const root = path10.resolve(rootPath || process.cwd());
+  const detected = /* @__PURE__ */ new Set();
+  const candidateDirs = [root];
+  const parent = path10.dirname(root);
+  if (parent && parent !== root) candidateDirs.push(parent);
+  for (const dir of candidateDirs) {
+    const pkgPath = path10.join(dir, "package.json");
+    if (fs9.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs9.readFileSync(pkgPath, "utf8"));
+        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+        detected.add("Node");
+        if (deps.react || deps["react-dom"] || deps.next) detected.add("React");
+        if (deps.vue || deps.nuxt) detected.add("Vue");
+        if (deps.typescript) detected.add("TypeScript");
+        break;
+      } catch {
+      }
+    }
+  }
+  const exists = (file) => fs9.existsSync(path10.join(root, file));
+  if (exists("tsconfig.json")) detected.add("TypeScript");
+  if (["pyproject.toml", "requirements.txt", "setup.py", "Pipfile", "environment.yml"].some(exists)) detected.add("Python");
+  if (exists("Cargo.toml")) detected.add("Rust");
+  if (exists("go.mod")) detected.add("Go");
+  if (fs9.existsSync(root) && fs9.statSync(root).isDirectory()) {
+    try {
+      const files = fs9.readdirSync(root);
+      if (files.some((f) => f.endsWith(".py"))) detected.add("Python");
+      if (files.some((f) => f.endsWith(".ts") || f.endsWith(".tsx"))) detected.add("TypeScript");
+      if (files.some((f) => f.endsWith(".rs"))) detected.add("Rust");
+      if (files.some((f) => f.endsWith(".go"))) detected.add("Go");
+    } catch {
+    }
+  }
+  return [...detected];
+}
+var TEST_CONFIG_MAP = [
+  { file: "vitest.config.ts", fw: "vitest" },
+  { file: "vitest.config.js", fw: "vitest" },
+  { file: "vitest.config.mjs", fw: "vitest" },
+  { file: "vitest.workspace.ts", fw: "vitest" },
+  { file: "jest.config.ts", fw: "jest" },
+  { file: "jest.config.js", fw: "jest" },
+  { file: "jest.config.mjs", fw: "jest" },
+  { file: "jest.config.json", fw: "jest" },
+  { file: "pytest.ini", fw: "pytest", cmd: "pytest" },
+  { file: "conftest.py", fw: "pytest", cmd: "pytest" },
+  { file: "Cargo.toml", fw: "cargo", cmd: "cargo test" },
+  { file: "go.mod", fw: "go", cmd: "go test ./..." }
+];
+var VERIFY_COMMAND_FALLBACKS = {
+  vitest: "npx vitest run",
+  jest: "npx jest",
+  "node:test": "node --test",
+  pytest: "pytest",
+  cargo: "cargo test",
+  go: "go test ./..."
+};
+function detectTests(rootPath) {
+  const root = path10.resolve(rootPath || process.cwd());
+  let framework = null, verifyCommand = null, hasTests = false;
+  const candidateDirs = [root];
+  const parent = path10.dirname(root);
+  if (parent && parent !== root) candidateDirs.push(parent);
+  for (const dir of candidateDirs) {
+    const pkgPath = path10.join(dir, "package.json");
+    if (fs9.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs9.readFileSync(pkgPath, "utf8"));
+        const testScript = pkg.scripts?.test;
+        if (testScript && !/no test specified/i.test(testScript)) {
+          hasTests = true;
+          if (!verifyCommand) verifyCommand = "npm test";
+          if (/vitest/i.test(testScript)) framework ??= "vitest";
+          else if (/jest/i.test(testScript)) framework ??= "jest";
+          else if (/node\s+(?:--test|scripts\/run-tests|scripts\/test)|node:test/i.test(testScript)) framework ??= "node:test";
+          else if (/mocha/i.test(testScript)) framework ??= "mocha";
+          else if (/playwright/i.test(testScript)) framework ??= "playwright";
+        }
+        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+        if (!framework) {
+          framework = deps.vitest ? "vitest" : deps.jest ? "jest" : deps.mocha ? "mocha" : deps["@playwright/test"] ? "playwright" : null;
+        }
+        if (deps.vitest || deps.jest || deps.mocha || deps["@playwright/test"]) hasTests = true;
+      } catch {
+      }
+    }
+    for (const cfg of TEST_CONFIG_MAP) {
+      if (fs9.existsSync(path10.join(dir, cfg.file))) {
+        if (!framework) framework = cfg.fw;
+        if (!verifyCommand && cfg.cmd) verifyCommand = cfg.cmd;
+        hasTests = true;
+      }
+    }
+    const pyprojectPath = path10.join(dir, "pyproject.toml");
+    if (fs9.existsSync(pyprojectPath)) {
+      try {
+        const content = fs9.readFileSync(pyprojectPath, "utf8");
+        if (/tool\.pytest|pytest/i.test(content)) {
+          if (!framework) framework = "pytest";
+          if (!verifyCommand) verifyCommand = "pytest";
+          hasTests = true;
+        }
+      } catch {
+      }
+    }
+    for (const folder of ["test", "tests", "__tests__", "spec", "specs"]) {
+      const p = path10.join(dir, folder);
+      if (fs9.existsSync(p) && fs9.readdirSync(p).length > 0) hasTests = true;
+    }
+    if (framework && hasTests) break;
+  }
+  if (framework && !verifyCommand) verifyCommand = VERIFY_COMMAND_FALLBACKS[framework] || null;
+  return { detected: Boolean(hasTests || framework), framework: framework || null, verifyCommand: verifyCommand || null, hasTests };
+}
+function computeHealthScore(params = {}) {
+  const { totalFilesScanned = 0, locViolations = [], suppressions = [], todos = [], tests = { detected: false, hasTests: false } } = params;
+  if (!totalFilesScanned || totalFilesScanned <= 0) return 100;
+  let score = 100;
+  const errorCount = locViolations.filter((v) => v.status === "error").length;
+  const warnCount = locViolations.filter((v) => v.status === "warning").length;
+  score -= Math.min(40, errorCount * 10);
+  score -= Math.min(15, warnCount * 3);
+  score -= Math.min(25, suppressions.length * 5);
+  let todoPenalty = 0;
+  for (const item of todos) {
+    if (item.type === "BUG" || item.type === "FIXME") todoPenalty += 3;
+    else if (item.type === "HACK" || item.type === "XXX") todoPenalty += 2;
+    else todoPenalty += 1;
+  }
+  score -= Math.min(15, todoPenalty);
+  if (!tests.detected && !tests.hasTests) score -= 15;
+  if (Number.isNaN(score) || !Number.isFinite(score)) return 100;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+function createEmptyReport(maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WARN_LINES) {
+  return {
+    score: 100,
+    stack: [],
+    summary: { totalFilesScanned: 0, locViolationsCount: 0, suppressionsCount: 0, todosCount: 0, testFramework: null, verifyCommand: null, stack: null },
+    loc: { maxLines, warnLines, violations: [] },
+    quality: { suppressions: [] },
+    todos: [],
+    tests: { detected: false, framework: null, verifyCommand: null, hasTests: false }
+  };
+}
+async function scanCodebase(targetPath, options = {}) {
+  const root = path10.resolve(targetPath || options.cwd || options.root || process.cwd());
+  const maxLines = Number(options.maxLines ?? options.max ?? DEFAULT_MAX_LINES);
+  const warnLines = Number(options.warnLines ?? options.warn ?? DEFAULT_WARN_LINES);
+  const customExts = options.extensions ? new Set(options.extensions) : DEFAULT_EXTENSIONS;
+  const customIgnoredDirs = options.ignoredDirs ? new Set(options.ignoredDirs) : DEFAULT_IGNORED_DIRS;
+  if (!fs9.existsSync(root)) return createEmptyReport(maxLines, warnLines);
+  const stat = fs9.statSync(root);
+  const gitignoreRules = parseIgnoreFile(path10.join(root, ".gitignore"));
+  const locignorePath = [
+    path10.join(root, ".gripm", "locignore"),
+    path10.join(root, ".gripm", ".locignore"),
+    path10.join(root, ".locignore")
+  ].find((p) => fs9.existsSync(p)) || path10.join(root, ".locignore");
+  const locignoreRules = parseIgnoreFile(locignorePath);
+  const extraExcludes = parseIgnoreLines(Array.isArray(options.exclude) ? options.exclude : options.exclude ? [options.exclude] : []);
+  const combinedRules = [...gitignoreRules, ...locignoreRules, ...extraExcludes];
+  const locViolations = [], suppressions = [], todos = [];
+  let totalFilesScanned = 0;
+  function scanSingleFile(filePath, relPath) {
+    totalFilesScanned++;
+    let content = "";
+    try {
+      content = fs9.readFileSync(filePath, "utf8");
+    } catch {
+      return;
+    }
+    const normRel = relPath.replace(/\\/g, "/");
+    const lines = content.replace(/\r\n/g, "\n").split("\n");
+    const lineCount = lines.length > 0 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
+    if (lineCount >= maxLines) locViolations.push({ file: normRel, lines: lineCount, status: "error" });
+    else if (lineCount >= warnLines) locViolations.push({ file: normRel, lines: lineCount, status: "warning" });
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i], lineNum = i + 1, trimmed = line.trim();
+      if (!trimmed) continue;
+      if (ANTI_SLOP_PATTERNS.tsIgnore.test(line)) {
+        suppressions.push({ file: normRel, line: lineNum, type: "@ts-ignore", snippet: trimmed });
+      } else if (ANTI_SLOP_PATTERNS.tsNocheck.test(line)) {
+        suppressions.push({ file: normRel, line: lineNum, type: "@ts-nocheck", snippet: trimmed });
+      } else if (ANTI_SLOP_PATTERNS.eslintDisable.test(line)) {
+        suppressions.push({ file: normRel, line: lineNum, type: "eslint-disable", snippet: trimmed });
+      } else if (options.includeConsoleLog && ANTI_SLOP_PATTERNS.consoleLog.test(line)) {
+        suppressions.push({ file: normRel, line: lineNum, type: "console.log", snippet: trimmed });
+      }
+      const todoMatch = line.match(TODO_RE);
+      if (todoMatch) {
+        const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
+        const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
+        todos.push({
+          id: `${normRel}:${lineNum}`,
+          file: normRel,
+          line: lineNum,
+          type,
+          text,
+          snippet: trimmed
+        });
+      }
+    }
+  }
+  function walk(currentDir) {
+    let entries = [];
+    try {
+      entries = fs9.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path10.join(currentDir, entry.name);
+      const rel = path10.relative(root, full);
+      if (entry.isDirectory()) {
+        if (!isIgnored(rel, true, combinedRules, customIgnoredDirs)) walk(full);
+      } else if (entry.isFile()) {
+        const ext = path10.extname(entry.name).toLowerCase();
+        if (customExts.has(ext) && !isIgnored(rel, false, combinedRules, customIgnoredDirs)) scanSingleFile(full, rel);
+      }
+    }
+  }
+  if (stat.isFile()) {
+    if (customExts.has(path10.extname(root).toLowerCase())) scanSingleFile(root, path10.basename(root));
+  } else if (stat.isDirectory()) {
+    walk(root);
+  }
+  locViolations.sort((a, b) => b.lines - a.lines);
+  const targetDir = stat.isDirectory() ? root : path10.dirname(root);
+  const tests = detectTests(targetDir);
+  const stack = detectStack(targetDir);
+  const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests });
+  return {
+    score,
+    stack,
+    summary: {
+      totalFilesScanned,
+      locViolationsCount: locViolations.length,
+      suppressionsCount: suppressions.length,
+      todosCount: todos.length,
+      testFramework: tests.framework,
+      verifyCommand: tests.verifyCommand,
+      stack: stack.join(", ") || null
+    },
+    loc: { maxLines, warnLines, violations: locViolations },
+    quality: { suppressions },
+    todos,
+    tests
+  };
+}
+var isColorSupported2 = !("NO_COLOR" in process.env) && (process.env.FORCE_COLOR === "1" || process.stdout?.isTTY && process.env.TERM !== "dumb");
+var c2 = {
+  bold: (s) => isColorSupported2 ? `\x1B[1m${s}\x1B[22m` : s,
+  dim: (s) => isColorSupported2 ? `\x1B[2m${s}\x1B[22m` : s,
+  green: (s) => isColorSupported2 ? `\x1B[32m${s}\x1B[39m` : s,
+  yellow: (s) => isColorSupported2 ? `\x1B[33m${s}\x1B[39m` : s,
+  red: (s) => isColorSupported2 ? `\x1B[31m${s}\x1B[39m` : s,
+  cyan: (s) => isColorSupported2 ? `\x1B[36m${s}\x1B[39m` : s
+};
+function stripAnsi(str) {
+  return String(str).replace(/\x1b\[[0-9;]*m/g, "");
+}
+function makeBoxLine(label, value = "", width = 68) {
+  const innerWidth = width - 4;
+  const spaces = Math.max(1, innerWidth - (stripAnsi(label).length + stripAnsi(value).length));
+  return `  \u2502 ${label}${" ".repeat(spaces)}${value} \u2502`;
+}
+async function runCli2(argv = process.argv.slice(2)) {
+  if (Array.isArray(argv) && argv[0] === "audit") argv = argv.slice(1);
+  let targetPath = null, maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WARN_LINES;
+  let formatJson = false, isStrict = false, isQuiet = false;
+  const excludes = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--max" || arg === "--max-lines") maxLines = parseInt(argv[++i], 10);
+    else if (arg === "--warn" || arg === "--warn-lines") warnLines = parseInt(argv[++i], 10);
+    else if (arg === "--path" || arg === "--src" || arg === "--root" || arg === "--cwd" || arg === "--repo" || arg === "-r") targetPath = argv[++i];
+    else if (arg.startsWith("--root=") || arg.startsWith("--cwd=") || arg.startsWith("--path=") || arg.startsWith("--repo=")) targetPath = arg.split("=")[1];
+    else if (arg === "--exclude") excludes.push(argv[++i]);
+    else if (arg === "--json" || arg === "--format=json" || arg === "--format" && argv[++i] === "json") formatJson = true;
+    else if (arg === "--strict") isStrict = true;
+    else if (arg === "--quiet" || arg === "-q") isQuiet = true;
+    else if (arg === "--help" || arg === "-h") {
+      console.log(`
+Usage: gripm audit [options] [path]
+       node scripts/audit-engine.mjs [options] [path]
+
+Options:
+  --format json, --json    Output results strictly as structured JSON
+  --strict                 Exit code 1 if critical violations (>= 1000 LOC or suppressions) exist
+  --quiet, -q              Minimal one-line summary output
+  --repo, -r <dir>         Directory to scan (default: current directory)
+  --max, --max-lines <n>   Ceiling lines limit (default: ${DEFAULT_MAX_LINES})
+  --warn, --warn-lines <n> Soft warning threshold (default: ${DEFAULT_WARN_LINES})
+  --exclude <pattern>      Exclude pattern (repeatable)
+  --help, -h               Show this help message
+`);
+      process.exit(0);
+    } else if (!arg.startsWith("-")) targetPath = arg;
+  }
+  const report = await scanCodebase(targetPath, { maxLines, warnLines, exclude: excludes });
+  const criticalLocViolations = report.loc.violations.filter((v) => v.status === "error" || v.lines >= maxLines);
+  const criticalSuppressions = report.quality.suppressions;
+  const hasCriticalViolations = criticalLocViolations.length > 0 || criticalSuppressions.length > 0;
+  if (formatJson) {
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(isStrict && hasCriticalViolations ? 1 : 0);
+  }
+  if (isQuiet) {
+    const statusTag = hasCriticalViolations ? "FAIL" : "PASS";
+    console.log(`gripm audit: Health Score ${report.score}/100 - ${report.summary.totalFilesScanned} files - ${report.summary.locViolationsCount} LOC issues (${criticalLocViolations.length} critical) - ${criticalSuppressions.length} suppressions - ${report.summary.todosCount} TODOs [${statusTag}]`);
+    process.exit(isStrict && hasCriticalViolations ? 1 : 0);
+  }
+  const scoreText = report.score >= 80 ? c2.green(report.score + "/100") : report.score >= 50 ? c2.yellow(report.score + "/100") : c2.red(report.score + "/100");
+  const runnerText = report.summary.testFramework ? `${report.summary.testFramework} (verify: ${report.summary.verifyCommand || "npm test"})` : c2.dim("None detected");
+  const locDetail = `${report.summary.locViolationsCount} (${criticalLocViolations.length} critical >= ${maxLines} LOC)`;
+  const stackText = report.summary.stack ? report.summary.stack : c2.dim("Not detected");
+  console.log("\n  \u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
+  console.log(makeBoxLine(`${c2.bold("gripm")} ${c2.dim("\xB7")} Static Codebase Health Audit`, ""));
+  console.log("  \u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
+  console.log(makeBoxLine("Health Score:", scoreText));
+  console.log(makeBoxLine("Files Scanned:", `${report.summary.totalFilesScanned} files`));
+  console.log(makeBoxLine("Stack:", stackText));
+  console.log(makeBoxLine("Test Runner:", runnerText));
+  console.log(makeBoxLine("LOC Issues:", locDetail));
+  console.log(makeBoxLine("Suppressions:", String(criticalSuppressions.length)));
+  console.log(makeBoxLine("TODO / Debt:", `${report.summary.todosCount} markers`));
+  console.log("  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n");
+  if (report.loc.violations.length > 0) {
+    console.log(`  ${c2.yellow("\u25B2 LOC Violations & Warnings:")}`);
+    for (const v of report.loc.violations) {
+      const color = v.status === "error" ? c2.red : c2.yellow;
+      console.log(`    ${color(v.status.padEnd(8))} ${v.file.padEnd(52)} ${c2.bold(v.lines)} LOC`);
+    }
+    console.log("");
+  }
+  if (report.quality.suppressions.length > 0) {
+    console.log(`  ${c2.yellow("\u25B2 Quality Suppressions:")}`);
+    for (const s of report.quality.suppressions) {
+      console.log(`    ${c2.yellow(s.type.padEnd(16))} ${s.file}:${s.line} - ${c2.dim(s.snippet)}`);
+    }
+    console.log("");
+  }
+  if (report.todos.length > 0) {
+    console.log(`  ${c2.dim("\u2139 Hidden Debt & Notes:")}`);
+    for (const t of report.todos.slice(0, 10)) {
+      console.log(`    ${c2.cyan(t.type.padEnd(8))} ${t.file}:${t.line} - ${t.text}`);
+    }
+    if (report.todos.length > 10) console.log(`    ${c2.dim(`... and ${report.todos.length - 10} more`)}`);
+    console.log("");
+  }
+  if (isStrict && hasCriticalViolations) {
+    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${maxLines} lines) and ${criticalSuppressions.length} suppression(s) detected.
+`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+var entryBase = process.argv[1] ? path10.basename(process.argv[1]).replace(/\.[cm]?js$/, "") : "";
+var isCli = process.argv[1] && (entryBase === "audit-repo" || entryBase === "audit-engine" || path10.resolve(process.argv[1]) === __filename4 && entryBase.includes("audit-engine"));
+if (isCli) {
+  runCli2();
+}
+
+// server/services/auditService.ts
+async function scanCodebase2(targetPath, options) {
+  const result = await scanCodebase(targetPath, options);
+  return result;
+}
+
 // scripts/mcp-server.ts
-var __filename3 = fileURLToPath3(import.meta.url);
-var __dirname3 = path9.dirname(__filename3);
-var ROOT_DIR = path9.resolve(__dirname3, "..");
+var __filename5 = fileURLToPath5(import.meta.url);
+var __dirname4 = path11.dirname(__filename5);
+var ROOT_DIR = path11.resolve(__dirname4, "..");
 var currentVersion = "0.5.0";
 try {
-  const pkg = JSON.parse(fs8.readFileSync(path9.join(ROOT_DIR, "package.json"), "utf8"));
+  const pkg = JSON.parse(fs10.readFileSync(path11.join(ROOT_DIR, "package.json"), "utf8"));
   if (pkg.version) currentVersion = pkg.version;
 } catch {
 }
@@ -3698,8 +4511,8 @@ function getRegistry2() {
   let cliRepo = null;
   const repoIdx = args.findIndex((a) => a === "--repo" || a === "-r" || a === "-p");
   if (repoIdx !== -1 && args[repoIdx + 1]) {
-    cliRepo = path9.resolve(args[repoIdx + 1]);
-    if (!fs8.existsSync(cliRepo) || !fs8.statSync(cliRepo).isDirectory()) {
+    cliRepo = path11.resolve(args[repoIdx + 1]);
+    if (!fs10.existsSync(cliRepo) || !fs10.statSync(cliRepo).isDirectory()) {
       throw new Error(`[MCP Security] Error: La ruta provista en --repo '${cliRepo}' no existe o no es un directorio.`);
     }
     if (isSystemRootDir(cliRepo)) {
@@ -3711,10 +4524,10 @@ function getRegistry2() {
     }
   }
   const targetRepo = cliRepo || process.cwd();
-  const hasMdBacklog = fs8.existsSync(path9.join(targetRepo, "backlog/tasks"));
-  const hasJsonBacklog = fs8.existsSync(path9.join(targetRepo, ".gripm/backlog.json"));
+  const hasMdBacklog = fs10.existsSync(path11.join(targetRepo, "backlog/tasks"));
+  const hasJsonBacklog = fs10.existsSync(path11.join(targetRepo, ".gripm/backlog.json"));
   if (hasMdBacklog || hasJsonBacklog || cliRepo) {
-    const existing = reg.projects.find((p) => p.repoPath && path9.resolve(p.repoPath) === targetRepo);
+    const existing = reg.projects.find((p) => p.repoPath && path11.resolve(p.repoPath) === targetRepo);
     const identity = resolveProjectIdentity(targetRepo);
     if (existing) {
       if (identity.id && identity.id !== existing.id) {
@@ -3974,6 +4787,28 @@ var CANONICAL_TOOLS = [
         projectId: { type: "string", description: "Project ID." }
       }
     }
+  },
+  {
+    name: "gripm_get_repo_health",
+    description: "Returns static architecture and code health diagnostic (LOC budgets, suppressions, test framework, and TODOs)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: ["all", "loc", "quality", "suppressions", "tests", "todos"],
+          description: "Category of health data to retrieve"
+        },
+        limit: {
+          type: "number",
+          description: "Limit of items to return in lists"
+        },
+        projectId: {
+          type: "string",
+          description: "Project ID or code to inspect (optional, defaults to active project)."
+        }
+      }
+    }
   }
 ];
 var TOOLS = CANONICAL_TOOLS;
@@ -4178,22 +5013,22 @@ async function handleToolCall(rawName, args) {
     if (!targetProject) throw new Error("No hay proyectos registrados en gripm.");
     let releases = [];
     const repoPath = targetProject.repoPath || ROOT_DIR;
-    const releasesJsonPath = path9.join(repoPath, targetProject.backlogDir || "backlog", "releases.json");
-    const gripmReleasesPath = path9.join(repoPath, ".gripm/releases.json");
-    const dataReleasesPath = path9.join(ROOT_DIR, "data/releases.json");
-    if (fs8.existsSync(releasesJsonPath)) {
+    const releasesJsonPath = path11.join(repoPath, targetProject.backlogDir || "backlog", "releases.json");
+    const gripmReleasesPath = path11.join(repoPath, ".gripm/releases.json");
+    const dataReleasesPath = path11.join(ROOT_DIR, "data/releases.json");
+    if (fs10.existsSync(releasesJsonPath)) {
       try {
-        releases = JSON.parse(fs8.readFileSync(releasesJsonPath, "utf8"));
+        releases = JSON.parse(fs10.readFileSync(releasesJsonPath, "utf8"));
       } catch {
       }
-    } else if (fs8.existsSync(gripmReleasesPath)) {
+    } else if (fs10.existsSync(gripmReleasesPath)) {
       try {
-        releases = JSON.parse(fs8.readFileSync(gripmReleasesPath, "utf8"));
+        releases = JSON.parse(fs10.readFileSync(gripmReleasesPath, "utf8"));
       } catch {
       }
-    } else if (fs8.existsSync(dataReleasesPath)) {
+    } else if (fs10.existsSync(dataReleasesPath)) {
       try {
-        releases = JSON.parse(fs8.readFileSync(dataReleasesPath, "utf8"));
+        releases = JSON.parse(fs10.readFileSync(dataReleasesPath, "utf8"));
       } catch {
       }
     }
@@ -4202,16 +5037,16 @@ async function handleToolCall(rawName, args) {
     const codePrefix = (targetProject.codePrefix || "").toUpperCase().trim();
     if (releases.length === 0) {
       const notesPaths = [
-        path9.join(repoPath, "docs/RELEASE_NOTES.md"),
-        path9.join(repoPath, "docs/releasenotes.md"),
-        path9.join(repoPath, "RELEASE_NOTES.md"),
-        path9.join(repoPath, "releasenotes.md"),
-        path9.join(repoPath, "CHANGELOG.md")
+        path11.join(repoPath, "docs/RELEASE_NOTES.md"),
+        path11.join(repoPath, "docs/releasenotes.md"),
+        path11.join(repoPath, "RELEASE_NOTES.md"),
+        path11.join(repoPath, "releasenotes.md"),
+        path11.join(repoPath, "CHANGELOG.md")
       ];
       for (const np of notesPaths) {
-        if (fs8.existsSync(np)) {
+        if (fs10.existsSync(np)) {
           try {
-            const content = fs8.readFileSync(np, "utf8");
+            const content = fs10.readFileSync(np, "utf8");
             const sections = content.split(/(?=^##\s+)/m);
             for (const section of sections) {
               const trimmed = section.trim();
@@ -4229,8 +5064,8 @@ async function handleToolCall(rawName, args) {
               title = title.replace(/^[-:\u2014\u2013🚀 ]+/, "").trim();
               const itemCodesSet = /* @__PURE__ */ new Set();
               const candidates = trimmed.match(/\b([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\b/g) || [];
-              for (const c of candidates) {
-                const upper = c.toUpperCase();
+              for (const c3 of candidates) {
+                const upper = c3.toUpperCase();
                 if (knownCodes.has(upper) || codePrefix && upper.startsWith(`${codePrefix}-`)) {
                   itemCodesSet.add(upper);
                 }
@@ -4265,7 +5100,7 @@ async function handleToolCall(rawName, args) {
           availableVersions: releases.map((r) => r.version)
         };
       }
-      const relatedCodes = new Set((foundRelease.itemCodes || []).map((c) => c.toLowerCase()));
+      const relatedCodes = new Set((foundRelease.itemCodes || []).map((c3) => c3.toLowerCase()));
       const relatedTasks = allTasks.filter((t) => {
         const idLower = String(t.id || t.code || "").toLowerCase();
         if (relatedCodes.has(idLower)) return true;
@@ -4302,13 +5137,13 @@ async function handleToolCall(rawName, args) {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
     if (!targetProject) throw new Error("Proyecto no encontrado.");
     const sprintKey = String(args.sprintId || args.sprintName || "sprint").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-    const retrosDir = path9.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
-    if (!fs8.existsSync(retrosDir)) {
-      fs8.mkdirSync(retrosDir, { recursive: true });
+    const retrosDir = path11.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
+    if (!fs10.existsSync(retrosDir)) {
+      fs10.mkdirSync(retrosDir, { recursive: true });
     }
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const sprintTitle = args.sprintName || args.sprintId;
-    const filePath = path9.join(retrosDir, `${sprintKey}-retro.md`);
+    const filePath = path11.join(retrosDir, `${sprintKey}-retro.md`);
     const mdContent = `# Retrospectiva - ${sprintTitle}
 
 **Fecha:** ${today}  
@@ -4340,16 +5175,16 @@ ${Array.isArray(args.actions) && args.actions.length > 0 ? args.actions.map((act
   if (name === "gripm_list_retros") {
     const targetProject = registry.projects.find((p) => p.id === args.projectId) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
     if (!targetProject) throw new Error("Proyecto no encontrado.");
-    const retrosDir = path9.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
-    if (!fs8.existsSync(retrosDir)) {
+    const retrosDir = path11.join(targetProject.repoPath || ROOT_DIR, targetProject.backlogDir || "backlog", "retros");
+    if (!fs10.existsSync(retrosDir)) {
       return { ok: true, retros: [] };
     }
-    const files = fs8.readdirSync(retrosDir).filter((f) => f.endsWith(".md"));
+    const files = fs10.readdirSync(retrosDir).filter((f) => f.endsWith(".md"));
     const retros = [];
     for (const f of files) {
       try {
-        const full = path9.join(retrosDir, f);
-        const raw = fs8.readFileSync(full, "utf8");
+        const full = path11.join(retrosDir, f);
+        const raw = fs10.readFileSync(full, "utf8");
         const titleMatch = raw.match(/^#\s+(.+)$/m);
         const dateMatch = raw.match(/\*\*Fecha:\*\*\s*([^\n]+)/);
         retros.push({
@@ -4365,6 +5200,75 @@ ${Array.isArray(args.actions) && args.actions.length > 0 ? args.actions.map((act
       ok: true,
       total: retros.length,
       retros
+    };
+  }
+  if (name === "gripm_get_repo_health") {
+    if (args.limit !== void 0) {
+      if (typeof args.limit !== "number" || !Number.isInteger(args.limit) || args.limit <= 0) {
+        throw new Error(`[MCP Validation] Invalid parameter 'limit': must be a positive integer, received '${args.limit}'.`);
+      }
+    }
+    const validCategories = ["all", "loc", "quality", "suppressions", "tests", "todos"];
+    const category = args.category || "all";
+    if (!validCategories.includes(category)) {
+      throw new Error(`[MCP Validation] Invalid parameter 'category': must be one of [${validCategories.join(", ")}], received '${category}'.`);
+    }
+    const targetProject = (args.projectId ? registry.projects.find((p) => p.id === args.projectId) : null) || registry.projects.find((p) => p.id === registry.activeProjectId) || registry.projects[0];
+    const repoPath = targetProject?.repoPath || ROOT_DIR;
+    const report = await scanCodebase2(repoPath);
+    const limit = args.limit;
+    if (category === "loc") {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        loc: {
+          maxLines: report.loc.maxLines,
+          warnLines: report.loc.warnLines,
+          violations: limit ? report.loc.violations.slice(0, limit) : report.loc.violations
+        }
+      };
+    }
+    if (category === "quality" || category === "suppressions") {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        quality: {
+          suppressions: limit ? report.quality.suppressions.slice(0, limit) : report.quality.suppressions
+        }
+      };
+    }
+    if (category === "tests") {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        tests: report.tests
+      };
+    }
+    if (category === "todos") {
+      return {
+        projectId: targetProject?.id || null,
+        score: report.score,
+        summary: report.summary,
+        todos: limit ? report.todos.slice(0, limit) : report.todos
+      };
+    }
+    return {
+      projectId: targetProject?.id || null,
+      score: report.score,
+      summary: report.summary,
+      loc: {
+        maxLines: report.loc.maxLines,
+        warnLines: report.loc.warnLines,
+        violations: limit ? report.loc.violations.slice(0, limit) : report.loc.violations
+      },
+      quality: {
+        suppressions: limit ? report.quality.suppressions.slice(0, limit) : report.quality.suppressions
+      },
+      todos: limit ? report.todos.slice(0, limit) : report.todos,
+      tests: report.tests
     };
   }
   throw new Error(`Herramienta desconocida: ${name}`);
