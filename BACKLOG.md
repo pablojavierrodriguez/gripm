@@ -571,7 +571,7 @@ Configurar Vercel Web Analytics (`@vercel/analytics`) para la demo web pública 
 
 ---
 
-### 📋 Backlog / Draft (20)
+### 📋 Backlog / Draft (21)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1125,6 +1125,10 @@ Mejora de la precision temporal y ergonomia visual del lienzo de Roadmap:
 - [ ] #3 El scroll vertical entre el panel de jerarquia y el lienzo de barras se mantiene 100% alineado
 - [ ] #4 Todas las cadenas de texto del componente utilizan las claves de i18n correspondientes sin texto duro
 
+---
+
+#### [DEV-359] Configurabilidad y gobernanza granular de reglas de auditoría en config.json
+- **Prioridad**: `p2` | **Tipo**: `feature`
 ---
 
 ### ✅ Done / Deployed (308)
