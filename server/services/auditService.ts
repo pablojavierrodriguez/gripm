@@ -22,6 +22,13 @@ export interface RepoHealthReport {
     testFramework: string | null;
     verifyCommand: string | null;
   };
+  rules?: {
+    loc?: boolean;
+    suppressions?: boolean;
+    debtMarkers?: boolean;
+    consoleLog?: boolean;
+    testRunner?: boolean;
+  };
   loc: {
     maxLines: number;
     warnLines: number;
@@ -45,8 +52,20 @@ export interface AuditOptions {
   extensions?: string[] | Set<string>;
   ignoredDirs?: string[] | Set<string>;
   exclude?: string[] | string;
+  rules?: {
+    loc?: boolean;
+    suppressions?: boolean;
+    debtMarkers?: boolean;
+    consoleLog?: boolean;
+    testRunner?: boolean;
+  };
+  thresholds?: {
+    maxLines?: number;
+    warnLines?: number;
+  };
   cwd?: string;
   root?: string;
+  includeConsoleLog?: boolean;
 }
 
 export interface TestDetectionResult {
@@ -83,6 +102,13 @@ export function computeHealthScore(params: {
   suppressions?: Array<{ file: string; line: number; type: string; snippet: string }>;
   todos?: Array<{ type: 'TODO' | 'FIXME' | 'HACK' | 'BUG' }>;
   tests?: { detected: boolean; hasTests: boolean };
+  rules?: {
+    loc?: boolean;
+    suppressions?: boolean;
+    debtMarkers?: boolean;
+    consoleLog?: boolean;
+    testRunner?: boolean;
+  };
 }): number {
   return (computeHealthScoreEngine as (args: any) => number)(params);
 }

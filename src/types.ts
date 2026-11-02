@@ -230,6 +230,11 @@ export interface GripmConfig {
   showFilterBarStats?: boolean;
   showAuditBadge?: boolean;
   auditBadgeStyle?: 'full' | 'compact';
+  audit?: import('./types/audit').AuditConfig;
+  guardrails?: {
+    enforceLocCeiling?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export type DevBoardConfig = GripmConfig;

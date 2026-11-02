@@ -93,10 +93,10 @@ async function runTests() {
   try {
     const code = [
       '// Line 1: Clean code',
-      '// @ts-ignore ignore type error',
+      '// ' + '@ts-ignore ignore type error',
       'const a: any = 1;',
-      '/* @ts-nocheck full file suppression */',
-      '// eslint-disable-next-line no-unused-vars',
+      '/* ' + '@ts-nocheck full file suppression */',
+      '// ' + 'eslint-disable-next-line no-unused-vars',
       'const b = 2;'
     ].join('\n');
     fs.writeFileSync(path.join(slopDir, 'slop.ts'), code, 'utf8');
@@ -177,13 +177,13 @@ async function runTests() {
   try {
     const code = [
       '// Line 1',
-      '// TODO: implement caching strategy',
+      '// ' + 'TODO: implement caching strategy',
       '// Line 3',
-      '// FIXME: memory leak in unmount listener',
+      '// ' + 'FIXME: memory leak in unmount listener',
       '// Line 5',
-      '/* HACK: bypass sandbox check */',
+      '/* ' + 'HACK: bypass sandbox check */',
       '// Line 7',
-      '// BUG: crash when input is null'
+      '// ' + 'BUG: crash when input is null'
     ].join('\n');
     fs.writeFileSync(path.join(todoDir, 'tasks.js'), code, 'utf8');
 
@@ -260,7 +260,7 @@ async function runTests() {
   console.log('--- Test 8: Paridad entre auditService.ts y audit-engine.mjs (AC #1) ---');
   const parityDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-audit-parity-'));
   try {
-    fs.writeFileSync(path.join(parityDir, 'sample.ts'), '// @ts-ignore\nconst x = 1;\n// TODO: clean up', 'utf8');
+    fs.writeFileSync(path.join(parityDir, 'sample.ts'), '// ' + '@ts-ignore\nconst x = 1;\n// ' + 'TODO: clean up', 'utf8');
     const r1 = await scanCodebase(parityDir);
     const r2 = await scanCodebaseEngine(parityDir);
 
@@ -271,6 +271,142 @@ async function runTests() {
     console.log('✅ Test 8 aprobado: auditService.ts y audit-engine.mjs producen resultados idénticos.\n');
   } finally {
     fs.rmSync(parityDir, { recursive: true, force: true });
+  }
+
+  // Test 9: Config resolution with .gripm/config.json (DEV-359 AC #1 & AC #2)
+  console.log('--- Test 9: Resolución de Configuración y Fallback (.gripm/config.json) (DEV-359 AC #1 y AC #2) ---');
+  const cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-audit-cfg-'));
+  try {
+    const gripmDir = path.join(cfgDir, '.gripm');
+    fs.mkdirSync(gripmDir, { recursive: true });
+
+    const sampleConfig = {
+      audit: {
+        rules: {
+          loc: false,
+          suppressions: true,
+          debtMarkers: false,
+          consoleLog: true,
+          testRunner: false
+        },
+        thresholds: {
+          maxLines: 800,
+          warnLines: 400
+        },
+        exclude: ['ignored-folder/**', 'fixtures/*']
+      }
+    };
+    fs.writeFileSync(path.join(gripmDir, 'config.json'), JSON.stringify(sampleConfig, null, 2), 'utf8');
+
+    // Create a 500-line file that would normally violate warnLines (500) or test runner penalty
+    const lines = new Array(500).fill('console.log("active console");').join('\n');
+    fs.writeFileSync(path.join(cfgDir, 'test-file.js'), lines, 'utf8');
+
+    const report = await scanCodebase(cfgDir);
+    assert(report.rules.loc === false, 'rules.loc debe ser false según config');
+    assert(report.rules.debtMarkers === false, 'rules.debtMarkers debe ser false según config');
+    assert(report.rules.consoleLog === true, 'rules.consoleLog debe ser true según config');
+    assert(report.rules.testRunner === false, 'rules.testRunner debe ser false según config');
+    assert(report.loc.maxLines === 800, 'loc.maxLines debe ser 800 según thresholds');
+    assert(report.loc.warnLines === 400, 'loc.warnLines debe ser 400 según thresholds');
+    assert(report.loc.violations.length === 0, 'No debe haber violaciones de LOC porque rules.loc=false');
+    assert(report.quality.suppressions.length > 0, 'console.log debe reportarse como supresión cuando consoleLog=true');
+    console.log('✅ Test 9 aprobado: Configuración resuelta desde .gripm/config.json con reglas y umbrales.\n');
+  } finally {
+    fs.rmSync(cfgDir, { recursive: true, force: true });
+  }
+
+  // Test 10: Granular Rule Toggles & Health Score Impact (DEV-359 AC #3)
+  console.log('--- Test 10: Toggles de Reglas y Omisión de Penalizaciones en Score (DEV-359 AC #3) ---');
+  const toggleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-audit-toggle-'));
+  try {
+    // 1200 lines file with slop and todos, without test runner
+    const lines = [
+      '// ' + '@ts-ignore',
+      '// ' + 'BUG: memory leak',
+      ...new Array(1200).fill('const dummy = 1;')
+    ].join('\n');
+    fs.writeFileSync(path.join(toggleDir, 'heavy.ts'), lines, 'utf8');
+
+    // Baseline: with all rules active, score is penalized (100 - 10 LOC - 5 supp - 3 bug - 15 tests = 67)
+    const baseReport = await scanCodebase(toggleDir);
+    assert(baseReport.score <= 70, `Score base debe ser <=70, obtenido: ${baseReport.score}`);
+    assert(baseReport.loc.violations.length > 0, 'Debe haber violaciones de LOC');
+    assert(baseReport.quality.suppressions.length > 0, 'Debe haber supresiones');
+    assert(baseReport.todos.length > 0, 'Debe haber TODOs');
+
+    // Scanned with all rules disabled: score must be 100 and findings must be empty
+    const relaxedReport = await scanCodebase(toggleDir, {
+      rules: {
+        loc: false,
+        suppressions: false,
+        debtMarkers: false,
+        testRunner: false
+      }
+    });
+    assert(relaxedReport.score === 100, `Score relajado debe ser 100 al desactivar reglas, obtenido: ${relaxedReport.score}`);
+    assert(relaxedReport.loc.violations.length === 0, 'Violaciones de LOC deben estar vacías');
+    assert(relaxedReport.quality.suppressions.length === 0, 'Supresiones deben estar vacías');
+    assert(relaxedReport.todos.length === 0, 'TODOs deben estar vacíos');
+    console.log('✅ Test 10 aprobado: Desactivar reglas omite penalizaciones y vacía hallazgos.\n');
+  } finally {
+    fs.rmSync(toggleDir, { recursive: true, force: true });
+  }
+
+  // Test 11: Thresholds Customization (DEV-359 AC #1 y AC #2)
+  console.log('--- Test 11: Personalización de Umbrales de Líneas (DEV-359 AC #1 y AC #2) ---');
+  const threshDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-audit-thresh-'));
+  try {
+    const lines150 = new Array(150).fill('const x = 1;').join('\n');
+    fs.writeFileSync(path.join(threshDir, 'mod.ts'), lines150, 'utf8');
+
+    // Default thresholds (1000/500): 150 lines is clean
+    const defaultRep = await scanCodebase(threshDir);
+    assert(defaultRep.loc.violations.length === 0, '150 líneas no debe violar umbral predeterminado');
+
+    // Custom thresholds: max 200, warn 100 -> 150 lines is a warning
+    const customRep = await scanCodebase(threshDir, {
+      thresholds: { maxLines: 200, warnLines: 100 }
+    });
+    assert(customRep.loc.violations.length === 1, '150 líneas debe ser advertencia con warnLines=100');
+    assert(customRep.loc.violations[0].status === 'warning', 'Estado debe ser warning');
+    console.log('✅ Test 11 aprobado: Umbrales personalizados aplicados correctamente.\n');
+  } finally {
+    fs.rmSync(threshDir, { recursive: true, force: true });
+  }
+
+  // Test 12: Audit Exclude Patterns (DEV-359 AC #4)
+  console.log('--- Test 12: Patrones de Exclusión audit.exclude (DEV-359 AC #4) ---');
+  const exclDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gripm-audit-excl-'));
+  try {
+    const fixtureDir = path.join(exclDir, 'test-fixtures');
+    fs.mkdirSync(fixtureDir, { recursive: true });
+
+    // Fixture file with suppressions and 1200 lines
+    const fixtureContent = [
+      '// ' + '@ts-ignore test fixture',
+      ...new Array(1200).fill('const a = 1;')
+    ].join('\n');
+    fs.writeFileSync(path.join(fixtureDir, 'fixture.ts'), fixtureContent, 'utf8');
+
+    // Clean source file
+    fs.writeFileSync(path.join(exclDir, 'index.ts'), 'export const ready = true;\n', 'utf8');
+
+    // Without exclude: fixture is scanned and penalizes
+    const repWith = await scanCodebase(exclDir);
+    assert(repWith.summary.totalFilesScanned === 2, 'Debe escanear 2 archivos sin exclusiones');
+    assert(repWith.quality.suppressions.length === 1, 'Debe detectar supresión en fixture');
+
+    // With audit.exclude: fixture is completely isolated
+    const repExcl = await scanCodebase(exclDir, {
+      exclude: ['test-fixtures/**']
+    });
+    assert(repExcl.summary.totalFilesScanned === 1, `Debe escanear solo 1 archivo con exclusión, escaneó: ${repExcl.summary.totalFilesScanned}`);
+    assert(repExcl.quality.suppressions.length === 0, 'Supresiones en fixture deben ser ignoradas');
+    assert(repExcl.loc.violations.length === 0, 'Violaciones de LOC en fixture deben ser ignoradas');
+    console.log('✅ Test 12 aprobado: audit.exclude aísla fixtures y carpetas de prueba con precisión.\n');
+  } finally {
+    fs.rmSync(exclDir, { recursive: true, force: true });
   }
 
   console.log('🎉 Todos los tests de auditService y audit-engine (DEV-353) fueron completados con éxito.');

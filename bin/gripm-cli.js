@@ -452,30 +452,43 @@ function detectTests(rootPath) {
   return { detected: Boolean(hasTests || framework), framework: framework || null, verifyCommand: verifyCommand || null, hasTests };
 }
 function computeHealthScore(params = {}) {
-  const { totalFilesScanned = 0, locViolations = [], suppressions = [], todos = [], tests = { detected: false, hasTests: false } } = params;
+  const { totalFilesScanned = 0, locViolations = [], suppressions = [], todos = [], tests = { detected: false, hasTests: false }, rules = {} } = params;
   if (!totalFilesScanned || totalFilesScanned <= 0) return 100;
+  const locActive = rules.loc !== false;
+  const suppressionsActive = rules.suppressions !== false;
+  const debtMarkersActive = rules.debtMarkers !== false;
+  const testRunnerActive = rules.testRunner !== false;
   let score = 100;
-  const errorCount = locViolations.filter((v) => v.status === "error").length;
-  const warnCount = locViolations.filter((v) => v.status === "warning").length;
-  score -= Math.min(40, errorCount * 10);
-  score -= Math.min(15, warnCount * 3);
-  score -= Math.min(25, suppressions.length * 5);
-  let todoPenalty = 0;
-  for (const item of todos) {
-    if (item.type === "BUG" || item.type === "FIXME") todoPenalty += 3;
-    else if (item.type === "HACK" || item.type === "XXX") todoPenalty += 2;
-    else todoPenalty += 1;
+  if (locActive) {
+    const errorCount = locViolations.filter((v) => v.status === "error").length;
+    const warnCount = locViolations.filter((v) => v.status === "warning").length;
+    score -= Math.min(40, errorCount * 10);
+    score -= Math.min(15, warnCount * 3);
   }
-  score -= Math.min(15, todoPenalty);
-  if (!tests.detected && !tests.hasTests) score -= 15;
+  if (suppressionsActive) {
+    score -= Math.min(25, suppressions.length * 5);
+  }
+  if (debtMarkersActive) {
+    let todoPenalty = 0;
+    for (const item of todos) {
+      if (item.type === "BUG" || item.type === "FIXME") todoPenalty += 3;
+      else if (item.type === "HACK" || item.type === "XXX") todoPenalty += 2;
+      else todoPenalty += 1;
+    }
+    score -= Math.min(15, todoPenalty);
+  }
+  if (testRunnerActive && !tests.detected && !tests.hasTests) {
+    score -= 15;
+  }
   if (Number.isNaN(score) || !Number.isFinite(score)) return 100;
   return Math.max(0, Math.min(100, Math.round(score)));
 }
-function createEmptyReport(maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WARN_LINES) {
+function createEmptyReport(maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WARN_LINES, rules = {}) {
   return {
     score: 100,
     stack: [],
     summary: { totalFilesScanned: 0, locViolationsCount: 0, suppressionsCount: 0, todosCount: 0, testFramework: null, verifyCommand: null, stack: null },
+    rules,
     loc: { maxLines, warnLines, violations: [] },
     quality: { suppressions: [] },
     todos: [],
@@ -484,11 +497,38 @@ function createEmptyReport(maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WAR
 }
 async function scanCodebase(targetPath, options = {}) {
   const root = path8.resolve(targetPath || options.cwd || options.root || process.cwd());
-  const maxLines = Number(options.maxLines ?? options.max ?? DEFAULT_MAX_LINES);
-  const warnLines = Number(options.warnLines ?? options.warn ?? DEFAULT_WARN_LINES);
+  let auditConfig = {};
+  try {
+    const configCandidates = [
+      path8.join(root, ".gripm", "config.json"),
+      path8.join(root, ".devboard", "config.json")
+    ];
+    const parentDir = path8.dirname(root);
+    if (parentDir && parentDir !== root) {
+      configCandidates.push(path8.join(parentDir, ".gripm", "config.json"));
+      configCandidates.push(path8.join(parentDir, ".devboard", "config.json"));
+    }
+    const configPath = configCandidates.find((p) => fs7.existsSync(p));
+    if (configPath) {
+      const parsed = JSON.parse(fs7.readFileSync(configPath, "utf8"));
+      if (parsed && typeof parsed === "object" && parsed.audit && typeof parsed.audit === "object") {
+        auditConfig = parsed.audit;
+      }
+    }
+  } catch {
+  }
+  const rules = {
+    loc: options.rules?.loc ?? auditConfig.rules?.loc ?? true,
+    suppressions: options.rules?.suppressions ?? auditConfig.rules?.suppressions ?? true,
+    debtMarkers: options.rules?.debtMarkers ?? auditConfig.rules?.debtMarkers ?? true,
+    consoleLog: options.rules?.consoleLog ?? auditConfig.rules?.consoleLog ?? options.includeConsoleLog ?? auditConfig.includeConsoleLog ?? false,
+    testRunner: options.rules?.testRunner ?? auditConfig.rules?.testRunner ?? true
+  };
+  const maxLines = Number(options.thresholds?.maxLines ?? options.maxLines ?? options.max ?? auditConfig.thresholds?.maxLines ?? auditConfig.maxLines ?? DEFAULT_MAX_LINES);
+  const warnLines = Number(options.thresholds?.warnLines ?? options.warnLines ?? options.warn ?? auditConfig.thresholds?.warnLines ?? auditConfig.warnLines ?? DEFAULT_WARN_LINES);
   const customExts = options.extensions ? new Set(options.extensions) : DEFAULT_EXTENSIONS;
   const customIgnoredDirs = options.ignoredDirs ? new Set(options.ignoredDirs) : DEFAULT_IGNORED_DIRS;
-  if (!fs7.existsSync(root)) return createEmptyReport(maxLines, warnLines);
+  if (!fs7.existsSync(root)) return createEmptyReport(maxLines, warnLines, rules);
   const stat = fs7.statSync(root);
   const gitignoreRules = parseIgnoreFile(path8.join(root, ".gitignore"));
   const locignorePath = [
@@ -497,7 +537,9 @@ async function scanCodebase(targetPath, options = {}) {
     path8.join(root, ".locignore")
   ].find((p) => fs7.existsSync(p)) || path8.join(root, ".locignore");
   const locignoreRules = parseIgnoreFile(locignorePath);
-  const extraExcludes = parseIgnoreLines(Array.isArray(options.exclude) ? options.exclude : options.exclude ? [options.exclude] : []);
+  const configExcludes = Array.isArray(auditConfig.exclude) ? auditConfig.exclude : auditConfig.exclude ? [auditConfig.exclude] : [];
+  const optExcludes = Array.isArray(options.exclude) ? options.exclude : options.exclude ? [options.exclude] : [];
+  const extraExcludes = parseIgnoreLines([...configExcludes, ...optExcludes]);
   const combinedRules = [...gitignoreRules, ...locignoreRules, ...extraExcludes];
   const locViolations = [], suppressions = [], todos = [];
   let totalFilesScanned = 0;
@@ -512,32 +554,38 @@ async function scanCodebase(targetPath, options = {}) {
     const normRel = relPath.replace(/\\/g, "/");
     const lines = content.replace(/\r\n/g, "\n").split("\n");
     const lineCount = lines.length > 0 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
-    if (lineCount >= maxLines) locViolations.push({ file: normRel, lines: lineCount, status: "error" });
-    else if (lineCount >= warnLines) locViolations.push({ file: normRel, lines: lineCount, status: "warning" });
+    if (rules.loc) {
+      if (lineCount >= maxLines) locViolations.push({ file: normRel, lines: lineCount, status: "error" });
+      else if (lineCount >= warnLines) locViolations.push({ file: normRel, lines: lineCount, status: "warning" });
+    }
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i], lineNum = i + 1, trimmed = line.trim();
       if (!trimmed) continue;
-      if (ANTI_SLOP_PATTERNS.tsIgnore.test(line)) {
-        suppressions.push({ file: normRel, line: lineNum, type: "@ts-ignore", snippet: trimmed });
-      } else if (ANTI_SLOP_PATTERNS.tsNocheck.test(line)) {
-        suppressions.push({ file: normRel, line: lineNum, type: "@ts-nocheck", snippet: trimmed });
-      } else if (ANTI_SLOP_PATTERNS.eslintDisable.test(line)) {
-        suppressions.push({ file: normRel, line: lineNum, type: "eslint-disable", snippet: trimmed });
-      } else if (options.includeConsoleLog && ANTI_SLOP_PATTERNS.consoleLog.test(line)) {
-        suppressions.push({ file: normRel, line: lineNum, type: "console.log", snippet: trimmed });
+      if (rules.suppressions) {
+        if (ANTI_SLOP_PATTERNS.tsIgnore.test(line)) {
+          suppressions.push({ file: normRel, line: lineNum, type: "@ts-ignore", snippet: trimmed });
+        } else if (ANTI_SLOP_PATTERNS.tsNocheck.test(line)) {
+          suppressions.push({ file: normRel, line: lineNum, type: "@ts-nocheck", snippet: trimmed });
+        } else if (ANTI_SLOP_PATTERNS.eslintDisable.test(line)) {
+          suppressions.push({ file: normRel, line: lineNum, type: "eslint-disable", snippet: trimmed });
+        } else if (rules.consoleLog && ANTI_SLOP_PATTERNS.consoleLog.test(line)) {
+          suppressions.push({ file: normRel, line: lineNum, type: "console.log", snippet: trimmed });
+        }
       }
-      const todoMatch = line.match(TODO_RE);
-      if (todoMatch) {
-        const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
-        const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
-        todos.push({
-          id: `${normRel}:${lineNum}`,
-          file: normRel,
-          line: lineNum,
-          type,
-          text,
-          snippet: trimmed
-        });
+      if (rules.debtMarkers) {
+        const todoMatch = line.match(TODO_RE);
+        if (todoMatch) {
+          const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
+          const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
+          todos.push({
+            id: `${normRel}:${lineNum}`,
+            file: normRel,
+            line: lineNum,
+            type,
+            text,
+            snippet: trimmed
+          });
+        }
       }
     }
   }
@@ -568,7 +616,7 @@ async function scanCodebase(targetPath, options = {}) {
   const targetDir = stat.isDirectory() ? root : path8.dirname(root);
   const tests = detectTests(targetDir);
   const stack = detectStack(targetDir);
-  const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests });
+  const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests, rules });
   return {
     score,
     stack,
@@ -581,6 +629,7 @@ async function scanCodebase(targetPath, options = {}) {
       verifyCommand: tests.verifyCommand,
       stack: stack.join(", ") || null
     },
+    rules,
     loc: { maxLines, warnLines, violations: locViolations },
     quality: { suppressions },
     todos,
@@ -597,9 +646,10 @@ function makeBoxLine(label, value = "", width = 68) {
 }
 async function runCli2(argv = process.argv.slice(2)) {
   if (Array.isArray(argv) && argv[0] === "audit") argv = argv.slice(1);
-  let targetPath = null, maxLines = DEFAULT_MAX_LINES, warnLines = DEFAULT_WARN_LINES;
+  let targetPath = null, maxLines = null, warnLines = null;
   let formatJson = false, isStrict = false, isQuiet = false;
   const excludes = [];
+  const rules = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--max" || arg === "--max-lines") maxLines = parseInt(argv[++i], 10);
@@ -607,6 +657,11 @@ async function runCli2(argv = process.argv.slice(2)) {
     else if (arg === "--path" || arg === "--src" || arg === "--root" || arg === "--cwd" || arg === "--repo" || arg === "-r") targetPath = argv[++i];
     else if (arg.startsWith("--root=") || arg.startsWith("--cwd=") || arg.startsWith("--path=") || arg.startsWith("--repo=")) targetPath = arg.split("=")[1];
     else if (arg === "--exclude") excludes.push(argv[++i]);
+    else if (arg === "--no-loc") rules.loc = false;
+    else if (arg === "--no-suppressions" || arg === "--no-slop") rules.suppressions = false;
+    else if (arg === "--no-todos" || arg === "--no-debt") rules.debtMarkers = false;
+    else if (arg === "--no-tests") rules.testRunner = false;
+    else if (arg === "--console-log") rules.consoleLog = true;
     else if (arg === "--json" || arg === "--format=json" || arg === "--format" && argv[++i] === "json") formatJson = true;
     else if (arg === "--strict") isStrict = true;
     else if (arg === "--quiet" || arg === "-q") isQuiet = true;
@@ -623,13 +678,23 @@ Options:
   --max, --max-lines <n>   Ceiling lines limit (default: ${DEFAULT_MAX_LINES})
   --warn, --warn-lines <n> Soft warning threshold (default: ${DEFAULT_WARN_LINES})
   --exclude <pattern>      Exclude pattern (repeatable)
+  --no-loc                 Disable LOC modularity budget checks
+  --no-suppressions        Disable anti-slop suppression checks
+  --no-todos               Disable TODO and hidden debt checks
+  --no-tests               Disable test runner check
+  --console-log            Enable console.log suppression check
   --help, -h               Show this help message
 `);
       process.exit(0);
     } else if (!arg.startsWith("-")) targetPath = arg;
   }
-  const report = await scanCodebase(targetPath, { maxLines, warnLines, exclude: excludes });
-  const criticalLocViolations = report.loc.violations.filter((v) => v.status === "error" || v.lines >= maxLines);
+  const scanOptions = { exclude: excludes };
+  if (maxLines !== null) scanOptions.maxLines = maxLines;
+  if (warnLines !== null) scanOptions.warnLines = warnLines;
+  if (Object.keys(rules).length > 0) scanOptions.rules = rules;
+  const report = await scanCodebase(targetPath, scanOptions);
+  const resolvedMax = report.loc.maxLines || DEFAULT_MAX_LINES;
+  const criticalLocViolations = report.loc.violations.filter((v) => v.status === "error" || v.lines >= resolvedMax);
   const criticalSuppressions = report.quality.suppressions;
   const hasCriticalViolations = criticalLocViolations.length > 0 || criticalSuppressions.length > 0;
   if (formatJson) {
@@ -643,7 +708,7 @@ Options:
   }
   const scoreText = report.score >= 80 ? c2.green(report.score + "/100") : report.score >= 50 ? c2.yellow(report.score + "/100") : c2.red(report.score + "/100");
   const runnerText = report.summary.testFramework ? `${report.summary.testFramework} (verify: ${report.summary.verifyCommand || "npm test"})` : c2.dim("None detected");
-  const locDetail = `${report.summary.locViolationsCount} (${criticalLocViolations.length} critical >= ${maxLines} LOC)`;
+  const locDetail = `${report.summary.locViolationsCount} (${criticalLocViolations.length} critical >= ${resolvedMax} LOC)`;
   const stackText = report.summary.stack ? report.summary.stack : c2.dim("Not detected");
   console.log("\n  \u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
   console.log(makeBoxLine(`${c2.bold("gripm")} ${c2.dim("\xB7")} Static Codebase Health Audit`, ""));
@@ -655,6 +720,14 @@ Options:
   console.log(makeBoxLine("LOC Issues:", locDetail));
   console.log(makeBoxLine("Suppressions:", String(criticalSuppressions.length)));
   console.log(makeBoxLine("TODO / Debt:", `${report.summary.todosCount} markers`));
+  const disabledRuleNames = [];
+  if (report.rules?.loc === false) disabledRuleNames.push("loc: off");
+  if (report.rules?.suppressions === false) disabledRuleNames.push("suppressions: off");
+  if (report.rules?.debtMarkers === false) disabledRuleNames.push("todos: off");
+  if (report.rules?.testRunner === false) disabledRuleNames.push("tests: off");
+  if (report.rules?.consoleLog) disabledRuleNames.push("console.log: on");
+  const rulesDisplay = disabledRuleNames.length > 0 ? disabledRuleNames.join(", ") : "Standard (all active)";
+  console.log(makeBoxLine("Active Rules:", rulesDisplay));
   console.log("  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n");
   if (report.loc.violations.length > 0) {
     console.log(`  ${c2.yellow("\u25B2 LOC Violations & Warnings:")}`);

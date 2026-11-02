@@ -41,6 +41,7 @@ export const AuditModal: FC<AuditModalProps> = ({
   isImporting,
   onRefresh,
   onImportTodos,
+  config,
 }) => {
   const { t } = useTranslation();
   const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
@@ -55,6 +56,18 @@ export const AuditModal: FC<AuditModalProps> = ({
   const todos = report?.todos || [];
   const suppressions = report?.quality?.suppressions || [];
   const testInfo = report?.tests;
+
+  const rules = report?.rules || config?.audit?.rules;
+  const isLocDisabled = rules?.loc === false;
+  const isTodosDisabled = rules?.debtMarkers === false;
+  const isQualityDisabled = rules?.suppressions === false;
+  const isCustomRules = Boolean(
+    isLocDisabled ||
+    isTodosDisabled ||
+    isQualityDisabled ||
+    rules?.testRunner === false ||
+    rules?.consoleLog
+  );
 
   // Score color styles
   let scoreColorText = 'text-emerald-600 dark:text-emerald-400';
@@ -184,6 +197,16 @@ export const AuditModal: FC<AuditModalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200 dark:border-white/[0.06]">
+            {/* Governance / Rules indicator */}
+            {rules && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span className="font-medium">
+                  {isCustomRules ? t('audit.rulesCustom') : t('audit.rulesStandard')}
+                </span>
+              </div>
+            )}
+
             {/* Test Framework Indicator */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300">
               <Terminal className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
@@ -222,11 +245,15 @@ export const AuditModal: FC<AuditModalProps> = ({
           >
             <FileCode className="w-3.5 h-3.5" />
             <span>{t('audit.tabBudgets')}</span>
-            {violations.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            {isLocDisabled ? (
+              <span className="px-1.5 py-0.5 rounded text-xs font-mono text-slate-400 bg-slate-200/50 dark:bg-white/[0.05]">
+                off
+              </span>
+            ) : violations.length > 0 ? (
+              <span className="px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 {violations.length}
               </span>
-            )}
+            ) : null}
           </button>
 
           <button
@@ -241,11 +268,15 @@ export const AuditModal: FC<AuditModalProps> = ({
           >
             <CheckSquare className="w-3.5 h-3.5" />
             <span>{t('audit.tabTodos')}</span>
-            {todos.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-xs font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+            {isTodosDisabled ? (
+              <span className="px-1.5 py-0.5 rounded text-xs font-mono text-slate-400 bg-slate-200/50 dark:bg-white/[0.05]">
+                off
+              </span>
+            ) : todos.length > 0 ? (
+              <span className="px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                 {todos.length}
               </span>
-            )}
+            ) : null}
           </button>
 
           <button
@@ -260,11 +291,15 @@ export const AuditModal: FC<AuditModalProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{t('audit.tabQuality')}</span>
-            {suppressions.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            {isQualityDisabled ? (
+              <span className="px-1.5 py-0.5 rounded text-xs font-mono text-slate-400 bg-slate-200/50 dark:bg-white/[0.05]">
+                off
+              </span>
+            ) : suppressions.length > 0 ? (
+              <span className="px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                 {suppressions.length}
               </span>
-            )}
+            ) : null}
           </button>
         </div>
       </div>
@@ -274,6 +309,11 @@ export const AuditModal: FC<AuditModalProps> = ({
         {/* Tab 1: Presupuestos y Modularidad */}
         {activeTab === 'budgets' && (
           <div className="space-y-3">
+            {isLocDisabled && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                {t('audit.locDisabledNotice')}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 pb-1">
               <span>{t('audit.locViolations')}</span>
               <div className="flex items-center gap-3">
@@ -340,6 +380,11 @@ export const AuditModal: FC<AuditModalProps> = ({
         {/* Tab 2: TODOs en Código */}
         {activeTab === 'todos' && (
           <div className="space-y-3">
+            {isTodosDisabled && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                {t('audit.todosDisabledNotice')}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <input
@@ -450,6 +495,11 @@ export const AuditModal: FC<AuditModalProps> = ({
         {/* Tab 3: Calidad Anti-Slop */}
         {activeTab === 'quality' && (
           <div className="space-y-3">
+            {isQualityDisabled && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                {t('audit.qualityDisabledNotice')}
+              </div>
+            )}
             <div className="text-xs text-slate-500 dark:text-slate-400 pb-1">
               <span>{t('audit.qualitySuppressionsFound')}</span>
             </div>

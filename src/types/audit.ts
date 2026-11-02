@@ -30,6 +30,27 @@ export interface TestDetection {
   hasTests: boolean;
 }
 
+export interface AuditRulesConfig {
+  loc?: boolean;
+  suppressions?: boolean;
+  debtMarkers?: boolean;
+  consoleLog?: boolean;
+  testRunner?: boolean;
+}
+
+export interface AuditThresholdsConfig {
+  maxLines?: number;
+  warnLines?: number;
+}
+
+export interface AuditConfig {
+  rules?: AuditRulesConfig;
+  thresholds?: AuditThresholdsConfig;
+  exclude?: string[];
+  maxLines?: number;
+  warnLines?: number;
+}
+
 export interface RepoHealthReport {
   score: number; // 0 to 100
   summary: {
@@ -40,6 +61,7 @@ export interface RepoHealthReport {
     testFramework: string | null;
     verifyCommand: string | null;
   };
+  rules?: AuditRulesConfig;
   loc: {
     maxLines: number;
     warnLines: number;

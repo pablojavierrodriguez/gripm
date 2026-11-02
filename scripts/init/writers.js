@@ -83,6 +83,14 @@ export function writeConfig(targetRepo, configData, isEn = true) {
     explicitConfig.verifyCommand = configData.verifyCommand || existing.verifyCommand;
   }
 
+  if (configData.audit || existing.audit) {
+    explicitConfig.audit = configData.audit || existing.audit;
+  }
+
+  if (configData.guardrails || existing.guardrails) {
+    explicitConfig.guardrails = configData.guardrails || existing.guardrails;
+  }
+
   fs.writeFileSync(configFile, JSON.stringify(explicitConfig, null, 2) + '\n', 'utf8');
 
   console.log(isEn

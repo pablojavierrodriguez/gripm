@@ -1085,5 +1085,10 @@
   "audit.importSuccessToast": "Se importaron {{count}} TODOs como tareas en el Backlog.",
   "audit.lines": "líneas",
   "audit.line": "Línea",
-  "audit.file": "Archivo"
+  "audit.file": "Archivo",
+  "audit.rulesStandard": "Reglas estándar",
+  "audit.rulesCustom": "Reglas personalizadas",
+  "audit.locDisabledNotice": "Regla de límites LOC desactivada en .gripm/config.json.",
+  "audit.todosDisabledNotice": "Regla de marcadores TODO desactivada en .gripm/config.json.",
+  "audit.qualityDisabledNotice": "Regla de supresiones Anti-Slop desactivada en .gripm/config.json."
 }

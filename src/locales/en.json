@@ -1085,5 +1085,10 @@
   "audit.importSuccessToast": "Imported {{count}} TODOs as tasks in the Backlog.",
   "audit.lines": "lines",
   "audit.line": "Line",
-  "audit.file": "File"
+  "audit.file": "File",
+  "audit.rulesStandard": "Standard rules",
+  "audit.rulesCustom": "Custom rules",
+  "audit.locDisabledNotice": "LOC modularity rule disabled in .gripm/config.json.",
+  "audit.todosDisabledNotice": "TODO markers rule disabled in .gripm/config.json.",
+  "audit.qualityDisabledNotice": "Anti-Slop quality rule disabled in .gripm/config.json."
 }
