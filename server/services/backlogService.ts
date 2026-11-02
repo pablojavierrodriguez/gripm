@@ -14,6 +14,14 @@ import {
   type BacklogMdTask
 } from '../../scripts/backlogMdParser.ts';
 import {
+  DEFAULT_MAX_LINES,
+  DEFAULT_EXTENSIONS,
+  DEFAULT_IGNORED_DIRS,
+  countFileLines,
+  isIgnored,
+  parseIgnoreFile
+} from '../../scripts/check-loc.mjs';
+import {
   isBacklogMdProject,
   PKG_ROOT
 } from './registry.ts';
@@ -342,14 +350,121 @@ export function validateVerifyCommand(cmd: string, repoPath: string): VerifyComm
   };
 }
 
+export function getModifiedFiles(repoPath: string): string[] {
+  try {
+    const out = execSync('git status --porcelain -z', {
+      cwd: repoPath,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 32 * 1024 * 1024
+    });
+    const items = out.split('\0').filter(Boolean);
+    const files: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.startsWith('R ') || item.startsWith('RM') || item.startsWith('RD')) {
+        if (i + 1 < items.length) {
+          files.push(items[++i]);
+        }
+      } else if (item.length > 3) {
+        files.push(item.slice(3).trim());
+      }
+    }
+    return files;
+  } catch {
+    // If not a git repository or git command fails, fallback to scanning files in repoPath
+    try {
+      const files: string[] = [];
+      function walk(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist') continue;
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (entry.isFile()) files.push(path.relative(repoPath, full));
+        }
+      }
+      walk(repoPath);
+      return files;
+    } catch {
+      return [];
+    }
+  }
+}
+
+export interface GatekeeperTransitionResult {
+  locViolations?: Array<{ file: string; lines: number }>;
+}
+
 export function validateGatekeeperTransition(
   task: any,
   targetStatus: string,
   options?: TaskMutationOptions,
   repoPath?: string
-): void {
+): GatekeeperTransitionResult {
   const normTarget = normalizeStatus(targetStatus);
   const isTransitionToTerminal = normTarget === 'ready' || normTarget === 'done';
+  const result: GatekeeperTransitionResult = {};
+
+  // Architectural Guardrail: LOC Ceiling enforcement (DEV-357)
+  if (normTarget === 'ready') {
+    const execCwd = repoPath || process.cwd();
+    let enforceLocCeiling = false;
+    try {
+      const configPath = path.join(execCwd, '.gripm', 'config.json');
+      if (fs.existsSync(configPath)) {
+        const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (cfg?.guardrails?.enforceLocCeiling === true) {
+          enforceLocCeiling = true;
+        }
+      }
+    } catch {}
+
+    if (enforceLocCeiling) {
+      const gitignoreRules = parseIgnoreFile(path.join(execCwd, '.gitignore'));
+      const locignoreRules = parseIgnoreFile(path.join(execCwd, '.locignore'));
+      const gripmLocignore = parseIgnoreFile(path.join(execCwd, '.gripm', 'locignore'));
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+
+      const modified = getModifiedFiles(execCwd);
+      const violations: Array<{ file: string; lines: number }> = [];
+
+      for (const relFile of modified) {
+        const fullPath = path.join(execCwd, relFile);
+        if (!fs.existsSync(fullPath)) continue;
+        try {
+          const stat = fs.statSync(fullPath);
+          if (!stat.isFile()) continue;
+        } catch {
+          continue;
+        }
+
+        const ext = path.extname(relFile).toLowerCase();
+        if (!DEFAULT_EXTENSIONS.has(ext)) continue;
+        if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
+
+        const lines = countFileLines(fullPath);
+        if (lines > DEFAULT_MAX_LINES) {
+          violations.push({ file: relFile.replace(/\\/g, '/'), lines });
+        }
+      }
+
+      if (violations.length > 0) {
+        result.locViolations = violations;
+        if (!options?.force) {
+          const taskId = task.code || task.id || 'unknown';
+          const violationsList = violations
+            .map(v => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`)
+            .join('\n');
+          throw new Error(
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:\n` +
+            `${violationsList}\n\n` +
+            `Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+          );
+        }
+      }
+    }
+  }
 
   if (!options?.force && isTransitionToTerminal) {
     const acs = task.acceptanceCriteriaList || task.acceptanceCriteria || [];
@@ -393,6 +508,8 @@ export function validateGatekeeperTransition(
       }
     }
   }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1357,7 +1474,7 @@ export class BacklogService {
 
       // Gatekeeper validation (DEV-224 / DEV-244 / SEC-01)
       const targetStatus = norm.status || current.status;
-      validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
+      const gateResult = validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
 
       // SEC-01: Eradicate persistence of verifyCommand in Markdown frontmatter
       if (current.rawExtraFrontmatter) {
@@ -1378,7 +1495,10 @@ export class BacklogService {
         resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
       }
       if (options?.force) {
-        const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id}', bypassing Gatekeeper validations.`;
+        let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id}', bypassing Gatekeeper validations.`;
+        if (gateResult && typeof gateResult === 'object' && gateResult.locViolations && gateResult.locViolations.length > 0) {
+          forceWarning += ` Bypassed LOC ceiling guardrail: ${gateResult.locViolations.map((v: any) => `${v.file} (${v.lines} lines)`).join(', ')}.`;
+        }
         resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
         resp.audit = {
           bypassedGatekeeper: true,
@@ -1500,7 +1620,7 @@ export class BacklogService {
 
     // Gatekeeper validation
     const targetStatus = norm.status || current.status;
-    validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
+    const gateResult = validateGatekeeperTransition(current, targetStatus, options, project.repoPath);
 
     // SEC-01: Eradicate persistence of verifyCommand
     delete current.verifyCommand;
@@ -1517,7 +1637,10 @@ export class BacklogService {
       resp.warning = "Notice: Applied 'status' received inside 'updates' object. For maximum compatibility with AGENTS.md, passing 'status' as a top-level field is recommended.";
     }
     if (options?.force) {
-      const forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
+      let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force update task '${current.id || current.code}', bypassing Gatekeeper validations.`;
+      if (gateResult && typeof gateResult === 'object' && gateResult.locViolations && gateResult.locViolations.length > 0) {
+        forceWarning += ` Bypassed LOC ceiling guardrail: ${gateResult.locViolations.map((v: any) => `${v.file} (${v.lines} lines)`).join(', ')}.`;
+      }
       resp.warning = resp.warning ? `${resp.warning} ${forceWarning}` : forceWarning;
       resp.audit = {
         bypassedGatekeeper: true,
@@ -1613,9 +1736,13 @@ export class BacklogService {
 
     // Gatekeeper pre-validation on ALL matched tasks (AC 3)
     const norm = normalizeTaskUpdates(project, updates);
+    let bulkLocViolations: Array<{ file: string; lines: number }> = [];
     if (norm.status) {
       for (const t of matchedTasks) {
-        validateGatekeeperTransition(t, norm.status, options, project.repoPath);
+        const gRes = validateGatekeeperTransition(t, norm.status, options, project.repoPath);
+        if (gRes && typeof gRes === 'object' && gRes.locViolations && gRes.locViolations.length > 0) {
+          bulkLocViolations = gRes.locViolations;
+        }
       }
     }
 
@@ -1645,7 +1772,11 @@ export class BacklogService {
     };
 
     if (options?.force) {
-      resp.warning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
+      let forceWarning = `[MCP Gatekeeper Audit] Used 'force: true' to force bulk task updates, bypassing Gatekeeper validations.`;
+      if (bulkLocViolations.length > 0) {
+        forceWarning += ` Bypassed LOC ceiling guardrail: ${bulkLocViolations.map((v: any) => `${v.file} (${v.lines} lines)`).join(', ')}.`;
+      }
+      resp.warning = forceWarning;
       resp.audit = {
         bypassedGatekeeper: true,
         timestamp: new Date().toISOString()

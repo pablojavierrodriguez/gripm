@@ -28,6 +28,7 @@ import {
 import { parseLegacyMarkdown, type ParsedLegacyItem } from '../../src/utils/legacyParser.ts';
 import { resolveProjectIdentity } from '../../scripts/registryConfig.js';
 import { getCachedUpdateInfo, checkForUpdates } from '../../scripts/updateChecker.js';
+import { handleAuditRoutes } from './audit.ts';
 
 let appVersion = '1.0.0';
 try {
@@ -95,6 +96,12 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         backlogDir: 'backlog',
         createdAt: new Date().toISOString()
       };
+    }
+
+    // DEV-355: REST API routes for Codebase Health Audit & TODOs Import
+    if (pathname.startsWith('/api/audit')) {
+      const handled = await handleAuditRoutes(req, res, pathname, activeProject, registry);
+      if (handled) return;
     }
 
     // GET /api/settings (DEV-006)
