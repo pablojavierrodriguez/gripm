@@ -18,6 +18,7 @@ import { runUninstallCommand } from './uninstall.js';
 import { findAvailablePort } from './portUtils.js';
 import { parseUniversalExport, formatTaskMarkdown } from '../src/utils/universalImporter.ts';
 import { runAddCommand, printAddHelp } from './cliAdd.ts';
+import { runCli as runAuditCli } from './audit-engine.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +62,29 @@ function hasHelpFlag(argList) {
   return Array.isArray(argList) && argList.some(isHelpFlag);
 }
 
+function printAuditHelp() {
+  console.log(`
+  gripm audit - Auditoría estática de salud de código y calidad
+
+  Uso:
+    gripm audit [opciones] [ruta]
+
+  Descripción:
+    Ejecuta un diagnóstico estático del repositorio analizando presupuestos de líneas (LOC),
+    supresiones de calidad (@ts-ignore, eslint-disable), infraestructura de pruebas y marcadores TODO.
+
+  Opciones:
+    --format json, --json          Emite exclusivamente el reporte en formato JSON estructurado
+    --strict                       Falla con código 1 si existen violaciones críticas (>= 1000 LOC o supresiones)
+    --quiet, -q                    Modo silencioso con resumen mínimo de una línea
+    --repo, -r <ruta>              Directorio a inspeccionar (por defecto: directorio actual)
+    --max, --max-lines <n>         Límite estricto de líneas por archivo (por defecto: 1000)
+    --warn, --warn-lines <n>       Umbral de advertencia de líneas (por defecto: 500)
+    --exclude <patrón>             Patrón de exclusión adicional
+    --help, -h                     Muestra esta ayuda
+`);
+}
+
 function printMainHelp() {
   console.log(`
   gripm CLI - productos locales para backlog y trabajo con agentes
@@ -71,6 +95,7 @@ function printMainHelp() {
 
   Comandos:
     gripm add "<título>" [opciones] Captura rápida de tareas sin abrir el navegador
+    gripm audit [opciones]         Auditoría estática de salud, límites LOC y calidad del código
     gripm mcp                      Inicia el servidor MCP sobre stdio para agentes de IA
     gripm playbook sync            Sincroniza materiales de Gripm Playbook en el proyecto actual
     gripm import --file <ruta>     Importa tareas de Jira, Linear o CSV al backlog local
@@ -192,7 +217,11 @@ async function main() {
     '--sprint', '-s',
     '--name',
     '--id',
-    '--mode'
+    '--mode',
+    '--format',
+    '--max', '--max-lines',
+    '--warn', '--warn-lines',
+    '--exclude'
   ]);
 
   const nonFlagArgs = [];
@@ -207,7 +236,7 @@ async function main() {
   }
 
   const command = nonFlagArgs[0];
-  if (command && !['mcp', 'playbook', 'help', 'import', 'add'].includes(command)) {
+  if (command && !['mcp', 'playbook', 'help', 'import', 'add', 'audit'].includes(command)) {
     console.error(`Comando desconocido: "${command}". Ejecuta "gripm --help" para ver los comandos disponibles.`);
     process.exitCode = 1;
     return;
@@ -216,6 +245,10 @@ async function main() {
   // Handle 'help' subcommand alias
   if (command === 'help') {
     const sub = nonFlagArgs[1];
+    if (sub === 'audit') {
+      printAuditHelp();
+      process.exit(0);
+    }
     if (sub === 'add') {
       printAddHelp();
       process.exit(0);
@@ -234,6 +267,17 @@ async function main() {
     }
     printMainHelp();
     process.exit(0);
+  }
+
+  // DEV-354: Handle 'audit' subcommand
+  if (command === 'audit' || (args[0] === 'audit') || (args.includes('audit') && command !== 'help')) {
+    if (hasHelpFlag(args)) {
+      printAuditHelp();
+      process.exit(0);
+    }
+    const auditArgs = args.filter(a => a !== 'audit');
+    await runAuditCli(auditArgs);
+    return;
   }
 
   // DEV-329: Handle 'add' subcommand

@@ -151,21 +151,29 @@ export async function promptSpeed(rl, isEn = true) {
 }
 
 /**
- * Prompt for preset selection in Quick Mode.
+ * Prompt for preset selection in Quick Mode with smart recommendation support (DEV-354).
  */
-export async function promptPreset(rl, isEn = true) {
+export async function promptPreset(rl, isEn = true, recommendedPreset = 'minimal') {
+  const isFullRecommended = recommendedPreset === 'full';
+  const defaultOption = isFullRecommended ? '2' : '1';
+  const recBadge1 = !isFullRecommended ? (isEn ? ' [Recommended]' : ' [Recomendado]') : '';
+  const recBadge2 = isFullRecommended ? (isEn ? ' [Recommended]' : ' [Recomendado]') : '';
+
   const promptText = isEn
     ? '\n  4.1 Select Preset:\n' +
-      '      [1] Minimalist AI-First (Pure Kanban, no timeboxes, skill & clean backlog) [Default]\n' +
-      '      [2] Batteries Included (Full Scrum with Sprints, Releases, Timeline & Metrics)\n' +
-      '      Select option [1]: '
+      `      [1] Minimalist AI-First (Pure Kanban, no timeboxes, skill & clean backlog)${recBadge1}\n` +
+      `      [2] Batteries Included (Full Scrum with Sprints, Releases, Timeline & Metrics)${recBadge2}\n` +
+      `      Select option [${defaultOption}]: `
     : '\n  4.1 Seleccionar Preset:\n' +
-      '      [1] Minimalista AI-First (Kanban puro, sin timeboxes, skill y backlog limpio) [Default]\n' +
-      '      [2] Baterías Incluidas (Scrum completo con Sprints, Releases, Timeline y Métricas)\n' +
-      '      Selecciona opción [1]: ';
+      `      [1] Minimalista AI-First (Kanban puro, sin timeboxes, skill y backlog limpio)${recBadge1}\n` +
+      `      [2] Baterías Incluidas (Scrum completo con Sprints, Releases, Timeline y Métricas)${recBadge2}\n` +
+      `      Selecciona opción [${defaultOption}]: `;
 
   const answer = await rl.question(promptText);
-  return answer.trim() === '2' ? 'full' : 'minimal';
+  const trimmed = answer.trim();
+  if (trimmed === '1') return 'minimal';
+  if (trimmed === '2') return 'full';
+  return defaultOption === '2' ? 'full' : 'minimal';
 }
 
 /**

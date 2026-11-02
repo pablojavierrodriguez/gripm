@@ -22,12 +22,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const BIN_GRIPM = path.join(ROOT_DIR, 'bin', 'gripm.js');
+const BIN_GRIPM_CLI = path.join(ROOT_DIR, 'bin', 'gripm-cli.js');
 
 console.log('🧪 Iniciando verificación de captura rápida por CLI gripm add (DEV-329)...\n');
 
 // Helper to run gripm command
 function runGripm(args, options = {}) {
   const res = spawnSync(process.execPath, [BIN_GRIPM, ...args], {
+    cwd: options.cwd || ROOT_DIR,
+    encoding: 'utf8',
+    env: { ...process.env, NO_COLOR: '1', ...options.env }
+  });
+  return res;
+}
+
+// Helper to run gripm-cli command (AC #1)
+function runGripmCli(args, options = {}) {
+  const res = spawnSync(process.execPath, [BIN_GRIPM_CLI, ...args], {
     cwd: options.cwd || ROOT_DIR,
     encoding: 'utf8',
     env: { ...process.env, NO_COLOR: '1', ...options.env }
@@ -233,4 +244,95 @@ console.log('--- Test 7: Creación en storage JSON y salida estructurada --json 
   }
 }
 
-console.log('🎉 ¡TODOS LOS 7 TESTS DE "gripm add" PASARON EXITOSAMENTE!');
+// --- Test 8: Ayuda de gripm audit (gripm audit --help) ---
+console.log('--- Test 8: Ayuda de gripm audit (gripm audit --help) ---');
+{
+  const res = runGripm(['audit', '--help']);
+  assert.strictEqual(res.status, 0, 'gripm audit --help debe salir con código 0');
+  assert.ok(res.stdout.includes('gripm audit - Auditoría estática de salud'), 'Debe documentar descripción');
+  assert.ok(res.stdout.includes('--format json'), 'Debe documentar --format json');
+  assert.ok(res.stdout.includes('--strict'), 'Debe documentar --strict');
+  assert.ok(res.stdout.includes('--quiet'), 'Debe documentar --quiet');
+  console.log('✅ Test 8 aprobado: gripm audit --help documenta sintaxis y flags correctamente.\n');
+}
+
+// --- Test 9: Ejecución normal de gripm audit ---
+console.log('--- Test 9: Ejecución normal de gripm audit ---');
+{
+  const res = runGripm(['audit']);
+  assert.strictEqual(res.status, 0, 'gripm audit debe salir con código 0');
+  assert.ok(res.stdout.includes('Static Codebase Health Audit'), 'Debe mostrar título de auditoría');
+  assert.ok(res.stdout.includes('Health Score:'), 'Debe mostrar Health Score');
+  assert.ok(res.stdout.includes('Files Scanned:'), 'Debe mostrar archivos escaneados');
+  console.log('✅ Test 9 aprobado: gripm audit genera reporte visual en consola.\n');
+}
+
+// --- Test 10: Formato JSON puro con --format json (AC #2) ---
+console.log('--- Test 10: Formato JSON puro con --format json (AC #2) ---');
+{
+  const res = runGripm(['audit', '--format', 'json']);
+  assert.strictEqual(res.status, 0, 'gripm audit --format json debe salir con código 0');
+  let parsed;
+  assert.doesNotThrow(() => {
+    parsed = JSON.parse(res.stdout.trim());
+  }, 'La salida de --format json debe ser exclusivamente JSON parseable');
+  assert.strictEqual(typeof parsed.score, 'number', 'Debe contener score numérico');
+  assert.ok(parsed.summary, 'Debe contener summary');
+  assert.ok(Array.isArray(parsed.loc.violations), 'Debe contener array de violaciones LOC');
+  assert.ok(Array.isArray(parsed.quality.suppressions), 'Debe contener array de supresiones');
+  console.log('✅ Test 10 aprobado: gripm audit --format json emite JSON puro con código 0.\n');
+}
+
+// --- Test 11: Modo estricto --strict con violaciones críticas (AC #3) ---
+console.log('--- Test 11: Modo estricto --strict con violaciones críticas (AC #3) ---');
+{
+  const tempDir = createTempDir('gripm-audit-strict-fail-');
+  try {
+    // Crear archivo que excede 1000 LOC
+    const lines = Array.from({ length: 1005 }, (_, i) => `// Line ${i + 1}`).join('\n');
+    fs.writeFileSync(path.join(tempDir, 'giant-file.js'), lines + '\n', 'utf8');
+
+    const res = runGripm(['audit', '--strict', '--repo', tempDir]);
+    assert.strictEqual(res.status, 1, 'gripm audit --strict debe salir con código 1 si hay archivos >= 1000 LOC');
+    const combined = res.stdout + res.stderr;
+    assert.ok(combined.includes('critical') || combined.includes('Strict audit failed') || combined.includes('error'), 'Debe reportar fallo crítico');
+    console.log('✅ Test 11 aprobado: gripm audit --strict retorna código 1 ante archivos >= 1000 LOC.\n');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+// --- Test 12: Modo estricto --strict en repositorio limpio ---
+console.log('--- Test 12: Modo estricto --strict en repositorio limpio ---');
+{
+  const tempDir = createTempDir('gripm-audit-strict-pass-');
+  try {
+    fs.writeFileSync(path.join(tempDir, 'clean-file.js'), '// small clean file\nconst x = 1;\n', 'utf8');
+    const res = runGripm(['audit', '--strict', '--repo', tempDir]);
+    assert.strictEqual(res.status, 0, 'gripm audit --strict debe salir con código 0 si el repo está limpio');
+    console.log('✅ Test 12 aprobado: gripm audit --strict aprueba con código 0 en repositorio limpio.\n');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+// --- Test 13: Modo silencioso --quiet ---
+console.log('--- Test 13: Modo silencioso --quiet ---');
+{
+  const res = runGripm(['audit', '--quiet']);
+  assert.strictEqual(res.status, 0, 'gripm audit --quiet debe salir con código 0');
+  assert.ok(res.stdout.includes('gripm audit: Health Score'), 'Debe mostrar resumen de una sola línea');
+  assert.ok(!res.stdout.includes('┌───────'), 'No debe renderizar la caja gráfica en modo quiet');
+  console.log('✅ Test 13 aprobado: gripm audit --quiet emite resumen compacto.\n');
+}
+
+// --- Test 14: Reconocimiento del comando audit en bin/gripm-cli.js (AC #1) ---
+console.log('--- Test 14: Reconocimiento del comando audit en bin/gripm-cli.js (AC #1) ---');
+{
+  const res = runGripmCli(['audit', '--quiet']);
+  assert.strictEqual(res.status, 0, 'bin/gripm-cli.js audit debe ejecutarse con éxito y salir con código 0');
+  assert.ok(res.stdout.includes('gripm audit: Health Score'), 'bin/gripm-cli.js debe reportar resultado de auditoría');
+  console.log('✅ Test 14 aprobado: bin/gripm-cli.js reconoce el comando audit y ejecuta el diagnóstico.\n');
+}
+
+console.log('🎉 ¡TODOS LOS TESTS DE CLI (gripm add & gripm audit) PASARON EXITOSAMENTE!');

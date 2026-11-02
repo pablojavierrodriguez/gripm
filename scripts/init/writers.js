@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadRegistryFile, saveRegistryFile } from '../registryConfig.js';
 import { getSkillTemplate, getAgentsMdTemplate } from './catalog.js';
@@ -78,11 +79,15 @@ export function writeConfig(targetRepo, configData, isEn = true) {
     version: '1.0.0'
   };
 
+  if (configData.verifyCommand || existing.verifyCommand) {
+    explicitConfig.verifyCommand = configData.verifyCommand || existing.verifyCommand;
+  }
+
   fs.writeFileSync(configFile, JSON.stringify(explicitConfig, null, 2) + '\n', 'utf8');
 
   console.log(isEn
-    ? `  ✅ .gripm/config.json saved (Project: ${explicitConfig.projectName}, Language: ${explicitConfig.language}, Mode: ${explicitConfig.mode === 'single' ? 'Single-Project' : 'Multi-Project Hub'})`
-    : `  ✅ .gripm/config.json guardado (Proyecto: ${explicitConfig.projectName}, Idioma: ${explicitConfig.language}, Modo: ${explicitConfig.mode === 'single' ? 'Mono-Proyecto' : 'Multi-Proyecto Hub'})`
+    ? `  ✅ .gripm/config.json saved (Project: ${explicitConfig.projectName}, Language: ${explicitConfig.language}, Mode: ${explicitConfig.mode === 'single' ? 'Single-Project' : 'Multi-Project Hub'}${explicitConfig.verifyCommand ? `, verify: ${explicitConfig.verifyCommand}` : ''})`
+    : `  ✅ .gripm/config.json guardado (Proyecto: ${explicitConfig.projectName}, Idioma: ${explicitConfig.language}, Modo: ${explicitConfig.mode === 'single' ? 'Mono-Proyecto' : 'Multi-Proyecto Hub'}${explicitConfig.verifyCommand ? `, verify: ${explicitConfig.verifyCommand}` : ''})`
   );
 
   return explicitConfig;
@@ -234,4 +239,109 @@ export function writeGitignore(targetRepo, isEn = true) {
     console.log(isEn ? '  ✅ .gitignore file created with gripm rules' : '  ✅ Archivo .gitignore creado con reglas de gripm');
   }
   return true;
+}
+
+/**
+ * Imports detected TODO comments as draft tasks into backlog/tasks/.
+ * Ensures unique IDs matching codePrefix, valid YAML frontmatter, and executes backlog sync.
+ */
+export function importTodosAsTasks(targetRepo, todos = [], options = {}) {
+  const isEn = options.isEn !== false;
+  const tasksDir = path.join(targetRepo, 'backlog/tasks');
+  if (!fs.existsSync(tasksDir)) {
+    fs.mkdirSync(tasksDir, { recursive: true });
+  }
+
+  const codePrefix = (options.codePrefix || 'DEV').toUpperCase();
+  let maxNum = 0;
+
+  try {
+    const existingFiles = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+    for (const f of existingFiles) {
+      const match = f.match(new RegExp(`^${codePrefix}-(\\d+)`, 'i'));
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  } catch {}
+
+  const now = new Date().toISOString().split('T')[0];
+  let importedCount = 0;
+  const createdFiles = [];
+
+  for (const todo of todos) {
+    maxNum++;
+    const taskId = `${codePrefix}-${String(maxNum).padStart(3, '0')}`;
+    const cleanTitle = (todo.text || `Resolver ${todo.type} en ${todo.file}:${todo.line}`)
+      .replace(/[/\\?%*:|"<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 100) || `Resolver ${todo.type}`;
+    const slug = cleanTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'todo';
+    const filename = `${taskId} - ${slug}.md`;
+    const fullPath = path.join(tasksDir, filename);
+
+    const priority = todo.type === 'BUG' ? 'urgent' : (todo.type === 'FIXME' ? 'high' : 'medium');
+    const itemType = (todo.type === 'BUG' || todo.type === 'FIXME') ? 'bug' : 'tech_debt';
+
+    const content = `---
+id: ${taskId}
+title: ${JSON.stringify(cleanTitle)}
+status: draft
+created_date: '${now}'
+updated_date: '${now}'
+labels:
+  - "todo"
+  - "code-audit"
+  - ${JSON.stringify(todo.type.toLowerCase())}
+priority: ${priority}
+type: ${itemType}
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Detectado automáticamente por el escáner estático de código en \`${todo.file}:${todo.line}\`:
+
+\`\`\`
+${todo.snippet || todo.text}
+\`\`\`
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+
+<!-- AC:BEGIN -->
+- [ ] #1 Resolver el marcador ${todo.type} identificado en ${todo.file}:${todo.line}
+<!-- AC:END -->
+`;
+
+    fs.writeFileSync(fullPath, content, 'utf8');
+    createdFiles.push(fullPath);
+    importedCount++;
+  }
+
+  // Sincronizar BACKLOG.md consolidado si existen utilidades
+  try {
+    const cliBin = path.join(PKG_ROOT, 'bin', 'gripm-cli.js');
+    const cliTs = path.join(PKG_ROOT, 'scripts', 'gripm-cli.ts');
+    const syncScript = path.join(PKG_ROOT, 'scripts', 'verify-backlog-sync.js');
+
+    if (fs.existsSync(cliBin)) {
+      execFileSync(process.execPath, [cliBin, 'export'], { cwd: targetRepo, stdio: 'pipe' });
+    } else if (fs.existsSync(cliTs)) {
+      execFileSync(process.execPath, ['--experimental-strip-types', cliTs, 'export'], { cwd: targetRepo, stdio: 'pipe' });
+    }
+
+    if (fs.existsSync(syncScript)) {
+      execFileSync(process.execPath, [syncScript, '--fix'], { cwd: targetRepo, stdio: 'pipe' });
+    }
+  } catch {}
+
+  console.log(isEn
+    ? `  ✅ ${importedCount} TODOs imported as draft tasks in backlog/tasks/ and synced with BACKLOG.md`
+    : `  ✅ ${importedCount} TODOs importados como tareas borrador en backlog/tasks/ y sincronizados en BACKLOG.md`
+  );
+
+  return { importedCount, createdFiles };
 }

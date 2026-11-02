@@ -169,7 +169,7 @@ try {
     fs.mkdirSync(repoPlaybook, { recursive: true });
 
     // Create a mock Playbook CLI script that records arguments in JSON
-    const stubScript = path.join(tempRoot, 'mock-playbook-cli.js');
+    const stubScript = path.join(tempRoot, 'mock-playbook-cli.mjs');
     const argvLogFile = path.join(tempRoot, 'mock-playbook-argv.json');
     const stubCode = `
       import fs from 'node:fs';
@@ -233,7 +233,7 @@ try {
     fs.mkdirSync(repoPlaybookOnly, { recursive: true });
 
     // Set up stub for Playbook only
-    const stubScript = path.join(tempRoot, 'mock-playbook-cli.js');
+    const stubScript = path.join(tempRoot, 'mock-playbook-cli.mjs');
     process.env.GRIPM_PLAYBOOK_CLI = stubScript;
     try {
       const resPbOnly = await runInitWizard(repoPlaybookOnly, {
@@ -273,6 +273,125 @@ try {
     const pkg = JSON.parse(fs.readFileSync(path.join(repoFlags, 'package.json'), 'utf8'));
     assert.strictEqual(pkg.scripts.board, undefined, 'Package scripts omitted');
     console.log('  ✅ Granular flag overrides verified');
+  }
+
+  // --- 9. DEV-354: Codebase Diagnostic & Smart Profile Recommendation (AC #4, AC #5) ---
+  {
+    console.log('  Testing Codebase Diagnostic & Smart Profile Recommendation (DEV-354)...');
+    const repoDiagnostic = path.join(tempRoot, 'ts-test-repo');
+    fs.mkdirSync(path.join(repoDiagnostic, 'src'), { recursive: true });
+
+    // Setup TypeScript + tests
+    fs.writeFileSync(path.join(repoDiagnostic, 'tsconfig.json'), '{}', 'utf8');
+    fs.writeFileSync(path.join(repoDiagnostic, 'package.json'), JSON.stringify({
+      name: 'ts-test-repo',
+      version: '1.0.0',
+      scripts: { test: 'vitest run' },
+      devDependencies: { vitest: '^1.0.0', typescript: '^5.0.0' }
+    }, null, 2), 'utf8');
+    fs.writeFileSync(path.join(repoDiagnostic, 'src/index.ts'), 'export const answer = 42;\n', 'utf8');
+
+    const res = await runInitWizard(repoDiagnostic, {
+      isInteractive: false,
+      yes: true
+    });
+
+    assert.ok(res.auditReport, 'Debe incluir auditReport en el resultado');
+    assert.strictEqual(res.recommendedProfile, 'full', 'Con TypeScript y tests debe recomendar perfil full');
+    assert.strictEqual(res.profile, 'full', 'En modo non-interactive sin flag explícita adopta la recomendación');
+    console.log('  ✅ Smart profile recommendation para TS + tests verificado');
+
+    // Simple repo without tests
+    const repoSimple = path.join(tempRoot, 'simple-repo');
+    fs.mkdirSync(repoSimple, { recursive: true });
+    fs.writeFileSync(path.join(repoSimple, 'script.js'), 'console.log("hello");\n', 'utf8');
+
+    const resSimple = await runInitWizard(repoSimple, {
+      isInteractive: false,
+      yes: true
+    });
+
+    assert.strictEqual(resSimple.recommendedProfile, 'minimal', 'Repo simple sin tests debe recomendar minimal');
+    assert.strictEqual(resSimple.profile, 'minimal', 'Adopta minimal');
+    console.log('  ✅ Smart profile recommendation para repos simples verificado');
+  }
+
+  // --- 10. DEV-354: Auto-configuración de verifyCommand en .gripm/config.json ---
+  {
+    console.log('  Testing auto-configuration of verifyCommand in config.json (DEV-354)...');
+    const repoVerify = path.join(tempRoot, 'verify-cmd-repo');
+    fs.mkdirSync(repoVerify, { recursive: true });
+    fs.writeFileSync(path.join(repoVerify, 'package.json'), JSON.stringify({
+      name: 'verify-repo',
+      scripts: { test: 'node --test' }
+    }, null, 2), 'utf8');
+
+    const res = await runInitWizard(repoVerify, {
+      isInteractive: false,
+      yes: true
+    });
+
+    assert.ok(res.verifyCommand, 'Debe detectar y reportar verifyCommand');
+    const config = JSON.parse(fs.readFileSync(path.join(repoVerify, '.gripm/config.json'), 'utf8'));
+    assert.strictEqual(config.verifyCommand, 'npm test', 'Debe persistir verifyCommand en .gripm/config.json');
+    console.log('  ✅ Auto-configuración de verifyCommand verificada');
+  }
+
+  // --- 11. DEV-354: Importación opt-in de TODOs a backlog/tasks/ (AC #6) ---
+  {
+    console.log('  Testing opt-in TODO import to backlog/tasks/ (DEV-354 AC #6)...');
+    const repoTodos = path.join(tempRoot, 'todos-repo');
+    fs.mkdirSync(path.join(repoTodos, 'src'), { recursive: true });
+
+    // Seed file with TODOs and FIXMEs
+    fs.writeFileSync(path.join(repoTodos, 'src/math.js'), [
+      '// TODO: Add support for complex numbers',
+      'function add(a, b) { return a + b; }',
+      '// FIXME: Prevent division by zero crash',
+      'function divide(a, b) { return a / b; }'
+    ].join('\n'), 'utf8');
+
+    const res = await runInitWizard(repoTodos, {
+      isInteractive: false,
+      yes: true,
+      importTodos: true,
+      codePrefix: 'TODO'
+    });
+
+    assert.strictEqual(res.importedTodosCount, 2, 'Debe haber importado 2 TODOs');
+    const tasksDir = path.join(repoTodos, 'backlog/tasks');
+    assert.ok(fs.existsSync(tasksDir), 'backlog/tasks debe existir');
+    const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+    assert.strictEqual(files.length, 2, 'Deben haberse creado 2 archivos de tareas');
+
+    // Verify task content integrity
+    const task1 = fs.readFileSync(path.join(tasksDir, files[0]), 'utf8');
+    assert.ok(task1.includes('id: TODO-001'), 'ID debe ser correlativo con prefijo');
+    assert.ok(task1.includes('status: draft'), 'Estado inicial debe ser draft');
+    assert.ok(task1.includes('<!-- SECTION:DESCRIPTION:BEGIN -->'), 'Debe incluir marcador de descripción');
+    assert.ok(task1.includes('<!-- AC:BEGIN -->'), 'Debe incluir marcador de AC');
+
+    console.log('  ✅ Importación de TODOs y materialización en backlog/tasks/ verificada');
+  }
+
+  // --- 12. DEV-354: Modo no interactivo predecible sin bloqueos (AC #7) ---
+  {
+    console.log('  Testing predictable non-interactive mode (DEV-354 AC #7)...');
+    const repoNonInt = path.join(tempRoot, 'non-interactive-repo');
+    fs.mkdirSync(path.join(repoNonInt, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(repoNonInt, 'src/app.js'), '// TODO: unimported todo\nconst y = 2;\n', 'utf8');
+
+    // Run without importTodos flag - must complete instantly without hanging
+    const startTime = Date.now();
+    const res = await runInitWizard(repoNonInt, {
+      isInteractive: false,
+      yes: true
+    });
+    const elapsed = Date.now() - startTime;
+
+    assert.ok(elapsed < 5000, `Debe completarse en < 5s sin colgarse en prompts (demoró ${elapsed}ms)`);
+    assert.strictEqual(res.importedTodosCount, 0, 'No debe importar TODOs si no fue solicitado');
+    console.log('  ✅ Modo no interactivo predecible verificado');
   }
 
 } finally {

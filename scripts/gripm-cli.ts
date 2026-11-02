@@ -166,6 +166,7 @@ ${c.bold('Uso:')}
 
 ${c.bold('Comandos / Modos:')}
   list                 (Por defecto) Lista las tareas con filtros aplicados
+  audit                Ejecuta auditoría estática de salud, límites LOC y calidad
   --stats              Muestra un panel consolidado de métricas y agrupación por prefijo
   --update-status <s>  Actualiza masivamente el estado de todas las tareas filtradas
 
@@ -186,6 +187,14 @@ ${c.bold('Filtros:')}
 
 async function main() {
   const args = process.argv.slice(2);
+
+  // DEV-354: Soporte para subcomando 'audit' en gripm-cli
+  if (args[0] === 'audit' || (args.includes('audit') && !args.includes('--export'))) {
+    const { runCli: runAuditCli } = await import('./audit-engine.mjs');
+    const auditArgs = args.filter(a => a !== 'audit');
+    await runAuditCli(auditArgs);
+    return;
+  }
 
   if (args.includes('--help') || args.includes('-h') || args[0] === 'help') {
     printUsage();

@@ -29,9 +29,11 @@ import {
   writeSkill,
   writeAgentsMd,
   writePackageJsonScripts,
-  writeGitignore
+  writeGitignore,
+  importTodosAsTasks
 } from './init/writers.js';
 import { delegatePlaybookInit } from './init/playbookDelegate.js';
+import { scanCodebase } from './audit-engine.mjs';
 
 // Re-export templates for full backward compatibility
 export { getSkillTemplate, getAgentsMdTemplate };
@@ -41,11 +43,84 @@ const __dirname = path.dirname(__filename);
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 /**
+ * Renders formatted diagnostic box for codebase health and detected capabilities (DEV-354).
+ */
+function printDiagnosticSnapshot(report, { hasTypeScript, recommendedProfile, isEn }) {
+  const isColorSupported = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
+  const c = {
+    bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[0m` : s),
+    dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[0m` : s),
+    green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[0m` : s),
+    cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[0m` : s),
+    yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[0m` : s),
+    red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[0m` : s),
+  };
+
+  const stripAnsi = (str) => String(str).replace(/\x1b\[[0-9;]*m/g, '');
+  const makeLine = (label, val = '', width = 68) => {
+    const innerWidth = width - 4;
+    const pLabel = stripAnsi(label);
+    const pVal = stripAnsi(val);
+    const sp = Math.max(1, innerWidth - (pLabel.length + pVal.length));
+    return `  │ ${label}${' '.repeat(sp)}${val} │`;
+  };
+
+  const score = report?.score ?? 100;
+  const scoreColor = score >= 80 ? c.green : score >= 50 ? c.yellow : c.red;
+  const filesCount = report?.summary?.totalFilesScanned ?? 0;
+  const tsText = hasTypeScript
+    ? (isEn ? 'Detected' : 'Detectado')
+    : (isEn ? 'None' : 'No detectado');
+  const testFw = report?.tests?.framework
+    ? `${report.tests.framework} (${report.tests.verifyCommand || 'npm test'})`
+    : (report?.tests?.hasTests ? (isEn ? 'Detected' : 'Detectado') : (isEn ? 'None' : 'No detectado'));
+  const locIssues = report?.summary?.locViolationsCount ?? 0;
+  const criticalLoc = report?.loc?.violations?.filter(v => v.status === 'error' || v.lines >= 1000)?.length ?? 0;
+  const suppressions = report?.summary?.suppressionsCount ?? 0;
+  const todosCount = report?.summary?.todosCount ?? 0;
+  const recText = recommendedProfile === 'full'
+    ? (isEn ? 'Batteries-Included (Scrum / Sprints)' : 'Baterías Incluidas (Scrum / Sprints)')
+    : (isEn ? 'Minimalist AI-First (Kanban)' : 'Minimalista AI-First (Kanban)');
+
+  console.log(`  ${c.bold(isEn ? 'Codebase Health & Diagnostic Snapshot:' : 'Radiografía Inicial y Diagnóstico del Repositorio:')}`);
+  console.log('  ┌──────────────────────────────────────────────────────────────────┐');
+  console.log(makeLine(isEn ? 'Health Score:' : 'Salud de Código:', scoreColor(`${score}/100`)));
+  console.log(makeLine(isEn ? 'Files Scanned:' : 'Archivos Escaneados:', `${filesCount} ${isEn ? 'files' : 'archivos'}`));
+  console.log(makeLine('TypeScript:', tsText));
+  console.log(makeLine(isEn ? 'Test Runner:' : 'Infraestructura Tests:', testFw));
+  console.log(makeLine(isEn ? 'LOC Issues:' : 'Límites LOC:', `${locIssues} (${criticalLoc} ${isEn ? 'critical >= 1000' : 'críticos >= 1000'})`));
+  console.log(makeLine(isEn ? 'Suppressions:' : 'Supresiones Calidad:', String(suppressions)));
+  console.log(makeLine(isEn ? 'TODO / Debt:' : 'Deuda Oculta:', `${todosCount} ${isEn ? 'markers' : 'marcadores'}`));
+  console.log(makeLine(isEn ? 'Recommended Profile:' : 'Perfil Recomendado:', c.cyan(recText)));
+  console.log('  └──────────────────────────────────────────────────────────────────┘\n');
+}
+
+/**
  * Runs the interactive or non-interactive init wizard.
  */
 export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   const isInteractive = options.isInteractive !== false && Boolean(process.stdin.isTTY) && !options.yes;
   const detectedIdentity = resolveProjectIdentity(targetRepo);
+
+  // DEV-354: Initial codebase diagnostic
+  let auditReport = null;
+  try {
+    auditReport = await scanCodebase(targetRepo);
+  } catch {}
+
+  let hasTypeScript = fs.existsSync(path.join(targetRepo, 'tsconfig.json'));
+  const pkgJsonPath = path.join(targetRepo, 'package.json');
+  if (!hasTypeScript && fs.existsSync(pkgJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+      if (pkg.devDependencies?.typescript || pkg.dependencies?.typescript) {
+        hasTypeScript = true;
+      }
+    } catch {}
+  }
+  const hasTests = Boolean(auditReport?.tests?.hasTests || auditReport?.tests?.detected);
+  const detectedVerifyCommand = auditReport?.tests?.verifyCommand || (hasTests ? 'npm test' : null);
+  const recommendedProfile = (hasTypeScript && hasTests) ? 'full' : 'minimal';
 
   let projectName = options.name || detectedIdentity.name;
   let projectId = options.id || detectedIdentity.id;
@@ -61,6 +136,10 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   ➜  ${isEn ? 'Repository:' : 'Repositorio:'}  ${targetRepo}
   ➜  ${isEn ? 'Project:' : 'Proyecto:'}     ${projectName}
 `);
+
+  if (!isInteractive) {
+    printDiagnosticSnapshot(auditReport, { hasTypeScript, recommendedProfile, isEn });
+  }
 
   // Product suite flags
   let installBoard = options.board !== undefined ? Boolean(options.board) : (options.noBoard ? false : true);
@@ -94,6 +173,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     : (profile === 'minimal' ? false : true);
   let updatePkgJson = options.packageJson !== undefined ? options.packageJson : basePreset.assets.packageJson;
   let updateGitignore = options.gitignore !== undefined ? options.gitignore : basePreset.assets.gitignore;
+  let shouldImportTodos = false;
 
   if (isInteractive) {
     const rl = readline.createInterface({
@@ -140,12 +220,23 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       projectId = identity.projectId;
       codePrefix = identity.codePrefix;
 
+      // Codebase diagnostic snapshot before profile selection (DEV-354 / AC #4)
+      printDiagnosticSnapshot(auditReport, { hasTypeScript, recommendedProfile, isEn });
+
+      // Interactive TODO import opt-in (DEV-354 / AC #6)
+      if (auditReport?.todos && auditReport.todos.length > 0) {
+        const todoPrompt = isEn
+          ? `Do you want to import the ${auditReport.todos.length} detected TODOs as draft tasks?`
+          : `¿Deseas importar los ${auditReport.todos.length} TODOs detectados como tareas borrador?`;
+        shouldImportTodos = await promptConfirm(rl, todoPrompt, true);
+      }
+
       // 4. Configuration Speed (if Board is selected)
       if (installBoard) {
         speedMode = await promptSpeed(rl, isEn);
 
         if (speedMode === 'quick') {
-          profile = await promptPreset(rl, isEn);
+          profile = await promptPreset(rl, isEn, recommendedProfile);
           const chosenPreset = PRESETS[profile] || PRESETS.minimal;
           methodology = chosenPreset.methodology;
           mode = chosenPreset.mode;
@@ -259,11 +350,16 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       rl.close();
     }
   } else {
-    // Non-interactive fallback: if no profile specified, default to minimal
+    if (options.importTodos) {
+      shouldImportTodos = true;
+    }
+    // Non-interactive fallback: if no profile specified, default to recommended or minimal
     if (!profile) {
-      profile = 'minimal';
+      profile = recommendedProfile || 'minimal';
     }
   }
+
+  const verifyCommand = options.verifyCommand || detectedVerifyCommand || undefined;
 
   const results = {
     projectName,
@@ -275,6 +371,10 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     methodology,
     modules,
     enabledTabs,
+    verifyCommand: verifyCommand || null,
+    recommendedProfile,
+    auditReport: auditReport ? { score: auditReport.score, summary: auditReport.summary } : null,
+    importedTodosCount: 0,
     gripmConfig: false,
     tasksDir: false,
     tasksDirCreated: false,
@@ -303,16 +403,27 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       modules,
       enabledTabs,
       kanban,
-      estimation
+      estimation,
+      verifyCommand
     }, isEnOutput);
     results.gripmConfig = true;
     results.enabledTabs = savedConfig.enabledTabs;
     results.modules = savedConfig.modules;
+    results.verifyCommand = savedConfig.verifyCommand || null;
 
     // 2. Tasks directory
     const dirResult = ensureTasksDir(targetRepo, isEnOutput);
     results.tasksDir = true;
     results.tasksDirCreated = dirResult.created;
+
+    // DEV-354: Import detected TODOs as draft tasks if confirmed or requested
+    if (shouldImportTodos && auditReport?.todos && auditReport.todos.length > 0) {
+      const todoRes = importTodosAsTasks(targetRepo, auditReport.todos, {
+        codePrefix,
+        isEn: isEnOutput
+      });
+      results.importedTodosCount = todoRes.importedCount;
+    }
 
     // 3. Multi-project hub registration
     if (mode === 'multi') {
