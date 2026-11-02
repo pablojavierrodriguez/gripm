@@ -24,11 +24,13 @@ import {
   Command,
   Calendar,
   BarChart2,
-  MoreHorizontal
+  MoreHorizontal,
+  ShieldCheck
 } from 'lucide-react';
-import type { Project, GripmConfig, ActiveTab, UpdateInfo } from '../types';
+import type { Project, GripmConfig, ActiveTab, UpdateInfo, RepoHealthReport } from '../types';
 import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, isMetricsModuleActive } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { AuditBadge } from './audit/AuditBadge';
 import { useTranslation } from '../utils/i18n';
 
 export type HeaderActiveTab = ActiveTab | 'metrics';
@@ -60,6 +62,9 @@ interface HeaderProps {
   updateAvailable?: UpdateInfo | null;
   /** DEV-222: no hay daemon; toda la app corre sobre el dataset en memoria. */
   isSandbox?: boolean;
+  auditReport?: RepoHealthReport | null;
+  isAuditLoading?: boolean;
+  onOpenAudit?: () => void;
 }
 
 export const Header: FC<HeaderProps> = ({
@@ -88,6 +93,9 @@ export const Header: FC<HeaderProps> = ({
   singleProject = false,
   updateAvailable,
   isSandbox = false,
+  auditReport,
+  isAuditLoading = false,
+  onOpenAudit,
 }) => {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -473,6 +481,17 @@ export const Header: FC<HeaderProps> = ({
               </a>
             )}
 
+            {/* Codebase Health Badge (DEV-356) */}
+            {onOpenAudit && (
+              <AuditBadge
+                report={auditReport ?? null}
+                isLoading={isAuditLoading}
+                onClick={onOpenAudit}
+                config={config}
+                className="hidden sm:flex"
+              />
+            )}
+
             {/* Live Sync Status Indicator (DEV-014).
                 DEV-222: en sandbox no hay daemon al que reconectarse, así que el ámbar
                 "Reconectando" sería falso. Se muestra neutro y etiquetado como demo:
@@ -571,6 +590,15 @@ export const Header: FC<HeaderProps> = ({
                     <span className="flex-1 text-left">{t('shortcuts.title')}</span>
                     <span className="text-xs text-slate-400 font-mono">?</span>
                   </button>
+                  {onOpenAudit && (
+                    <button role="menuitem" onClick={() => { setMoreOpen(false); onOpenAudit(); }} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span className="flex-1 text-left">{t('audit.healthScore')}</span>
+                      {auditReport && (
+                        <span className="text-xs text-slate-400 font-mono font-semibold">{Math.round(auditReport.score)}/100</span>
+                      )}
+                    </button>
+                  )}
                   <button role="menuitem" onClick={() => setLanguage(language === 'es' ? 'en' : 'es')} className="w-full min-h-[40px] flex items-center gap-3 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors">
                     <Globe className="w-4 h-4 text-indigo-500" />
                     <span className="flex-1 text-left">{t('header.switchLang')}</span>
@@ -712,6 +740,24 @@ export const Header: FC<HeaderProps> = ({
                   <Plus className="w-4 h-4 text-indigo-500" />
                   <span>{t('header.newItem')}</span>
                 </button>
+
+                {onOpenAudit && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAudit();
+                    }}
+                    className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span className="flex-1 text-left">{t('audit.modalTitle')}</span>
+                    {auditReport && (
+                      <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {Math.round(auditReport.score)}/100
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 {!singleProject && (
                   <button

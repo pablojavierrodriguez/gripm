@@ -472,6 +472,74 @@ export const sandboxAdapter: GripmApi = {
     throw new Error('Sandbox: la detección de almacenamiento requiere el daemon local (gripm).');
   },
 
+  // --- Auditoría de código (DEV-356) ---------------------------------------
+  async fetchAudit() {
+    return {
+      score: 95,
+      summary: {
+        totalFilesScanned: 38,
+        locViolationsCount: 1,
+        suppressionsCount: 0,
+        todosCount: 2,
+        testFramework: 'Vitest',
+        verifyCommand: 'npm test',
+      },
+      loc: {
+        maxLines: 1000,
+        warnLines: 500,
+        violations: [
+          { file: 'src/components/Header.tsx', lines: 946, status: 'warning' as const },
+        ],
+      },
+      quality: {
+        suppressions: [],
+      },
+      todos: [
+        {
+          id: 'todo-sandbox-1',
+          file: 'src/components/audit/AuditModal.tsx',
+          line: 42,
+          type: 'TODO' as const,
+          text: 'Agregar ordenamiento por número de líneas en Presupuestos',
+          snippet: '// TODO: Agregar ordenamiento por número de líneas en Presupuestos',
+        },
+        {
+          id: 'todo-sandbox-2',
+          file: 'src/components/audit/AuditBadge.tsx',
+          line: 18,
+          type: 'FIXME' as const,
+          text: 'Evaluar microanimación de pulso cuando el puntaje baja de 60',
+          snippet: '// FIXME: Evaluar microanimación de pulso cuando el puntaje baja de 60',
+        },
+      ],
+      tests: {
+        detected: true,
+        framework: 'Vitest',
+        verifyCommand: 'npm test',
+        hasTests: true,
+      },
+    };
+  },
+
+  async refreshAudit() {
+    return this.fetchAudit();
+  },
+
+  async importTodos(items) {
+    const taskIds: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const created = await this.createItem({
+        title: `${it.type || 'TODO'}: ${it.text}`,
+        status: 'draft',
+        type: 'tech_debt',
+        description: `Deuda técnica detectada en ${it.file}:${it.line || 1}`,
+      });
+      taskIds.push(created.id);
+    }
+    return { ok: true, importedCount: taskIds.length, taskIds };
+  },
+
   // --- Eventos -------------------------------------------------------------
   /**
    * No abre `EventSource` a propósito.

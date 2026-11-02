@@ -94,6 +94,14 @@ export const browseDirectory = (dir?: string): Promise<FsBrowseResult> =>
 export const detectPathStorage = (repoPath: string) =>
   withAdapter((api) => api.detectPathStorage(repoPath));
 
+// --- Auditoría de código (DEV-356) -----------------------------------------
+export const fetchAudit = (projectId?: string) =>
+  withAdapter((api) => api.fetchAudit(projectId));
+export const refreshAudit = (projectId?: string) =>
+  withAdapter((api) => api.refreshAudit(projectId));
+export const importTodos = (items: Parameters<GripmApiShape['importTodos']>[0], projectId?: string) =>
+  withAdapter((api) => api.importTodos(items, projectId));
+
 // --- Eventos ---------------------------------------------------------------
 /**
  * Suscripción perezosa: si el probe todavía no resolvió, no se abre `EventSource`
