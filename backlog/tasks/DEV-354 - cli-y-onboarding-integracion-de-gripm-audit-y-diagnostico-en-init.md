@@ -1,9 +1,9 @@
 ---
 id: DEV-354
 title: "CLI y Onboarding: Integracion de gripm audit y Diagnostico Inicial en gripm --init con Recomendacion de Perfil"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-10-31'
+updated_date: '2026-11-02'
 labels:
   - "cli"
   - "onboarding"

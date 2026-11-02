@@ -37,7 +37,11 @@ export const AuditBadge: FC<AuditBadgeProps> = ({
     );
   }
 
-  const score = report ? Math.round(report.score) : 100;
+  if (!report) {
+    return null;
+  }
+
+  const score = Math.round(report.score);
 
   // Determine semantic color styles
   let colorStyles = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20';

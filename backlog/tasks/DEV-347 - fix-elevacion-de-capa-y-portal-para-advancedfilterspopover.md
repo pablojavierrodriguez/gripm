@@ -1,9 +1,9 @@
 ---
 id: DEV-347
 title: "Fix: Elevacion de capa y portal para AdvancedFiltersPopover sobre vistas de tablero y timeline"
-status: ready
+status: done
 created_date: '2026-10-27'
-updated_date: '2026-10-27'
+updated_date: '2026-11-02'
 labels:
   - "ui"
   - "ux"

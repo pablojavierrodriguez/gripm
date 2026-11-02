@@ -808,21 +808,15 @@ async function scanCodebase(targetPath, options = {}) {
   const root = path7.resolve(targetPath || options.cwd || options.root || process.cwd());
   let auditConfig = {};
   try {
-    const configCandidates = [
-      path7.join(root, ".gripm", "config.json"),
-      path7.join(root, ".devboard", "config.json")
-    ];
     const parentDir = path7.dirname(root);
+    const configCandidates = [path7.join(root, ".gripm", "config.json"), path7.join(root, ".devboard", "config.json")];
     if (parentDir && parentDir !== root) {
-      configCandidates.push(path7.join(parentDir, ".gripm", "config.json"));
-      configCandidates.push(path7.join(parentDir, ".devboard", "config.json"));
+      configCandidates.push(path7.join(parentDir, ".gripm", "config.json"), path7.join(parentDir, ".devboard", "config.json"));
     }
     const configPath = configCandidates.find((p) => fs7.existsSync(p));
     if (configPath) {
       const parsed = JSON.parse(fs7.readFileSync(configPath, "utf8"));
-      if (parsed && typeof parsed === "object" && parsed.audit && typeof parsed.audit === "object") {
-        auditConfig = parsed.audit;
-      }
+      if (parsed?.audit && typeof parsed.audit === "object") auditConfig = parsed.audit;
     }
   } catch {
   }
@@ -884,8 +878,8 @@ async function scanCodebase(targetPath, options = {}) {
       if (rules.debtMarkers) {
         const todoMatch = line.match(TODO_RE);
         if (todoMatch) {
-          const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
-          const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
+          const type = (todoMatch[1] || todoMatch[2]).toUpperCase();
+          const text = (todoMatch[3] || todoMatch[4] || "").replace(/\*\/$/, "").trim();
           todos.push({
             id: `${normRel}:${lineNum}`,
             file: normRel,
@@ -923,7 +917,7 @@ async function scanCodebase(targetPath, options = {}) {
   }
   locViolations.sort((a, b) => b.lines - a.lines);
   const targetDir = stat.isDirectory() ? root : path7.dirname(root);
-  const tests = detectTests(targetDir);
+  const tests = rules.testRunner !== false ? detectTests(targetDir) : { detected: false, framework: null, verifyCommand: null, hasTests: false };
   const stack = detectStack(targetDir);
   const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests, rules });
   return {
@@ -1062,7 +1056,7 @@ Options:
     console.log("");
   }
   if (isStrict && hasCriticalViolations) {
-    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${maxLines} lines) and ${criticalSuppressions.length} suppression(s) detected.
+    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${resolvedMax} lines) and ${criticalSuppressions.length} suppression(s) detected.
 `);
     process.exit(1);
   }
@@ -1075,7 +1069,7 @@ var init_audit_engine = __esm({
     init_check_loc();
     __filename5 = fileURLToPath5(import.meta.url);
     COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";
-    TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:\([^)]*\))?[:\-\s]|(TODO|FIXME|HACK|BUG|XXX)$|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
+    TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:(?:\([^)]*\))?[:\-]|(?!\s+(?:el|la|los|las|un|una|este|esta|ese|esa|del|al)\b)\s+|$)|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
     ANTI_SLOP_PATTERNS = {
       tsIgnore: new RegExp(COMMENT_PREFIX + "@ts-ignore\\b"),
       tsNocheck: new RegExp(COMMENT_PREFIX + "@ts-nocheck\\b"),
@@ -2191,6 +2185,23 @@ __export(registry_exports, {
 import fs11 from "node:fs";
 import path11 from "node:path";
 import { fileURLToPath as fileURLToPath7 } from "node:url";
+function findPackageRoot3(startDir) {
+  let curr = startDir;
+  while (curr && curr !== path11.dirname(curr)) {
+    const pkgPath = path11.join(curr, "package.json");
+    if (fs11.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs11.readFileSync(pkgPath, "utf8"));
+        if (pkg.name === "@gripm/board" || pkg.name === "gripm") {
+          return curr;
+        }
+      } catch {
+      }
+    }
+    curr = path11.dirname(curr);
+  }
+  return fs11.existsSync(path11.resolve(startDir, "../package.json")) ? path11.resolve(startDir, "..") : path11.resolve(startDir, "../../");
+}
 function detectProjectStorage(repoPath) {
   if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
   const normalized = path11.normalize(repoPath.trim());
@@ -2373,7 +2384,7 @@ var init_registry = __esm({
     init_atomicWrite();
     __filename7 = fileURLToPath7(import.meta.url);
     __dirname6 = path11.dirname(__filename7);
-    PKG_ROOT4 = path11.resolve(__dirname6, "../../");
+    PKG_ROOT4 = findPackageRoot3(__dirname6);
     DEMO_FILE = fs11.existsSync(path11.resolve(PKG_ROOT4, "data/demo-backlog.json")) ? path11.resolve(PKG_ROOT4, "data/demo-backlog.json") : path11.resolve(PKG_ROOT4, "src/data/demo-backlog.json");
     DEFAULT_CONFIG = {
       theme: "dark",
@@ -2758,12 +2769,11 @@ function getModifiedFiles(repoPath) {
     const files = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD")) {
-        if (i + 1 < items.length) {
-          files.push(items[++i]);
-        }
+      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD") || item.startsWith("C ") || item.startsWith("CM")) {
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
+        i++;
       } else if (item.length > 3) {
-        files.push(item.slice(3).trim());
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
       }
     }
     return files;
@@ -2794,12 +2804,23 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
   if (normTarget === "ready") {
     const execCwd = repoPath || process.cwd();
     let enforceLocCeiling = false;
+    let auditMaxLines = DEFAULT_MAX_LINES;
+    let auditExcluded = [];
     try {
       const configPath = path14.join(execCwd, ".gripm", "config.json");
       if (fs13.existsSync(configPath)) {
         const cfg = JSON.parse(fs13.readFileSync(configPath, "utf8"));
         if (cfg?.guardrails?.enforceLocCeiling === true) {
           enforceLocCeiling = true;
+        }
+        if (cfg?.audit?.rules?.loc === false) {
+          enforceLocCeiling = false;
+        }
+        if (cfg?.audit?.thresholds?.maxLines || cfg?.audit?.maxLines) {
+          auditMaxLines = Number(cfg.audit.thresholds?.maxLines || cfg.audit.maxLines);
+        }
+        if (Array.isArray(cfg?.audit?.exclude)) {
+          auditExcluded = cfg.audit.exclude;
         }
       }
     } catch {
@@ -2808,7 +2829,8 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
       const gitignoreRules = parseIgnoreFile(path14.join(execCwd, ".gitignore"));
       const locignoreRules = parseIgnoreFile(path14.join(execCwd, ".locignore"));
       const gripmLocignore = parseIgnoreFile(path14.join(execCwd, ".gripm", "locignore"));
-      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+      const extraExcludes = parseIgnoreLines(auditExcluded);
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore, ...extraExcludes];
       const modified = getModifiedFiles(execCwd);
       const violations = [];
       for (const relFile of modified) {
@@ -2824,7 +2846,7 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         if (!DEFAULT_EXTENSIONS.has(ext)) continue;
         if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
         const lines = countFileLines(fullPath);
-        if (lines > DEFAULT_MAX_LINES) {
+        if (lines > auditMaxLines) {
           violations.push({ file: relFile.replace(/\\/g, "/"), lines });
         }
       }
@@ -2832,12 +2854,12 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         result.locViolations = violations;
         if (!options?.force) {
           const taskId = task.code || task.id || "unknown";
-          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`).join("\n");
+          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${auditMaxLines} ceiling)`).join("\n");
           throw new Error(
-            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the ${auditMaxLines} LOC ceiling:
 ${violationsList}
 
-Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+Corrective action: Refactor and modularize large files to be under ${auditMaxLines} lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
           );
         }
       }
@@ -5682,6 +5704,25 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
         sendJson(res, 200, { ok: true, importedCount: 0, taskIds: [] });
         return true;
       }
+      const projectConfig = readProjectConfig(project);
+      const isSpanish = (projectConfig?.language || "").toLowerCase().startsWith("es");
+      const existingTasks = BacklogService.listTasks(project, { includeDeleted: false });
+      const existingTitles = new Set(existingTasks.map((t) => (t.title || "").trim().toLowerCase()));
+      const existingLocRefs = /* @__PURE__ */ new Set();
+      for (const t of existingTasks) {
+        if (Array.isArray(t.acceptanceCriteria)) {
+          for (const ac of t.acceptanceCriteria) {
+            if (ac.text) {
+              const m = ac.text.match(/([a-zA-Z0-9_\-\.\/]+):(\d+)/);
+              if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+            }
+          }
+        }
+        if (t.description) {
+          const m = t.description.match(/`([a-zA-Z0-9_\-\.\/]+)`[\s\S]*?(?:Línea|Line):\s*(\d+)/i);
+          if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+        }
+      }
       const taskIds = [];
       for (const item of itemsToImport) {
         const cleanType = (item.type || "TODO").trim().toUpperCase();
@@ -5690,17 +5731,28 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
           cleanText = cleanText.substring(cleanType.length + 1).trim();
         }
         const title = `${cleanType}: ${cleanText}`;
-        const descLines = [
+        const fileLocKey = `${item.file}:${item.line || 1}`;
+        if (existingTitles.has(title.toLowerCase()) || existingLocRefs.has(fileLocKey)) {
+          continue;
+        }
+        const descLines = isSpanish ? [
           `Deuda t\xE9cnica identificada autom\xE1ticamente por el motor de auditor\xEDa est\xE1tica.`,
           ``,
           `- **Archivo de origen:** \`${item.file}\``,
           `- **L\xEDnea:** ${item.line || 1}`,
           `- **Tipo:** \`${cleanType}\``
+        ] : [
+          `Technical debt automatically identified by the static audit engine.`,
+          ``,
+          `- **Source file:** \`${item.file}\``,
+          `- **Line:** ${item.line || 1}`,
+          `- **Type:** \`${cleanType}\``
         ];
         if (item.snippet && typeof item.snippet === "string" && item.snippet.trim()) {
-          descLines.push(``, `### Fragmento de C\xF3digo:`, `\`\`\``, item.snippet.trim(), `\`\`\``);
+          descLines.push(``, isSpanish ? `### Fragmento de C\xF3digo:` : `### Code Snippet:`, "```", item.snippet.trim(), "```");
         }
         const description = descLines.join("\n");
+        const acText = isSpanish ? `Resolver ${cleanType} en ${item.file}:${item.line || 1}` : `Resolve ${cleanType} in ${item.file}:${item.line || 1}`;
         const taskData = {
           title,
           status: "draft",
@@ -5709,24 +5761,29 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
           priority: "medium",
           description,
           acceptanceCriteria: [
-            { index: 1, text: `Resolver ${cleanType} en ${item.file}:${item.line || 1}`, checked: false }
+            { index: 1, text: acText, checked: false }
           ]
         };
         const createRes = BacklogService.createTask(project, taskData);
         if (!createRes.ok || !createRes.task) {
           throw new Error(`Failed to create task for TODO: "${title}"`);
         }
-        taskIds.push(createRes.task.code || createRes.task.id);
+        const newId = createRes.task.code || createRes.task.id;
+        taskIds.push(newId);
+        existingTitles.add(title.toLowerCase());
+        existingLocRefs.add(fileLocKey);
       }
-      BacklogService.syncBacklog(project, { autoFix: false });
-      broadcastSse("backlog_changed", {
-        projectId: project.id,
-        action: "todos_imported",
-        count: taskIds.length,
-        taskIds,
-        timestamp: Date.now()
-      });
-      clearAuditCache(repoPath);
+      if (taskIds.length > 0) {
+        BacklogService.syncBacklog(project, { autoFix: false });
+        broadcastSse("backlog_changed", {
+          projectId: project.id,
+          action: "todos_imported",
+          count: taskIds.length,
+          taskIds,
+          timestamp: Date.now()
+        });
+        clearAuditCache(repoPath);
+      }
       sendJson(res, 200, {
         ok: true,
         importedCount: taskIds.length,
@@ -5750,6 +5807,7 @@ var init_audit = __esm({
     init_backlogService();
     init_sseManager();
     init_fsExplorer();
+    init_registry();
     auditCache = /* @__PURE__ */ new Map();
     CACHE_TTL_MS2 = 30 * 1e3;
   }
@@ -5828,6 +5886,7 @@ async function handleApiRequest(req, res) {
         process.env.GRIPM_MODE = configToSave.mode;
       }
       const savedPath = writeProjectConfig(configToSave, project);
+      clearAuditCache(project?.repoPath);
       broadcastSse("settings_changed", {
         projectId: project?.id,
         config: configToSave,
@@ -7214,6 +7273,46 @@ async function promptConfirm(rl, question, defaultYes = true) {
   if (!trimmed) return defaultYes;
   return trimmed === "y" || trimmed === "yes" || trimmed === "s" || trimmed === "si" || trimmed === "s\xED";
 }
+function printDiagnosticSnapshot(report, { hasTypeScript, recommendedProfile, isEn }) {
+  const isColorSupported5 = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
+  const c5 = {
+    bold: (s) => isColorSupported5 ? `\x1B[1m${s}\x1B[0m` : s,
+    dim: (s) => isColorSupported5 ? `\x1B[2m${s}\x1B[0m` : s,
+    green: (s) => isColorSupported5 ? `\x1B[32m${s}\x1B[0m` : s,
+    cyan: (s) => isColorSupported5 ? `\x1B[36m${s}\x1B[0m` : s,
+    yellow: (s) => isColorSupported5 ? `\x1B[33m${s}\x1B[0m` : s,
+    red: (s) => isColorSupported5 ? `\x1B[31m${s}\x1B[0m` : s
+  };
+  const stripAnsi2 = (str) => String(str).replace(/\x1b\[[0-9;]*m/g, "");
+  const makeLine = (label, val = "", width = 68) => {
+    const innerWidth = width - 4;
+    const pLabel = stripAnsi2(label);
+    const pVal = stripAnsi2(val);
+    const sp = Math.max(1, innerWidth - (pLabel.length + pVal.length));
+    return `  \u2502 ${label}${" ".repeat(sp)}${val} \u2502`;
+  };
+  const score = report?.score ?? 100;
+  const scoreColor = score >= 80 ? c5.green : score >= 50 ? c5.yellow : c5.red;
+  const filesCount = report?.summary?.totalFilesScanned ?? 0;
+  const tsText = hasTypeScript ? isEn ? "Detected" : "Detectado" : isEn ? "None" : "No detectado";
+  const testFw = report?.tests?.framework ? `${report.tests.framework} (${report.tests.verifyCommand || "npm test"})` : report?.tests?.hasTests ? isEn ? "Detected" : "Detectado" : isEn ? "None" : "No detectado";
+  const locIssues = report?.summary?.locViolationsCount ?? 0;
+  const criticalLoc = report?.loc?.violations?.filter((v) => v.status === "error" || v.lines >= 1e3)?.length ?? 0;
+  const suppressions = report?.summary?.suppressionsCount ?? 0;
+  const todosCount = report?.summary?.todosCount ?? 0;
+  const recText = recommendedProfile === "full" ? isEn ? "Batteries-Included (Scrum / Sprints)" : "Bater\xEDas Incluidas (Scrum / Sprints)" : isEn ? "Minimalist AI-First (Kanban)" : "Minimalista AI-First (Kanban)";
+  console.log(`  ${c5.bold(isEn ? "Codebase Health & Diagnostic Snapshot:" : "Radiograf\xEDa Inicial y Diagn\xF3stico del Repositorio:")}`);
+  console.log("  \u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
+  console.log(makeLine(isEn ? "Health Score:" : "Salud de C\xF3digo:", scoreColor(`${score}/100`)));
+  console.log(makeLine(isEn ? "Files Scanned:" : "Archivos Escaneados:", `${filesCount} ${isEn ? "files" : "archivos"}`));
+  console.log(makeLine("TypeScript:", tsText));
+  console.log(makeLine(isEn ? "Test Runner:" : "Infraestructura Tests:", testFw));
+  console.log(makeLine(isEn ? "LOC Issues:" : "L\xEDmites LOC:", `${locIssues} (${criticalLoc} ${isEn ? "critical >= 1000" : "cr\xEDticos >= 1000"})`));
+  console.log(makeLine(isEn ? "Suppressions:" : "Supresiones Calidad:", String(suppressions)));
+  console.log(makeLine(isEn ? "TODO / Debt:" : "Deuda Oculta:", `${todosCount} ${isEn ? "markers" : "marcadores"}`));
+  console.log(makeLine(isEn ? "Recommended Profile:" : "Perfil Recomendado:", c5.cyan(recText)));
+  console.log("  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n");
+}
 
 // scripts/init/writers.js
 init_registryConfig();
@@ -7547,7 +7646,9 @@ function delegatePlaybookInit(targetRepo, options = {}, isEn = true) {
   if (options.name || options.projectName) {
     initArgs.push("--name", options.name || options.projectName);
   }
-  initArgs.push("--no-board");
+  if (options.board !== false) {
+    initArgs.push("--no-board");
+  }
   if (options.yes) {
     initArgs.push("--yes");
   }
@@ -7590,46 +7691,6 @@ init_audit_engine();
 var __filename6 = fileURLToPath6(import.meta.url);
 var __dirname5 = path8.dirname(__filename6);
 var PKG_ROOT3 = path8.resolve(__dirname5, "..");
-function printDiagnosticSnapshot(report, { hasTypeScript, recommendedProfile, isEn }) {
-  const isColorSupported5 = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
-  const c5 = {
-    bold: (s) => isColorSupported5 ? `\x1B[1m${s}\x1B[0m` : s,
-    dim: (s) => isColorSupported5 ? `\x1B[2m${s}\x1B[0m` : s,
-    green: (s) => isColorSupported5 ? `\x1B[32m${s}\x1B[0m` : s,
-    cyan: (s) => isColorSupported5 ? `\x1B[36m${s}\x1B[0m` : s,
-    yellow: (s) => isColorSupported5 ? `\x1B[33m${s}\x1B[0m` : s,
-    red: (s) => isColorSupported5 ? `\x1B[31m${s}\x1B[0m` : s
-  };
-  const stripAnsi2 = (str) => String(str).replace(/\x1b\[[0-9;]*m/g, "");
-  const makeLine = (label, val = "", width = 68) => {
-    const innerWidth = width - 4;
-    const pLabel = stripAnsi2(label);
-    const pVal = stripAnsi2(val);
-    const sp = Math.max(1, innerWidth - (pLabel.length + pVal.length));
-    return `  \u2502 ${label}${" ".repeat(sp)}${val} \u2502`;
-  };
-  const score = report?.score ?? 100;
-  const scoreColor = score >= 80 ? c5.green : score >= 50 ? c5.yellow : c5.red;
-  const filesCount = report?.summary?.totalFilesScanned ?? 0;
-  const tsText = hasTypeScript ? isEn ? "Detected" : "Detectado" : isEn ? "None" : "No detectado";
-  const testFw = report?.tests?.framework ? `${report.tests.framework} (${report.tests.verifyCommand || "npm test"})` : report?.tests?.hasTests ? isEn ? "Detected" : "Detectado" : isEn ? "None" : "No detectado";
-  const locIssues = report?.summary?.locViolationsCount ?? 0;
-  const criticalLoc = report?.loc?.violations?.filter((v) => v.status === "error" || v.lines >= 1e3)?.length ?? 0;
-  const suppressions = report?.summary?.suppressionsCount ?? 0;
-  const todosCount = report?.summary?.todosCount ?? 0;
-  const recText = recommendedProfile === "full" ? isEn ? "Batteries-Included (Scrum / Sprints)" : "Bater\xEDas Incluidas (Scrum / Sprints)" : isEn ? "Minimalist AI-First (Kanban)" : "Minimalista AI-First (Kanban)";
-  console.log(`  ${c5.bold(isEn ? "Codebase Health & Diagnostic Snapshot:" : "Radiograf\xEDa Inicial y Diagn\xF3stico del Repositorio:")}`);
-  console.log("  \u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
-  console.log(makeLine(isEn ? "Health Score:" : "Salud de C\xF3digo:", scoreColor(`${score}/100`)));
-  console.log(makeLine(isEn ? "Files Scanned:" : "Archivos Escaneados:", `${filesCount} ${isEn ? "files" : "archivos"}`));
-  console.log(makeLine("TypeScript:", tsText));
-  console.log(makeLine(isEn ? "Test Runner:" : "Infraestructura Tests:", testFw));
-  console.log(makeLine(isEn ? "LOC Issues:" : "L\xEDmites LOC:", `${locIssues} (${criticalLoc} ${isEn ? "critical >= 1000" : "cr\xEDticos >= 1000"})`));
-  console.log(makeLine(isEn ? "Suppressions:" : "Supresiones Calidad:", String(suppressions)));
-  console.log(makeLine(isEn ? "TODO / Debt:" : "Deuda Oculta:", `${todosCount} ${isEn ? "markers" : "marcadores"}`));
-  console.log(makeLine(isEn ? "Recommended Profile:" : "Perfil Recomendado:", c5.cyan(recText)));
-  console.log("  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n");
-}
 async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   const isInteractive = options.isInteractive !== false && Boolean(process.stdin.isTTY) && !options.yes;
   const detectedIdentity = resolveProjectIdentity(targetRepo);
@@ -7839,6 +7900,17 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     }
     if (!profile) {
       profile = recommendedProfile || "minimal";
+      const chosenPreset = PRESETS[profile] || PRESETS.minimal;
+      methodology = options.methodology || chosenPreset.methodology;
+      mode = options.mode || (options.hub || options.multi ? "multi" : options.single ? "single" : chosenPreset.mode);
+      modules = { ...chosenPreset.modules, ...options.modules || {} };
+      enabledTabs = { ...chosenPreset.enabledTabs, ...options.enabledTabs || {} };
+      estimation = options.estimation || { ...chosenPreset.estimation };
+      kanban = options.kanban || { ...chosenPreset.kanban };
+      if (options.skill === void 0) installSkill = chosenPreset.assets.skill;
+      if (options.agentsMd === void 0) installAgentsMd = options.minimal ? chosenPreset.assets.agentsMd : true;
+      if (options.packageJson === void 0) updatePkgJson = chosenPreset.assets.packageJson;
+      if (options.gitignore === void 0) updateGitignore = chosenPreset.assets.gitignore;
     }
   }
   const verifyCommand = options.verifyCommand || detectedVerifyCommand || void 0;
@@ -7932,7 +8004,8 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       language,
       projectName,
       yes: options.yes,
-      mode: profile === "full" ? "quick" : speedMode === "quick" ? "quick" : void 0
+      board: installBoard,
+      mode: profile === "full" ? "quick" : speedMode === "quick" ? "quick" : "custom"
     }, isEnOutput);
     results.playbook = playbookSuccess;
   } else {
@@ -7940,8 +8013,9 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       isEnOutput ? "  \u2728 Clean repository: Gripm Board configured without Playbook." : "  \u2728 Repositorio limpio: Gripm Board configurado sin Playbook."
     );
   }
-  if (isEnOutput) {
-    console.log(`
+  if (installBoard) {
+    if (isEnOutput) {
+      console.log(`
   \u2714 gripm initialized successfully!
 
   To open the board:
@@ -7955,8 +8029,8 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   Tip: Run 'npm install -g @gripm/board'
   to use the global direct command 'gripm'.
 `);
-  } else {
-    console.log(`
+    } else {
+      console.log(`
   \u2714 \xA1gripm inicializado con \xE9xito!
 
   Para abrir el tablero:
@@ -7970,6 +8044,11 @@ async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   Consejo: Ejecuta 'npm install -g @gripm/board'
   para usar el comando global directo 'gripm'.
 `);
+    }
+  } else {
+    console.log(
+      isEnOutput ? "\n  \u2714 Gripm Playbook initialized successfully!" : "\n  \u2714 \xA1Gripm Playbook inicializado con \xE9xito!"
+    );
   }
   return results;
 }
@@ -9538,7 +9617,7 @@ async function main() {
     printMainHelp();
     process.exit(0);
   }
-  if (command === "audit" || args[0] === "audit" || args.includes("audit") && command !== "help") {
+  if (command === "audit") {
     if (hasHelpFlag(args)) {
       printAuditHelp();
       process.exit(0);
@@ -9547,7 +9626,7 @@ async function main() {
     await runCli2(auditArgs);
     return;
   }
-  if (command === "add" || args[0] === "add" || args.includes("add") && command !== "help") {
+  if (command === "add") {
     if (hasHelpFlag(args)) {
       printAddHelp();
       process.exit(0);
@@ -9555,7 +9634,7 @@ async function main() {
     await runAddCommand(args);
     return;
   }
-  if (command === "mcp" || args.includes("mcp") && command !== "help") {
+  if (command === "mcp") {
     if (hasHelpFlag(args)) {
       printMcpHelp();
       process.exit(0);
@@ -9569,7 +9648,7 @@ async function main() {
     await import(pathToFileURL(mcpBinary).href);
     return;
   }
-  if (command === "playbook" || args.includes("playbook") && command !== "help") {
+  if (command === "playbook") {
     if (hasHelpFlag(args)) {
       printPlaybookHelp();
       process.exit(0);
@@ -9613,7 +9692,7 @@ async function main() {
     }
     return;
   }
-  if (command === "import" || args.includes("import") && command !== "help") {
+  if (command === "import") {
     if (hasHelpFlag(args)) {
       printImportHelp();
       process.exit(0);
@@ -9794,6 +9873,7 @@ async function main() {
       agentsMd: args.includes("--no-agents") ? false : args.includes("--agents") ? true : void 0,
       packageJson: args.includes("--no-scripts") ? false : args.includes("--scripts") ? true : void 0,
       gitignore: args.includes("--no-gitignore") ? false : args.includes("--gitignore") ? true : void 0,
+      importTodos: args.includes("--import-todos") || args.includes("--todos") ? true : void 0,
       force: args.includes("--force")
     });
     process.exit(0);

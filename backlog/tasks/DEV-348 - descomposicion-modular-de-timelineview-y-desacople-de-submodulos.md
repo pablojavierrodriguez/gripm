@@ -1,9 +1,9 @@
 ---
 id: DEV-348
 title: "Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC"
-status: ready
+status: done
 created_date: '2026-10-27'
-updated_date: '2026-10-27'
+updated_date: '2026-11-02'
 labels:
   - "architecture"
   - "refactor"

@@ -254,6 +254,23 @@ __export(registry_exports, {
 import fs3 from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
+function findPackageRoot(startDir) {
+  let curr = startDir;
+  while (curr && curr !== path3.dirname(curr)) {
+    const pkgPath = path3.join(curr, "package.json");
+    if (fs3.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs3.readFileSync(pkgPath, "utf8"));
+        if (pkg.name === "@gripm/board" || pkg.name === "gripm") {
+          return curr;
+        }
+      } catch {
+      }
+    }
+    curr = path3.dirname(curr);
+  }
+  return fs3.existsSync(path3.resolve(startDir, "../package.json")) ? path3.resolve(startDir, "..") : path3.resolve(startDir, "../../");
+}
 function detectProjectStorage(repoPath) {
   if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
   const normalized = path3.normalize(repoPath.trim());
@@ -436,7 +453,7 @@ var init_registry = __esm({
     init_atomicWrite();
     __filename2 = fileURLToPath2(import.meta.url);
     __dirname2 = path3.dirname(__filename2);
-    PKG_ROOT = path3.resolve(__dirname2, "../../");
+    PKG_ROOT = findPackageRoot(__dirname2);
     DEMO_FILE = fs3.existsSync(path3.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path3.resolve(PKG_ROOT, "data/demo-backlog.json") : path3.resolve(PKG_ROOT, "src/data/demo-backlog.json");
     DEFAULT_CONFIG = {
       theme: "dark",
@@ -2290,12 +2307,11 @@ function getModifiedFiles(repoPath) {
     const files = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD")) {
-        if (i + 1 < items.length) {
-          files.push(items[++i]);
-        }
+      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD") || item.startsWith("C ") || item.startsWith("CM")) {
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
+        i++;
       } else if (item.length > 3) {
-        files.push(item.slice(3).trim());
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
       }
     }
     return files;
@@ -2326,12 +2342,23 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
   if (normTarget === "ready") {
     const execCwd = repoPath || process.cwd();
     let enforceLocCeiling = false;
+    let auditMaxLines = DEFAULT_MAX_LINES;
+    let auditExcluded = [];
     try {
       const configPath = path8.join(execCwd, ".gripm", "config.json");
       if (fs7.existsSync(configPath)) {
         const cfg = JSON.parse(fs7.readFileSync(configPath, "utf8"));
         if (cfg?.guardrails?.enforceLocCeiling === true) {
           enforceLocCeiling = true;
+        }
+        if (cfg?.audit?.rules?.loc === false) {
+          enforceLocCeiling = false;
+        }
+        if (cfg?.audit?.thresholds?.maxLines || cfg?.audit?.maxLines) {
+          auditMaxLines = Number(cfg.audit.thresholds?.maxLines || cfg.audit.maxLines);
+        }
+        if (Array.isArray(cfg?.audit?.exclude)) {
+          auditExcluded = cfg.audit.exclude;
         }
       }
     } catch {
@@ -2340,7 +2367,8 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
       const gitignoreRules = parseIgnoreFile(path8.join(execCwd, ".gitignore"));
       const locignoreRules = parseIgnoreFile(path8.join(execCwd, ".locignore"));
       const gripmLocignore = parseIgnoreFile(path8.join(execCwd, ".gripm", "locignore"));
-      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+      const extraExcludes = parseIgnoreLines(auditExcluded);
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore, ...extraExcludes];
       const modified = getModifiedFiles(execCwd);
       const violations = [];
       for (const relFile of modified) {
@@ -2356,7 +2384,7 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         if (!DEFAULT_EXTENSIONS.has(ext)) continue;
         if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
         const lines = countFileLines(fullPath);
-        if (lines > DEFAULT_MAX_LINES) {
+        if (lines > auditMaxLines) {
           violations.push({ file: relFile.replace(/\\/g, "/"), lines });
         }
       }
@@ -2364,12 +2392,12 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         result.locViolations = violations;
         if (!options?.force) {
           const taskId = task.code || task.id || "unknown";
-          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`).join("\n");
+          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${auditMaxLines} ceiling)`).join("\n");
           throw new Error(
-            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the ${auditMaxLines} LOC ceiling:
 ${violationsList}
 
-Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+Corrective action: Refactor and modularize large files to be under ${auditMaxLines} lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
           );
         }
       }
@@ -4966,7 +4994,7 @@ import path12 from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
 var __filename5 = fileURLToPath5(import.meta.url);
 var COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";
-var TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:\([^)]*\))?[:\-\s]|(TODO|FIXME|HACK|BUG|XXX)$|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
+var TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:(?:\([^)]*\))?[:\-]|(?!\s+(?:el|la|los|las|un|una|este|esta|ese|esa|del|al)\b)\s+|$)|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
 var ANTI_SLOP_PATTERNS = {
   tsIgnore: new RegExp(COMMENT_PREFIX + "@ts-ignore\\b"),
   tsNocheck: new RegExp(COMMENT_PREFIX + "@ts-nocheck\\b"),
@@ -5142,21 +5170,15 @@ async function scanCodebase(targetPath, options = {}) {
   const root = path12.resolve(targetPath || options.cwd || options.root || process.cwd());
   let auditConfig = {};
   try {
-    const configCandidates = [
-      path12.join(root, ".gripm", "config.json"),
-      path12.join(root, ".devboard", "config.json")
-    ];
     const parentDir = path12.dirname(root);
+    const configCandidates = [path12.join(root, ".gripm", "config.json"), path12.join(root, ".devboard", "config.json")];
     if (parentDir && parentDir !== root) {
-      configCandidates.push(path12.join(parentDir, ".gripm", "config.json"));
-      configCandidates.push(path12.join(parentDir, ".devboard", "config.json"));
+      configCandidates.push(path12.join(parentDir, ".gripm", "config.json"), path12.join(parentDir, ".devboard", "config.json"));
     }
     const configPath = configCandidates.find((p) => fs11.existsSync(p));
     if (configPath) {
       const parsed = JSON.parse(fs11.readFileSync(configPath, "utf8"));
-      if (parsed && typeof parsed === "object" && parsed.audit && typeof parsed.audit === "object") {
-        auditConfig = parsed.audit;
-      }
+      if (parsed?.audit && typeof parsed.audit === "object") auditConfig = parsed.audit;
     }
   } catch {
   }
@@ -5218,8 +5240,8 @@ async function scanCodebase(targetPath, options = {}) {
       if (rules.debtMarkers) {
         const todoMatch = line.match(TODO_RE);
         if (todoMatch) {
-          const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
-          const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
+          const type = (todoMatch[1] || todoMatch[2]).toUpperCase();
+          const text = (todoMatch[3] || todoMatch[4] || "").replace(/\*\/$/, "").trim();
           todos.push({
             id: `${normRel}:${lineNum}`,
             file: normRel,
@@ -5257,7 +5279,7 @@ async function scanCodebase(targetPath, options = {}) {
   }
   locViolations.sort((a, b) => b.lines - a.lines);
   const targetDir = stat.isDirectory() ? root : path12.dirname(root);
-  const tests = detectTests(targetDir);
+  const tests = rules.testRunner !== false ? detectTests(targetDir) : { detected: false, framework: null, verifyCommand: null, hasTests: false };
   const stack = detectStack(targetDir);
   const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests, rules });
   return {
@@ -5405,7 +5427,7 @@ Options:
     console.log("");
   }
   if (isStrict && hasCriticalViolations) {
-    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${maxLines} lines) and ${criticalSuppressions.length} suppression(s) detected.
+    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${resolvedMax} lines) and ${criticalSuppressions.length} suppression(s) detected.
 `);
     process.exit(1);
   }
@@ -5424,6 +5446,7 @@ async function scanCodebase2(targetPath, options) {
 }
 
 // server/routes/audit.ts
+init_registry();
 var auditCache = /* @__PURE__ */ new Map();
 var CACHE_TTL_MS2 = 30 * 1e3;
 function clearAuditCache(repoPath) {
@@ -5608,6 +5631,25 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
         sendJson(res, 200, { ok: true, importedCount: 0, taskIds: [] });
         return true;
       }
+      const projectConfig = readProjectConfig(project);
+      const isSpanish = (projectConfig?.language || "").toLowerCase().startsWith("es");
+      const existingTasks = BacklogService.listTasks(project, { includeDeleted: false });
+      const existingTitles = new Set(existingTasks.map((t) => (t.title || "").trim().toLowerCase()));
+      const existingLocRefs = /* @__PURE__ */ new Set();
+      for (const t of existingTasks) {
+        if (Array.isArray(t.acceptanceCriteria)) {
+          for (const ac of t.acceptanceCriteria) {
+            if (ac.text) {
+              const m = ac.text.match(/([a-zA-Z0-9_\-\.\/]+):(\d+)/);
+              if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+            }
+          }
+        }
+        if (t.description) {
+          const m = t.description.match(/`([a-zA-Z0-9_\-\.\/]+)`[\s\S]*?(?:Línea|Line):\s*(\d+)/i);
+          if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+        }
+      }
       const taskIds = [];
       for (const item of itemsToImport) {
         const cleanType = (item.type || "TODO").trim().toUpperCase();
@@ -5616,17 +5658,28 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
           cleanText = cleanText.substring(cleanType.length + 1).trim();
         }
         const title = `${cleanType}: ${cleanText}`;
-        const descLines = [
+        const fileLocKey = `${item.file}:${item.line || 1}`;
+        if (existingTitles.has(title.toLowerCase()) || existingLocRefs.has(fileLocKey)) {
+          continue;
+        }
+        const descLines = isSpanish ? [
           `Deuda t\xE9cnica identificada autom\xE1ticamente por el motor de auditor\xEDa est\xE1tica.`,
           ``,
           `- **Archivo de origen:** \`${item.file}\``,
           `- **L\xEDnea:** ${item.line || 1}`,
           `- **Tipo:** \`${cleanType}\``
+        ] : [
+          `Technical debt automatically identified by the static audit engine.`,
+          ``,
+          `- **Source file:** \`${item.file}\``,
+          `- **Line:** ${item.line || 1}`,
+          `- **Type:** \`${cleanType}\``
         ];
         if (item.snippet && typeof item.snippet === "string" && item.snippet.trim()) {
-          descLines.push(``, `### Fragmento de C\xF3digo:`, `\`\`\``, item.snippet.trim(), `\`\`\``);
+          descLines.push(``, isSpanish ? `### Fragmento de C\xF3digo:` : `### Code Snippet:`, "```", item.snippet.trim(), "```");
         }
         const description = descLines.join("\n");
+        const acText = isSpanish ? `Resolver ${cleanType} en ${item.file}:${item.line || 1}` : `Resolve ${cleanType} in ${item.file}:${item.line || 1}`;
         const taskData = {
           title,
           status: "draft",
@@ -5635,24 +5688,29 @@ async function handleAuditRoutes(req, res, pathname, activeProject, registry) {
           priority: "medium",
           description,
           acceptanceCriteria: [
-            { index: 1, text: `Resolver ${cleanType} en ${item.file}:${item.line || 1}`, checked: false }
+            { index: 1, text: acText, checked: false }
           ]
         };
         const createRes = BacklogService.createTask(project, taskData);
         if (!createRes.ok || !createRes.task) {
           throw new Error(`Failed to create task for TODO: "${title}"`);
         }
-        taskIds.push(createRes.task.code || createRes.task.id);
+        const newId = createRes.task.code || createRes.task.id;
+        taskIds.push(newId);
+        existingTitles.add(title.toLowerCase());
+        existingLocRefs.add(fileLocKey);
       }
-      BacklogService.syncBacklog(project, { autoFix: false });
-      broadcastSse("backlog_changed", {
-        projectId: project.id,
-        action: "todos_imported",
-        count: taskIds.length,
-        taskIds,
-        timestamp: Date.now()
-      });
-      clearAuditCache(repoPath);
+      if (taskIds.length > 0) {
+        BacklogService.syncBacklog(project, { autoFix: false });
+        broadcastSse("backlog_changed", {
+          projectId: project.id,
+          action: "todos_imported",
+          count: taskIds.length,
+          taskIds,
+          timestamp: Date.now()
+        });
+        clearAuditCache(repoPath);
+      }
       sendJson(res, 200, {
         ok: true,
         importedCount: taskIds.length,
@@ -5745,6 +5803,7 @@ async function handleApiRequest(req, res) {
         process.env.GRIPM_MODE = configToSave.mode;
       }
       const savedPath = writeProjectConfig(configToSave, project);
+      clearAuditCache(project?.repoPath);
       broadcastSse("settings_changed", {
         projectId: project?.id,
         config: configToSave,

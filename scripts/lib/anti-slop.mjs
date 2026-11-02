@@ -90,32 +90,6 @@ export function checkDiffAntiSlop(projectRoot) {
   };
 }
 
-export function getModifiedFiles(repoPath) {
-  try {
-    const res = spawnSync('git', ['status', '--porcelain', '-z'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    if (res.error || res.status !== 0) return [];
-    const items = (res.stdout || '').split('\0').filter(Boolean);
-    const files = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.startsWith('R ') || item.startsWith('RM') || item.startsWith('RD')) {
-        if (i + 1 < items.length) {
-          files.push(items[++i].replace(/\\/g, '/'));
-        }
-      } else if (item.length > 3) {
-        files.push(item.slice(3).trim().replace(/\\/g, '/'));
-      }
-    }
-    return files;
-  } catch {
-    return [];
-  }
-}
-
 export async function checkStructuralHealth(projectRoot, options = {}) {
   const failures = [];
   const warnings = [];
@@ -144,22 +118,6 @@ export async function checkStructuralHealth(projectRoot, options = {}) {
     return { passed: true, failures, warnings };
   }
 
-  let enforceLocCeiling = false;
-  try {
-    const configPath = path.join(root, '.gripm', 'config.json');
-    if (fs.existsSync(configPath)) {
-      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (cfg?.guardrails?.enforceLocCeiling === true) {
-        enforceLocCeiling = true;
-      }
-    }
-  } catch {}
-
-  const isStrict = Boolean(
-    options.strict ||
-    (process.argv && (process.argv.includes('--strict') || process.argv.includes('-s')))
-  );
-
   const maxLines = options.maxLines || 1000;
   const report = await scanCodebase(root, { maxLines });
 
@@ -178,30 +136,12 @@ export async function checkStructuralHealth(projectRoot, options = {}) {
       warnings.push(
         `Structural health bypassed (--force): ${locCount} LOC violation(s), ${suppCount} suppression(s) skipped by PO authority.`,
       );
-    } else if (isStrict) {
+    } else {
       for (const v of criticalLocViolations) {
         failures.push(`file budget: "${v.file}" has ${v.lines} LOC, exceeding the 1000-line hard ceiling`);
       }
       for (const s of criticalSuppressions) {
         failures.push(`anti-slop: quality suppression "${s.type}" detected in ${s.file}:${s.line}`);
-      }
-    } else {
-      if (enforceLocCeiling) {
-        const modifiedFiles = getModifiedFiles(root);
-        const modifiedViolations = criticalLocViolations.filter((v) =>
-          modifiedFiles.includes(v.file)
-        );
-        for (const v of modifiedViolations) {
-          failures.push(
-            `file budget (guardrail): modified file "${v.file}" has ${v.lines} LOC, exceeding the 1000-line hard ceiling`,
-          );
-        }
-      }
-      for (const v of criticalLocViolations) {
-        warnings.push(`file budget (advisory): "${v.file}" has ${v.lines} LOC, exceeding the 1000-line hard ceiling`);
-      }
-      for (const s of criticalSuppressions) {
-        warnings.push(`anti-slop (advisory): quality suppression "${s.type}" detected in ${s.file}:${s.line}`);
       }
     }
   }

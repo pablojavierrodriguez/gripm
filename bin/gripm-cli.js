@@ -499,21 +499,15 @@ async function scanCodebase(targetPath, options = {}) {
   const root = path8.resolve(targetPath || options.cwd || options.root || process.cwd());
   let auditConfig = {};
   try {
-    const configCandidates = [
-      path8.join(root, ".gripm", "config.json"),
-      path8.join(root, ".devboard", "config.json")
-    ];
     const parentDir = path8.dirname(root);
+    const configCandidates = [path8.join(root, ".gripm", "config.json"), path8.join(root, ".devboard", "config.json")];
     if (parentDir && parentDir !== root) {
-      configCandidates.push(path8.join(parentDir, ".gripm", "config.json"));
-      configCandidates.push(path8.join(parentDir, ".devboard", "config.json"));
+      configCandidates.push(path8.join(parentDir, ".gripm", "config.json"), path8.join(parentDir, ".devboard", "config.json"));
     }
     const configPath = configCandidates.find((p) => fs7.existsSync(p));
     if (configPath) {
       const parsed = JSON.parse(fs7.readFileSync(configPath, "utf8"));
-      if (parsed && typeof parsed === "object" && parsed.audit && typeof parsed.audit === "object") {
-        auditConfig = parsed.audit;
-      }
+      if (parsed?.audit && typeof parsed.audit === "object") auditConfig = parsed.audit;
     }
   } catch {
   }
@@ -575,8 +569,8 @@ async function scanCodebase(targetPath, options = {}) {
       if (rules.debtMarkers) {
         const todoMatch = line.match(TODO_RE);
         if (todoMatch) {
-          const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
-          const text = (todoMatch[4] || "").replace(/\*\/$/, "").trim();
+          const type = (todoMatch[1] || todoMatch[2]).toUpperCase();
+          const text = (todoMatch[3] || todoMatch[4] || "").replace(/\*\/$/, "").trim();
           todos.push({
             id: `${normRel}:${lineNum}`,
             file: normRel,
@@ -614,7 +608,7 @@ async function scanCodebase(targetPath, options = {}) {
   }
   locViolations.sort((a, b) => b.lines - a.lines);
   const targetDir = stat.isDirectory() ? root : path8.dirname(root);
-  const tests = detectTests(targetDir);
+  const tests = rules.testRunner !== false ? detectTests(targetDir) : { detected: false, framework: null, verifyCommand: null, hasTests: false };
   const stack = detectStack(targetDir);
   const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests, rules });
   return {
@@ -753,7 +747,7 @@ Options:
     console.log("");
   }
   if (isStrict && hasCriticalViolations) {
-    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${maxLines} lines) and ${criticalSuppressions.length} suppression(s) detected.
+    console.error(`  ${c2.red("\u2716 Strict audit failed:")} ${criticalLocViolations.length} critical LOC violation(s) (>= ${resolvedMax} lines) and ${criticalSuppressions.length} suppression(s) detected.
 `);
     process.exit(1);
   }
@@ -766,7 +760,7 @@ var init_audit_engine = __esm({
     init_check_loc();
     __filename4 = fileURLToPath4(import.meta.url);
     COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";
-    TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:\([^)]*\))?[:\-\s]|(TODO|FIXME|HACK|BUG|XXX)$|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
+    TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:(?:\([^)]*\))?[:\-]|(?!\s+(?:el|la|los|las|un|una|este|esta|ese|esa|del|al)\b)\s+|$)|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
     ANTI_SLOP_PATTERNS = {
       tsIgnore: new RegExp(COMMENT_PREFIX + "@ts-ignore\\b"),
       tsNocheck: new RegExp(COMMENT_PREFIX + "@ts-nocheck\\b"),
@@ -1853,7 +1847,24 @@ function atomicWriteFileSync(filePath, content, options) {
 // server/services/registry.ts
 var __filename3 = fileURLToPath3(import.meta.url);
 var __dirname3 = path4.dirname(__filename3);
-var PKG_ROOT = path4.resolve(__dirname3, "../../");
+function findPackageRoot(startDir) {
+  let curr = startDir;
+  while (curr && curr !== path4.dirname(curr)) {
+    const pkgPath = path4.join(curr, "package.json");
+    if (fs4.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs4.readFileSync(pkgPath, "utf8"));
+        if (pkg.name === "@gripm/board" || pkg.name === "gripm") {
+          return curr;
+        }
+      } catch {
+      }
+    }
+    curr = path4.dirname(curr);
+  }
+  return fs4.existsSync(path4.resolve(startDir, "../package.json")) ? path4.resolve(startDir, "..") : path4.resolve(startDir, "../../");
+}
+var PKG_ROOT = findPackageRoot(__dirname3);
 var DEMO_FILE = fs4.existsSync(path4.resolve(PKG_ROOT, "data/demo-backlog.json")) ? path4.resolve(PKG_ROOT, "data/demo-backlog.json") : path4.resolve(PKG_ROOT, "src/data/demo-backlog.json");
 function detectProjectStorage(repoPath) {
   if (!repoPath) return { storageType: "json", backlogDir: "backlog" };
@@ -2249,12 +2260,11 @@ function getModifiedFiles(repoPath) {
     const files = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD")) {
-        if (i + 1 < items.length) {
-          files.push(items[++i]);
-        }
+      if (item.startsWith("R ") || item.startsWith("RM") || item.startsWith("RD") || item.startsWith("C ") || item.startsWith("CM")) {
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
+        i++;
       } else if (item.length > 3) {
-        files.push(item.slice(3).trim());
+        files.push(item.slice(3).trim().replace(/\\/g, "/"));
       }
     }
     return files;
@@ -2285,12 +2295,23 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
   if (normTarget === "ready") {
     const execCwd = repoPath || process.cwd();
     let enforceLocCeiling = false;
+    let auditMaxLines = DEFAULT_MAX_LINES;
+    let auditExcluded = [];
     try {
       const configPath = path7.join(execCwd, ".gripm", "config.json");
       if (fs6.existsSync(configPath)) {
         const cfg = JSON.parse(fs6.readFileSync(configPath, "utf8"));
         if (cfg?.guardrails?.enforceLocCeiling === true) {
           enforceLocCeiling = true;
+        }
+        if (cfg?.audit?.rules?.loc === false) {
+          enforceLocCeiling = false;
+        }
+        if (cfg?.audit?.thresholds?.maxLines || cfg?.audit?.maxLines) {
+          auditMaxLines = Number(cfg.audit.thresholds?.maxLines || cfg.audit.maxLines);
+        }
+        if (Array.isArray(cfg?.audit?.exclude)) {
+          auditExcluded = cfg.audit.exclude;
         }
       }
     } catch {
@@ -2299,7 +2320,8 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
       const gitignoreRules = parseIgnoreFile(path7.join(execCwd, ".gitignore"));
       const locignoreRules = parseIgnoreFile(path7.join(execCwd, ".locignore"));
       const gripmLocignore = parseIgnoreFile(path7.join(execCwd, ".gripm", "locignore"));
-      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+      const extraExcludes = parseIgnoreLines(auditExcluded);
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore, ...extraExcludes];
       const modified = getModifiedFiles(execCwd);
       const violations = [];
       for (const relFile of modified) {
@@ -2315,7 +2337,7 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         if (!DEFAULT_EXTENSIONS.has(ext)) continue;
         if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
         const lines = countFileLines(fullPath);
-        if (lines > DEFAULT_MAX_LINES) {
+        if (lines > auditMaxLines) {
           violations.push({ file: relFile.replace(/\\/g, "/"), lines });
         }
       }
@@ -2323,12 +2345,12 @@ function validateGatekeeperTransition(task, targetStatus, options, repoPath) {
         result.locViolations = violations;
         if (!options?.force) {
           const taskId = task.code || task.id || "unknown";
-          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`).join("\n");
+          const violationsList = violations.map((v) => ` - ${v.file} (${v.lines} lines > ${auditMaxLines} ceiling)`).join("\n");
           throw new Error(
-            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the ${auditMaxLines} LOC ceiling:
 ${violationsList}
 
-Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+Corrective action: Refactor and modularize large files to be under ${auditMaxLines} lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
           );
         }
       }

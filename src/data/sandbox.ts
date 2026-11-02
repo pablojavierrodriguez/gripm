@@ -474,13 +474,39 @@ export const sandboxAdapter: GripmApi = {
 
   // --- Auditoría de código (DEV-356) ---------------------------------------
   async fetchAudit() {
+    const allTodos = [
+      {
+        id: 'todo-sandbox-1',
+        file: 'src/components/audit/AuditModal.tsx',
+        line: 42,
+        type: 'TODO' as const,
+        text: 'Agregar ordenamiento por número de líneas en Presupuestos',
+        snippet: '// TODO: Agregar ordenamiento por número de líneas en Presupuestos',
+      },
+      {
+        id: 'todo-sandbox-2',
+        file: 'src/components/audit/AuditBadge.tsx',
+        line: 18,
+        type: 'FIXME' as const,
+        text: 'Evaluar microanimación de pulso cuando el puntaje baja de 60',
+        snippet: '// FIXME: Evaluar microanimación de pulso cuando el puntaje baja de 60',
+      },
+    ];
+
+    const existingTitles = new Set(
+      state.items.map((i: BacklogItem) => (i.title || '').toLowerCase())
+    );
+    const remainingTodos = allTodos.filter(
+      (td) => !existingTitles.has(`${td.type}: ${td.text}`.toLowerCase())
+    );
+
     return {
       score: 95,
       summary: {
         totalFilesScanned: 38,
         locViolationsCount: 1,
         suppressionsCount: 0,
-        todosCount: 2,
+        todosCount: remainingTodos.length,
         testFramework: 'Vitest',
         verifyCommand: 'npm test',
       },
@@ -494,24 +520,7 @@ export const sandboxAdapter: GripmApi = {
       quality: {
         suppressions: [],
       },
-      todos: [
-        {
-          id: 'todo-sandbox-1',
-          file: 'src/components/audit/AuditModal.tsx',
-          line: 42,
-          type: 'TODO' as const,
-          text: 'Agregar ordenamiento por número de líneas en Presupuestos',
-          snippet: '// TODO: Agregar ordenamiento por número de líneas en Presupuestos',
-        },
-        {
-          id: 'todo-sandbox-2',
-          file: 'src/components/audit/AuditBadge.tsx',
-          line: 18,
-          type: 'FIXME' as const,
-          text: 'Evaluar microanimación de pulso cuando el puntaje baja de 60',
-          snippet: '// FIXME: Evaluar microanimación de pulso cuando el puntaje baja de 60',
-        },
-      ],
+      todos: remainingTodos,
       tests: {
         detected: true,
         framework: 'Vitest',

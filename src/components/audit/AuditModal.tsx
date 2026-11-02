@@ -1,22 +1,21 @@
-import { useState, useId, type FC } from 'react';
+import { useState, type FC } from 'react';
 import {
   X,
   RefreshCw,
   ShieldCheck,
-  AlertTriangle,
-  AlertCircle,
   FileCode,
   CheckSquare,
-  Square,
   Sparkles,
-  DownloadCloud,
-  CheckCircle2,
   Terminal,
+  AlertCircle,
 } from 'lucide-react';
 import type { RepoHealthReport, TodoImportItem, GripmConfig } from '../../types';
 import { Modal } from '../Modal';
 import { useTranslation } from '../../utils/i18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { AuditBudgetsTab } from './AuditBudgetsTab';
+import { AuditTodosTab } from './AuditTodosTab';
+import { AuditQualityTab } from './AuditQualityTab';
 
 export interface AuditModalProps {
   isOpen: boolean;
@@ -47,11 +46,11 @@ export const AuditModal: FC<AuditModalProps> = ({
   const panelRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
   const [activeTab, setActiveTab] = useState<TabType>('budgets');
   const [selectedTodoIds, setSelectedTodoIds] = useState<Set<string>>(new Set());
-  const selectAllCheckboxId = useId();
 
   if (!isOpen) return null;
 
-  const score = report ? Math.round(report.score) : 100;
+  const hasReport = report !== null;
+  const score = hasReport ? Math.round(report.score) : null;
   const violations = report?.loc?.violations || [];
   const todos = report?.todos || [];
   const suppressions = report?.quality?.suppressions || [];
@@ -72,12 +71,14 @@ export const AuditModal: FC<AuditModalProps> = ({
   // Score color styles
   let scoreColorText = 'text-emerald-600 dark:text-emerald-400';
   let scoreBarColor = 'bg-emerald-500';
-  if (score < 60) {
-    scoreColorText = 'text-rose-600 dark:text-rose-400';
-    scoreBarColor = 'bg-rose-500';
-  } else if (score < 80) {
-    scoreColorText = 'text-amber-600 dark:text-amber-400';
-    scoreBarColor = 'bg-amber-500';
+  if (score !== null) {
+    if (score < 60) {
+      scoreColorText = 'text-rose-600 dark:text-rose-400';
+      scoreBarColor = 'bg-rose-500';
+    } else if (score < 80) {
+      scoreColorText = 'text-amber-600 dark:text-amber-400';
+      scoreBarColor = 'bg-amber-500';
+    }
   }
 
   // Toggle single TODO selection
@@ -181,8 +182,8 @@ export const AuditModal: FC<AuditModalProps> = ({
                 {t('audit.healthScore')}
               </span>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className={`text-2xl font-extrabold ${scoreColorText}`}>
-                  {score}
+                <span className={`text-2xl font-extrabold ${score !== null ? scoreColorText : 'text-slate-400'}`}>
+                  {score !== null ? score : '-'}
                 </span>
                 <span className="text-xs text-slate-400 font-mono">/ 100</span>
               </div>
@@ -190,8 +191,8 @@ export const AuditModal: FC<AuditModalProps> = ({
 
             <div className="w-24 sm:w-36 h-2 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${scoreBarColor}`}
-                style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${score !== null ? scoreBarColor : 'bg-slate-300 dark:bg-white/20'}`}
+                style={{ width: `${score !== null ? Math.min(100, Math.max(0, score)) : 0}%` }}
               />
             </div>
           </div>
@@ -306,239 +307,53 @@ export const AuditModal: FC<AuditModalProps> = ({
 
       {/* Modal Tab Content Panels */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-        {/* Tab 1: Presupuestos y Modularidad */}
-        {activeTab === 'budgets' && (
-          <div className="space-y-3">
-            {isLocDisabled && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
-                {t('audit.locDisabledNotice')}
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 pb-1">
-              <span>{t('audit.locViolations')}</span>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  {t('audit.locWarnThreshold')}
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  {t('audit.locCritThreshold')}
-                </span>
-              </div>
-            </div>
-
-            {violations.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
-                <ShieldCheck className="w-10 h-10 text-emerald-500 mb-2" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {t('audit.locNoViolations')}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {violations.map((v, idx) => {
-                  const isCrit = v.status === 'error' || v.lines >= 1000;
-                  return (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 flex items-center justify-between gap-3 text-xs hover:border-slate-300 dark:hover:border-white/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {isCrit ? (
-                          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                        )}
-                        <span className="font-mono text-slate-800 dark:text-slate-200 truncate">
-                          {v.file}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          {v.lines} {t('audit.lines')}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                            isCrit
-                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                          }`}
-                        >
-                          {isCrit ? '>= 1000' : '>= 500'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        {!hasReport && !isLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center text-center p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
+            <AlertCircle className="w-10 h-10 text-amber-500 mb-2" />
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">
+              {t('audit.errorUnavailable')}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              {t('audit.modalSubtitle')}
+            </p>
+            <button
+              type="button"
+              onClick={() => onRefresh()}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {t('audit.refresh')}
+            </button>
           </div>
-        )}
-
-        {/* Tab 2: TODOs en Código */}
-        {activeTab === 'todos' && (
-          <div className="space-y-3">
-            {isTodosDisabled && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
-                {t('audit.todosDisabledNotice')}
-              </div>
+        ) : (
+          <>
+            {activeTab === 'budgets' && (
+              <AuditBudgetsTab
+                isLocDisabled={isLocDisabled}
+                violations={violations}
+              />
             )}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-white/[0.06]">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={selectAllCheckboxId}
-                  checked={todos.length > 0 && selectedTodoIds.size === todos.length}
-                  onChange={handleToggleAllTodos}
-                  disabled={todos.length === 0}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-white/20 dark:bg-white/10"
-                />
-                <label
-                  htmlFor={selectAllCheckboxId}
-                  className="text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer select-none"
-                >
-                  {selectedTodoIds.size === todos.length && todos.length > 0
-                    ? t('audit.deselectAll')
-                    : t('audit.selectAll')}
-                </label>
-                {selectedTodoIds.size > 0 && (
-                  <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold ml-1">
-                    ({t('audit.selectedCount', { count: selectedTodoIds.size })})
-                  </span>
-                )}
-              </div>
 
-              <button
-                type="button"
-                onClick={handleImportSelected}
-                disabled={selectedTodoIds.size === 0 || isImporting}
-                title={t('audit.importSelected')}
-                className="min-h-[44px] min-w-[44px] sm:min-h-[36px] flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-indigo-500 focus:outline-none"
-              >
-                <DownloadCloud className={`w-3.5 h-3.5 ${isImporting ? 'animate-bounce' : ''}`} />
-                <span>
-                  {isImporting ? t('audit.importing') : t('audit.importSelected')}
-                </span>
-              </button>
-            </div>
-
-            {todos.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-2" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {t('audit.todosNoItems')}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {todos.map((todo) => {
-                  const isSelected = selectedTodoIds.has(todo.id);
-                  let typeBadgeColor = 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20';
-                  if (todo.type === 'FIXME') {
-                    typeBadgeColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-                  } else if (todo.type === 'HACK') {
-                    typeBadgeColor = 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
-                  } else if (todo.type === 'BUG') {
-                    typeBadgeColor = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
-                  }
-
-                  return (
-                    <div
-                      key={todo.id}
-                      onClick={() => handleToggleTodo(todo.id)}
-                      className={`p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-500/30'
-                          : 'bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="pt-0.5 shrink-0">
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                          ) : (
-                            <Square className="w-4 h-4 text-slate-400" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`px-1.5 py-0.5 rounded font-mono font-bold border ${typeBadgeColor}`}>
-                              {todo.type}
-                            </span>
-                            <span className="font-mono text-slate-500 dark:text-slate-400">
-                              {todo.file}:{todo.line}
-                            </span>
-                          </div>
-
-                          <div className="font-medium text-slate-800 dark:text-slate-200 break-words">
-                            {todo.text}
-                          </div>
-
-                          {todo.snippet && (
-                            <pre className="mt-1.5 p-2 rounded bg-slate-100 dark:bg-[#070b12] text-slate-700 dark:text-slate-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                              {todo.snippet}
-                            </pre>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            {activeTab === 'todos' && (
+              <AuditTodosTab
+                isTodosDisabled={isTodosDisabled}
+                todos={todos}
+                selectedTodoIds={selectedTodoIds}
+                isImporting={isImporting}
+                onToggleTodo={handleToggleTodo}
+                onToggleAllTodos={handleToggleAllTodos}
+                onImportSelected={handleImportSelected}
+              />
             )}
-          </div>
-        )}
 
-        {/* Tab 3: Calidad Anti-Slop */}
-        {activeTab === 'quality' && (
-          <div className="space-y-3">
-            {isQualityDisabled && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
-                {t('audit.qualityDisabledNotice')}
-              </div>
+            {activeTab === 'quality' && (
+              <AuditQualityTab
+                isQualityDisabled={isQualityDisabled}
+                suppressions={suppressions}
+              />
             )}
-            <div className="text-xs text-slate-500 dark:text-slate-400 pb-1">
-              <span>{t('audit.qualitySuppressionsFound')}</span>
-            </div>
-
-            {suppressions.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-6 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
-                <Sparkles className="w-10 h-10 text-emerald-500 mb-2" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {t('audit.qualityNoSuppressions')}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {suppressions.map((sup, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 text-xs space-y-1.5"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                          {sup.type}
-                        </span>
-                        <span className="font-mono text-slate-600 dark:text-slate-300">
-                          {sup.file}:{sup.line}
-                        </span>
-                      </div>
-                    </div>
-
-                    {sup.snippet && (
-                      <pre className="p-2 rounded bg-slate-100 dark:bg-[#070b12] text-slate-700 dark:text-slate-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                        {sup.snippet}
-                      </pre>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </Modal>

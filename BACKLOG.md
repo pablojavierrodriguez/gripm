@@ -217,377 +217,6 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (14)
-
-#### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Evolucionar el asistente de inicializacion `gripm --init` (`scripts/initScaffold.js` y `scripts/gripm-runner.js`) hacia la arquitectura de Gripm Suite definida en DEV-205, bajo el principio de "100% ofrecido, 0% impuesto", sin alargar la experiencia del usuario y con soporte para dos velocidades de configuracion:
-
-1. **Vision de Suite en el Onboarding:**
-   - Presentar Gripm como una suite de productos de trabajo con agentes y desarrollo agil (hoy: Gripm Board & MCP y Gripm Playbook; extensible a futuros productos `@gripm/*`).
-   - Permitir al usuario elegir que productos de la suite inicializar en su repositorio en una sola interaccion.
-
-2. **Dos Velocidades de Configuracion:**
-   - **Modo Rapido ("Elegir por mi"):** Presets en 1 clic (`Minimalist AI-First`, `Baterias Incluidas`) o flags no interactivas (`--minimal`, `--full`, `--yes`). Muestra una radiografia compacta de lo que queda activo (`[ON]`) y lo que queda apagado (`[OFF]`) disponible en Settings, ejecutandose en menos de 10 segundos.
-   - **Modo Componente por Componente ("Control total"):** Organizado en selectores multiples compactos (`multi-select`) en lugar de preguntas secuenciales `S/n` interminables.
-
-3. **Catalogo Completo y Transparente del Cockpit:**
-   - Exponer en el multi-select del Cockpit todas las capacidades disponibles que hoy quedan ocultas o forzadas:
-     - Modulos funcionales: Releases, Sprints, Timeline / Roadmap, Metrics / Analytics, Ideas / Discovery, Estimacion (Fibonacci / T-Shirt), Calendar Export (.ics), Multi-Repo Hub.
-     - Persistir explicitamente en `.gripm/config.json` el arbol `modules`, `enabledTabs`, `kanban` y `estimation` sin ambiguedades ni fallbacks magicos.
-
-4. **Integracion Transparente en el Repositorio (Opt-in granular):**
-   - El usuario decide que artefactos tocar en su repo: `.gripm/config.json`, skill de conexion `.agents/skills/gripm/SKILL.md`, guia `AGENTS.md`, scripts en `package.json` (`"board"`, `"mcp"`) y reglas en `.gitignore`.
-
-5. **Interoperabilidad con Gripm Playbook:**
-   - Si el usuario selecciona Gripm Playbook en el onboarding, delegar en el flujo interactivo de Playbook (o invocar `npx @gripm/playbook init` / sincronizador) respetando la seleccion de Harnesses (`Antigravity`, `Cursor`, `Claude Code`) y Stack Packs en lugar de imponer una sincronizacion a ciegas con `--yes`.
-
-**Criterios de Aceptación:**
-- [x] #1 scripts/initScaffold.js presenta selector de suite (Gripm Board + MCP y Gripm Playbook) permitiendo instalar uno, ambos o ninguno de forma independiente.
-- [x] #2 El selector de modo ofrece 'Modo Rapido (Minimal AI-First o Baterias Incluidas)' y 'Modo Componente por Componente (Control total)'.
-- [x] #3 El modo Rapido finaliza en menos de 3 pasos e imprime un resumen claro de capacidades activas e inactivas antes de escribir en disco.
-- [x] #4 El modo Componente por Componente utiliza prompts multi-select para seleccionar modulos del Cockpit (Releases, Sprints, Timeline, Metrics, Ideas, Estimation, Calendar, Hub) y archivos en disco.
-- [x] #5 .gripm/config.json persiste explicitamente la configuracion resultante (modules, enabledTabs, kanban, estimation) de acuerdo a la seleccion del usuario.
-- [x] #6 La seleccion de Gripm Playbook dentro de gripm --init respeta la seleccion interactiva de harnesses y stack packs de Playbook sin forzar defaults a ciegas.
-- [x] #7 Las flags no interactivas (--minimal, --full, --yes, --with-playbook, --no-playbook) conservan paridad y automatizacion en CI.
-- [x] #8 La suite de pruebas y verificacion de backlog aprueba con codigo 0 (npm test y npm run backlog:check).
-
----
-
-#### [DEV-345] Adopcion de Arquitectura Zero-Clutter y Confinamiento en .gripm
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-Adopcion formal en el repositorio de Gripm Board de la arquitectura **Zero-Clutter** establecida en Gripm Playbook (PLAY-041 y PLAY-051) e integracion con el flujo de onboarding modular de la Suite (DEV-344).
-
-Bajo este principio, la raiz del repositorio consumidor debe permanecer completamente limpia y libre de artefactos o metadatos de herramientas satelite:
-1. **Confinamiento de Metadatos en `.gripm/`:**
-   - `.playbook-lock.json` se traslada a `.gripm/playbook-lock.json`.
-   - `audit-ux-baseline.json` se traslada a `.gripm/audit-ux-baseline.json`.
-   - `.uxaudit.json` se traslada a `.gripm/.uxaudit.json`.
-   - Purga de la carpeta obsoleta `.playbook-backups/` en raiz (los respaldos se ubican en `.gripm/backups/`).
-2. **Seleccion Modular y Sincronizacion de Scripts:**
-   - Incorporacion de `scripts/lib/selection.mjs` y extension de `scripts/init.mjs` y `scripts/sync-playbook.mjs` con flags de granularidad (`--select`, `--no-docs`, `--no-agents`) para permitir a repositorios consumidores adoptar solo los componentes necesarios sin contaminar la raiz con documentacion o artefactos superfluos.
-   - Purgar plantillas opt-in no utilizadas en flujo Kanban continuo (`docs/DOMAIN_TEMPLATE.md` y `docs/sprints/`), manteniendo el arbol de documentacion vivo y enfocado.
-3. **Erradicacion de Duplicados y Scripts Obsoletos:**
-   - Eliminacion de `scripts/validate-commit-msg.js`, unificando en el validador sincronizado `scripts/validate-commit-msg.mjs` (actualizando `.githooks/commit-msg` y `scripts/test-commit-msg.js` con soporte integral para Anti-Em-Dash, Conventional Commits y bypass de Git).
-   - Limpieza de residuos de `.agents/teamwork/` en el arbol local.
-4. **Actualizacion de Scripts de Auditoria, Verificacion y UX:**
-   - Sincronizacion de `scripts/audit-ux-code.cjs` con la version canonica de Playbook con resolucion nativa en `.gripm/`.
-   - Adaptacion de `scripts/verify-audit-ux-baseline.js` para resolver el baseline desde `.gripm/audit-ux-baseline.json`.
-   - Adaptacion de `scripts/verify-publish-surface.js` para asegurar que `.gripm/` y metadatos queden formalmente excluidos del tarball npm.
-   - Ajuste de etiquetas de accesibilidad a11y (UX-010) en `CompleteSprintModal.tsx` y `TaxonomyTab.tsx` para satisfacer el baseline estricto.
-
-**Criterios de Aceptación:**
-- [x] #1 Archivos de metadata confinados en .gripm/ (.gripm/playbook-lock.json, .gripm/audit-ux-baseline.json, .gripm/.uxaudit.json) y carpeta .playbook-backups de raiz eliminada.
-- [x] #2 scripts/validate-commit-msg.js eliminado, unificando la validacion en scripts/validate-commit-msg.mjs con .githooks/commit-msg y scripts/test-commit-msg.js en verde.
-- [x] #3 scripts/audit-ux-code.cjs sincronizado con soporte para .gripm/ y scripts/verify-audit-ux-baseline.js adaptado con resolucion defensiva.
-- [x] #4 Residuos de plantillas innecesarias eliminados (docs/DOMAIN_TEMPLATE.md, docs/sprints) y .agents/teamwork/ limpio.
-- [x] #5 Motor de seleccion modular incorporado (scripts/lib/selection.mjs) y scripts/init.mjs / scripts/sync-playbook.mjs actualizados con soporte granular.
-- [x] #6 Accesibilidad UX-010 verificada en componentes modificados y superficie de publicacion protegida contra fugas de .gripm/.
-- [x] #7 La Piramide de Verificacion pasa al 100% (tsc, npm test, publish:check, backlog:check, verify-changes --all).
-
----
-
-#### [DEV-346] Documentacion de Arquitectura Bilingue Unificada: ARCHITECTURE.md
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-Unificación bilingüe en un solo archivo (inglés primero, español debajo) para la documentación técnica de arquitectura (`docs/ARCHITECTURE.md`), alineándola con el estándar de documentación comunitaria y técnica de gripm (DEV-309 / Gotcha 24 en `AGENTS.md`) y actualizando el inventario de componentes y servicios al estado del arte v1.10.0.
-
-### Diagnóstico y Justificación:
-
-1. **Alineación con el Estándar de Documentación (DEV-309):** `docs/ARCHITECTURE.md` quedó redactado únicamente en español tras DEV-306, mientras que las reglas de gobernanza del repositorio (`AGENTS.md` y `gripm-playbook/AGENTS.md`) estipulan inglés como idioma técnico primario y unificación bilingüe en un solo archivo con anclajes rápidos en cabecera (`🌐 [English](#gripm-system-architecture) | [Español](#arquitectura-del-sistema-gripm)`).
-2. **Actualización Arquitectónica v1.10.0:** Incorporar componentes y subsistemas introducidos recientemente: vistas lazy-loaded (`TimelineView`, `MetricsView`, `ImportWizardModal`), servicios de persistencia y caché de concurrencia optimista (`taskCache.ts`, `atomicWrite.ts`), middleware de seguridad (`server/middleware/security.ts`), y onboarding de suite con presets en el CLI (`gripm init`).
-3. **Guardrail Anti-Em-Dash:** Cumplimiento estricto de la regla 25 sin uso de guiones largos artificiales (em-dash o en-dash).
-
-**Criterios de Aceptación:**
-- [x] #1 `docs/ARCHITECTURE.md` unifica en un solo archivo la versión canónica en inglés arriba y la versión en español adaptada y actualizada debajo, con selector de anclaje bilingüe.
-- [x] #2 Ambas versiones documentan con precisión la topología actual v1.10.0: UI modular y code-splitting (`TimelineView`, `MetricsView`), servicios de backend (`taskCache`, `atomicWrite`, `server/middleware/security.ts`) y runtime dual (Daemon local vs Sandbox Vercel).
-- [x] #3 Se respeta la regla Anti-Em-Dash (uso exclusivo de guión estándar `-` con espacios).
-- [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js --all`).
-
----
-
-#### [DEV-347] Fix: Elevacion de capa y portal para AdvancedFiltersPopover sobre vistas de tablero y timeline
-- **Prioridad**: `high` | **Tipo**: `bug`
-
-En la vista de Timeline/Roadmap (y potencialmente en vistas con contenedores de alto apilamiento), el panel desplegable de filtros avanzados (`AdvancedFiltersPopover`) queda visualmente ocluido o renderizado por detras de la lista lateral izquierda de tareas y de los contenedores con `backdrop-blur` o `z-index` local.
-
-Esto ocurre porque `FilterBar` declara `relative z-10` con `backdrop-blur-sm`, generando un contexto de apilamiento local en el que el sidebar de Timeline (`z-10` posterior en el DOM) se superpone. Conforme al guardrail #11 de AGENTS.md (DEV-129, DEV-130), los modales y popovers flotantes deben desacoplarse o montarse con elevacion asegurada (`createPortal` o elevacion superior coordinada) para no sufrir recortes por stacking context o containing blocks.
-
-**Criterios de Aceptación:**
-- [x] #1 El popover de filtros avanzados se renderiza siempre por encima de la barra lateral de tareas del Roadmap y del lienzo de tiempo sin quedar tapado
-- [x] #2 El posicionamiento del popover permanece anclado al boton de activacion de filtros o flotante con visibilidad completa en viewports compactos y desktop
-- [x] #3 El cierre por click exterior y teclado (Escape) se mantiene operativo
-
----
-
-#### [DEV-348] Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC
-- **Prioridad**: `medium` | **Tipo**: `refactor`
-
-El componente `TimelineView.tsx` cuenta actualmente con 1299 lineas de codigo, superando el limite maximo de 1000 LOC establecido en las directrices de arquitectura y `check-loc` de AGENTS.md. 
-
-Agrupa de forma monolitica la resolucion de fechas, calculo de geometria temporal, arbol jerarquico de epicas/tareas, barra superior de herramientas, redimensionamiento de sidebar, lienzo Gantt con drag & drop y gestion de scroll. Es necesario descomponerlo en submódulos especializados dentro de `src/components/timeline/`:
-- `timeline/dateEngine.ts`: resolucion pura de fechas (UTC), duraciones, escalas y conversion fecha a px.
-- `timeline/buildHierarchy.ts`: calculo de arbol jerarquico, grupos y ordenamiento.
-- `timeline/TimelineToolbar.tsx`: controles superiores de escala, busqueda, filtros y acciones.
-- `timeline/TimelineSidebar.tsx`: arbol lateral de jerarquia con conectores y chevrons.
-- `timeline/TimelineCanvas.tsx`: cuadricula temporal, columnas, marcador de hoy y filas de barras.
-- `timeline/useTimelineDrag.ts`: hook de interaccion para arrastrar y redimensionar fechas o sprints.
-
-**Criterios de Aceptación:**
-- [x] #1 `TimelineView.tsx` orquesta submódulos y ningun archivo en `src/components/timeline/` supera las 500 LOC
-- [x] #2 Se extrae la logica pura de fechas a `dateEngine.ts` con cobertura de pruebas unitarias
-- [x] #3 Se preserva la paridad funcional existente sin regresiones visuales o de interaccion
-- [x] #4 `npm run check-loc` y `npm test` finalizan en verde
-
----
-
-#### [DEV-349] Armonizacion de filtros globales y ordenamiento predeterminado en TimelineView
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Actualmente `TimelineView` ignora los filtros globales aplicados en el encabezado (`FilterBar`), consumiendo indiscriminadamente `dataset = allItems || items`, lo que provoca que se listen 200+ tareas (incluyendo completadas, canceladas o ideas que el usuario tiene ocultas en el tablero principal).
-
-Ademas, el orden de aparicion en el timeline carece de criterio unificado:
-1. **Filtros por Defecto:** Timeline debe respetar los items filtrados por el encabezado general (`items`), manteniendo la sincronia con el Board y Backlog. Tareas en `done` y `cancelled` deben permanecer ocultas por defecto a menos que el usuario active explicitamente los filtros de visualizacion correspondientes.
-2. **Items Padre / Contexto:** Si una epica o contenedor no coincide con el filtro pero sus hijos si, el padre se renderiza atenuado o los hijos se agrupan respetando la coherencia sin reinyectar tareas no deseadas.
-3. **Orden Predeterminado:** Adoptar por defecto el orden canónico configurado en el proyecto (orden natural del backlog / board: `order` o jerarquia), permitiendo al usuario alternar entre orden natural y orden cronologico por fecha de inicio.
-4. **Unificacion de Busqueda:** Eliminar el campo de busqueda redundante local o sincronizarlo bidireccionalmente con la barra superior.
-
-**Criterios de Aceptación:**
-- [x] #1 La vista de Timeline respeta de forma predeterminada los filtros activos en `FilterBar` (estados activos, exclusion de done/cancelled/ideas salvo seleccion expresa)
-- [x] #2 El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
-- [x] #3 El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
-- [x] #4 Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
-
----
-
-#### [DEV-352] Epica: Motor de Diagnostico y Auditoria de Repositorio (gripm audit) y Gobernanza Multi-Perfil
-- **Prioridad**: `high` | **Tipo**: `epic`
-
-Iniciativa y epica paraguas para transformar a Gripm en el motor de diagnostico, auditoria tecnica y aseguramiento de calidad ("Staff Engineer mecanico") para repositorios de software, preservando al 100% las capacidades existentes y soportando diversos arquetipos de proyectos y usuarios.
-
-### Vision y Objetivos Centrales:
-1. **Valor Inmediato ("Aha! Moment" en 3 segundos):** Ofrecer una auditoria estatica instantanea al inicializar un repo (`gripm --init`) o bajo demanda (`gripm audit`), reportando salud modular (LOC budgets), practicas anti-slop (supresiones de linter/tipos), infraestructura de testing y tareas pendientes ocultas en comentarios del codigo.
-2. **Preservacion de Arquetipos y Flujos Existentes:** Mantener soporte estricto para desarrolladores individuales (modo minimalista/Kanban puro), equipos tradicionales (Sprints, Releases, Timeline, Changelog) y equipos AI-Native (gates mecanicos de ACs, auditoria de diffs y verificacion ciega).
-3. **Conversion de Deuda Tecnica en Trabajo Estructurado:** Permitir escanear comentarios `TODO:`, `FIXME:`, `HACK:`, `BUG:` en el codigo e importarlos opcionalmente como tareas formales en `backlog/tasks/`.
-4. **Visibilidad Total (CLI, REST API, UI Cockpit y Servidor MCP):** El diagnostico de salud no es solo una salida de consola; vive como endpoint en el servidor local, se visualiza en la interfaz web y se expone a los agentes de IA a traves del protocolo MCP.
-
-### Historias y Tareas que componen la Epica:
-- **DEV-353:** Core Engine: Servicio Unificado de Auditoria Estatica (`auditService`) y Scanners de Salud (LOC, Anti-Slop, Tests, TODOs).
-- **DEV-354:** CLI & Onboarding: Comando `gripm audit` y Diagnostico Inicial en `gripm --init` con Recomendacion de Perfil.
-- **DEV-355:** Backend REST API: Endpoints `/api/audit` e Importacion Masiva de TODOs a Tareas en `backlog/tasks/`.
-- **DEV-356:** Cockpit UI: Panel de Diagnostico y Salud del Repositorio en Header y Modal de Acciones Rapidas.
-- **DEV-357:** MCP & Gatekeeper: Herramienta `gripm_get_repo_health` y Guardrails Arquitectonicos en Transiciones de Tarea.
-
-**Criterios de Aceptación:**
-- [x] #1 Todas las tareas hijas (DEV-353, DEV-354, DEV-355, DEV-356, DEV-357) estan formalizadas y enlazadas en el backlog con criterios verificables y dependencias resueltas.
-- [x] #2 El flujo no rompe la configuracion existente en .gripm/config.json ni altera el comportamiento de repositorios configurados previamente.
-- [x] #3 La ejecucion de la suite de pruebas general (`npm test`) y validacion de backlog (`npm run backlog:check`) finaliza con codigo de salida 0.
-
----
-
-#### [DEV-353] Core Engine: Servicio Unificado de Auditoria Estatica (auditService) y Scanners de Salud
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Crear el motor base de auditoria estatica de Gripm (`server/services/auditService.ts` y script exportable `scripts/audit-engine.mjs`) que permite inspeccionar un repositorio de forma headless, sin dependencias pesadas y en menos de 2 segundos.
-
-### Capacidades del Motor:
-1. **Scanner de Presupuestos de Codigo (LOC Budgets):**
-   - Basado en los estandares de `scripts/check-loc.mjs` (<1000 LOC techo rigido, 500-999 LOC advertencia).
-   - Respeta `.gitignore`, `.locignore` y carpetas de distribucion (`node_modules`, `dist`, `.git`, `coverage`, `.gripm`).
-   - Retorna lista clasificada de archivos criticos y advertencias.
-
-2. **Scanner Anti-Slop (Calidad y Supresiones):**
-   - Inspecciona archivos de codigo en busca de supresiones artificiales de tipado y linting: `@ts-ignore`, `@ts-nocheck`, `eslint-disable`, supresiones de pruebas y uso desmedido de `any`.
-   - Registra cantidad, ubicacion (archivo:linea) y fragmento de contexto.
-
-3. **Auto-Deteccion de Infraestructura de Pruebas:**
-   - Inspecciona `package.json` (`scripts`, `devDependencies`, `dependencies`) y archivos de configuracion (`vitest.config.*`, `jest.config.*`, `pytest.ini`, `Cargo.toml`, etc.).
-   - Identifica el test runner principal y el comando canónico de verificacion (`npm test`, `pytest`, `cargo test`, etc.).
-   - Evalua si el comando responde con exit code limpio (`exit 0`).
-
-4. **Scanner de Deuda Oculta (TODOs / FIXMEs):**
-   - Escanea comentarios en codigo fuente bajo el patron `// (TODO|FIXME|HACK|BUG): <texto>` o bloques multi-linea equivalentes.
-   - Retorna array estructurado de hallazgos: `{ id, file, line, type, text, snippet }`.
-
-5. **Puntuacion de Salud Ponderada (Health Score 0-100):**
-   - Genera un indice numerico transparente basado en penalizaciones objetivas (archivos sobredimensionados, supresiones de linter, ausencia de tests).
-
-**Criterios de Aceptación:**
-- [x] #1 El modulo server/services/auditService.ts expone la funcion asincrona scanCodebase(targetPath, options) y retorna un objeto de resultado tipado segun el contrato de salud.
-- [x] #2 El scanner de LOC detecta correctamente archivos superiores a 500 y 1000 lineas, omitiendo directorios ignorados estandar (node_modules, dist, .git).
-- [x] #3 El scanner Anti-Slop reporta con precision la presencia de @ts-ignore, @ts-nocheck y eslint-disable con su linea correspondiente.
-- [x] #4 El detector de tests identifica los principales runners (vitest, jest, node:test, pytest) y deduce el comando verifyCommand sugerido.
-- [x] #5 El detector de TODOs extrae comentarios de tipo TODO, FIXME, HACK y BUG con archivo, numero de linea y descripcion.
-- [x] #6 El calculo de score ponderado (0 a 100) es determinista y no arroja valores NaN o fuera de rango ante repositorios vacios o sin codigo fuente.
-- [x] #7 El tiempo de ejecucion sobre un repositorio de 500 archivos fuente no supera los 2000 ms.
-- [x] #8 Se incorpora prueba unitaria headless (test-audit-service.js) que valida todas las reglas y aprueba con codigo de salida 0 en npm test.
-
----
-
-#### [DEV-354] CLI y Onboarding: Integracion de gripm audit y Diagnostico Inicial en gripm --init con Recomendacion de Perfil
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Integrar el motor de auditoria estatica (`DEV-353`) directamente en la experiencia de linea de comandos (`gripm audit`) y dentro del asistente de inicializacion de repositorios (`gripm --init` en `scripts/initScaffold.js`).
-
-### Objetivos y Comportamiento:
-1. **Comando de Terminal Dedicado (`gripm audit`):**
-   - Ejecuta la inspeccion completa del repositorio e imprime en consola un reporte visual estilizado con resumen de salud, alertas amarillas/rojas y lista de hallazgos.
-   - Soporta flags CLI: `--format json` (para integraciones en scripts o CI), `--strict` (retorna codigo 1 si hay fallas criticas de presupuesto o supresiones) y `--quiet`.
-
-2. **Diagnostico de Bienvenida en el Onboarding (`gripm --init`):**
-   - Al iniciar el wizard en un repositorio, Gripm ejecuta el diagnostico en los primeros 2 segundos antes de solicitar confirmaciones.
-   - Muestra una radiografia inmediata del stack detectado, infraestructura de pruebas y estado de deuda tecnica.
-   - **Recomendacion Inteligente de Perfil:** Si detecta TypeScript + suite de pruebas robusta, sugiere por defecto el perfil *AI-Native* o *Baterias Incluidas*. Si detecta un proyecto simple sin pruebas, sugiere el perfil *Minimalista* para no imponer friccion innecesaria.
-   - **Auto-Configuracion de Verificacion:** Popula automaticamente la clave `verifyCommand` en `.gripm/config.json` con el comando canónico detectado (ej. `npm test` o `npx tsc --noEmit`).
-
-3. **Opt-in de Importacion de TODOs en Init:**
-   - Si el scanner detecta comentarios `TODO:` o `FIXME:`, el wizard pregunta de forma interactiva si se desean importar como tareas en estado `draft` dentro de `backlog/tasks/`.
-   - Si el usuario aprueba, materializa los archivos `.md` correspondientes y ejecuta `backlog:sync` de inmediato.
-
-**Criterios de Aceptación:**
-- [x] #1 El binario bin/gripm-cli.js reconoce el comando audit (y npx @gripm/board audit) ejecutando el diagnostico y formateando la salida en consola.
-- [x] #2 La bandera --format json en gripm audit emite exclusivamente el JSON estructurado por stdout con exit code 0.
-- [x] #3 La bandera --strict en gripm audit retorna exit code 1 si existen archivos que superan 1000 LOC o supresiones criticas.
-- [x] #4 El wizard en scripts/initScaffold.js ejecuta el diagnostico al inicio e imprime la radiografia previa a la seleccion de presets.
-- [x] #5 El wizard preselecciona la opcion recomendada de perfil segun los hallazgos del scanner, preservando la soberania del usuario para cambiarla.
-- [x] #6 El wizard ofrece importar los TODOs encontrados creando tareas validas en backlog/tasks/ sin duplicar IDs y ejecutando backlog:sync.
-- [x] #7 El modo no interactivo (--yes o -y) ejecuta la inicializacion de forma predecible sin colgarse en prompts.
-- [x] #8 La suite de pruebas de CLI (test-init-suite.js y test-cli-add.js) cubre el nuevo comando y aprueba con codigo de salida 0.
-
----
-
-#### [DEV-355] Backend REST API: Endpoints de Auditoria e Importacion Masiva de TODOs a Tareas
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Exponer las capacidades del motor de auditoria (`DEV-353`) a traves de endpoints REST en el servidor Express/Node.js de Gripm (`server/`), permitiendo al frontend web y a clientes externos consultar la salud del codigo y materializar tareas desde comentarios detectados.
-
-### Endpoints Requeridos:
-1. **`GET /api/audit`:**
-   - Retorna el diagnostico consolidado de salud del repositorio.
-   - Implementa cache ligero en memoria (TTL de 30 segundos) con revalidacion para no penalizar el rendimiento del servidor en consultas frecuentes.
-   - Retorna el resumen general, desglose de LOC, supresiones detectadas, estado de pruebas y lista de TODOs/FIXMEs.
-
-2. **`POST /api/audit/refresh`:**
-   - Invalida la cache de auditoria y fuerza un escaneo fresco del arbol de trabajo en disco.
-
-3. **`POST /api/audit/import-todos`:**
-   - Permite importar uno, varios o todos los TODOs detectados hacia `backlog/tasks/`.
-   - Body esperado: `{ items: Array<{ file: string, line: number, type: string, text: string }> }`.
-   - Lee el ID maximo de forma atomica al momento de la creacion para evitar colisiones.
-   - Genera archivos Markdown estructurados en `backlog/tasks/DEV-XXX - slug.md` con estado `draft`, descripcion con el snippet original y labels `['todo-import', 'tech_debt']`.
-   - Dispara la sincronizacion inmediata (`syncBacklog()`) para actualizar `BACKLOG.md` de forma atomica.
-
-**Criterios de Aceptación:**
-- [x] #1 El endpoint GET /api/audit responde con codigo 200 y el JSON tipado del reporte de salud.
-- [x] #2 El endpoint POST /api/audit/refresh invalida la cache y actualiza los datos del diagnostico ante cambios en el sistema de archivos.
-- [x] #3 El endpoint POST /api/audit/import-todos valida la carga util y crea las tareas en backlog/tasks/ con IDs correlativos unicos.
-- [x] #4 Las tareas importadas por la API quedan en estado draft con su respectivo frontmatter YAML valido y sin secciones malformadas.
-- [x] #5 La llamada de importacion regenera BACKLOG.md automaticamente manteniendo coherencia con el arbol de tareas en disco.
-- [x] #6 Se incorporan pruebas en scripts/test-backlog-service.js o test de API validando los endpoints y codigos de error (400, 500).
-- [x] #7 La suite de pruebas de API y seguridad responde con codigo de salida 0.
-
----
-
-#### [DEV-356] Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Construir la experiencia visual en el Cockpit web (`src/`) para consultar el estado de salud del codigo y gestionar los hallazgos de auditoria sin interrumpir los flujos de trabajo habituales (Kanban, Sprints, Releases, Timeline).
-
-### Componentes de UI:
-1. **Health Badge en Header (`src/components/Header.tsx`):**
-   - Incorpora una pastilla sutil en la cabecera mostrando el puntaje de salud (`Salud: 85/100`) con indicador visual semantico (verde >= 80, amarillo 60-79, rojo < 60).
-   - Area tactil minima de 44x44px y anillo de foco accesible (`focus-visible:ring-2`).
-   - En perfiles *Minimalistas*, puede ocultarse o reducirse a un indicador discreto segun `.gripm/config.json` para respetar el principio Zero-Clutter.
-
-2. **Modal de Diagnostico y Acciones (`AuditModal.tsx`):**
-   - Renderizado via `createPortal(..., document.body)` para evitar colisiones de stacking context y overflow.
-   - Pestaña/Seccion 1 - **Presupuestos y Modularidad:** Lista de archivos que superan las 500 y 1000 lineas, con enlaces de referencia y conteo exacto de lineas.
-   - Pestaña/Seccion 2 - **TODOs en Codigo:** Listado de comentarios detectados con opcion de seleccion multiple y boton de accion rapida *"Importar seleccionados como tareas"*.
-   - Pestaña/Seccion 3 - **Calidad Anti-Slop:** Detalle de `@ts-ignore` y `eslint-disable` en el repositorio.
-   - Accion de re-escaneo manual con estado de carga ("Refrescar diagnostico").
-
-3. **Estandares de Diseno y Ergonomia:**
-   - Tipografia 100% canónica de Tailwind (`text-xs`, `text-sm`, `text-base`), prohibidas clases arbitrarias como `text-[10px]`.
-   - Soporte para temas claro y oscuro (`dark:`) sin perdida de contraste.
-   - Trampa de foco accesible y cierre mediante tecla Escape.
-
-**Criterios de Aceptación:**
-- [x] #1 El Header renderiza el indicador de salud consumiendo los datos de GET /api/audit sin provocar layout shifts (Zero-CLS).
-- [x] #2 Al hacer clic en el indicador de salud se abre el modal AuditModal montado en document.body mediante createPortal.
-- [x] #3 El modal permite navegar entre las secciones de modularidad, TODOs y supresiones de calidad con teclado y raton.
-- [x] #4 La lista de TODOs permite seleccionar elementos y ejecutar la importacion a traves de POST /api/audit/import-todos refrescando la vista del Backlog.
-- [x] #5 El boton de re-escaneo invoca POST /api/audit/refresh y actualiza las metricas en pantalla con feedback de carga.
-- [x] #6 No se introducen clases de tamano de fuente arbitrarias (cumplimiento de regla UX-011 verificable por audit-ux-baseline).
-- [x] #7 El modal cuenta con gestion de foco accesible, cierre con tecla Escape y tap targets superiores a 44x44px.
-- [x] #8 La suite de pruebas de UI y build de Vite (npm run build y npm test) aprueba con codigo de salida 0.
-
----
-
-#### [DEV-357] MCP y Gatekeeper: Herramienta repo_health y Guardrails Arquitectonicos en Transiciones de Tarea
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-Conectar el motor de auditoria y diagnostico (`DEV-353`) al servidor MCP (`bin/gripm-mcp.js` y `scripts/mcp-server.ts`), otorgando a los agentes de IA (Cursor, Claude Code, Antigravity) visibilidad de la salud del repositorio e incorporando salvaguardas arquitectonicas opcionales en el Gatekeeper de certificacion.
-
-### Capacidades MCP:
-1. **Nueva Herramienta MCP `gripm_get_repo_health`:**
-   - Permite a los agentes consultar en cualquier momento la puntuacion de salud, los archivos cercanos al limite de lineas (>500 LOC), las supresiones detectadas y los tests configurados.
-   - Argumentos opcionales: `{ category: 'all' | 'loc' | 'suppressions' | 'tests', limit: number }`.
-   - Permite a los agentes evaluar el impacto de su trabajo antes de proponer cambios o solicitar certificacion.
-
-2. **Guardrails Arquitectonicos en el Gatekeeper (`gripm_update_task`):**
-   - Cuando un agente intenta transicionar una tarea a estado `ready`:
-     - El Gatekeeper valida los criterios de aceptacion tildados y el exit code de `verifyCommand` (como hace actualmente).
-     - **Guardrail de Modularidad Opt-in:** Si `.gripm/config.json` tiene activada la gobernanza estricta (`guardrails.enforceLocCeiling: true`), el gatekeeper verifica que ningun archivo tocado en el changeset supere el techo rigido de 1000 LOC.
-     - En caso de incumplimiento, rechaza la transicion con un mensaje descriptivo orientando al agente a modularizar antes de entregar.
-   - **Preservacion de la Soberania del PO:** El parametro `force: true` permite anular el bloqueo mecánico si el usuario humano asi lo autoriza expresamente, emitiendo un registro de advertencia en los logs.
-
-**Criterios de Aceptación:**
-- [x] #1 El servidor MCP registra la herramienta gripm_get_repo_health en su lista de herramientas expuestas via stdio.
-- [x] #2 La invocacion de gripm_get_repo_health retorna el diagnostico estructurado segun los parametros de categoria solicitados.
-- [x] #3 La herramienta gripm_update_task evalua los guardrails configurados al transicionar una tarea a estado ready.
-- [x] #4 Si enforceLocCeiling esta activo y se detectan archivos que superan 1000 LOC en el diff, la transicion a ready es rechazada con mensaje explicativo.
-- [x] #5 La bandera force: true permite a un usuario humano sortear la restriccion preservando la trazabilidad en la respuesta MCP.
-- [x] #6 En proyectos con configuracion estandar o minimalista (sin guardrails estrictos), el Gatekeeper conserva su comportamiento actual sin bloqueos adicionales.
-- [x] #7 La suite de pruebas del binario MCP (scripts/verify-mcp-binary.js y tests de integracion) aprueba con codigo de salida 0.
-
----
-
-#### [DEV-358] Configurar Vercel Web Analytics en la demo web estatica
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Configurar Vercel Web Analytics (`@vercel/analytics`) para la demo web pública desplegada en Vercel (`https://gripm.vercel.app`), permitiendo medir métricas de uso (visitantes únicos, páginas vistas, referrers, países y dispositivos).
-
-### Guardrail de Privacidad OSS / Local-First:
-- El tracking de telemetría debe activarse **única y exclusivamente** cuando la aplicación corre en la demo web pública alojada en Vercel (`isSandboxMode()` y hostname `vercel.app` o producción web).
-- En ejecuciones locales (CLI `gripm`, `board`, `npm run dev`, entorno local con daemon), el componente de Analytics no debe inicializarse bajo ninguna circunstancia, garantizando cero telemetría y privacidad absoluta para desarrolladores locales.
-
-**Criterios de Aceptación:**
-- [x] #1 El paquete @vercel/analytics esta incorporado en las dependencias del proyecto.
-- [x] #2 El componente Analytics se monta en la aplicacion condicionando su activacion exclusivamente a la demo web (isSandboxMode() y entorno web).
-- [x] #3 En ejecuciones locales con daemon o entornos de desarrollo local, Analytics no emite eventos ni rastrea actividad.
-- [x] #4 La suite de verificacion (npx tsc --noEmit, npm test, npm run backlog:check, npm run build) compila y pasa con codigo 0.
-
----
-
-#### [DEV-359] Configurabilidad y gobernanza granular de reglas de auditoria en config.json
-- **Prioridad**: `medium` | **Tipo**: `feature`
-
-Actualmente, el motor estatico de auditoria y salud del repositorio (`audit-engine.mjs` y `auditService.ts`) opera con reglas predeterminadas estandar (techo LOC de 1000 lineas, advertencia en 500, analisis de supresiones `@ts-ignore`, deteccion de infraestructura de pruebas y marcadores de deuda tecnica).
-
-Para repositorios con estandares particulares o necesidades especificas de refinamiento (por ejemplo, excluir archivos de test de las advertencias de supresion, activar o desactivar la verificacion de `console.log`, o ajustar umbrales de presupuesto), es necesario hacer que las variables y el alcance de la auditoria sean configurables mediante la seccion `audit` de `.gripm/config.json`.
-
-**Criterios de Aceptación:**
-- [x] #1 El esquema de configuracion de `.gripm/config.json` soporta la clave opcional `audit` con definicion de reglas activas y umbrales (`rules: { loc: boolean, suppressions: boolean, debtMarkers: boolean, consoleLog: boolean, testRunner: boolean }`).
-- [x] #2 `audit-engine.mjs` y `auditService.ts` resuelven la configuracion de `.gripm/config.json` con fallback seguro a los valores predeterminados sin requerir configuracion obligatoria.
-- [x] #3 Desactivar una regla omite sus penalizaciones en el calculo determinista del Health Score y excluye sus hallazgos en las salidas CLI, REST y MCP.
-- [x] #4 Soporte de patrones de exclusion especificos de auditoria (`audit.exclude`) para aislar carpetas o fixtures (por ejemplo, scripts de test de auditoria) sin alterar el `.gitignore` global.
-- [x] #5 El panel visual de diagnostico (`AuditModal.tsx`) y el comando CLI reflejan las reglas activas y respetan la configuracion del proyecto.
-- [x] #6 Suite de pruebas automatizadas que valide la persistencia de configuracion, la retrocompatibilidad con repositorios existentes y la paridad de comportamiento.
-
----
-
 ### 📋 Backlog / Draft (20)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -1144,7 +773,7 @@ Mejora de la precision temporal y ergonomia visual del lienzo de Roadmap:
 
 ---
 
-### ✅ Done / Deployed (308)
+### ✅ Done / Deployed (322)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -8728,6 +8357,375 @@ Sincronización y adopción en Gripm Board del framework metodológico autónomo
 - [x] #3 Las reglas y skills en `.agents/` y herramientas en `scripts/` quedan actualizadas con paridad total con upstream.
 - [x] #4 `AGENTS.md` de Gripm Board se preserva intacto sin sobreescrituras no deseadas.
 - [x] #5 La suite de pruebas unificada (`npm test`), tipado (`tsc --noEmit`), y verificación de cambios (`node scripts/verify-changes.js --all`) aprueban con código 0.
+
+---
+
+#### [DEV-344] Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Evolucionar el asistente de inicializacion `gripm --init` (`scripts/initScaffold.js` y `scripts/gripm-runner.js`) hacia la arquitectura de Gripm Suite definida en DEV-205, bajo el principio de "100% ofrecido, 0% impuesto", sin alargar la experiencia del usuario y con soporte para dos velocidades de configuracion:
+
+1. **Vision de Suite en el Onboarding:**
+   - Presentar Gripm como una suite de productos de trabajo con agentes y desarrollo agil (hoy: Gripm Board & MCP y Gripm Playbook; extensible a futuros productos `@gripm/*`).
+   - Permitir al usuario elegir que productos de la suite inicializar en su repositorio en una sola interaccion.
+
+2. **Dos Velocidades de Configuracion:**
+   - **Modo Rapido ("Elegir por mi"):** Presets en 1 clic (`Minimalist AI-First`, `Baterias Incluidas`) o flags no interactivas (`--minimal`, `--full`, `--yes`). Muestra una radiografia compacta de lo que queda activo (`[ON]`) y lo que queda apagado (`[OFF]`) disponible en Settings, ejecutandose en menos de 10 segundos.
+   - **Modo Componente por Componente ("Control total"):** Organizado en selectores multiples compactos (`multi-select`) en lugar de preguntas secuenciales `S/n` interminables.
+
+3. **Catalogo Completo y Transparente del Cockpit:**
+   - Exponer en el multi-select del Cockpit todas las capacidades disponibles que hoy quedan ocultas o forzadas:
+     - Modulos funcionales: Releases, Sprints, Timeline / Roadmap, Metrics / Analytics, Ideas / Discovery, Estimacion (Fibonacci / T-Shirt), Calendar Export (.ics), Multi-Repo Hub.
+     - Persistir explicitamente en `.gripm/config.json` el arbol `modules`, `enabledTabs`, `kanban` y `estimation` sin ambiguedades ni fallbacks magicos.
+
+4. **Integracion Transparente en el Repositorio (Opt-in granular):**
+   - El usuario decide que artefactos tocar en su repo: `.gripm/config.json`, skill de conexion `.agents/skills/gripm/SKILL.md`, guia `AGENTS.md`, scripts en `package.json` (`"board"`, `"mcp"`) y reglas en `.gitignore`.
+
+5. **Interoperabilidad con Gripm Playbook:**
+   - Si el usuario selecciona Gripm Playbook en el onboarding, delegar en el flujo interactivo de Playbook (o invocar `npx @gripm/playbook init` / sincronizador) respetando la seleccion de Harnesses (`Antigravity`, `Cursor`, `Claude Code`) y Stack Packs en lugar de imponer una sincronizacion a ciegas con `--yes`.
+
+**Criterios de Aceptación:**
+- [x] #1 scripts/initScaffold.js presenta selector de suite (Gripm Board + MCP y Gripm Playbook) permitiendo instalar uno, ambos o ninguno de forma independiente.
+- [x] #2 El selector de modo ofrece 'Modo Rapido (Minimal AI-First o Baterias Incluidas)' y 'Modo Componente por Componente (Control total)'.
+- [x] #3 El modo Rapido finaliza en menos de 3 pasos e imprime un resumen claro de capacidades activas e inactivas antes de escribir en disco.
+- [x] #4 El modo Componente por Componente utiliza prompts multi-select para seleccionar modulos del Cockpit (Releases, Sprints, Timeline, Metrics, Ideas, Estimation, Calendar, Hub) y archivos en disco.
+- [x] #5 .gripm/config.json persiste explicitamente la configuracion resultante (modules, enabledTabs, kanban, estimation) de acuerdo a la seleccion del usuario.
+- [x] #6 La seleccion de Gripm Playbook dentro de gripm --init respeta la seleccion interactiva de harnesses y stack packs de Playbook sin forzar defaults a ciegas.
+- [x] #7 Las flags no interactivas (--minimal, --full, --yes, --with-playbook, --no-playbook) conservan paridad y automatizacion en CI.
+- [x] #8 La suite de pruebas y verificacion de backlog aprueba con codigo 0 (npm test y npm run backlog:check).
+
+---
+
+#### [DEV-345] Adopcion de Arquitectura Zero-Clutter y Confinamiento en .gripm
+- **Prioridad**: `high` | **Tipo**: `refactor`
+
+Adopcion formal en el repositorio de Gripm Board de la arquitectura **Zero-Clutter** establecida en Gripm Playbook (PLAY-041 y PLAY-051) e integracion con el flujo de onboarding modular de la Suite (DEV-344).
+
+Bajo este principio, la raiz del repositorio consumidor debe permanecer completamente limpia y libre de artefactos o metadatos de herramientas satelite:
+1. **Confinamiento de Metadatos en `.gripm/`:**
+   - `.playbook-lock.json` se traslada a `.gripm/playbook-lock.json`.
+   - `audit-ux-baseline.json` se traslada a `.gripm/audit-ux-baseline.json`.
+   - `.uxaudit.json` se traslada a `.gripm/.uxaudit.json`.
+   - Purga de la carpeta obsoleta `.playbook-backups/` en raiz (los respaldos se ubican en `.gripm/backups/`).
+2. **Seleccion Modular y Sincronizacion de Scripts:**
+   - Incorporacion de `scripts/lib/selection.mjs` y extension de `scripts/init.mjs` y `scripts/sync-playbook.mjs` con flags de granularidad (`--select`, `--no-docs`, `--no-agents`) para permitir a repositorios consumidores adoptar solo los componentes necesarios sin contaminar la raiz con documentacion o artefactos superfluos.
+   - Purgar plantillas opt-in no utilizadas en flujo Kanban continuo (`docs/DOMAIN_TEMPLATE.md` y `docs/sprints/`), manteniendo el arbol de documentacion vivo y enfocado.
+3. **Erradicacion de Duplicados y Scripts Obsoletos:**
+   - Eliminacion de `scripts/validate-commit-msg.js`, unificando en el validador sincronizado `scripts/validate-commit-msg.mjs` (actualizando `.githooks/commit-msg` y `scripts/test-commit-msg.js` con soporte integral para Anti-Em-Dash, Conventional Commits y bypass de Git).
+   - Limpieza de residuos de `.agents/teamwork/` en el arbol local.
+4. **Actualizacion de Scripts de Auditoria, Verificacion y UX:**
+   - Sincronizacion de `scripts/audit-ux-code.cjs` con la version canonica de Playbook con resolucion nativa en `.gripm/`.
+   - Adaptacion de `scripts/verify-audit-ux-baseline.js` para resolver el baseline desde `.gripm/audit-ux-baseline.json`.
+   - Adaptacion de `scripts/verify-publish-surface.js` para asegurar que `.gripm/` y metadatos queden formalmente excluidos del tarball npm.
+   - Ajuste de etiquetas de accesibilidad a11y (UX-010) en `CompleteSprintModal.tsx` y `TaxonomyTab.tsx` para satisfacer el baseline estricto.
+
+**Criterios de Aceptación:**
+- [x] #1 Archivos de metadata confinados en .gripm/ (.gripm/playbook-lock.json, .gripm/audit-ux-baseline.json, .gripm/.uxaudit.json) y carpeta .playbook-backups de raiz eliminada.
+- [x] #2 scripts/validate-commit-msg.js eliminado, unificando la validacion en scripts/validate-commit-msg.mjs con .githooks/commit-msg y scripts/test-commit-msg.js en verde.
+- [x] #3 scripts/audit-ux-code.cjs sincronizado con soporte para .gripm/ y scripts/verify-audit-ux-baseline.js adaptado con resolucion defensiva.
+- [x] #4 Residuos de plantillas innecesarias eliminados (docs/DOMAIN_TEMPLATE.md, docs/sprints) y .agents/teamwork/ limpio.
+- [x] #5 Motor de seleccion modular incorporado (scripts/lib/selection.mjs) y scripts/init.mjs / scripts/sync-playbook.mjs actualizados con soporte granular.
+- [x] #6 Accesibilidad UX-010 verificada en componentes modificados y superficie de publicacion protegida contra fugas de .gripm/.
+- [x] #7 La Piramide de Verificacion pasa al 100% (tsc, npm test, publish:check, backlog:check, verify-changes --all).
+
+---
+
+#### [DEV-346] Documentacion de Arquitectura Bilingue Unificada: ARCHITECTURE.md
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+
+Unificación bilingüe en un solo archivo (inglés primero, español debajo) para la documentación técnica de arquitectura (`docs/ARCHITECTURE.md`), alineándola con el estándar de documentación comunitaria y técnica de gripm (DEV-309 / Gotcha 24 en `AGENTS.md`) y actualizando el inventario de componentes y servicios al estado del arte v1.10.0.
+
+### Diagnóstico y Justificación:
+
+1. **Alineación con el Estándar de Documentación (DEV-309):** `docs/ARCHITECTURE.md` quedó redactado únicamente en español tras DEV-306, mientras que las reglas de gobernanza del repositorio (`AGENTS.md` y `gripm-playbook/AGENTS.md`) estipulan inglés como idioma técnico primario y unificación bilingüe en un solo archivo con anclajes rápidos en cabecera (`🌐 [English](#gripm-system-architecture) | [Español](#arquitectura-del-sistema-gripm)`).
+2. **Actualización Arquitectónica v1.10.0:** Incorporar componentes y subsistemas introducidos recientemente: vistas lazy-loaded (`TimelineView`, `MetricsView`, `ImportWizardModal`), servicios de persistencia y caché de concurrencia optimista (`taskCache.ts`, `atomicWrite.ts`), middleware de seguridad (`server/middleware/security.ts`), y onboarding de suite con presets en el CLI (`gripm init`).
+3. **Guardrail Anti-Em-Dash:** Cumplimiento estricto de la regla 25 sin uso de guiones largos artificiales (em-dash o en-dash).
+
+**Criterios de Aceptación:**
+- [x] #1 `docs/ARCHITECTURE.md` unifica en un solo archivo la versión canónica en inglés arriba y la versión en español adaptada y actualizada debajo, con selector de anclaje bilingüe.
+- [x] #2 Ambas versiones documentan con precisión la topología actual v1.10.0: UI modular y code-splitting (`TimelineView`, `MetricsView`), servicios de backend (`taskCache`, `atomicWrite`, `server/middleware/security.ts`) y runtime dual (Daemon local vs Sandbox Vercel).
+- [x] #3 Se respeta la regla Anti-Em-Dash (uso exclusivo de guión estándar `-` con espacios).
+- [x] #4 La suite de verificación y calidad pasa en verde (`npm run backlog:check`, `npm run backlog:sync`, `node scripts/verify-changes.js --all`).
+
+---
+
+#### [DEV-347] Fix: Elevacion de capa y portal para AdvancedFiltersPopover sobre vistas de tablero y timeline
+- **Prioridad**: `high` | **Tipo**: `bug`
+
+En la vista de Timeline/Roadmap (y potencialmente en vistas con contenedores de alto apilamiento), el panel desplegable de filtros avanzados (`AdvancedFiltersPopover`) queda visualmente ocluido o renderizado por detras de la lista lateral izquierda de tareas y de los contenedores con `backdrop-blur` o `z-index` local.
+
+Esto ocurre porque `FilterBar` declara `relative z-10` con `backdrop-blur-sm`, generando un contexto de apilamiento local en el que el sidebar de Timeline (`z-10` posterior en el DOM) se superpone. Conforme al guardrail #11 de AGENTS.md (DEV-129, DEV-130), los modales y popovers flotantes deben desacoplarse o montarse con elevacion asegurada (`createPortal` o elevacion superior coordinada) para no sufrir recortes por stacking context o containing blocks.
+
+**Criterios de Aceptación:**
+- [x] #1 El popover de filtros avanzados se renderiza siempre por encima de la barra lateral de tareas del Roadmap y del lienzo de tiempo sin quedar tapado
+- [x] #2 El posicionamiento del popover permanece anclado al boton de activacion de filtros o flotante con visibilidad completa en viewports compactos y desktop
+- [x] #3 El cierre por click exterior y teclado (Escape) se mantiene operativo
+
+---
+
+#### [DEV-348] Descomposicion modular de TimelineView y desacople de submódulos por debajo de 500 LOC
+- **Prioridad**: `medium` | **Tipo**: `refactor`
+
+El componente `TimelineView.tsx` cuenta actualmente con 1299 lineas de codigo, superando el limite maximo de 1000 LOC establecido en las directrices de arquitectura y `check-loc` de AGENTS.md. 
+
+Agrupa de forma monolitica la resolucion de fechas, calculo de geometria temporal, arbol jerarquico de epicas/tareas, barra superior de herramientas, redimensionamiento de sidebar, lienzo Gantt con drag & drop y gestion de scroll. Es necesario descomponerlo en submódulos especializados dentro de `src/components/timeline/`:
+- `timeline/dateEngine.ts`: resolucion pura de fechas (UTC), duraciones, escalas y conversion fecha a px.
+- `timeline/buildHierarchy.ts`: calculo de arbol jerarquico, grupos y ordenamiento.
+- `timeline/TimelineToolbar.tsx`: controles superiores de escala, busqueda, filtros y acciones.
+- `timeline/TimelineSidebar.tsx`: arbol lateral de jerarquia con conectores y chevrons.
+- `timeline/TimelineCanvas.tsx`: cuadricula temporal, columnas, marcador de hoy y filas de barras.
+- `timeline/useTimelineDrag.ts`: hook de interaccion para arrastrar y redimensionar fechas o sprints.
+
+**Criterios de Aceptación:**
+- [x] #1 `TimelineView.tsx` orquesta submódulos y ningun archivo en `src/components/timeline/` supera las 500 LOC
+- [x] #2 Se extrae la logica pura de fechas a `dateEngine.ts` con cobertura de pruebas unitarias
+- [x] #3 Se preserva la paridad funcional existente sin regresiones visuales o de interaccion
+- [x] #4 `npm run check-loc` y `npm test` finalizan en verde
+
+---
+
+#### [DEV-349] Armonizacion de filtros globales y ordenamiento predeterminado en TimelineView
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Actualmente `TimelineView` ignora los filtros globales aplicados en el encabezado (`FilterBar`), consumiendo indiscriminadamente `dataset = allItems || items`, lo que provoca que se listen 200+ tareas (incluyendo completadas, canceladas o ideas que el usuario tiene ocultas en el tablero principal).
+
+Ademas, el orden de aparicion en el timeline carece de criterio unificado:
+1. **Filtros por Defecto:** Timeline debe respetar los items filtrados por el encabezado general (`items`), manteniendo la sincronia con el Board y Backlog. Tareas en `done` y `cancelled` deben permanecer ocultas por defecto a menos que el usuario active explicitamente los filtros de visualizacion correspondientes.
+2. **Items Padre / Contexto:** Si una epica o contenedor no coincide con el filtro pero sus hijos si, el padre se renderiza atenuado o los hijos se agrupan respetando la coherencia sin reinyectar tareas no deseadas.
+3. **Orden Predeterminado:** Adoptar por defecto el orden canónico configurado en el proyecto (orden natural del backlog / board: `order` o jerarquia), permitiendo al usuario alternar entre orden natural y orden cronologico por fecha de inicio.
+4. **Unificacion de Busqueda:** Eliminar el campo de busqueda redundante local o sincronizarlo bidireccionalmente con la barra superior.
+
+**Criterios de Aceptación:**
+- [x] #1 La vista de Timeline respeta de forma predeterminada los filtros activos en `FilterBar` (estados activos, exclusion de done/cancelled/ideas salvo seleccion expresa)
+- [x] #2 El orden predeterminado en la lista y filas coincide con el orden establecido en Backlog / Board
+- [x] #3 El contador de items visibles en el encabezado de Roadmap refleja la cantidad de items filtrados activos
+- [x] #4 Se incluye selector o toggle para alternar entre orden del tablero y orden cronológico por fecha de inicio
+
+---
+
+#### [DEV-352] Epica: Motor de Diagnostico y Auditoria de Repositorio (gripm audit) y Gobernanza Multi-Perfil
+- **Prioridad**: `high` | **Tipo**: `epic`
+
+Iniciativa y epica paraguas para transformar a Gripm en el motor de diagnostico, auditoria tecnica y aseguramiento de calidad ("Staff Engineer mecanico") para repositorios de software, preservando al 100% las capacidades existentes y soportando diversos arquetipos de proyectos y usuarios.
+
+### Vision y Objetivos Centrales:
+1. **Valor Inmediato ("Aha! Moment" en 3 segundos):** Ofrecer una auditoria estatica instantanea al inicializar un repo (`gripm --init`) o bajo demanda (`gripm audit`), reportando salud modular (LOC budgets), practicas anti-slop (supresiones de linter/tipos), infraestructura de testing y tareas pendientes ocultas en comentarios del codigo.
+2. **Preservacion de Arquetipos y Flujos Existentes:** Mantener soporte estricto para desarrolladores individuales (modo minimalista/Kanban puro), equipos tradicionales (Sprints, Releases, Timeline, Changelog) y equipos AI-Native (gates mecanicos de ACs, auditoria de diffs y verificacion ciega).
+3. **Conversion de Deuda Tecnica en Trabajo Estructurado:** Permitir escanear comentarios `TODO:`, `FIXME:`, `HACK:`, `BUG:` en el codigo e importarlos opcionalmente como tareas formales en `backlog/tasks/`.
+4. **Visibilidad Total (CLI, REST API, UI Cockpit y Servidor MCP):** El diagnostico de salud no es solo una salida de consola; vive como endpoint en el servidor local, se visualiza en la interfaz web y se expone a los agentes de IA a traves del protocolo MCP.
+
+### Historias y Tareas que componen la Epica:
+- **DEV-353:** Core Engine: Servicio Unificado de Auditoria Estatica (`auditService`) y Scanners de Salud (LOC, Anti-Slop, Tests, TODOs).
+- **DEV-354:** CLI & Onboarding: Comando `gripm audit` y Diagnostico Inicial en `gripm --init` con Recomendacion de Perfil.
+- **DEV-355:** Backend REST API: Endpoints `/api/audit` e Importacion Masiva de TODOs a Tareas en `backlog/tasks/`.
+- **DEV-356:** Cockpit UI: Panel de Diagnostico y Salud del Repositorio en Header y Modal de Acciones Rapidas.
+- **DEV-357:** MCP & Gatekeeper: Herramienta `gripm_get_repo_health` y Guardrails Arquitectonicos en Transiciones de Tarea.
+
+**Criterios de Aceptación:**
+- [x] #1 Todas las tareas hijas (DEV-353, DEV-354, DEV-355, DEV-356, DEV-357) estan formalizadas y enlazadas en el backlog con criterios verificables y dependencias resueltas.
+- [x] #2 El flujo no rompe la configuracion existente en .gripm/config.json ni altera el comportamiento de repositorios configurados previamente.
+- [x] #3 La ejecucion de la suite de pruebas general (`npm test`) y validacion de backlog (`npm run backlog:check`) finaliza con codigo de salida 0.
+
+---
+
+#### [DEV-353] Core Engine: Servicio Unificado de Auditoria Estatica (auditService) y Scanners de Salud
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Crear el motor base de auditoria estatica de Gripm (`server/services/auditService.ts` y script exportable `scripts/audit-engine.mjs`) que permite inspeccionar un repositorio de forma headless, sin dependencias pesadas y en menos de 2 segundos.
+
+### Capacidades del Motor:
+1. **Scanner de Presupuestos de Codigo (LOC Budgets):**
+   - Basado en los estandares de `scripts/check-loc.mjs` (<1000 LOC techo rigido, 500-999 LOC advertencia).
+   - Respeta `.gitignore`, `.locignore` y carpetas de distribucion (`node_modules`, `dist`, `.git`, `coverage`, `.gripm`).
+   - Retorna lista clasificada de archivos criticos y advertencias.
+
+2. **Scanner Anti-Slop (Calidad y Supresiones):**
+   - Inspecciona archivos de codigo en busca de supresiones artificiales de tipado y linting: `@ts-ignore`, `@ts-nocheck`, `eslint-disable`, supresiones de pruebas y uso desmedido de `any`.
+   - Registra cantidad, ubicacion (archivo:linea) y fragmento de contexto.
+
+3. **Auto-Deteccion de Infraestructura de Pruebas:**
+   - Inspecciona `package.json` (`scripts`, `devDependencies`, `dependencies`) y archivos de configuracion (`vitest.config.*`, `jest.config.*`, `pytest.ini`, `Cargo.toml`, etc.).
+   - Identifica el test runner principal y el comando canónico de verificacion (`npm test`, `pytest`, `cargo test`, etc.).
+   - Evalua si el comando responde con exit code limpio (`exit 0`).
+
+4. **Scanner de Deuda Oculta (TODOs / FIXMEs):**
+   - Escanea comentarios en codigo fuente bajo el patron `// (TODO|FIXME|HACK|BUG): <texto>` o bloques multi-linea equivalentes.
+   - Retorna array estructurado de hallazgos: `{ id, file, line, type, text, snippet }`.
+
+5. **Puntuacion de Salud Ponderada (Health Score 0-100):**
+   - Genera un indice numerico transparente basado en penalizaciones objetivas (archivos sobredimensionados, supresiones de linter, ausencia de tests).
+
+**Criterios de Aceptación:**
+- [x] #1 El modulo server/services/auditService.ts expone la funcion asincrona scanCodebase(targetPath, options) y retorna un objeto de resultado tipado segun el contrato de salud.
+- [x] #2 El scanner de LOC detecta correctamente archivos superiores a 500 y 1000 lineas, omitiendo directorios ignorados estandar (node_modules, dist, .git).
+- [x] #3 El scanner Anti-Slop reporta con precision la presencia de @ts-ignore, @ts-nocheck y eslint-disable con su linea correspondiente.
+- [x] #4 El detector de tests identifica los principales runners (vitest, jest, node:test, pytest) y deduce el comando verifyCommand sugerido.
+- [x] #5 El detector de TODOs extrae comentarios de tipo TODO, FIXME, HACK y BUG con archivo, numero de linea y descripcion.
+- [x] #6 El calculo de score ponderado (0 a 100) es determinista y no arroja valores NaN o fuera de rango ante repositorios vacios o sin codigo fuente.
+- [x] #7 El tiempo de ejecucion sobre un repositorio de 500 archivos fuente no supera los 2000 ms.
+- [x] #8 Se incorpora prueba unitaria headless (test-audit-service.js) que valida todas las reglas y aprueba con codigo de salida 0 en npm test.
+
+---
+
+#### [DEV-354] CLI y Onboarding: Integracion de gripm audit y Diagnostico Inicial en gripm --init con Recomendacion de Perfil
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Integrar el motor de auditoria estatica (`DEV-353`) directamente en la experiencia de linea de comandos (`gripm audit`) y dentro del asistente de inicializacion de repositorios (`gripm --init` en `scripts/initScaffold.js`).
+
+### Objetivos y Comportamiento:
+1. **Comando de Terminal Dedicado (`gripm audit`):**
+   - Ejecuta la inspeccion completa del repositorio e imprime en consola un reporte visual estilizado con resumen de salud, alertas amarillas/rojas y lista de hallazgos.
+   - Soporta flags CLI: `--format json` (para integraciones en scripts o CI), `--strict` (retorna codigo 1 si hay fallas criticas de presupuesto o supresiones) y `--quiet`.
+
+2. **Diagnostico de Bienvenida en el Onboarding (`gripm --init`):**
+   - Al iniciar el wizard en un repositorio, Gripm ejecuta el diagnostico en los primeros 2 segundos antes de solicitar confirmaciones.
+   - Muestra una radiografia inmediata del stack detectado, infraestructura de pruebas y estado de deuda tecnica.
+   - **Recomendacion Inteligente de Perfil:** Si detecta TypeScript + suite de pruebas robusta, sugiere por defecto el perfil *AI-Native* o *Baterias Incluidas*. Si detecta un proyecto simple sin pruebas, sugiere el perfil *Minimalista* para no imponer friccion innecesaria.
+   - **Auto-Configuracion de Verificacion:** Popula automaticamente la clave `verifyCommand` en `.gripm/config.json` con el comando canónico detectado (ej. `npm test` o `npx tsc --noEmit`).
+
+3. **Opt-in de Importacion de TODOs en Init:**
+   - Si el scanner detecta comentarios `TODO:` o `FIXME:`, el wizard pregunta de forma interactiva si se desean importar como tareas en estado `draft` dentro de `backlog/tasks/`.
+   - Si el usuario aprueba, materializa los archivos `.md` correspondientes y ejecuta `backlog:sync` de inmediato.
+
+**Criterios de Aceptación:**
+- [x] #1 El binario bin/gripm-cli.js reconoce el comando audit (y npx @gripm/board audit) ejecutando el diagnostico y formateando la salida en consola.
+- [x] #2 La bandera --format json en gripm audit emite exclusivamente el JSON estructurado por stdout con exit code 0.
+- [x] #3 La bandera --strict en gripm audit retorna exit code 1 si existen archivos que superan 1000 LOC o supresiones criticas.
+- [x] #4 El wizard en scripts/initScaffold.js ejecuta el diagnostico al inicio e imprime la radiografia previa a la seleccion de presets.
+- [x] #5 El wizard preselecciona la opcion recomendada de perfil segun los hallazgos del scanner, preservando la soberania del usuario para cambiarla.
+- [x] #6 El wizard ofrece importar los TODOs encontrados creando tareas validas en backlog/tasks/ sin duplicar IDs y ejecutando backlog:sync.
+- [x] #7 El modo no interactivo (--yes o -y) ejecuta la inicializacion de forma predecible sin colgarse en prompts.
+- [x] #8 La suite de pruebas de CLI (test-init-suite.js y test-cli-add.js) cubre el nuevo comando y aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-355] Backend REST API: Endpoints de Auditoria e Importacion Masiva de TODOs a Tareas
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Exponer las capacidades del motor de auditoria (`DEV-353`) a traves de endpoints REST en el servidor Express/Node.js de Gripm (`server/`), permitiendo al frontend web y a clientes externos consultar la salud del codigo y materializar tareas desde comentarios detectados.
+
+### Endpoints Requeridos:
+1. **`GET /api/audit`:**
+   - Retorna el diagnostico consolidado de salud del repositorio.
+   - Implementa cache ligero en memoria (TTL de 30 segundos) con revalidacion para no penalizar el rendimiento del servidor en consultas frecuentes.
+   - Retorna el resumen general, desglose de LOC, supresiones detectadas, estado de pruebas y lista de TODOs/FIXMEs.
+
+2. **`POST /api/audit/refresh`:**
+   - Invalida la cache de auditoria y fuerza un escaneo fresco del arbol de trabajo en disco.
+
+3. **`POST /api/audit/import-todos`:**
+   - Permite importar uno, varios o todos los TODOs detectados hacia `backlog/tasks/`.
+   - Body esperado: `{ items: Array<{ file: string, line: number, type: string, text: string }> }`.
+   - Lee el ID maximo de forma atomica al momento de la creacion para evitar colisiones.
+   - Genera archivos Markdown estructurados en `backlog/tasks/DEV-XXX - slug.md` con estado `draft`, descripcion con el snippet original y labels `['todo-import', 'tech_debt']`.
+   - Dispara la sincronizacion inmediata (`syncBacklog()`) para actualizar `BACKLOG.md` de forma atomica.
+
+**Criterios de Aceptación:**
+- [x] #1 El endpoint GET /api/audit responde con codigo 200 y el JSON tipado del reporte de salud.
+- [x] #2 El endpoint POST /api/audit/refresh invalida la cache y actualiza los datos del diagnostico ante cambios en el sistema de archivos.
+- [x] #3 El endpoint POST /api/audit/import-todos valida la carga util y crea las tareas en backlog/tasks/ con IDs correlativos unicos.
+- [x] #4 Las tareas importadas por la API quedan en estado draft con su respectivo frontmatter YAML valido y sin secciones malformadas.
+- [x] #5 La llamada de importacion regenera BACKLOG.md automaticamente manteniendo coherencia con el arbol de tareas en disco.
+- [x] #6 Se incorporan pruebas en scripts/test-backlog-service.js o test de API validando los endpoints y codigos de error (400, 500).
+- [x] #7 La suite de pruebas de API y seguridad responde con codigo de salida 0.
+
+---
+
+#### [DEV-356] Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Construir la experiencia visual en el Cockpit web (`src/`) para consultar el estado de salud del codigo y gestionar los hallazgos de auditoria sin interrumpir los flujos de trabajo habituales (Kanban, Sprints, Releases, Timeline).
+
+### Componentes de UI:
+1. **Health Badge en Header (`src/components/Header.tsx`):**
+   - Incorpora una pastilla sutil en la cabecera mostrando el puntaje de salud (`Salud: 85/100`) con indicador visual semantico (verde >= 80, amarillo 60-79, rojo < 60).
+   - Area tactil minima de 44x44px y anillo de foco accesible (`focus-visible:ring-2`).
+   - En perfiles *Minimalistas*, puede ocultarse o reducirse a un indicador discreto segun `.gripm/config.json` para respetar el principio Zero-Clutter.
+
+2. **Modal de Diagnostico y Acciones (`AuditModal.tsx`):**
+   - Renderizado via `createPortal(..., document.body)` para evitar colisiones de stacking context y overflow.
+   - Pestaña/Seccion 1 - **Presupuestos y Modularidad:** Lista de archivos que superan las 500 y 1000 lineas, con enlaces de referencia y conteo exacto de lineas.
+   - Pestaña/Seccion 2 - **TODOs en Codigo:** Listado de comentarios detectados con opcion de seleccion multiple y boton de accion rapida *"Importar seleccionados como tareas"*.
+   - Pestaña/Seccion 3 - **Calidad Anti-Slop:** Detalle de `@ts-ignore` y `eslint-disable` en el repositorio.
+   - Accion de re-escaneo manual con estado de carga ("Refrescar diagnostico").
+
+3. **Estandares de Diseno y Ergonomia:**
+   - Tipografia 100% canónica de Tailwind (`text-xs`, `text-sm`, `text-base`), prohibidas clases arbitrarias como `text-[10px]`.
+   - Soporte para temas claro y oscuro (`dark:`) sin perdida de contraste.
+   - Trampa de foco accesible y cierre mediante tecla Escape.
+
+**Criterios de Aceptación:**
+- [x] #1 El Header renderiza el indicador de salud consumiendo los datos de GET /api/audit sin provocar layout shifts (Zero-CLS).
+- [x] #2 Al hacer clic en el indicador de salud se abre el modal AuditModal montado en document.body mediante createPortal.
+- [x] #3 El modal permite navegar entre las secciones de modularidad, TODOs y supresiones de calidad con teclado y raton.
+- [x] #4 La lista de TODOs permite seleccionar elementos y ejecutar la importacion a traves de POST /api/audit/import-todos refrescando la vista del Backlog.
+- [x] #5 El boton de re-escaneo invoca POST /api/audit/refresh y actualiza las metricas en pantalla con feedback de carga.
+- [x] #6 No se introducen clases de tamano de fuente arbitrarias (cumplimiento de regla UX-011 verificable por audit-ux-baseline).
+- [x] #7 El modal cuenta con gestion de foco accesible, cierre con tecla Escape y tap targets superiores a 44x44px.
+- [x] #8 La suite de pruebas de UI y build de Vite (npm run build y npm test) aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-357] MCP y Gatekeeper: Herramienta repo_health y Guardrails Arquitectonicos en Transiciones de Tarea
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+Conectar el motor de auditoria y diagnostico (`DEV-353`) al servidor MCP (`bin/gripm-mcp.js` y `scripts/mcp-server.ts`), otorgando a los agentes de IA (Cursor, Claude Code, Antigravity) visibilidad de la salud del repositorio e incorporando salvaguardas arquitectonicas opcionales en el Gatekeeper de certificacion.
+
+### Capacidades MCP:
+1. **Nueva Herramienta MCP `gripm_get_repo_health`:**
+   - Permite a los agentes consultar en cualquier momento la puntuacion de salud, los archivos cercanos al limite de lineas (>500 LOC), las supresiones detectadas y los tests configurados.
+   - Argumentos opcionales: `{ category: 'all' | 'loc' | 'suppressions' | 'tests', limit: number }`.
+   - Permite a los agentes evaluar el impacto de su trabajo antes de proponer cambios o solicitar certificacion.
+
+2. **Guardrails Arquitectonicos en el Gatekeeper (`gripm_update_task`):**
+   - Cuando un agente intenta transicionar una tarea a estado `ready`:
+     - El Gatekeeper valida los criterios de aceptacion tildados y el exit code de `verifyCommand` (como hace actualmente).
+     - **Guardrail de Modularidad Opt-in:** Si `.gripm/config.json` tiene activada la gobernanza estricta (`guardrails.enforceLocCeiling: true`), el gatekeeper verifica que ningun archivo tocado en el changeset supere el techo rigido de 1000 LOC.
+     - En caso de incumplimiento, rechaza la transicion con un mensaje descriptivo orientando al agente a modularizar antes de entregar.
+   - **Preservacion de la Soberania del PO:** El parametro `force: true` permite anular el bloqueo mecánico si el usuario humano asi lo autoriza expresamente, emitiendo un registro de advertencia en los logs.
+
+**Criterios de Aceptación:**
+- [x] #1 El servidor MCP registra la herramienta gripm_get_repo_health en su lista de herramientas expuestas via stdio.
+- [x] #2 La invocacion de gripm_get_repo_health retorna el diagnostico estructurado segun los parametros de categoria solicitados.
+- [x] #3 La herramienta gripm_update_task evalua los guardrails configurados al transicionar una tarea a estado ready.
+- [x] #4 Si enforceLocCeiling esta activo y se detectan archivos que superan 1000 LOC en el diff, la transicion a ready es rechazada con mensaje explicativo.
+- [x] #5 La bandera force: true permite a un usuario humano sortear la restriccion preservando la trazabilidad en la respuesta MCP.
+- [x] #6 En proyectos con configuracion estandar o minimalista (sin guardrails estrictos), el Gatekeeper conserva su comportamiento actual sin bloqueos adicionales.
+- [x] #7 La suite de pruebas del binario MCP (scripts/verify-mcp-binary.js y tests de integracion) aprueba con codigo de salida 0.
+
+---
+
+#### [DEV-358] Configurar Vercel Web Analytics en la demo web estatica
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Configurar Vercel Web Analytics (`@vercel/analytics`) para la demo web pública desplegada en Vercel (`https://gripm.vercel.app`), permitiendo medir métricas de uso (visitantes únicos, páginas vistas, referrers, países y dispositivos).
+
+### Guardrail de Privacidad OSS / Local-First:
+- El tracking de telemetría debe activarse **única y exclusivamente** cuando la aplicación corre en la demo web pública alojada en Vercel (`isSandboxMode()` y hostname `vercel.app` o producción web).
+- En ejecuciones locales (CLI `gripm`, `board`, `npm run dev`, entorno local con daemon), el componente de Analytics no debe inicializarse bajo ninguna circunstancia, garantizando cero telemetría y privacidad absoluta para desarrolladores locales.
+
+**Criterios de Aceptación:**
+- [x] #1 El paquete @vercel/analytics esta incorporado en las dependencias del proyecto.
+- [x] #2 El componente Analytics se monta en la aplicacion condicionando su activacion exclusivamente a la demo web (isSandboxMode() y entorno web).
+- [x] #3 En ejecuciones locales con daemon o entornos de desarrollo local, Analytics no emite eventos ni rastrea actividad.
+- [x] #4 La suite de verificacion (npx tsc --noEmit, npm test, npm run backlog:check, npm run build) compila y pasa con codigo 0.
+
+---
+
+#### [DEV-359] Configurabilidad y gobernanza granular de reglas de auditoria en config.json
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+Actualmente, el motor estatico de auditoria y salud del repositorio (`audit-engine.mjs` y `auditService.ts`) opera con reglas predeterminadas estandar (techo LOC de 1000 lineas, advertencia en 500, analisis de supresiones `@ts-ignore`, deteccion de infraestructura de pruebas y marcadores de deuda tecnica).
+
+Para repositorios con estandares particulares o necesidades especificas de refinamiento (por ejemplo, excluir archivos de test de las advertencias de supresion, activar o desactivar la verificacion de `console.log`, o ajustar umbrales de presupuesto), es necesario hacer que las variables y el alcance de la auditoria sean configurables mediante la seccion `audit` de `.gripm/config.json`.
+
+**Criterios de Aceptación:**
+- [x] #1 El esquema de configuracion de `.gripm/config.json` soporta la clave opcional `audit` con definicion de reglas activas y umbrales (`rules: { loc: boolean, suppressions: boolean, debtMarkers: boolean, consoleLog: boolean, testRunner: boolean }`).
+- [x] #2 `audit-engine.mjs` y `auditService.ts` resuelven la configuracion de `.gripm/config.json` con fallback seguro a los valores predeterminados sin requerir configuracion obligatoria.
+- [x] #3 Desactivar una regla omite sus penalizaciones en el calculo determinista del Health Score y excluye sus hallazgos en las salidas CLI, REST y MCP.
+- [x] #4 Soporte de patrones de exclusion especificos de auditoria (`audit.exclude`) para aislar carpetas o fixtures (por ejemplo, scripts de test de auditoria) sin alterar el `.gitignore` global.
+- [x] #5 El panel visual de diagnostico (`AuditModal.tsx`) y el comando CLI reflejan las reglas activas y respetan la configuracion del proyecto.
+- [x] #6 Suite de pruebas automatizadas que valide la persistencia de configuracion, la retrocompatibilidad con repositorios existentes y la paridad de comportamiento.
 
 ---
 

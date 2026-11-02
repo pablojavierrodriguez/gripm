@@ -28,7 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 
 const COMMENT_PREFIX = '(?:\\/\\/|#|\\/\\*+|\\*)\\s*';
 
-export const TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:\([^)]*\))?[:\-\s]|(TODO|FIXME|HACK|BUG|XXX)$|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
+export const TODO_RE = /(?:\/\/|#|\/\*+|\*)\s*(?:(TODO|FIXME|HACK|BUG|XXX)(?:(?:\([^)]*\))?[:\-]|(?!\s+(?:el|la|los|las|un|una|este|esta|ese|esa|del|al)\b)\s+|$)|(todo|fixme|hack|bug|xxx)(?:\([^)]*\))?[:\-])\s*(.*?)(?:\*\/|$)/;
 
 export const ANTI_SLOP_PATTERNS = {
   tsIgnore: new RegExp(COMMENT_PREFIX + '@' + 'ts-ignore\\b'),
@@ -37,10 +37,8 @@ export const ANTI_SLOP_PATTERNS = {
   consoleLog: new RegExp('\\bconsole\\.' + 'log\\s*\\(')
 };
 
-export const TS_IGNORE_RE = ANTI_SLOP_PATTERNS.tsIgnore;
-export const TS_NOCHECK_RE = ANTI_SLOP_PATTERNS.tsNocheck;
-export const ESLINT_DISABLE_RE = ANTI_SLOP_PATTERNS.eslintDisable;
-export const CONSOLE_LOG_RE = ANTI_SLOP_PATTERNS.consoleLog;
+export const TS_IGNORE_RE = ANTI_SLOP_PATTERNS.tsIgnore, TS_NOCHECK_RE = ANTI_SLOP_PATTERNS.tsNocheck;
+export const ESLINT_DISABLE_RE = ANTI_SLOP_PATTERNS.eslintDisable, CONSOLE_LOG_RE = ANTI_SLOP_PATTERNS.consoleLog;
 
 export function checkAntiSlop(line) {
   if (!line || typeof line !== 'string') return null;
@@ -219,21 +217,15 @@ export async function scanCodebase(targetPath, options = {}) {
 
   let auditConfig = {};
   try {
-    const configCandidates = [
-      path.join(root, '.gripm', 'config.json'),
-      path.join(root, '.devboard', 'config.json')
-    ];
     const parentDir = path.dirname(root);
+    const configCandidates = [path.join(root, '.gripm', 'config.json'), path.join(root, '.devboard', 'config.json')];
     if (parentDir && parentDir !== root) {
-      configCandidates.push(path.join(parentDir, '.gripm', 'config.json'));
-      configCandidates.push(path.join(parentDir, '.devboard', 'config.json'));
+      configCandidates.push(path.join(parentDir, '.gripm', 'config.json'), path.join(parentDir, '.devboard', 'config.json'));
     }
     const configPath = configCandidates.find((p) => fs.existsSync(p));
     if (configPath) {
       const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (parsed && typeof parsed === 'object' && parsed.audit && typeof parsed.audit === 'object') {
-        auditConfig = parsed.audit;
-      }
+      if (parsed?.audit && typeof parsed.audit === 'object') auditConfig = parsed.audit;
     }
   } catch {}
 
@@ -300,8 +292,8 @@ export async function scanCodebase(targetPath, options = {}) {
       if (rules.debtMarkers) {
         const todoMatch = line.match(TODO_RE);
         if (todoMatch) {
-          const type = (todoMatch[1] || todoMatch[2] || todoMatch[3]).toUpperCase();
-          const text = (todoMatch[4] || '').replace(/\*\/$/, '').trim();
+          const type = (todoMatch[1] || todoMatch[2]).toUpperCase();
+          const text = (todoMatch[3] || todoMatch[4] || '').replace(/\*\/$/, '').trim();
           todos.push({
             id: `${normRel}:${lineNum}`, file: normRel, line: lineNum,
             type, text, snippet: trimmed
@@ -334,7 +326,9 @@ export async function scanCodebase(targetPath, options = {}) {
 
   locViolations.sort((a, b) => b.lines - a.lines);
   const targetDir = stat.isDirectory() ? root : path.dirname(root);
-  const tests = detectTests(targetDir);
+  const tests = rules.testRunner !== false
+    ? detectTests(targetDir)
+    : { detected: false, framework: null, verifyCommand: null, hasTests: false };
   const stack = detectStack(targetDir);
   const score = computeHealthScore({ totalFilesScanned, locViolations, suppressions, todos, tests, rules });
 
@@ -483,7 +477,7 @@ export async function runCli(argv = process.argv.slice(2)) {
   }
 
   if (isStrict && hasCriticalViolations) {
-    console.error(`  ${c.red('✖ Strict audit failed:')} ${criticalLocViolations.length} critical LOC violation(s) (>= ${maxLines} lines) and ${criticalSuppressions.length} suppression(s) detected.\n`);
+    console.error(`  ${c.red('✖ Strict audit failed:')} ${criticalLocViolations.length} critical LOC violation(s) (>= ${resolvedMax} lines) and ${criticalSuppressions.length} suppression(s) detected.\n`);
     process.exit(1);
   }
   process.exit(0);

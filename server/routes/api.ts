@@ -28,7 +28,7 @@ import {
 import { parseLegacyMarkdown, type ParsedLegacyItem } from '../../src/utils/legacyParser.ts';
 import { resolveProjectIdentity } from '../../scripts/registryConfig.js';
 import { getCachedUpdateInfo, checkForUpdates } from '../../scripts/updateChecker.js';
-import { handleAuditRoutes } from './audit.ts';
+import { handleAuditRoutes, clearAuditCache } from './audit.ts';
 
 let appVersion = '1.0.0';
 try {
@@ -127,6 +127,7 @@ export async function handleApiRequest(req: any, res: any): Promise<void> {
         process.env.GRIPM_MODE = configToSave.mode;
       }
       const savedPath = writeProjectConfig(configToSave, project);
+      clearAuditCache(project?.repoPath);
 
       broadcastSse('settings_changed', {
         projectId: project?.id,

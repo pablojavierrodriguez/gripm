@@ -7,7 +7,27 @@ import { atomicWriteFileSync } from './atomicWrite.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-export const PKG_ROOT = path.resolve(__dirname, '../../');
+
+function findPackageRoot(startDir: string): string {
+  let curr = startDir;
+  while (curr && curr !== path.dirname(curr)) {
+    const pkgPath = path.join(curr, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        if (pkg.name === '@gripm/board' || pkg.name === 'gripm') {
+          return curr;
+        }
+      } catch {}
+    }
+    curr = path.dirname(curr);
+  }
+  return fs.existsSync(path.resolve(startDir, '../package.json'))
+    ? path.resolve(startDir, '..')
+    : path.resolve(startDir, '../../');
+}
+
+export const PKG_ROOT = findPackageRoot(__dirname);
 
 export const DEMO_FILE = fs.existsSync(path.resolve(PKG_ROOT, 'data/demo-backlog.json'))
   ? path.resolve(PKG_ROOT, 'data/demo-backlog.json')

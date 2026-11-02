@@ -13,6 +13,35 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ---
 
+## [1.11.0] - 2026-11-02 🚀 Motor de Diagnostico y Salud de Repositorio, Suite Gripm, Arquitectura Zero-Clutter y Filtros Globales en Timeline
+
+### 🎯 Resumen
+*Versión 1.11.0 de Gripm: incorporación del motor de diagnóstico estático y auditoría de salud de repositorio multi-perfil (gripm audit / auditService / AuditModal) con cálculo de salud determinista 0-100, detección de LOC excesivo, supresiones de calidad, anti-slop, deuda oculta y trazabilidad de pruebas (DEV-352, DEV-353, DEV-354, DEV-355, DEV-356, DEV-357, DEV-359); onboarding guiado de Gripm Suite en gripm --init con presets rápidos y selección granular opt-in respetando el principio 100% ofrecido, 0% impuesto (DEV-344); confinamiento de artefactos y configuración bajo arquitectura Zero-Clutter en .gripm (DEV-345); documentación técnica y de arquitectura bilingüe unificada en ARCHITECTURE.md (DEV-346); corrección de apilamiento en portales y z-index para AdvancedFiltersPopover sobre Kanban y Timeline (DEV-347); modularización de TimelineView desacoplando subcomponentes por debajo de 500 LOC (DEV-348); filtros globales y ordenamiento cronológico predeterminado en TimelineView (DEV-349); e integración de Vercel Web Analytics en la demo web estática (DEV-358).*
+
+### 🩺 Motor de Diagnóstico y Salud de Repositorio (gripm audit)
+- **DEV-352 - Épica de Motor de Diagnóstico y Auditoría de Repositorio:** Marco de diagnóstico estático y gobernanza multi-perfil unificado para repositorios ágiles.
+- **DEV-353 - Core Engine (`auditService` & `audit-engine.mjs`):** Motor de auditoría estático determinista que evalúa presupuestos modulares (LOC < 1000), patrones anti-slop, supresiones de calidad (`@ts-ignore`, `eslint-disable`), deuda oculta (TODO/FIXME) e infraestructura de pruebas con penalización matemática reproducible (puntuación de 0 a 100).
+- **DEV-354 - CLI y Onboarding de Diagnóstico:** Comando nativo `gripm audit` con salidas coloreadas, modos `--format json` y `--quiet`, flags `--strict` para CI, e integración en el asistente `gripm --init` recomendando perfiles de adopción ágil según el tamaño del proyecto.
+- **DEV-355 - Endpoints REST API `/api/audit`:** Endpoints para consultar el reporte de salud del repositorio e importación masiva de marcadores TODO/FIXME detectados hacia tareas del backlog respetando la numeración correlativa.
+- **DEV-356 - Panel Visual de Salud en Cockpit Web (`AuditModal`):** Modal interactivo en la barra superior con indicador de salud (Health Score 0-100), desglose visual por pestañas (Presupuestos, Supresiones, Deuda, Infraestructura) y selector de importación de deuda a tareas.
+- **DEV-357 - MCP `repo_health` y Guardrails en Transición:** Herramienta MCP `repo_health` para consumo autónomo por agentes LLM e integración de guardrail `enforceLocCeiling` opcional durante transiciones de estado.
+- **DEV-359 - Configurabilidad y Gobernanza de Reglas de Auditoría:** Soporte en `.gripm/config.json` para activar o desactivar reglas (`audit.rules`), configurar umbrales de líneas (`audit.thresholds.maxLines` / `warningLines`), excluir rutas (`audit.exclude`) y flags CLI correspondientes (`--no-loc`, `--no-suppressions`, etc.).
+
+### 🚀 Experiencia de Suite, Onboarding y Confinamiento Zero-Clutter
+- **DEV-344 - Onboarding de Gripm Suite en `gripm --init`:** Asistente interactivo con presets rápidos (Baterías incluidas) y modo granular (Control total), permitiendo seleccionar roles, scripts y componentes sin imponer dependencias.
+- **DEV-345 - Arquitectura Zero-Clutter en `.gripm`:** Confinamiento estricto de toda metadata, cachés y bloqueos en el directorio `.gripm/` para mantener la raíz del repositorio 100% limpia.
+- **DEV-346 - Documentación Bilingüe Unificada en `ARCHITECTURE.md`:** Documento de arquitectura de sistema con paridad estricta en inglés y español en un solo archivo con anclajes de navegación rápida.
+
+### 📊 TimelineView y Filtros Globales
+- **DEV-347 - Elevación de Capas en `AdvancedFiltersPopover`:** Renderizado de menús desplegables y popovers sobre portales de React para erradicar recortes o superposiciones visuales causadas por `transform` o `backdrop-filter`.
+- **DEV-348 - Descomposición Modular de `TimelineView`:** Refactorización arquitectónica de `TimelineView` descomponiendo su lógica en subcomponentes especializados por debajo de 500 LOC.
+- **DEV-349 - Filtros Globales y Ordenamiento en `TimelineView`:** Armonización completa de la barra de filtros globales en Timeline y ordenamiento cronológico predeterminado.
+
+### 🌐 Infraestructura Web
+- **DEV-358 - Vercel Web Analytics en Demo Web:** Inclusión de telemetría de rendimiento y analíticas web en la demo estática pública de Vercel.
+
+---
+
 ## [1.10.0] - 2026-10-26 🚀 Cache mtime en Backend Storage, Code-Splitting en Frontend, Blindajes DevOps y Playbook v2.7.1
 
 ### 🎯 Resumen

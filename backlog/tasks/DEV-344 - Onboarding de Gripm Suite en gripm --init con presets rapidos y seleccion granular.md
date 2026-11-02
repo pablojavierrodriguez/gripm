@@ -1,9 +1,9 @@
 ---
 id: DEV-344
 title: "Onboarding de Gripm Suite en gripm --init con presets rapidos y seleccion granular"
-status: ready
+status: done
 created_date: '2026-10-26'
-updated_date: '2026-10-26'
+updated_date: '2026-11-02'
 labels:
   - "cli"
   - "onboarding"

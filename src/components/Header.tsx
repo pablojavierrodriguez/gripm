@@ -498,7 +498,7 @@ export const Header: FC<HeaderProps> = ({
                 la app funciona, no está degradada. */}
             <div
               title={isSandbox ? t('header.sandboxModeDesc') : (liveConnected ? t('header.liveConnectedDesc') : t('header.liveReconnectingDesc'))}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors shrink-0 ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors shrink-0 ${
                 isSandbox
                   ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                   : (liveConnected

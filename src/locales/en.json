@@ -1090,5 +1090,6 @@
   "audit.rulesCustom": "Custom rules",
   "audit.locDisabledNotice": "LOC modularity rule disabled in .gripm/config.json.",
   "audit.todosDisabledNotice": "TODO markers rule disabled in .gripm/config.json.",
-  "audit.qualityDisabledNotice": "Anti-Slop quality rule disabled in .gripm/config.json."
+  "audit.qualityDisabledNotice": "Anti-Slop quality rule disabled in .gripm/config.json.",
+  "audit.errorUnavailable": "Health diagnosis unavailable"
 }

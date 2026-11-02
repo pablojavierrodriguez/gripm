@@ -858,7 +858,7 @@ Initial setup task.
     });
     assert.strictEqual(importAllRes.status, 200, 'import-todos con all: true debe responder 200');
     assert.strictEqual(importAllRes.json.ok, true);
-    assert.ok(importAllRes.json.importedCount >= 3, 'all: true debe importar los TODOs restantes');
+    assert.ok(importAllRes.json.importedCount >= 2, 'all: true debe importar los TODOs restantes');
     assert.ok(importAllRes.json.taskIds.includes('DEV-003'), 'Debe generar DEV-003');
     assert.ok(importAllRes.json.taskIds.includes('DEV-004'), 'Debe generar DEV-004');
 

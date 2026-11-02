@@ -14,6 +14,7 @@ import { sendJson, getBody } from '../middleware/security.ts';
 import { BacklogService } from '../services/backlogService.ts';
 import { broadcastSse } from '../sse/sseManager.ts';
 import { isAllowedBrowsePath } from '../services/fsExplorer.ts';
+import { readProjectConfig } from '../services/registry.ts';
 import type { ProjectMeta } from '../types.ts';
 
 export interface CachedAudit {
@@ -265,6 +266,28 @@ export async function handleAuditRoutes(
         return true;
       }
 
+      const projectConfig = readProjectConfig(project);
+      const isSpanish = (projectConfig?.language || '').toLowerCase().startsWith('es');
+
+      // Deduplication: look up existing tasks in the project
+      const existingTasks = BacklogService.listTasks(project, { includeDeleted: false });
+      const existingTitles = new Set(existingTasks.map(t => (t.title || '').trim().toLowerCase()));
+      const existingLocRefs = new Set<string>();
+      for (const t of existingTasks) {
+        if (Array.isArray(t.acceptanceCriteria)) {
+          for (const ac of t.acceptanceCriteria) {
+            if (ac.text) {
+              const m = ac.text.match(/([a-zA-Z0-9_\-\.\/]+):(\d+)/);
+              if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+            }
+          }
+        }
+        if (t.description) {
+          const m = t.description.match(/`([a-zA-Z0-9_\-\.\/]+)`[\s\S]*?(?:Línea|Line):\s*(\d+)/i);
+          if (m) existingLocRefs.add(`${m[1]}:${m[2]}`);
+        }
+      }
+
       const taskIds: string[] = [];
 
       for (const item of itemsToImport) {
@@ -274,18 +297,37 @@ export async function handleAuditRoutes(
           cleanText = cleanText.substring(cleanType.length + 1).trim();
         }
         const title = `${cleanType}: ${cleanText}`;
+        const fileLocKey = `${item.file}:${item.line || 1}`;
 
-        const descLines = [
-          `Deuda técnica identificada automáticamente por el motor de auditoría estática.`,
-          ``,
-          `- **Archivo de origen:** \`${item.file}\``,
-          `- **Línea:** ${item.line || 1}`,
-          `- **Tipo:** \`${cleanType}\``
-        ];
+        // Deduplication check: skip if matching title or file:line reference exists
+        if (existingTitles.has(title.toLowerCase()) || existingLocRefs.has(fileLocKey)) {
+          continue;
+        }
+
+        const descLines = isSpanish
+          ? [
+              `Deuda técnica identificada automáticamente por el motor de auditoría estática.`,
+              ``,
+              `- **Archivo de origen:** \`${item.file}\``,
+              `- **Línea:** ${item.line || 1}`,
+              `- **Tipo:** \`${cleanType}\``
+            ]
+          : [
+              `Technical debt automatically identified by the static audit engine.`,
+              ``,
+              `- **Source file:** \`${item.file}\``,
+              `- **Line:** ${item.line || 1}`,
+              `- **Type:** \`${cleanType}\``
+            ];
+
         if (item.snippet && typeof item.snippet === 'string' && item.snippet.trim()) {
-          descLines.push(``, `### Fragmento de Código:`, `\`\`\``, item.snippet.trim(), `\`\`\``);
+          descLines.push(``, isSpanish ? `### Fragmento de Código:` : `### Code Snippet:`, '```', item.snippet.trim(), '```');
         }
         const description = descLines.join('\n');
+
+        const acText = isSpanish
+          ? `Resolver ${cleanType} en ${item.file}:${item.line || 1}`
+          : `Resolve ${cleanType} in ${item.file}:${item.line || 1}`;
 
         const taskData = {
           title,
@@ -295,7 +337,7 @@ export async function handleAuditRoutes(
           priority: 'medium',
           description,
           acceptanceCriteria: [
-            { index: 1, text: `Resolver ${cleanType} en ${item.file}:${item.line || 1}`, checked: false }
+            { index: 1, text: acText, checked: false }
           ]
         };
 
@@ -303,23 +345,28 @@ export async function handleAuditRoutes(
         if (!createRes.ok || !createRes.task) {
           throw new Error(`Failed to create task for TODO: "${title}"`);
         }
-        taskIds.push(createRes.task.code || createRes.task.id);
+        const newId = createRes.task.code || createRes.task.id;
+        taskIds.push(newId);
+        existingTitles.add(title.toLowerCase());
+        existingLocRefs.add(fileLocKey);
       }
 
-      // Sincronización inmediata de BACKLOG.md
-      BacklogService.syncBacklog(project, { autoFix: false });
+      if (taskIds.length > 0) {
+        // Sincronización inmediata de BACKLOG.md
+        BacklogService.syncBacklog(project, { autoFix: false });
 
-      // Emisión de evento en tiempo real
-      broadcastSse('backlog_changed', {
-        projectId: project.id,
-        action: 'todos_imported',
-        count: taskIds.length,
-        taskIds,
-        timestamp: Date.now()
-      });
+        // Emisión de evento en tiempo real
+        broadcastSse('backlog_changed', {
+          projectId: project.id,
+          action: 'todos_imported',
+          count: taskIds.length,
+          taskIds,
+          timestamp: Date.now()
+        });
 
-      // Invalidar cache de auditoría
-      clearAuditCache(repoPath);
+        // Invalidar cache de auditoría
+        clearAuditCache(repoPath);
+      }
 
       sendJson(res, 200, {
         ok: true,

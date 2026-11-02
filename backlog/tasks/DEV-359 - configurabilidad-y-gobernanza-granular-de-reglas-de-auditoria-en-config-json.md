@@ -1,17 +1,19 @@
 ---
 id: DEV-359
 title: "Configurabilidad y gobernanza granular de reglas de auditoria en config.json"
-status: ready
-claimed_by: "antigravity:0808784b-8c29-4094-a766-634937d63e4a"
+status: done
+assignee:
+  - ""
+created_date: '2026-11-02 05:33'
+updated_date: '2026-11-02'
+labels: []
+dependencies: []
 priority: medium
 type: feature
-assignee: ""
-sprint: ""
-epic: DEV-352
+claimed_by: "antigravity:0808784b-8c29-4094-a766-634937d63e4a"
+epic: "DEV-352"
 created_at: "2026-11-02T01:17:00Z"
 ---
-
-# DEV-359 - Configurabilidad y gobernanza granular de reglas de auditoria en config.json
 
 ## Description
 
@@ -32,10 +34,7 @@ Para repositorios con estandares particulares o necesidades especificas de refin
 - [x] #6 Suite de pruebas automatizadas que valide la persistencia de configuracion, la retrocompatibilidad con repositorios existentes y la paridad de comportamiento.
 <!-- AC:END -->
 
-## Plan de Implementacion
+## Implementation Plan
 
-1. **Config & Schema:** Extender la definicion de configuracion en `scripts/initScaffold.js` y `src/data/types.ts`.
-2. **Motor Canonico (`audit-engine.mjs`):** Incorporar lectura de opciones de auditoria desde `.gripm/config.json` con fallbacks agnosticos.
-3. **Servicio Backend (`auditService.ts`):** Propagar opciones resueltas a llamadas REST y MCP.
-4. **UI & Cockpit:** Incorporar indicadores de reglas activas en `AuditModal.tsx`.
-5. **Verificacion:** Tests unitarios y de integracion headless.
+<!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:END -->

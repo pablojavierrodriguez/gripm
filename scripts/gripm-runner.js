@@ -270,7 +270,7 @@ async function main() {
   }
 
   // DEV-354: Handle 'audit' subcommand
-  if (command === 'audit' || (args[0] === 'audit') || (args.includes('audit') && command !== 'help')) {
+  if (command === 'audit') {
     if (hasHelpFlag(args)) {
       printAuditHelp();
       process.exit(0);
@@ -281,7 +281,7 @@ async function main() {
   }
 
   // DEV-329: Handle 'add' subcommand
-  if (command === 'add' || (args[0] === 'add') || (args.includes('add') && command !== 'help')) {
+  if (command === 'add') {
     if (hasHelpFlag(args)) {
       printAddHelp();
       process.exit(0);
@@ -291,7 +291,7 @@ async function main() {
   }
 
   // DEV-150 / DEV-295: Handle 'mcp' subcommand directly without starting Vite (positional or non-positional)
-  if (command === 'mcp' || (args.includes('mcp') && command !== 'help')) {
+  if (command === 'mcp') {
     if (hasHelpFlag(args)) {
       printMcpHelp();
       process.exit(0);
@@ -307,7 +307,7 @@ async function main() {
   }
 
   // Handle 'playbook' subcommand
-  if (command === 'playbook' || (args.includes('playbook') && command !== 'help')) {
+  if (command === 'playbook') {
     if (hasHelpFlag(args)) {
       printPlaybookHelp();
       process.exit(0);
@@ -357,7 +357,7 @@ async function main() {
   }
 
   // DEV-228: Handle 'import' subcommand
-  if (command === 'import' || (args.includes('import') && command !== 'help')) {
+  if (command === 'import') {
     if (hasHelpFlag(args)) {
       printImportHelp();
       process.exit(0);
@@ -559,6 +559,7 @@ async function main() {
       agentsMd: args.includes('--no-agents') ? false : (args.includes('--agents') ? true : undefined),
       packageJson: args.includes('--no-scripts') ? false : (args.includes('--scripts') ? true : undefined),
       gitignore: args.includes('--no-gitignore') ? false : (args.includes('--gitignore') ? true : undefined),
+      importTodos: args.includes('--import-todos') || args.includes('--todos') ? true : undefined,
       force: args.includes('--force')
     });
     process.exit(0);

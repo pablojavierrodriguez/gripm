@@ -20,7 +20,8 @@ import {
   promptMethodology,
   promptMode,
   promptMultiSelect,
-  promptConfirm
+  promptConfirm,
+  printDiagnosticSnapshot
 } from './init/prompts.js';
 import {
   writeConfig,
@@ -41,59 +42,6 @@ export { getSkillTemplate, getAgentsMdTemplate };
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PKG_ROOT = path.resolve(__dirname, '..');
-
-/**
- * Renders formatted diagnostic box for codebase health and detected capabilities (DEV-354).
- */
-function printDiagnosticSnapshot(report, { hasTypeScript, recommendedProfile, isEn }) {
-  const isColorSupported = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
-  const c = {
-    bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[0m` : s),
-    dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[0m` : s),
-    green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[0m` : s),
-    cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[0m` : s),
-    yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[0m` : s),
-    red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[0m` : s),
-  };
-
-  const stripAnsi = (str) => String(str).replace(/\x1b\[[0-9;]*m/g, '');
-  const makeLine = (label, val = '', width = 68) => {
-    const innerWidth = width - 4;
-    const pLabel = stripAnsi(label);
-    const pVal = stripAnsi(val);
-    const sp = Math.max(1, innerWidth - (pLabel.length + pVal.length));
-    return `  │ ${label}${' '.repeat(sp)}${val} │`;
-  };
-
-  const score = report?.score ?? 100;
-  const scoreColor = score >= 80 ? c.green : score >= 50 ? c.yellow : c.red;
-  const filesCount = report?.summary?.totalFilesScanned ?? 0;
-  const tsText = hasTypeScript
-    ? (isEn ? 'Detected' : 'Detectado')
-    : (isEn ? 'None' : 'No detectado');
-  const testFw = report?.tests?.framework
-    ? `${report.tests.framework} (${report.tests.verifyCommand || 'npm test'})`
-    : (report?.tests?.hasTests ? (isEn ? 'Detected' : 'Detectado') : (isEn ? 'None' : 'No detectado'));
-  const locIssues = report?.summary?.locViolationsCount ?? 0;
-  const criticalLoc = report?.loc?.violations?.filter(v => v.status === 'error' || v.lines >= 1000)?.length ?? 0;
-  const suppressions = report?.summary?.suppressionsCount ?? 0;
-  const todosCount = report?.summary?.todosCount ?? 0;
-  const recText = recommendedProfile === 'full'
-    ? (isEn ? 'Batteries-Included (Scrum / Sprints)' : 'Baterías Incluidas (Scrum / Sprints)')
-    : (isEn ? 'Minimalist AI-First (Kanban)' : 'Minimalista AI-First (Kanban)');
-
-  console.log(`  ${c.bold(isEn ? 'Codebase Health & Diagnostic Snapshot:' : 'Radiografía Inicial y Diagnóstico del Repositorio:')}`);
-  console.log('  ┌──────────────────────────────────────────────────────────────────┐');
-  console.log(makeLine(isEn ? 'Health Score:' : 'Salud de Código:', scoreColor(`${score}/100`)));
-  console.log(makeLine(isEn ? 'Files Scanned:' : 'Archivos Escaneados:', `${filesCount} ${isEn ? 'files' : 'archivos'}`));
-  console.log(makeLine('TypeScript:', tsText));
-  console.log(makeLine(isEn ? 'Test Runner:' : 'Infraestructura Tests:', testFw));
-  console.log(makeLine(isEn ? 'LOC Issues:' : 'Límites LOC:', `${locIssues} (${criticalLoc} ${isEn ? 'critical >= 1000' : 'críticos >= 1000'})`));
-  console.log(makeLine(isEn ? 'Suppressions:' : 'Supresiones Calidad:', String(suppressions)));
-  console.log(makeLine(isEn ? 'TODO / Debt:' : 'Deuda Oculta:', `${todosCount} ${isEn ? 'markers' : 'marcadores'}`));
-  console.log(makeLine(isEn ? 'Recommended Profile:' : 'Perfil Recomendado:', c.cyan(recText)));
-  console.log('  └──────────────────────────────────────────────────────────────────┘\n');
-}
 
 /**
  * Runs the interactive or non-interactive init wizard.
@@ -356,6 +304,17 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     // Non-interactive fallback: if no profile specified, default to recommended or minimal
     if (!profile) {
       profile = recommendedProfile || 'minimal';
+      const chosenPreset = PRESETS[profile] || PRESETS.minimal;
+      methodology = options.methodology || chosenPreset.methodology;
+      mode = options.mode || (options.hub || options.multi ? 'multi' : (options.single ? 'single' : chosenPreset.mode));
+      modules = { ...chosenPreset.modules, ...(options.modules || {}) };
+      enabledTabs = { ...chosenPreset.enabledTabs, ...(options.enabledTabs || {}) };
+      estimation = options.estimation || { ...chosenPreset.estimation };
+      kanban = options.kanban || { ...chosenPreset.kanban };
+      if (options.skill === undefined) installSkill = chosenPreset.assets.skill;
+      if (options.agentsMd === undefined) installAgentsMd = options.minimal ? chosenPreset.assets.agentsMd : true;
+      if (options.packageJson === undefined) updatePkgJson = chosenPreset.assets.packageJson;
+      if (options.gitignore === undefined) updateGitignore = chosenPreset.assets.gitignore;
     }
   }
 
@@ -474,7 +433,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       language,
       projectName,
       yes: options.yes,
-      mode: profile === 'full' ? 'quick' : (speedMode === 'quick' ? 'quick' : undefined)
+      board: installBoard,
+      mode: profile === 'full' ? 'quick' : (speedMode === 'quick' ? 'quick' : 'custom')
     }, isEnOutput);
     results.playbook = playbookSuccess;
   } else {
@@ -485,8 +445,9 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   }
 
   // --- Step 3: Success Instructions ---
-  if (isEnOutput) {
-    console.log(`
+  if (installBoard) {
+    if (isEnOutput) {
+      console.log(`
   ✔ gripm initialized successfully!
 
   To open the board:
@@ -500,8 +461,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   Tip: Run 'npm install -g @gripm/board'
   to use the global direct command 'gripm'.
 `);
-  } else {
-    console.log(`
+    } else {
+      console.log(`
   ✔ ¡gripm inicializado con éxito!
 
   Para abrir el tablero:
@@ -515,6 +476,12 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   Consejo: Ejecuta 'npm install -g @gripm/board'
   para usar el comando global directo 'gripm'.
 `);
+    }
+  } else {
+    console.log(isEnOutput
+      ? '\n  ✔ Gripm Playbook initialized successfully!'
+      : '\n  ✔ ¡Gripm Playbook inicializado con éxito!'
+    );
   }
 
   return results;

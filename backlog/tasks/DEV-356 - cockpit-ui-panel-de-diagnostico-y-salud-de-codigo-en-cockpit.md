@@ -1,9 +1,9 @@
 ---
 id: DEV-356
 title: "Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-11-01'
+updated_date: '2026-11-02'
 labels:
   - "frontend"
   - "ui"

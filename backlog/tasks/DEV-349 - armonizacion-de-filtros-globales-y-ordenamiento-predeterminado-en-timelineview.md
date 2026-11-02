@@ -1,9 +1,9 @@
 ---
 id: DEV-349
 title: "Armonizacion de filtros globales y ordenamiento predeterminado en TimelineView"
-status: ready
+status: done
 created_date: '2026-10-27'
-updated_date: '2026-10-27'
+updated_date: '2026-11-02'
 labels:
   - "roadmap"
   - "filters"

@@ -123,9 +123,9 @@
   "defaultView": "kanban",
   "modules": {
     "sprint": false,
-    "release": false,
+    "release": true,
     "calendar": false,
-    "timeline": false
+    "timeline": true
   },
   "rankingEnabled": true,
   "customItemTypes": [],

@@ -1,7 +1,7 @@
 ---
 id: DEV-358
 title: "Configurar Vercel Web Analytics en la demo web estatica"
-status: ready
+status: done
 created_date: '2026-11-01'
 updated_date: '2026-11-02'
 labels:

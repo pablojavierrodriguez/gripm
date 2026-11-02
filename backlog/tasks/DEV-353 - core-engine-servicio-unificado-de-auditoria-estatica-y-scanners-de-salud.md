@@ -1,9 +1,9 @@
 ---
 id: DEV-353
 title: "Core Engine: Servicio Unificado de Auditoria Estatica (auditService) y Scanners de Salud"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-10-31'
+updated_date: '2026-11-02'
 labels:
   - "core"
   - "audit"

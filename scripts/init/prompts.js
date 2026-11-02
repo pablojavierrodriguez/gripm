@@ -227,3 +227,56 @@ export async function promptConfirm(rl, question, defaultYes = true) {
   if (!trimmed) return defaultYes;
   return trimmed === 'y' || trimmed === 'yes' || trimmed === 's' || trimmed === 'si' || trimmed === 'sí';
 }
+
+/**
+ * Renders formatted diagnostic box for codebase health and detected capabilities (DEV-354).
+ */
+export function printDiagnosticSnapshot(report, { hasTypeScript, recommendedProfile, isEn }) {
+  const isColorSupported = !process.env.NO_COLOR && (Boolean(process.stdout.isTTY) || Boolean(process.env.FORCE_COLOR));
+  const c = {
+    bold: (s) => (isColorSupported ? `\x1b[1m${s}\x1b[0m` : s),
+    dim: (s) => (isColorSupported ? `\x1b[2m${s}\x1b[0m` : s),
+    green: (s) => (isColorSupported ? `\x1b[32m${s}\x1b[0m` : s),
+    cyan: (s) => (isColorSupported ? `\x1b[36m${s}\x1b[0m` : s),
+    yellow: (s) => (isColorSupported ? `\x1b[33m${s}\x1b[0m` : s),
+    red: (s) => (isColorSupported ? `\x1b[31m${s}\x1b[0m` : s),
+  };
+
+  const stripAnsi = (str) => String(str).replace(/\x1b\[[0-9;]*m/g, '');
+  const makeLine = (label, val = '', width = 68) => {
+    const innerWidth = width - 4;
+    const pLabel = stripAnsi(label);
+    const pVal = stripAnsi(val);
+    const sp = Math.max(1, innerWidth - (pLabel.length + pVal.length));
+    return `  │ ${label}${' '.repeat(sp)}${val} │`;
+  };
+
+  const score = report?.score ?? 100;
+  const scoreColor = score >= 80 ? c.green : score >= 50 ? c.yellow : c.red;
+  const filesCount = report?.summary?.totalFilesScanned ?? 0;
+  const tsText = hasTypeScript
+    ? (isEn ? 'Detected' : 'Detectado')
+    : (isEn ? 'None' : 'No detectado');
+  const testFw = report?.tests?.framework
+    ? `${report.tests.framework} (${report.tests.verifyCommand || 'npm test'})`
+    : (report?.tests?.hasTests ? (isEn ? 'Detected' : 'Detectado') : (isEn ? 'None' : 'No detectado'));
+  const locIssues = report?.summary?.locViolationsCount ?? 0;
+  const criticalLoc = report?.loc?.violations?.filter(v => v.status === 'error' || v.lines >= 1000)?.length ?? 0;
+  const suppressions = report?.summary?.suppressionsCount ?? 0;
+  const todosCount = report?.summary?.todosCount ?? 0;
+  const recText = recommendedProfile === 'full'
+    ? (isEn ? 'Batteries-Included (Scrum / Sprints)' : 'Baterías Incluidas (Scrum / Sprints)')
+    : (isEn ? 'Minimalist AI-First (Kanban)' : 'Minimalista AI-First (Kanban)');
+
+  console.log(`  ${c.bold(isEn ? 'Codebase Health & Diagnostic Snapshot:' : 'Radiografía Inicial y Diagnóstico del Repositorio:')}`);
+  console.log('  ┌──────────────────────────────────────────────────────────────────┐');
+  console.log(makeLine(isEn ? 'Health Score:' : 'Salud de Código:', scoreColor(`${score}/100`)));
+  console.log(makeLine(isEn ? 'Files Scanned:' : 'Archivos Escaneados:', `${filesCount} ${isEn ? 'files' : 'archivos'}`));
+  console.log(makeLine('TypeScript:', tsText));
+  console.log(makeLine(isEn ? 'Test Runner:' : 'Infraestructura Tests:', testFw));
+  console.log(makeLine(isEn ? 'LOC Issues:' : 'Límites LOC:', `${locIssues} (${criticalLoc} ${isEn ? 'critical >= 1000' : 'críticos >= 1000'})`));
+  console.log(makeLine(isEn ? 'Suppressions:' : 'Supresiones Calidad:', String(suppressions)));
+  console.log(makeLine(isEn ? 'TODO / Debt:' : 'Deuda Oculta:', `${todosCount} ${isEn ? 'markers' : 'marcadores'}`));
+  console.log(makeLine(isEn ? 'Recommended Profile:' : 'Perfil Recomendado:', c.cyan(recText)));
+  console.log('  └──────────────────────────────────────────────────────────────────┘\n');
+}

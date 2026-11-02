@@ -1,9 +1,9 @@
 ---
 id: DEV-352
 title: "Epica: Motor de Diagnostico y Auditoria de Repositorio (gripm audit) y Gobernanza Multi-Perfil"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-11-01'
+updated_date: '2026-11-02'
 labels:
   - "epic"
   - "audit"

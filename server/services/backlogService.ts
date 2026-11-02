@@ -19,7 +19,8 @@ import {
   DEFAULT_IGNORED_DIRS,
   countFileLines,
   isIgnored,
-  parseIgnoreFile
+  parseIgnoreFile,
+  parseIgnoreLines
 } from '../../scripts/check-loc.mjs';
 import {
   isBacklogMdProject,
@@ -362,12 +363,11 @@ export function getModifiedFiles(repoPath: string): string[] {
     const files: string[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.startsWith('R ') || item.startsWith('RM') || item.startsWith('RD')) {
-        if (i + 1 < items.length) {
-          files.push(items[++i]);
-        }
+      if (item.startsWith('R ') || item.startsWith('RM') || item.startsWith('RD') || item.startsWith('C ') || item.startsWith('CM')) {
+        files.push(item.slice(3).trim().replace(/\\/g, '/'));
+        i++; // skip old path in -z output
       } else if (item.length > 3) {
-        files.push(item.slice(3).trim());
+        files.push(item.slice(3).trim().replace(/\\/g, '/'));
       }
     }
     return files;
@@ -410,12 +410,23 @@ export function validateGatekeeperTransition(
   if (normTarget === 'ready') {
     const execCwd = repoPath || process.cwd();
     let enforceLocCeiling = false;
+    let auditMaxLines = DEFAULT_MAX_LINES;
+    let auditExcluded: string[] = [];
     try {
       const configPath = path.join(execCwd, '.gripm', 'config.json');
       if (fs.existsSync(configPath)) {
         const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (cfg?.guardrails?.enforceLocCeiling === true) {
           enforceLocCeiling = true;
+        }
+        if (cfg?.audit?.rules?.loc === false) {
+          enforceLocCeiling = false;
+        }
+        if (cfg?.audit?.thresholds?.maxLines || cfg?.audit?.maxLines) {
+          auditMaxLines = Number(cfg.audit.thresholds?.maxLines || cfg.audit.maxLines);
+        }
+        if (Array.isArray(cfg?.audit?.exclude)) {
+          auditExcluded = cfg.audit.exclude;
         }
       }
     } catch {}
@@ -424,7 +435,8 @@ export function validateGatekeeperTransition(
       const gitignoreRules = parseIgnoreFile(path.join(execCwd, '.gitignore'));
       const locignoreRules = parseIgnoreFile(path.join(execCwd, '.locignore'));
       const gripmLocignore = parseIgnoreFile(path.join(execCwd, '.gripm', 'locignore'));
-      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore];
+      const extraExcludes = parseIgnoreLines(auditExcluded);
+      const combinedRules = [...gitignoreRules, ...locignoreRules, ...gripmLocignore, ...extraExcludes];
 
       const modified = getModifiedFiles(execCwd);
       const violations: Array<{ file: string; lines: number }> = [];
@@ -444,7 +456,7 @@ export function validateGatekeeperTransition(
         if (isIgnored(relFile, false, combinedRules, DEFAULT_IGNORED_DIRS)) continue;
 
         const lines = countFileLines(fullPath);
-        if (lines > DEFAULT_MAX_LINES) {
+        if (lines > auditMaxLines) {
           violations.push({ file: relFile.replace(/\\/g, '/'), lines });
         }
       }
@@ -454,12 +466,12 @@ export function validateGatekeeperTransition(
         if (!options?.force) {
           const taskId = task.code || task.id || 'unknown';
           const violationsList = violations
-            .map(v => ` - ${v.file} (${v.lines} lines > ${DEFAULT_MAX_LINES} ceiling)`)
+            .map(v => ` - ${v.file} (${v.lines} lines > ${auditMaxLines} ceiling)`)
             .join('\n');
           throw new Error(
-            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the 1000 LOC ceiling:\n` +
+            `[MCP Gatekeeper] Transition rejected: Cannot move task '${taskId}' to '${normTarget}' because architectural guardrails are active (guardrails.enforceLocCeiling: true) and ${violations.length} modified file(s) exceed the ${auditMaxLines} LOC ceiling:\n` +
             `${violationsList}\n\n` +
-            `Corrective action: Refactor and modularize large files to be under 1000 lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
+            `Corrective action: Refactor and modularize large files to be under ${auditMaxLines} lines of code, or specify 'force: true' if explicitly authorized by the Product Owner.`
           );
         }
       }

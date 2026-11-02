@@ -1,9 +1,9 @@
 ---
 id: DEV-357
 title: "MCP y Gatekeeper: Herramienta repo_health y Guardrails Arquitectonicos en Transiciones de Tarea"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-10-31'
+updated_date: '2026-11-02'
 labels:
   - "mcp"
   - "gatekeeper"

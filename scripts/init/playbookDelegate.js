@@ -69,8 +69,11 @@ export function delegatePlaybookInit(targetRepo, options = {}, isEn = true) {
     initArgs.push('--name', options.name || options.projectName);
   }
 
-  // Board was already handled or explicitly skipped; avoid re-running board setup from playbook
-  initArgs.push('--no-board');
+  // If Board was installed in this run, avoid re-running board setup from playbook.
+  // If only Playbook is being installed, allow Playbook to set up its canonical config.
+  if (options.board !== false) {
+    initArgs.push('--no-board');
+  }
 
   if (options.yes) {
     initArgs.push('--yes');

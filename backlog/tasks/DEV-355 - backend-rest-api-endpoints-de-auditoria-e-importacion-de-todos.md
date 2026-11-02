@@ -1,9 +1,9 @@
 ---
 id: DEV-355
 title: "Backend REST API: Endpoints de Auditoria e Importacion Masiva de TODOs a Tareas"
-status: ready
+status: done
 created_date: '2026-10-31'
-updated_date: '2026-10-31'
+updated_date: '2026-11-02'
 labels:
   - "backend"
   - "api"

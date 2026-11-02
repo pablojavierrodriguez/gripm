@@ -1090,5 +1090,6 @@
   "audit.rulesCustom": "Reglas personalizadas",
   "audit.locDisabledNotice": "Regla de límites LOC desactivada en .gripm/config.json.",
   "audit.todosDisabledNotice": "Regla de marcadores TODO desactivada en .gripm/config.json.",
-  "audit.qualityDisabledNotice": "Regla de supresiones Anti-Slop desactivada en .gripm/config.json."
+  "audit.qualityDisabledNotice": "Regla de supresiones Anti-Slop desactivada en .gripm/config.json.",
+  "audit.errorUnavailable": "Diagnóstico de salud no disponible"
 }
