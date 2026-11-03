@@ -402,6 +402,7 @@ export async function main(argv) {
   let pyramidRan = 0;
 
   if (runPyramid) {
+    if (isForced) process.env.GATE_FORCE = '1';
     const workRoot = projectRoot;
     const steps = resolvePyramid(workRoot, {
       autonomous: argv.includes('--autonomous'),

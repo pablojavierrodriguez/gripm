@@ -73,9 +73,12 @@ function main() {
 
   console.log(`Gating ${reviewItems.length} item(s) in review...\n`);
 
+  const isForced = process.argv.includes('--force') || process.env.GATE_FORCE === '1';
   let failed = 0;
   for (const { name, file } of reviewItems) {
-    const result = spawnSync(process.execPath, [GATE, file, '--no-run', '--root', ROOT], {
+    const gateArgs = [GATE, file, '--no-run', '--root', ROOT];
+    if (isForced) gateArgs.push('--force');
+    const result = spawnSync(process.execPath, gateArgs, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, GRIPM_ROOT: ROOT },

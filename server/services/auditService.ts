@@ -14,6 +14,7 @@ import {
 
 export interface RepoHealthReport {
   score: number; // 0 to 100
+  stack?: string[];
   summary: {
     totalFilesScanned: number;
     locViolationsCount: number;
@@ -21,6 +22,7 @@ export interface RepoHealthReport {
     todosCount: number;
     testFramework: string | null;
     verifyCommand: string | null;
+    stack?: string | null;
   };
   rules?: {
     loc?: boolean;
@@ -37,7 +39,7 @@ export interface RepoHealthReport {
   quality: {
     suppressions: Array<{ file: string; line: number; type: string; snippet: string }>;
   };
-  todos: Array<{ id: string; file: string; line: number; type: 'TODO' | 'FIXME' | 'HACK' | 'BUG'; text: string; snippet: string }>;
+  todos: Array<{ id: string; file: string; line: number; type: 'TODO' | 'FIXME' | 'HACK' | 'BUG' | 'XXX'; text: string; snippet: string }>;
   tests: {
     detected: boolean;
     framework: string | null;
@@ -75,32 +77,11 @@ export interface TestDetectionResult {
   hasTests: boolean;
 }
 
-/**
- * Headless static analysis of a codebase or file path.
- */
-export async function scanCodebase(
-  targetPath?: string,
-  options?: AuditOptions
-): Promise<RepoHealthReport> {
-  const result = await scanCodebaseEngine(targetPath, options);
-  return result as unknown as RepoHealthReport;
-}
-
-/**
- * Detects test runner and suggested verify command.
- */
-export function detectTests(rootPath?: string): TestDetectionResult {
-  return detectTestsEngine(rootPath) as TestDetectionResult;
-}
-
-/**
- * Calculates deterministic health score (0 - 100).
- */
-export function computeHealthScore(params: {
+export interface HealthScoreParams {
   totalFilesScanned?: number;
   locViolations?: Array<{ status: 'warning' | 'error' }>;
-  suppressions?: Array<{ file: string; line: number; type: string; snippet: string }>;
-  todos?: Array<{ type: 'TODO' | 'FIXME' | 'HACK' | 'BUG' }>;
+  suppressions?: Array<{ file?: string; line?: number; type: string; snippet?: string }>;
+  todos?: Array<{ type: 'TODO' | 'FIXME' | 'HACK' | 'BUG' | 'XXX' }>;
   tests?: { detected: boolean; hasTests: boolean };
   rules?: {
     loc?: boolean;
@@ -109,6 +90,86 @@ export function computeHealthScore(params: {
     consoleLog?: boolean;
     testRunner?: boolean;
   };
-}): number {
-  return (computeHealthScoreEngine as (args: any) => number)(params);
+}
+
+/**
+ * Headless static analysis of a codebase or file path.
+ */
+export async function scanCodebase(
+  targetPath?: string,
+  options?: AuditOptions
+): Promise<RepoHealthReport> {
+  const result = await scanCodebaseEngine(targetPath, options);
+  const violations: RepoHealthReport['loc']['violations'] = (result.loc?.violations || []).map(
+    (v: { file: string; lines: number; status: string }) => ({
+      file: v.file,
+      lines: v.lines,
+      status: v.status === 'error' ? 'error' : 'warning'
+    })
+  );
+
+  const todos: RepoHealthReport['todos'] = (result.todos || []).map(
+    (t: { id: string; file: string; line: number; type: string; text: string; snippet: string }) => ({
+      id: t.id,
+      file: t.file,
+      line: t.line,
+      type:
+        t.type === 'FIXME' || t.type === 'HACK' || t.type === 'BUG' || t.type === 'XXX'
+          ? t.type
+          : 'TODO',
+      text: t.text,
+      snippet: t.snippet
+    })
+  );
+
+  return {
+    score: result.score,
+    ...(Array.isArray(result.stack) ? { stack: result.stack } : {}),
+    summary: {
+      totalFilesScanned: result.summary.totalFilesScanned,
+      locViolationsCount: result.summary.locViolationsCount,
+      suppressionsCount: result.summary.suppressionsCount,
+      todosCount: result.summary.todosCount,
+      testFramework: result.summary.testFramework ?? null,
+      verifyCommand: result.summary.verifyCommand ?? null,
+      ...(result.summary.stack !== undefined ? { stack: result.summary.stack } : {})
+    },
+    rules: result.rules,
+    loc: {
+      maxLines: result.loc.maxLines,
+      warnLines: result.loc.warnLines,
+      violations
+    },
+    quality: {
+      suppressions: result.quality.suppressions || []
+    },
+    todos,
+    tests: {
+      detected: Boolean(result.tests.detected),
+      framework: result.tests.framework ?? null,
+      verifyCommand: result.tests.verifyCommand ?? null,
+      hasTests: Boolean(result.tests.hasTests)
+    }
+  };
+}
+
+/**
+ * Detects test runner and suggested verify command.
+ */
+export function detectTests(rootPath?: string): TestDetectionResult {
+  const res = detectTestsEngine(rootPath);
+  return {
+    detected: Boolean(res.detected),
+    framework: res.framework ?? null,
+    verifyCommand: res.verifyCommand ?? null,
+    hasTests: Boolean(res.hasTests)
+  };
+}
+
+/**
+ * Calculates deterministic health score (0 - 100).
+ */
+export function computeHealthScore(params: HealthScoreParams): number {
+  const computeFn: (args: HealthScoreParams) => number = computeHealthScoreEngine;
+  return computeFn(params);
 }
