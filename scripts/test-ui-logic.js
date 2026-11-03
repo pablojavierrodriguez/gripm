@@ -75,7 +75,9 @@ assert(
   "'epic' must no longer be part of the optional column catalogue (DEV-256)",
 );
 assert(optionalColIds.includes('parent'), "'parent' must be part of the catalogue (DEV-256)");
-const sprintViewSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'SprintView.tsx'), 'utf8');
+const sprintViewSource = fs.readFileSync(path.join(ROOT, 'src', 'components', 'SprintView.tsx'), 'utf8') +
+  fs.readFileSync(path.join(ROOT, 'src', 'components', 'sprint', 'SprintTableRow.tsx'), 'utf8') +
+  fs.readFileSync(path.join(ROOT, 'src', 'components', 'sprint', 'SprintGroupCard.tsx'), 'utf8');
 assert(!sprintViewSource.includes("has('epic')"), "SprintView must not query the removed 'epic' column id (DEV-256)");
 assert(sprintViewSource.includes("has('parent')"), "SprintView must query the 'parent' column id (DEV-256)");
 
@@ -149,10 +151,12 @@ assert(commandPaletteSource.includes('aria-autocomplete="list"'), 'CommandPalett
 assert(commandPaletteSource.includes('aria-controls="command-palette-results"'), 'CommandPaletteModal must link input to results via aria-controls (DEV-255)');
 assert(commandPaletteSource.includes('useFocusTrap<HTMLDivElement>(isOpen, onClose)'), 'CommandPaletteModal must integrate useFocusTrap (DEV-255)');
 
-const appSource = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8');
-assert(appSource.includes("<CommandPaletteModal"), 'App.tsx must mount CommandPaletteModal (DEV-255)');
-assert(appSource.includes("(e.key === 'k' || e.key === 'K')"), 'App.tsx must intercept Cmd+K / Ctrl+K (DEV-255)');
-assert(appSource.includes("e.stopImmediatePropagation()"), 'App.tsx must stop immediate propagation so FilterBar is superseded by palette (DEV-255)');
+const appSource = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8') +
+  fs.readFileSync(path.join(ROOT, 'src', 'components', 'AppModals.tsx'), 'utf8') +
+  fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'useKeyboardShortcuts.ts'), 'utf8');
+assert(appSource.includes("<CommandPaletteModal"), 'App.tsx / AppModals must mount CommandPaletteModal (DEV-255)');
+assert(appSource.includes("(e.key === 'k' || e.key === 'K')"), 'App.tsx / useKeyboardShortcuts must intercept Cmd+K / Ctrl+K (DEV-255)');
+assert(appSource.includes("e.stopImmediatePropagation()"), 'App.tsx / useKeyboardShortcuts must stop immediate propagation so FilterBar is superseded by palette (DEV-255)');
 
 // DEV-356: Cockpit UI: Panel de Diagnostico y Salud de Codigo en Cockpit Web
 assert(esLocales['audit.healthScore'] && enLocales['audit.healthScore'], 'both locales must expose audit.healthScore (DEV-356)');
@@ -176,8 +180,9 @@ const headerSourceUpdated = fs.readFileSync(path.join(ROOT, 'src', 'components',
 assert(headerSourceUpdated.includes('<AuditBadge'), 'Header must render AuditBadge (DEV-356)');
 assert(headerSourceUpdated.includes('onOpenAudit'), 'Header must support onOpenAudit callback (DEV-356)');
 
-const appSourceUpdated = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8');
-assert(appSourceUpdated.includes('<AuditModal'), 'App.tsx must mount AuditModal (DEV-356)');
+const appSourceUpdated = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8') +
+  fs.readFileSync(path.join(ROOT, 'src', 'components', 'AppModals.tsx'), 'utf8');
+assert(appSourceUpdated.includes('<AuditModal'), 'App.tsx / AppModals must mount AuditModal (DEV-356)');
 assert(appSourceUpdated.includes('useRepoAudit'), 'App.tsx must use useRepoAudit hook (DEV-356)');
 
 // DEV-358: Vercel Web Analytics & Privacy Guardrail

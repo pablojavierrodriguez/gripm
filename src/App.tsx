@@ -1,79 +1,34 @@
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
-import { flushSync } from 'react-dom';
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { 
   BacklogItem, 
-  BoardData, 
-  FilterState, 
   ItemStatus, 
-  Priority, 
-  Project, 
-  Release, 
-  ViewMode,
-  GripmConfig,
-  ActiveTab,
-  Sprint
+  ActiveTab
 } from './types';
 import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, isMetricsModuleActive } from './types';
-// DEV-222: solo se usa para etiquetar el Header. `loadData` ya espera `ensureAdapter()`
-// a través de la fachada de `./api`, así que para el primer render ya está resuelto.
 import { isSandboxMode } from './data/detect';
-import { 
-  fetchBoardData, 
-  createItem, 
-  updateItem, 
-  deleteItem, 
-  createProject, 
-  deleteProject,
-  createRelease, 
-  triggerResync,
-  convertProjectToMd,
-  convertProjectToJson,
-  exportMonolithicMd,
-  exportProjectJson,
-  restoreDemoProject,
-  deleteReleaseApi,
-  subscribeToBoardEvents,
-  setActiveProjectApi,
-  fetchSettings,
-  saveSettings,
-  createSprint,
-  updateSprint,
-  deleteSprint,
-  bulkUpdateItems,
-  restoreItem,
-  purgeItem
-} from './api';
+import { SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
 import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
-import { KanbanBoard, SIMPLIFIED_COLUMNS, EXPANDED_COLUMNS } from './components/KanbanBoard';
-import { ToastContainer, type ToastMessage } from './components/Toast';
+import { KanbanBoard } from './components/KanbanBoard';
+import { ToastContainer } from './components/Toast';
 import { VercelAnalytics } from './components/VercelAnalytics';
-import { AlertTriangle, LayoutGrid, Target, Rocket, Trash2, Sparkles, Code2, Download, Calendar, BarChart2 } from 'lucide-react';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { AppModals } from './components/AppModals';
+import { AlertTriangle, Sparkles, Code2, Download } from 'lucide-react';
 import { useTranslation } from './utils/i18n';
-import { getStoredItem, setStoredItem, STORAGE_KEYS } from './utils/storage';
 import { filterItems, getAvailableModules } from './utils/filterItems';
-import { hasActiveFocusTrap } from './hooks/useFocusTrap';
 import { useRepoAudit } from './hooks/useRepoAudit';
+import { useAppState } from './hooks/useAppState';
+import { useProjectMutations } from './hooks/useProjectMutations';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
-type AppActiveTab = ActiveTab;
-
-// DEV-284: Code-splitting and lazy loading for heavy views and modals
+// Lazy loading for heavy views
 const SprintView = lazy(() => import('./components/SprintView').then(m => ({ default: m.SprintView })));
 const TimelineView = lazy(() => import('./components/TimelineView').then(m => ({ default: m.TimelineView })));
 const MetricsView = lazy(() => import('./components/MetricsView').then(m => ({ default: m.MetricsView })));
-const ImportWizardModal = lazy(() => import('./components/ImportWizardModal').then(m => ({ default: m.ImportWizardModal })));
 const ReleaseAssembler = lazy(() => import('./components/ReleaseAssembler').then(m => ({ default: m.ReleaseAssembler })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
 const TrashView = lazy(() => import('./components/TrashView').then(m => ({ default: m.TrashView })));
-const ItemModal = lazy(() => import('./components/ItemModal').then(m => ({ default: m.ItemModal })));
-const ProjectModal = lazy(() => import('./components/ProjectModal').then(m => ({ default: m.ProjectModal })));
-const PlanGuardModal = lazy(() => import('./components/PlanGuardModal').then(m => ({ default: m.PlanGuardModal })));
-const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal').then(m => ({ default: m.KeyboardShortcutsModal })));
-const CommandPaletteModal = lazy(() => import('./components/CommandPaletteModal').then(m => ({ default: m.CommandPaletteModal })));
-const AuditModal = lazy(() => import('./components/audit/AuditModal').then(m => ({ default: m.AuditModal })));
-
-// Preload heavy modals in background during idle time (DEV-284)
-const preloadItemModal = () => import('./components/ItemModal');
 
 const ViewLoadingFallback = () => (
   <div className="flex-1 flex items-center justify-center min-h-[300px] text-slate-400 dark:text-slate-500 text-xs gap-2">
@@ -83,113 +38,32 @@ const ViewLoadingFallback = () => (
 
 export function App() {
   const { t, language, setLanguage } = useTranslation();
-  const [boardData, setBoardData] = useState<BoardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
+  // App core state
+  const {
+    boardData,
+    setBoardData,
+    loading,
+    selectedProjectId,
+    setSelectedProjectId,
+    activeTab,
+    setActiveTab,
+    viewMode,
+    setViewMode,
+    isDarkMode,
+    handleToggleTheme,
+    config,
+    handleSaveConfig,
+    filters,
+    setFilters,
+    toasts,
+    showToast,
+    dismissToast,
+    liveConnected,
+    loadData
+  } = useAppState(t, setLanguage);
 
-  const [activeTab, setActiveTab] = useState<AppActiveTab>(() => {
-    try {
-      const saved = getStoredItem(STORAGE_KEYS.ACTIVE_TAB) as AppActiveTab | null;
-      if (saved === 'archive') return 'trash';
-      if (saved === 'kanban' || saved === 'sprint' || saved === 'release' || saved === 'trash' || saved === 'settings' || saved === 'timeline' || saved === 'metrics') return saved;
-    } catch {}
-    return 'kanban';
-  });
-  const [viewMode, setViewMode] = useState<ViewMode>('simplificada');
-
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
-  }, [activeTab]);
-
-  // Theme state: default dark mode, persist in localStorage
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = getStoredItem(STORAGE_KEYS.THEME);
-    return saved ? saved !== 'light' : true;
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    setStoredItem(STORAGE_KEYS.THEME, isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
-
-  const handleToggleTheme = useCallback(() => {
-    const applyThemeToggle = () => {
-      setIsDarkMode((prev) => {
-        const nextDark = !prev;
-        setConfig((prevCfg) => prevCfg ? { ...prevCfg, theme: nextDark ? 'dark' : 'light' } : prevCfg);
-        return nextDark;
-      });
-    };
-
-    // Respeta la preferencia del sistema: cambio instantaneo, sin animacion.
-    const prefersReducedMotion = typeof window !== 'undefined'
-      && typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (prefersReducedMotion) {
-      applyThemeToggle();
-      return;
-    }
-
-    const root = typeof document !== 'undefined'
-      ? document.documentElement
-      : null;
-    const doc = typeof document !== 'undefined'
-      ? (document as Document & {
-          startViewTransition?: (cb: () => void) => { finished: Promise<void> };
-        })
-      : null;
-
-    if (doc?.startViewTransition) {
-      // Suspende las transiciones CSS por debajo del crossfade (ver index.css).
-      root?.classList.add('theme-animating');
-      const transition = doc.startViewTransition(() => {
-        flushSync(() => {
-          applyThemeToggle();
-        });
-      });
-      // cleanup garantizado tanto en exito como en error
-      transition.finished
-        .catch(() => {})
-        .finally(() => root?.classList.remove('theme-animating'));
-    } else {
-      // Fallback: CSS transitions only when View Transitions API is not available
-      root?.classList.add('theme-transitioning');
-      window.setTimeout(() => {
-        root?.classList.remove('theme-transitioning');
-      }, 350);
-      applyThemeToggle();
-    }
-  }, []);
-
-  // Filters
-  const [filters, setFilters] = useState<FilterState>(() => {
-    let initialIdeas = false;
-    try {
-      const stored = getStoredItem(STORAGE_KEYS.KANBAN_SHOW_IDEAS);
-      if (stored !== null) initialIdeas = JSON.parse(stored);
-    } catch {}
-    return {
-      search: '',
-      type: 'all',
-      types: [],
-      priority: 'all',
-      priorities: [],
-      statuses: [],
-      includeIdeas: initialIdeas,
-      includePreviousDone: false,
-      includeDismissedCancelled: false,
-      module: 'all',
-      modules: [],
-      sprint: 'all',
-      sprints: [],
-      release: 'all',
-      releases: [],
-    };
-  });
-
-  // Modals & Popups
+  // Modals visibility state
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BacklogItem | null>(null);
   const [defaultNewStatus, setDefaultNewStatus] = useState<ItemStatus>('draft');
@@ -200,187 +74,94 @@ export function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
 
-  // Settings / Config State (DEV-006 & DEV-009)
-  const [config, setConfig] = useState<GripmConfig>({});
+  // Plan guard state
+  const [planGuardOpen, setPlanGuardOpen] = useState(false);
+  const [planGuardItem, setPlanGuardItem] = useState<BacklogItem | null>(null);
 
-  // Computed tab visibility helpers (DEV-218, DEV-241: Decoupled module capability vs UI visible tabs)
+  // Project mutations
+  const {
+    isResyncing,
+    handleResyncDocs,
+    handleUpdateStatus,
+    handleConfirmStartWithPlan,
+    handleUpdatePriority,
+    handleReorderBacklogItem,
+    handleAssignSprint,
+    handleDeleteItem,
+    handleCreateSprint,
+    handleUpdateSprintMeta,
+    handleStartSprint,
+    handleCompleteSprint,
+    handleDeleteSprint,
+    handleSaveItem,
+    handleUnlinkChildTask,
+    handleCreateTaskFromAction,
+    handleCreateProject,
+    handleDeleteProject,
+    handleRestoreDemo,
+    handleConvertToMd,
+    handleConvertToJson,
+    handleExportMonolithic,
+    handleExportJson,
+    handleArchiveRelease,
+    handleDeleteRelease,
+    handleRestoreFromTrash,
+    handlePurgeItem
+  } = useProjectMutations({
+    boardData,
+    setBoardData,
+    selectedProjectId,
+    setSelectedProjectId,
+    viewMode,
+    showToast,
+    loadData,
+    t,
+    setPlanGuardItem,
+    setPlanGuardOpen
+  });
+
+  // Computed tab visibility helpers
   const isSprintModule = isSprintModuleActive(config);
   const isReleaseModule = isReleaseModuleActive(config);
-
   const isKanbanTabEnabled = true;
-
   const isSprintTabEnabled = isSprintModule && (config?.enabledTabs?.sprint !== undefined
     ? config.enabledTabs.sprint
     : config?.methodology === 'scrum' || config?.methodology === 'scrumban');
-
   const isReleaseTabEnabled = isReleaseModule && (config?.enabledTabs?.release !== false);
   const isTimelineTabEnabled = isTimelineModuleActive(config) && (config?.enabledTabs?.timeline !== false);
   const isMetricsTabEnabled = isMetricsModuleActive(config) && (config?.enabledTabs?.metrics !== false);
 
-  // Auto-redirect activeTab if current tab became disabled
-  useEffect(() => {
-    if (activeTab === 'kanban' && !isKanbanTabEnabled) {
-      const fallback = isSprintTabEnabled ? 'sprint' : (isReleaseTabEnabled ? 'release' : 'settings');
-      setActiveTab(fallback);
-    } else if (activeTab === 'sprint' && !isSprintTabEnabled) {
-      const fallback = isKanbanTabEnabled ? 'kanban' : (isReleaseTabEnabled ? 'release' : 'settings');
-      setActiveTab(fallback);
-    } else if (activeTab === 'release' && !isReleaseTabEnabled) {
-      const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
-      setActiveTab(fallback);
-    } else if (activeTab === 'timeline' && !isTimelineTabEnabled) {
-      const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
-      setActiveTab(fallback);
-    } else if (activeTab === 'metrics' && !isMetricsTabEnabled) {
-      const fallback = isKanbanTabEnabled ? 'kanban' : (isSprintTabEnabled ? 'sprint' : 'settings');
-      setActiveTab(fallback);
-    }
-  }, [activeTab, isKanbanTabEnabled, isSprintTabEnabled, isReleaseTabEnabled, isTimelineTabEnabled, isMetricsTabEnabled]);
+  // Keyboard shortcuts
+  const hasOpenModal = Boolean(
+    itemModalOpen ||
+    projectModalOpen ||
+    importWizardOpen ||
+    shortcutsModalOpen ||
+    commandPaletteOpen ||
+    auditModalOpen ||
+    planGuardOpen
+  );
 
-  const loadSettings = useCallback(async (projId?: string) => {
-    try {
-      const cfg = await fetchSettings(projId && projId !== 'all' ? projId : undefined);
-      if (cfg.theme) {
-        // La eleccion explicita del usuario tiene prioridad sobre la config
-        // del proyecto: de lo contrario recargar reverte al tema del proyecto.
-        const userChoice = getStoredItem(STORAGE_KEYS.THEME);
-        if (userChoice !== 'dark' && userChoice !== 'light') {
-          setIsDarkMode(cfg.theme === 'dark');
-        } else {
-          cfg.theme = userChoice as 'dark' | 'light';
-        }
-      }
-      setConfig(cfg);
-      if (cfg.locale && (cfg.locale === 'es' || cfg.locale === 'en')) {
-        setLanguage(cfg.locale);
-      }
-    } catch (err: any) {
-      console.warn('[gripm] Failed to load config:', err.message);
-    }
-  }, [setLanguage]);
+  useKeyboardShortcuts({
+    config,
+    isKanbanTabEnabled,
+    isSprintTabEnabled,
+    isReleaseTabEnabled,
+    hasOpenModal,
+    onOpenCommandPalette: () => setCommandPaletteOpen((prev) => !prev),
+    onToggleSettingsTab: () => {
+      setActiveTab((prev) => (prev === 'settings' ? (config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban')) : 'settings'));
+    },
+    onOpenShortcuts: () => setShortcutsModalOpen((prev) => !prev),
+    onNewItem: () => {
+      setEditingItem(null);
+      setDefaultNewStatus('draft');
+      setItemModalOpen(true);
+    },
+    onSelectTab: (tab: ActiveTab) => setActiveTab(tab)
+  });
 
-  const handleSaveConfig = useCallback(async (newConfig: GripmConfig) => {
-    const saved = await saveSettings(
-      newConfig, 
-      selectedProjectId !== 'all' ? selectedProjectId : undefined
-    );
-    setConfig(saved);
-    if (saved.locale && (saved.locale === 'es' || saved.locale === 'en')) {
-      setLanguage(saved.locale);
-    }
-    if (saved.theme) {
-      if (saved.theme === 'system') {
-        const systemDark = typeof window !== 'undefined' && window.matchMedia
-          ? window.matchMedia('(prefers-color-scheme: dark)').matches
-          : false;
-        setIsDarkMode(systemDark);
-      } else if (saved.theme === 'dark' || saved.theme === 'light') {
-        setIsDarkMode(saved.theme === 'dark');
-      }
-    }
-  }, [selectedProjectId, setLanguage]);
-
-  // Plan Guard Modal (validates plan/spec before in_progress)
-  const [planGuardOpen, setPlanGuardOpen] = useState(false);
-  const [planGuardItem, setPlanGuardItem] = useState<BacklogItem | null>(null);
-
-  // Syncing & Notifications
-  const [isResyncing, setIsResyncing] = useState(false);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const handleUpdateColumnTitle = useCallback(async (colId: string, newTitle: string) => {
-    if (!config) return;
-    const currentColumns = config.kanban?.columns || (viewMode === 'simplificada' ? SIMPLIFIED_COLUMNS : EXPANDED_COLUMNS);
-    const updatedCols = currentColumns.map((col) => {
-      if (col.id === colId) {
-        return { ...col, title: newTitle };
-      }
-      return col;
-    });
-
-    const updatedConfig: GripmConfig = {
-      ...config,
-      kanban: {
-        ...config.kanban,
-        columns: updatedCols
-      }
-    };
-
-    try {
-      await handleSaveConfig(updatedConfig);
-      showToast(t('app.columnUpdated', { title: newTitle }), 'success');
-    } catch (err: any) {
-      showToast(t('app.columnUpdateError', { error: err.message }), 'error');
-    }
-  }, [config, viewMode, handleSaveConfig, showToast, t]);
-
-  const [liveConnected, setLiveConnected] = useState<boolean>(false);
-
-  // Initial & Live Load
-  const loadData = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const data = await fetchBoardData();
-      setBoardData(data);
-      setEditingItem((prevEditing) => {
-        if (!prevEditing) return null;
-        const updated = data.items.find((it) => it.id === prevEditing.id);
-        if (!updated) return prevEditing;
-        // DEV-301: Do not overwrite expectedMtime behind the user's back while editing.
-        // Preserving original expectedMtime ensures that saving stale data triggers the 409 Conflict dialog.
-        if (updated.mtime && prevEditing.mtime && updated.mtime !== prevEditing.mtime) {
-          showToast(t('app.taskModifiedExternally', { code: updated.code || updated.id }), 'info');
-        }
-        return prevEditing;
-      });
-      if (data.projects.length > 0) {
-        if (data.singleProject || data.projects.length <= 1) {
-          const activeId = data.activeProjectId || data.projects[0].id;
-          setSelectedProjectId(activeId);
-          setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, activeId);
-        } else {
-          const savedLocal = getStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID);
-          if (selectedProjectId === 'all') {
-            setSelectedProjectId('all');
-          } else {
-            const candidate = (selectedProjectId && selectedProjectId !== 'all')
-              ? selectedProjectId
-              : (savedLocal || data.activeProjectId || data.projects[0]?.id || '');
-            if (candidate === 'all') {
-              setSelectedProjectId('all');
-            } else {
-              const exists = candidate && data.projects.some((p) => p.id === candidate);
-              const fallback = exists 
-                ? candidate 
-                : (data.activeProjectId && data.projects.some(p => p.id === data.activeProjectId) ? data.activeProjectId : (data.projects[0]?.id || ''));
-              setSelectedProjectId(fallback);
-              if (fallback && fallback !== 'all') {
-                setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, fallback);
-              }
-            }
-          }
-        }
-      }
-    } catch (err: any) {
-      if (!silent) showToast(t('app.loadDataError', { error: err.message }), 'error');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [selectedProjectId, showToast, t]);
-
-  // Codebase Health & Diagnostic Audit Hook (DEV-356)
+  // Codebase Health & Diagnostic Audit Hook
   const {
     report: auditReport,
     isLoading: isAuditLoading,
@@ -396,863 +177,33 @@ export function App() {
     },
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    const switchProjectAndLoad = async () => {
-      if (selectedProjectId && selectedProjectId !== 'all' && !boardData?.singleProject) {
-        setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, selectedProjectId);
-        try {
-          await setActiveProjectApi(selectedProjectId);
-        } catch {}
+  const handleUpdateColumnTitle = useCallback(async (colId: string, newTitle: string) => {
+    if (!config) return;
+    const currentColumns = config.kanban?.columns || (viewMode === 'simplificada' ? SIMPLIFIED_COLUMNS : EXPANDED_COLUMNS);
+    const updatedCols = currentColumns.map((col) => {
+      if (col.id === colId) {
+        return { ...col, title: newTitle };
       }
-      if (!cancelled) {
-        await loadData();
-        await loadSettings(selectedProjectId);
-      }
-    };
-    switchProjectAndLoad();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProjectId]);
-
-  // DEV-301: Persistent SSE subscription using refs to prevent unnecessary reconnect teardowns
-  const loadDataRef = useRef(loadData);
-  loadDataRef.current = loadData;
-  const loadSettingsRef = useRef(loadSettings);
-  loadSettingsRef.current = loadSettings;
-  const selectedProjectIdRef = useRef(selectedProjectId);
-  selectedProjectIdRef.current = selectedProjectId;
-  const showToastRef = useRef(showToast);
-  showToastRef.current = showToast;
-
-  useEffect(() => {
-    const unsubscribe = subscribeToBoardEvents((event) => {
-      if (event.type === 'connected') {
-        setLiveConnected(true);
-      } else if (event.type === 'disconnected') {
-        setLiveConnected(false);
-      } else if (event.type === 'backlog_changed') {
-        loadDataRef.current(true);
-        showToastRef.current(t('app.boardSyncDisk'), 'info');
-      } else if (event.type === 'settings_changed') {
-        loadSettingsRef.current(selectedProjectIdRef.current);
-        loadDataRef.current(true);
-        showToastRef.current(t('app.configSyncDisk'), 'info');
-      }
+      return col;
     });
 
-    return unsubscribe;
-  }, []);
-
-  // DEV-284: Preload ItemModal on idle so card clicks are instantaneous without layout shift
-  useEffect(() => {
-    if (!loading && boardData) {
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        const handle = (window as unknown as { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(() => {
-          preloadItemModal();
-        });
-        return () => {
-          if ('cancelIdleCallback' in window) {
-            (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
-          }
-        };
-      } else {
-        const timer = setTimeout(preloadItemModal, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [loading, boardData]);
-
-  // Keyboard Shortcuts: 'N' for new item, '1'-'4' for tabs, '⌘+,' for settings (DEV-305)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        setCommandPaletteOpen((prev) => !prev);
-        return;
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault();
-        setActiveTab((prev) => (prev === 'settings' ? (config?.defaultView === 'settings' ? 'kanban' : (config?.defaultView || 'kanban')) : 'settings'));
-        return;
-      }
-
-      const target = e.target as HTMLElement | null;
-      if (
-        !target ||
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.tagName === 'BUTTON' ||
-        target.isContentEditable ||
-        Boolean(target.closest('button, input, textarea, select, [contenteditable="true"]'))
-      ) {
-        return;
-      }
-
-      // Single-key shortcuts must not fire when any modal or focus trap is active (DEV-305)
-      if (
-        hasActiveFocusTrap() ||
-        itemModalOpen ||
-        projectModalOpen ||
-        importWizardOpen ||
-        shortcutsModalOpen ||
-        commandPaletteOpen ||
-        auditModalOpen ||
-        planGuardOpen
-      ) {
-        return;
-      }
-
-      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
-        e.preventDefault();
-        setShortcutsModalOpen((prev) => !prev);
-      } else if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        setEditingItem(null);
-        setDefaultNewStatus('draft');
-        setItemModalOpen(true);
-      } else if (e.key === '1') {
-        if (isKanbanTabEnabled) setActiveTab('kanban');
-      } else if (e.key === '2') {
-        if (isSprintTabEnabled) setActiveTab('sprint');
-      } else if (e.key === '3') {
-        if (isReleaseTabEnabled) setActiveTab('release');
-      } else if (e.key === '4') {
-        setActiveTab('trash');
+    const updatedConfig = {
+      ...config,
+      kanban: {
+        ...config.kanban,
+        columns: updatedCols
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [
-    config,
-    isKanbanTabEnabled,
-    isSprintTabEnabled,
-    isReleaseTabEnabled,
-    itemModalOpen,
-    projectModalOpen,
-    importWizardOpen,
-    shortcutsModalOpen,
-    commandPaletteOpen,
-    auditModalOpen,
-    planGuardOpen,
-  ]);
-
-  // Re-sync from project docs (DEV-012)
-  const handleResyncDocs = useCallback(async () => {
-    setIsResyncing(true);
     try {
-      const result = await triggerResync(selectedProjectId);
-      const refreshed = await fetchBoardData();
-      setBoardData(refreshed);
-      showToast(
-        t('app.syncDocsSuccess', { project: result.projectName || 'Project', count: result.importedCount }),
-        'success'
-      );
+      await handleSaveConfig(updatedConfig);
+      showToast(t('app.columnUpdated', { title: newTitle }), 'success');
     } catch (err: any) {
-      showToast(t('app.syncDocsError', { error: err.message }), 'error');
-    } finally {
-      setIsResyncing(false);
+      showToast(t('app.columnUpdateError', { error: err.message }), 'error');
     }
-  }, [selectedProjectId, showToast, t]);
+  }, [config, viewMode, handleSaveConfig, showToast, t]);
 
-  // Item Handlers
-  const handleUpdateStatus = useCallback(async (
-    id: string, 
-    newStatus: ItemStatus, 
-    bypassGuard = false, 
-    targetColId?: string, 
-    targetIndex?: number,
-    calculatedOrder?: number
-  ) => {
-    if (!boardData) return;
-    const targetItem = boardData.items.find((i) => i.id === id);
-    if (!targetItem) return;
-
-    const statusChanged = targetItem.status !== newStatus;
-
-    // Validate if item moving to doing/in_progress has a defined plan/spec
-    if ((newStatus === 'doing' || newStatus === 'in_progress') && statusChanged && !bypassGuard) {
-      const hasSpecOrPlan = 
-        (targetItem.implementationPlan && targetItem.implementationPlan.trim().length > 10) ||
-        (targetItem.acceptanceCriteriaList && targetItem.acceptanceCriteriaList.length > 0) ||
-        (targetItem.fix && targetItem.fix.trim().length > 10) || 
-        (targetItem.description && targetItem.description.trim().length > 50) ||
-        targetItem.sourceDoc;
-
-      if (!hasSpecOrPlan) {
-        setPlanGuardItem(targetItem);
-        setPlanGuardOpen(true);
-        return;
-      }
-    }
-
-    // Determine new order
-    let newOrder = calculatedOrder;
-
-    if (newOrder === undefined) {
-      let targetStatuses: ItemStatus[] = [newStatus];
-      if (targetColId) {
-        const cols = viewMode === 'simplificada' ? SIMPLIFIED_COLUMNS : EXPANDED_COLUMNS;
-        const foundCol = cols.find(c => c.id === targetColId);
-        if (foundCol) targetStatuses = foundCol.statuses;
-      }
-
-      const colItems = boardData.items
-        .filter(it => targetStatuses.includes(it.status) && it.id !== id)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-      const insertIdx = targetIndex !== undefined
-        ? Math.max(0, Math.min(targetIndex, colItems.length))
-        : colItems.length;
-
-      const prevItem = insertIdx > 0 ? colItems[insertIdx - 1] : null;
-      const nextItem = insertIdx < colItems.length ? colItems[insertIdx] : null;
-
-      if (prevItem && nextItem) {
-        const p = prevItem.order ?? 0;
-        const n = nextItem.order ?? (p + 20);
-        newOrder = n > p ? p + (n - p) / 2 : p + 1;
-      } else if (nextItem) {
-        newOrder = (nextItem.order ?? 10) - 10;
-      } else if (prevItem) {
-        newOrder = (prevItem.order ?? 0) + 10;
-      } else {
-        newOrder = 10;
-      }
-    }
-
-    const orderChanged = targetItem.order !== newOrder;
-
-    // Si ni el estado ni el orden cambiaron, no hacer nada
-    if (!statusChanged && !orderChanged) {
-      return;
-    }
-
-    const newItems = boardData.items.map(it => {
-      if (it.id === id) {
-        return { ...it, status: newStatus, order: newOrder };
-      }
-      return it;
-    });
-
-    const prevItems = [...boardData.items];
-
-    // Optimistic update
-    setBoardData((prev) => (prev ? { ...prev, items: newItems } : null));
-
-    try {
-      const updated = await updateItem(id, { status: newStatus, order: newOrder });
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((it) => (it.id === id ? { ...it, ...updated, order: newOrder } : it))
-        };
-      });
-      if (statusChanged) {
-        showToast(t('app.statusUpdated', { code: updated.code, status: newStatus }), 'info');
-      } else if (orderChanged) {
-        showToast(t('app.itemOrderUpdated', { code: targetItem.code }), 'success');
-      }
-    } catch (err: any) {
-      // Rollback
-      setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
-      showToast(t('app.statusUpdateError', { error: err.message }), 'error');
-    }
-  }, [boardData, viewMode, showToast, t]);
-
-  const handleConfirmStartWithPlan = useCallback(async (itemId: string, updatedPlan?: string) => {
-    if (!boardData) return;
-    const updates: Partial<BacklogItem> = { status: 'doing' };
-    if (updatedPlan) {
-      updates.implementationPlan = updatedPlan;
-      updates.fix = updatedPlan;
-    }
-    const updated = await updateItem(itemId, updates);
-    setBoardData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((it) => (it.id === itemId ? updated : it))
-      };
-    });
-    setPlanGuardOpen(false);
-    setPlanGuardItem(null);
-  }, [boardData]);
-
-  const handleUpdatePriority = useCallback(async (id: string, newPriority: Priority) => {
-    if (!boardData) return;
-    const existing = boardData.items.find((it) => it.id === id);
-    if (existing && existing.priority === newPriority) return;
-    try {
-      const updated = await updateItem(id, { priority: newPriority });
-      setBoardData((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((it) => (it.id === id ? updated : it))
-            }
-          : null
-      );
-      showToast(t('app.priorityUpdated', { code: updated.code, priority: newPriority.toUpperCase() }), 'info');
-    } catch (err: any) {
-      showToast(t('app.priorityUpdateError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  const handleReorderBacklogItem = useCallback(async (
-    draggedId: string, 
-    targetSprint: string, 
-    targetIndex: number
-  ) => {
-    if (!boardData) return;
-    const item = boardData.items.find((it) => it.id === draggedId);
-    if (!item) return;
-
-    // Items belonging to target group (excluding dragged item), sorted by order
-    const groupItems = boardData.items
-      .filter((it) => {
-        const itSprint = it.sprint || it.targetSprint || '';
-        return itSprint === targetSprint && it.id !== draggedId;
-      })
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    // Clamp insert index
-    const insertIdx = Math.max(0, Math.min(targetIndex, groupItems.length));
-    
-    // Insert dragged item at exact target position
-    const updatedItem = {
-      ...item,
-      sprint: targetSprint,
-      targetSprint: targetSprint
-    };
-    groupItems.splice(insertIdx, 0, updatedItem);
-
-    // Compute sequential orders (10, 20, 30, ...)
-    const orderMap = new Map<string, number>();
-    groupItems.forEach((it, i) => {
-      orderMap.set(it.id, (i + 1) * 10);
-    });
-
-    const newOrder = orderMap.get(draggedId) ?? item.order;
-
-    // Optimistic UI state update
-    const prevItems = [...boardData.items];
-    const newItems = boardData.items.map((it) => {
-      if (it.id === draggedId) {
-        return { ...it, sprint: targetSprint, targetSprint: targetSprint, order: newOrder };
-      }
-      if (orderMap.has(it.id)) {
-        return { ...it, order: orderMap.get(it.id)! };
-      }
-      return it;
-    });
-
-    setBoardData((prev) => (prev ? { ...prev, items: newItems } : null));
-
-    try {
-      // DEV-301: Persist dragged item and sibling orders in a single atomic bulk update transaction
-      const patches = [
-        {
-          id: draggedId,
-          sprint: targetSprint,
-          targetSprint: targetSprint,
-          order: newOrder
-        },
-        ...Array.from(orderMap.entries())
-          .filter(([id]) => id !== draggedId)
-          .map(([id, ord]) => ({ id, order: ord }))
-      ];
-      await bulkUpdateItems(patches);
-      showToast(t('app.taskOrderUpdated'), 'success');
-    } catch (err: any) {
-      setBoardData((prev) => (prev ? { ...prev, items: prevItems } : null));
-      showToast(t('app.taskOrderUpdateError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  // DEV-301: Unified contextual sprint assignment propagating immediately across Sandbox and Local modes
-  const handleAssignSprint = useCallback(async (item: BacklogItem, targetSprint: string) => {
-    try {
-      await updateItem(item.id, {
-        sprint: targetSprint,
-        targetSprint: targetSprint,
-        sprints: targetSprint ? [targetSprint] : []
-      });
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((i) =>
-            i.id === item.id
-              ? {
-                  ...i,
-                  sprint: targetSprint,
-                  targetSprint: targetSprint,
-                  sprints: targetSprint ? [targetSprint] : []
-                }
-              : i
-          )
-        };
-      });
-      showToast(targetSprint ? t('app.assignedToSprint', { sprint: targetSprint }) : t('app.returnedToBacklog'), 'success');
-    } catch (err: any) {
-      showToast(t('app.assignSprintError', { error: err?.message || String(err) }), 'error');
-    }
-  }, [showToast, t]);
-
-  // DEV-049/DEV-096: Soft delete (send to trash)
-  const handleDeleteItem = useCallback(async (id: string) => {
-    if (!boardData) return;
-    try {
-      await deleteItem(id);
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((it) =>
-            it.id === id
-              ? {
-                  ...it,
-                  isDeleted: true,
-                  deletedAt: new Date().toISOString(),
-                  previousStatus: it.previousStatus || it.status,
-                }
-              : it
-          ),
-        };
-      });
-      showToast(t('app.itemMovedToTrash'), 'success');
-    } catch (err: any) {
-      showToast(t('app.itemMoveToTrashError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  // DEV-282: Callbacks estables para el tablero Kanban y memorización de ItemCard
-  const handleKanbanUpdateStatus = useCallback((
-    id: string,
-    status: ItemStatus,
-    targetColId?: string,
-    targetIndex?: number,
-    calculatedOrder?: number
-  ) => {
-    handleUpdateStatus(id, status, false, targetColId, targetIndex, calculatedOrder);
-  }, [handleUpdateStatus]);
-
-  const handleKanbanClickItem = useCallback((item: BacklogItem) => {
-    setEditingItem(item);
-    setItemModalOpen(true);
-  }, []);
-
-  const handleKanbanQuickAddItem = useCallback((status: ItemStatus, defaultSprint?: string) => {
-    setEditingItem(null);
-    setDefaultNewStatus(status);
-    setDefaultNewSprint(defaultSprint || '');
-    setItemModalOpen(true);
-  }, []);
-
-  // Sprint lifecycle handlers (DEV-055)
-  const handleCreateSprint = useCallback(async (sprintData: Partial<Sprint>) => {
-    try {
-      const created = await createSprint({
-        ...sprintData,
-        projectId: selectedProjectId !== 'all' ? selectedProjectId : undefined,
-      });
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        const existingSprints = prev.sprints || [];
-        return {
-          ...prev,
-          sprints: [...existingSprints, created],
-        };
-      });
-      showToast(t('app.sprintCreated', { name: created.name }), 'success');
-    } catch (err: any) {
-      showToast(t('app.sprintCreateError', { error: err.message }), 'error');
-    }
-  }, [selectedProjectId, showToast, t]);
-
-  const handleUpdateSprintMeta = useCallback(async (id: string, sprintData: Partial<Sprint>) => {
-    try {
-      const existing = boardData?.sprints?.find((s) => s.id === id);
-      const updated = await updateSprint(id, {
-        ...sprintData,
-        projectId: sprintData.projectId || existing?.projectId || (selectedProjectId !== 'all' ? selectedProjectId : undefined),
-      });
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        const existingSprints = prev.sprints || [];
-        return {
-          ...prev,
-          sprints: existingSprints.map((s) => (s.id === id ? updated : s)),
-        };
-      });
-      showToast(t('app.sprintUpdated', { name: updated.name }), 'info');
-    } catch (err: any) {
-      showToast(t('app.sprintUpdateError', { error: err.message }), 'error');
-    }
-  }, [boardData?.sprints, selectedProjectId, showToast, t]);
-
-  const handleStartSprint = useCallback(async (sprint: Sprint) => {
-    try {
-      const updated = await updateSprint(sprint.id, {
-        status: 'active',
-        projectId: sprint.projectId || (selectedProjectId !== 'all' ? selectedProjectId : undefined),
-      });
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        const existingSprints = prev.sprints || [];
-        return {
-          ...prev,
-          sprints: existingSprints.map((s) => {
-            if (s.id === sprint.id) return updated;
-            if (s.status === 'active') return { ...s, status: 'completed' as const };
-            return s;
-          }),
-        };
-      });
-      showToast(t('app.sprintStarted', { name: sprint.name }), 'success');
-    } catch (err: any) {
-      showToast(t('app.sprintStartError', { error: err.message }), 'error');
-    }
-  }, [selectedProjectId, showToast, t]);
-
-  const handleCompleteSprint = useCallback(async (sprint: Sprint, destinationSprintName: string, retroData?: any) => {
-    try {
-      const updatedSprint = await updateSprint(sprint.id, {
-        status: 'completed',
-        projectId: sprint.projectId || (selectedProjectId !== 'all' ? selectedProjectId : undefined),
-        retro: retroData
-      } as any);
-      
-      const sprintPendingItems = (boardData?.items || []).filter(
-        (i) => (i.sprint === sprint.name || i.targetSprint === sprint.name) &&
-               !(i.status === 'done' || i.status === 'ready' || i.status === 'finish')
-      );
-
-      // DEV-301: Atomic bulk update of pending and completed tasks on sprint completion
-      const sprintPatches: Array<{ id: string } & Partial<BacklogItem>> = [];
-      for (const item of sprintPendingItems) {
-        const existingSprints = item.sprints || [sprint.name];
-        const updatedSprints = Array.from(new Set([...existingSprints, sprint.name, ...(destinationSprintName ? [destinationSprintName] : [])]));
-        sprintPatches.push({
-          id: item.id,
-          sprint: destinationSprintName || '',
-          targetSprint: destinationSprintName || '',
-          sprints: updatedSprints
-        });
-      }
-
-      const sprintDoneItems = (boardData?.items || []).filter(
-        (i) => (i.sprint === sprint.name || i.targetSprint === sprint.name) &&
-               (i.status === 'done' || i.status === 'ready' || i.status === 'finish')
-      );
-
-      for (const item of sprintDoneItems) {
-        const existingSprints = item.sprints || [sprint.name];
-        if (!existingSprints.includes(sprint.name)) {
-          sprintPatches.push({
-            id: item.id,
-            sprints: [...existingSprints, sprint.name]
-          });
-        }
-      }
-
-      if (sprintPatches.length > 0) {
-        await bulkUpdateItems(sprintPatches);
-      }
-
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          sprints: (prev.sprints || []).map((s) => (s.id === sprint.id ? updatedSprint : s)),
-          items: prev.items.map((i) => {
-            const isPendingInThisSprint = (i.sprint === sprint.name || i.targetSprint === sprint.name) &&
-              !(i.status === 'done' || i.status === 'ready' || i.status === 'finish');
-            if (isPendingInThisSprint) {
-              const prevSp = i.sprints || [sprint.name];
-              const nextSp = Array.from(new Set([...prevSp, sprint.name, ...(destinationSprintName ? [destinationSprintName] : [])]));
-              return { 
-                ...i, 
-                sprint: destinationSprintName || '', 
-                targetSprint: destinationSprintName || '',
-                sprints: nextSp 
-              };
-            }
-            if (i.sprint === sprint.name || i.targetSprint === sprint.name) {
-              const prevSp = i.sprints || [sprint.name];
-              return { ...i, sprints: Array.from(new Set([...prevSp, sprint.name])) };
-            }
-            return i;
-          }),
-        };
-      });
-
-      const destMsg = destinationSprintName ? t('app.toSprint', { sprint: destinationSprintName }) : t('app.toBacklog');
-      showToast(t('app.sprintCompleted', { name: sprint.name, count: sprintPendingItems.length, dest: destMsg }), 'success');
-    } catch (err: any) {
-      showToast(t('app.sprintCompleteError', { error: err.message }), 'error');
-    }
-  }, [boardData?.items, selectedProjectId, showToast, t]);
-
-  const handleDeleteSprint = useCallback(async (id: string) => {
-    try {
-      const sprintToDelete = boardData?.sprints?.find((s) => s.id === id);
-      const targetProjectId = sprintToDelete?.projectId || (selectedProjectId !== 'all' ? selectedProjectId : undefined);
-      await deleteSprint(id, targetProjectId);
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          sprints: (prev.sprints || []).filter((s) => s.id !== id),
-          items: prev.items.map((i) => {
-            if (sprintToDelete && (i.sprint === sprintToDelete.name || i.targetSprint === sprintToDelete.name)) {
-              return { ...i, sprint: '', targetSprint: '' };
-            }
-            return i;
-          }),
-        };
-      });
-      showToast(t('app.sprintDeleted'), 'info');
-    } catch (err: any) {
-      showToast(t('app.sprintDeleteError', { error: err.message }), 'error');
-    }
-  }, [boardData?.sprints, selectedProjectId, showToast, t]);
-
-  const handleSaveItem = useCallback(async (itemData: Partial<BacklogItem> & { expectedMtime?: number; force?: boolean }) => {
-    if (!boardData) return;
-    if (itemData.id) {
-      // Update
-      const updated = await updateItem(itemData.id, itemData);
-      setBoardData((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((it) => (it.id === updated.id ? updated : it))
-            }
-          : null
-      );
-      showToast(t('app.itemSaved', { code: updated.code }), 'success');
-    } else {
-      // Create
-      const created = await createItem({
-        ...itemData,
-        projectId: itemData.projectId || (selectedProjectId === 'all' ? (boardData?.projects[0]?.id || '') : selectedProjectId)
-      });
-      setBoardData((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: [created, ...prev.items]
-            }
-          : null
-      );
-      showToast(t('app.itemCreated', { code: created.code }), 'success');
-    }
-  }, [boardData, selectedProjectId, showToast, t]);
-
-  const handleUnlinkChildTask = useCallback(async (childId: string) => {
-    if (!boardData) return;
-    const child = boardData.items.find((i) => i.id === childId || i.code === childId);
-    if (!child) return;
-    try {
-      const updated = await updateItem(child.id, { parentId: '' });
-      setBoardData((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((it) => (it.id === child.id ? updated : it)),
-            }
-          : null
-      );
-      showToast(`${t('itemModal.unlinkChild')}: ${child.code || child.id}`, 'info');
-    } catch (err: any) {
-      showToast(t('app.genericError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  const handleCreateTaskFromAction = useCallback(async (title: string) => {
-    try {
-      await handleSaveItem({
-        title,
-        description: 'Acción derivada de retrospectiva de sprint.',
-        type: 'feature',
-        priority: 'p2',
-        status: 'draft'
-      });
-      showToast(t('app.taskFromRetroCreated'), 'success');
-    } catch (err: any) {
-      showToast(t('app.taskFromRetroError', { error: err.message }), 'error');
-    }
-  }, [handleSaveItem, showToast, t]);
-
-  const handleCreateProject = useCallback(async (projectData: Partial<Project>) => {
-    const created = await createProject(projectData);
-    setBoardData((prev) =>
-      prev
-        ? {
-            ...prev,
-            projects: [...prev.projects, created]
-          }
-        : null
-    );
-    setSelectedProjectId(created.id);
-    showToast(t('app.projectCreated', { name: created.name }), 'success');
-  }, [showToast, t]);
-
-  const handleDeleteProject = useCallback(async (id: string) => {
-    try {
-      await deleteProject(id);
-      showToast(t('app.projectUnlinked'), 'info');
-      const refreshed = await fetchBoardData();
-      setBoardData(refreshed);
-      if (selectedProjectId === id || refreshed.projects.length <= 1) {
-        const remaining = refreshed.projects.filter(p => p.id !== id);
-        const fallbackId = refreshed.activeProjectId || remaining[0]?.id || '';
-        setSelectedProjectId(fallbackId);
-        if (fallbackId) {
-          setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, fallbackId);
-        }
-      }
-    } catch (err: any) {
-      showToast(t('app.projectUnlinkError', { error: err.message }), 'error');
-    }
-  }, [selectedProjectId, showToast, t]);
-
-  const handleRestoreDemo = useCallback(async () => {
-    try {
-      await restoreDemoProject();
-      setSelectedProjectId('demo');
-      setStoredItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, 'demo');
-      await setActiveProjectApi('demo');
-      showToast(t('app.demoRestored'), 'success');
-      const refreshed = await fetchBoardData();
-      setBoardData(refreshed);
-    } catch (err: any) {
-      showToast(t('app.demoRestoreError', { error: err.message }), 'error');
-    }
-  }, [showToast, t]);
-
-  const handleConvertToMd = useCallback(async (projectId: string) => {
-    try {
-      const res = await convertProjectToMd(projectId);
-      showToast(res.message, 'success');
-      await loadData();
-    } catch (err: any) {
-      showToast(t('app.convertToMdError', { error: err.message }), 'error');
-    }
-  }, [loadData, showToast, t]);
-
-  const handleConvertToJson = useCallback(async (projectId: string) => {
-    try {
-      const res = await convertProjectToJson(projectId);
-      showToast(res.message, 'success');
-      await loadData();
-    } catch (err: any) {
-      showToast(t('app.convertToJsonError', { error: err.message }), 'error');
-    }
-  }, [loadData, showToast, t]);
-
-  const handleExportMonolithic = useCallback(async (projectId: string) => {
-    try {
-      const res = await exportMonolithicMd(projectId, false);
-      const blob = new Blob([res.content], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'BACKLOG.md';
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(t('app.reportDownloaded'), 'success');
-    } catch (err: any) {
-      showToast(t('app.reportError', { error: err.message }), 'error');
-    }
-  }, [showToast, t]);
-
-  const handleExportJson = useCallback(async (projectId: string) => {
-    try {
-      const res = await exportProjectJson(projectId);
-      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${res.project.codePrefix.toLowerCase()}-backlog.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(t('app.backupDownloaded'), 'success');
-    } catch (err: any) {
-      showToast(t('app.backupError', { error: err.message }), 'error');
-    }
-  }, [showToast, t]);
-
-  const handleArchiveRelease = useCallback(async (releaseData: Partial<Release>, itemCodes: string[]) => {
-    const created = await createRelease(releaseData, itemCodes);
-    await loadData();
-    const actionMsg = releaseData.status === 'unreleased' 
-      ? t('app.releaseSavedPrep', { version: created.version })
-      : t('app.releaseReleased', { version: created.version });
-    showToast(actionMsg, 'success');
-  }, [loadData, showToast, t]);
-
-  const handleDeleteRelease = useCallback(async (releaseId: string) => {
-    try {
-      await deleteReleaseApi(releaseId);
-      await loadData();
-      showToast(t('app.releaseDeleted'), 'info');
-    } catch (err: any) {
-      showToast(t('app.releaseDeleteError', { error: err.message }), 'error');
-    }
-  }, [loadData, showToast, t]);
-
-
-
-  // DEV-049/DEV-096: Restore from trash via the new /restore endpoint
-  const handleRestoreFromTrash = useCallback(async (id: string) => {
-    if (!boardData) return;
-    try {
-      await restoreItem(id);
-      // Optimistically: find previousStatus from item data
-      const item = boardData.items.find((it) => it.id === id);
-      const prevStatus = item?.previousStatus || item?.status || ('draft' as ItemStatus);
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((it) =>
-            it.id === id
-              ? { ...it, status: prevStatus, isDeleted: undefined, deletedAt: undefined, previousStatus: undefined }
-              : it
-          ),
-        };
-      });
-      showToast(t('app.itemRestored'), 'success');
-    } catch (err: any) {
-      showToast(t('app.itemRestoreError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  // DEV-049: Physical purge (irreversible)
-  const handlePurgeItem = useCallback(async (id: string) => {
-    if (!boardData) return;
-    try {
-      await purgeItem(id);
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        return { ...prev, items: prev.items.filter((it) => it.id !== id) };
-      });
-      showToast(t('app.itemPurged'), 'success');
-    } catch (err: any) {
-      showToast(t('app.itemPurgeError', { error: err.message }), 'error');
-    }
-  }, [boardData, showToast, t]);
-
-  // Filtered Items Calculation
+  // Filtered items & collections
   const allProjectItems = useMemo(() => {
     if (!boardData) return [];
     if (selectedProjectId === 'all' || boardData.singleProject || (boardData.projects && boardData.projects.length <= 1)) {
@@ -1261,12 +212,10 @@ export function App() {
     return boardData.items.filter((i) => i.projectId === selectedProjectId);
   }, [boardData, selectedProjectId]);
 
-  // Unique modules for filtering dropdown (DEV-303, AC #2)
   const availableModules = useMemo(() => {
     return getAvailableModules(allProjectItems, config?.modulesList);
   }, [allProjectItems, config?.modulesList]);
 
-  // Sprints pertenecientes al proyecto seleccionado (o todos si selectedProjectId === 'all' o singleProject)
   const projectSprints = useMemo(() => {
     if (!boardData?.sprints) return [];
     if (selectedProjectId === 'all' || boardData.singleProject || (boardData.projects && boardData.projects.length <= 1)) {
@@ -1275,7 +224,6 @@ export function App() {
     return boardData.sprints.filter((s) => s.projectId === selectedProjectId || !s.projectId);
   }, [boardData?.sprints, boardData?.singleProject, boardData?.projects, selectedProjectId]);
 
-  // Sprints disponibles para filtros (oficiales registrados + sprints presentes en tareas del proyecto)
   const availableSprints = useMemo(() => {
     const set = new Set<string>();
     projectSprints.forEach((s) => {
@@ -1290,7 +238,6 @@ export function App() {
     return Array.from(set).sort();
   }, [projectSprints, allProjectItems]);
 
-  // Nombres de sprints enriquecidos (oficiales + históricos de tareas) para autocompletar en ItemModal
   const sprintNamesForAutocomplete = useMemo(() => {
     const set = new Set<string>(availableSprints);
     for (const it of allProjectItems) {
@@ -1300,7 +247,6 @@ export function App() {
     return Array.from(set).sort();
   }, [availableSprints, allProjectItems]);
 
-  // Releases pertenecientes al proyecto seleccionado (DEV-056, DEV-087)
   const projectReleases = useMemo(() => {
     if (!boardData?.releases) return [];
     if (selectedProjectId === 'all' || boardData.singleProject || (boardData.projects && boardData.projects.length <= 1)) {
@@ -1309,8 +255,6 @@ export function App() {
     return boardData.releases.filter((r) => r.projectId === selectedProjectId);
   }, [boardData?.releases, boardData?.singleProject, boardData?.projects, selectedProjectId]);
 
-  // Versiones canónicas oficiales para autocompletar y chips (DEV-033, DEV-087)
-  // NUNCA incluir strings arbitrarios/corruptos inferidos de tareas para evitar DEV-087
   const availableReleases = useMemo(() => {
     const set = new Set<string>();
     for (const r of projectReleases) {
@@ -1319,7 +263,6 @@ export function App() {
     return Array.from(set).sort();
   }, [projectReleases]);
 
-  // Metrics
   const stats = useMemo(() => {
     const active = allProjectItems.filter((i) => !i.isDeleted && i.status !== 'dismissed' && i.status !== 'cancelled');
     const pending = active.filter((i) => i.status === 'draft' || i.status === 'ideas' || i.status === 'backlog').length;
@@ -1334,19 +277,15 @@ export function App() {
   }, [allProjectItems]);
 
   const archivedCount = useMemo(() => {
-    // Archived = dismissed/cancelled but NOT soft-deleted (those go to Trash)
     return allProjectItems.filter((i) =>
       (i.status === 'dismissed' || i.status === 'cancelled') && !i.isDeleted
     ).length;
   }, [allProjectItems]);
 
-  // DEV-049/DEV-096: Trashed items (soft-deleted)
   const trashedItems = useMemo(() => {
     return allProjectItems.filter((i) => Boolean(i.isDeleted));
   }, [allProjectItems]);
 
-  // Visible items after search/type/priority/module/status filters
-  // Visible items after search/type/priority/module/status filters (DEV-303, AC #1)
   const visibleItems = useMemo(() => {
     return filterItems(allProjectItems, filters);
   }, [allProjectItems, filters]);
@@ -1383,7 +322,6 @@ export function App() {
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      
       {/* Header */}
       <Header
         projects={projects}
@@ -1420,10 +358,7 @@ export function App() {
         onOpenAudit={() => setAuditModalOpen(true)}
       />
 
-      {/* DEV-222 - Banner de demo. La URL raíz ES la sandbox, así que quien llega no
-          tiene contexto de qué está mirando ni salida hacia el repo o la instalación.
-          Este banner resuelve las dos cosas sin agregar una landing que mantener.
-          Se oculta cuando el detector encuentra daemon, o sea nunca en local. */}
+      {/* Demo Sandbox Banner */}
       {isSandboxMode() && (
         <div className="mx-4 sm:mx-6 lg:mx-8 mt-3 px-3.5 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
           <span className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-medium">
@@ -1457,7 +392,7 @@ export function App() {
         </div>
       )}
 
-      {/* Filter Bar (Active in Kanban and Sprint tabs) */}
+      {/* Filter Bar */}
       {activeTab !== 'release' && activeTab !== 'settings' && activeTab !== 'trash' && activeTab !== 'metrics' && (
         <FilterBar
           filters={filters}
@@ -1473,7 +408,7 @@ export function App() {
         />
       )}
 
-      {/* Project Error Warning Banner (e.g. EPERM or missing path) */}
+      {/* Project Error Warning Banner */}
       {(() => {
         const activeProj = projects.find(p => p.id === selectedProjectId);
         if (!activeProj?.error) return null;
@@ -1513,16 +448,23 @@ export function App() {
             onTogglePreviousDone={(val) => setFilters((prev) => ({ ...prev, includePreviousDone: val }))}
             includeDismissedCancelled={filters.includeDismissedCancelled}
             includeIdeas={filters.includeIdeas}
-            onToggleIdeas={(val) => setFilters((prev) => ({
-              ...prev,
-              includeIdeas: val,
-            }))}
+            onToggleIdeas={(val) => setFilters((prev) => ({ ...prev, includeIdeas: val }))}
             onNavigateToTab={setActiveTab}
             onUpdateColumnTitle={handleUpdateColumnTitle}
-            onUpdateStatus={handleKanbanUpdateStatus}
+            onUpdateStatus={(id, status, targetColId, targetIndex, calculatedOrder) => {
+              handleUpdateStatus(id, status, false, targetColId, targetIndex, calculatedOrder);
+            }}
             onDeleteItem={handleDeleteItem}
-            onClickItem={handleKanbanClickItem}
-            onQuickAddItem={handleKanbanQuickAddItem}
+            onClickItem={(item) => {
+              setEditingItem(item);
+              setItemModalOpen(true);
+            }}
+            onQuickAddItem={(status, defaultSprint) => {
+              setEditingItem(null);
+              setDefaultNewStatus(status);
+              setDefaultNewSprint(defaultSprint || '');
+              setItemModalOpen(true);
+            }}
             onShowToast={showToast}
             onAssignSprint={handleAssignSprint}
           />
@@ -1548,19 +490,8 @@ export function App() {
                 const curSprint = existing ? (existing.sprint || existing.targetSprint || '') : '';
                 if (curSprint === newSprint) return;
                 try {
-                  const updated = await updateItem(id, { 
-                    sprint: newSprint, 
-                    targetSprint: newSprint,
-                    sprints: newSprint ? [newSprint] : []
-                  });
-                  setBoardData((prev) => {
-                    if (!prev) return prev;
-                    return {
-                      ...prev,
-                      items: prev.items.map((it) => (it.id === id ? { ...it, ...updated } : it))
-                    };
-                  });
-                  showToast(t('app.taskAssignedToSprint', { code: updated.code, sprint: newSprint || t('filter.noSprint') }), 'info');
+                  await handleAssignSprint(existing || ({ id } as BacklogItem), newSprint);
+                  showToast(t('app.taskAssignedToSprint', { code: existing?.code || id, sprint: newSprint || t('filter.noSprint') }), 'info');
                 } catch (err: any) {
                   showToast(t('app.taskFromRetroError', { error: err.message }), 'error');
                 }
@@ -1650,240 +581,103 @@ export function App() {
         )}
       </main>
 
-      {/* Item Detail / Edit / Create Modal (DEV-284: Code-splitting) */}
-      {itemModalOpen && (
-        <Suspense fallback={null}>
-          <ItemModal
-            isOpen={itemModalOpen}
-            onClose={() => {
-              setItemModalOpen(false);
-              setEditingItem(null);
-              setDefaultNewSprint('');
-            }}
-            item={editingItem}
-            defaultStatus={defaultNewStatus}
-            defaultSprint={defaultNewSprint}
-            projects={projects}
-            availableModules={availableModules}
-            availableSprints={sprintNamesForAutocomplete}
-            availableReleases={availableReleases}
-            sprints={projectSprints}
-            releases={projectReleases}
-            onSave={handleSaveItem}
-            onDelete={handleDeleteItem}
-            onUnlinkChild={handleUnlinkChildTask}
-            activeProjectId={selectedProjectId !== 'all' ? selectedProjectId : projects[0]?.id}
-            config={config}
-            allItems={boardData?.items || []}
-          />
-        </Suspense>
-      )}
+      {/* Lazy Modals Portal */}
+      <AppModals
+        itemModalOpen={itemModalOpen}
+        onCloseItemModal={() => {
+          setItemModalOpen(false);
+          setEditingItem(null);
+          setDefaultNewSprint('');
+        }}
+        editingItem={editingItem}
+        defaultNewStatus={defaultNewStatus}
+        defaultNewSprint={defaultNewSprint}
+        projects={projects}
+        availableModules={availableModules}
+        sprintNamesForAutocomplete={sprintNamesForAutocomplete}
+        availableReleases={availableReleases}
+        projectSprints={projectSprints}
+        projectReleases={projectReleases}
+        onSaveItem={handleSaveItem}
+        onDeleteItem={handleDeleteItem}
+        onUnlinkChildTask={handleUnlinkChildTask}
+        selectedProjectId={selectedProjectId}
+        config={config}
+        allItems={boardData?.items || []}
 
-      {/* Project Modal (DEV-284: Code-splitting) */}
-      {projectModalOpen && (
-        <Suspense fallback={null}>
-          <ProjectModal
-            isOpen={projectModalOpen}
-            onClose={() => setProjectModalOpen(false)}
-            onSave={handleCreateProject}
-          />
-        </Suspense>
-      )}
+        projectModalOpen={projectModalOpen}
+        onCloseProjectModal={() => setProjectModalOpen(false)}
+        onCreateProject={handleCreateProject}
 
-      {/* Plan Guard Modal (verifies plan before moving to In Progress) */}
-      {planGuardOpen && (
-        <Suspense fallback={null}>
-          <PlanGuardModal
-            isOpen={planGuardOpen}
-            item={planGuardItem}
-            onClose={() => {
-              setPlanGuardOpen(false);
-              setPlanGuardItem(null);
-            }}
-            onConfirmStart={handleConfirmStartWithPlan}
-            onShowToast={showToast}
-          />
-        </Suspense>
-      )}
+        planGuardOpen={planGuardOpen}
+        planGuardItem={planGuardItem}
+        onClosePlanGuard={() => {
+          setPlanGuardOpen(false);
+          setPlanGuardItem(null);
+        }}
+        onConfirmStartWithPlan={handleConfirmStartWithPlan}
+        onShowToast={showToast}
 
-      {/* Import Wizard Modal (DEV-018: Legacy Markdown Import / DEV-303: Code-splitting) */}
-      {importWizardOpen && (
-        <Suspense fallback={null}>
-          <ImportWizardModal
-            isOpen={importWizardOpen}
-            onClose={() => setImportWizardOpen(false)}
-            projects={boardData?.projects || []}
-            activeProjectId={selectedProjectId === 'all' ? (boardData?.projects[0]?.id || '') : selectedProjectId}
-            onImportComplete={() => {
-              loadData(true);
-              showToast(t('app.itemsImportedSuccess'), 'success');
-            }}
-          />
-        </Suspense>
-      )}
+        importWizardOpen={importWizardOpen}
+        onCloseImportWizard={() => setImportWizardOpen(false)}
+        onImportComplete={() => {
+          loadData(true);
+          showToast(t('app.itemsImportedSuccess'), 'success');
+        }}
 
-      {/* Keyboard Shortcuts Modal (DEV-254 / DEV-284) */}
-      {shortcutsModalOpen && (
-        <Suspense fallback={null}>
-          <KeyboardShortcutsModal
-            isOpen={shortcutsModalOpen}
-            onClose={() => setShortcutsModalOpen(false)}
-            updateAvailable={boardData?.updateAvailable}
-          />
-        </Suspense>
-      )}
+        shortcutsModalOpen={shortcutsModalOpen}
+        onCloseShortcutsModal={() => setShortcutsModalOpen(false)}
+        updateAvailable={boardData?.updateAvailable}
 
-      {/* Command Palette Modal (DEV-255 / DEV-284) */}
-      {commandPaletteOpen && (
-        <Suspense fallback={null}>
-          <CommandPaletteModal
-            isOpen={commandPaletteOpen}
-            onClose={() => setCommandPaletteOpen(false)}
-            items={boardData?.items || []}
-            projects={projects}
-            activeProjectId={selectedProjectId}
-            onSelectProject={setSelectedProjectId}
-            onSelectItem={(item) => {
-              setEditingItem(item);
-              setItemModalOpen(true);
-            }}
-            onNewItem={() => {
-              setEditingItem(null);
-              setDefaultNewStatus('draft');
-              setItemModalOpen(true);
-            }}
-            onNewProject={() => setProjectModalOpen(true)}
-            activeTab={activeTab}
-            onSelectTab={setActiveTab}
-            config={config}
-            isDarkMode={isDarkMode}
-            onToggleTheme={handleToggleTheme}
-            onResyncDocs={handleResyncDocs}
-            onOpenShortcuts={() => setShortcutsModalOpen(true)}
-            language={language}
-            onToggleLanguage={() => setLanguage(language === 'es' ? 'en' : 'es')}
-          />
-        </Suspense>
-      )}
+        commandPaletteOpen={commandPaletteOpen}
+        onCloseCommandPalette={() => setCommandPaletteOpen(false)}
+        onSelectProject={setSelectedProjectId}
+        onSelectItemFromPalette={(item) => {
+          setEditingItem(item);
+          setItemModalOpen(true);
+        }}
+        onNewItemFromPalette={() => {
+          setEditingItem(null);
+          setDefaultNewStatus('draft');
+          setItemModalOpen(true);
+        }}
+        onNewProjectFromPalette={() => setProjectModalOpen(true)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        isDarkMode={isDarkMode}
+        onToggleTheme={handleToggleTheme}
+        onResyncDocs={handleResyncDocs}
+        onOpenShortcutsFromPalette={() => setShortcutsModalOpen(true)}
+        language={language}
+        onToggleLanguage={() => setLanguage(language === 'es' ? 'en' : 'es')}
 
-      {/* Codebase Health Diagnostic Modal (DEV-356) */}
-      {auditModalOpen && (
-        <Suspense fallback={null}>
-          <AuditModal
-            isOpen={auditModalOpen}
-            onClose={() => setAuditModalOpen(false)}
-            report={auditReport}
-            isLoading={isAuditLoading}
-            isRefreshing={isAuditRefreshing}
-            isImporting={isAuditImporting}
-            onRefresh={refreshAuditData}
-            onImportTodos={importTodosAction}
-            config={config}
-          />
-        </Suspense>
-      )}
+        auditModalOpen={auditModalOpen}
+        onCloseAuditModal={() => setAuditModalOpen(false)}
+        auditReport={auditReport}
+        isAuditLoading={isAuditLoading}
+        isAuditRefreshing={isAuditRefreshing}
+        isAuditImporting={isAuditImporting}
+        onRefreshAudit={refreshAuditData}
+        onImportTodos={importTodosAction}
+      />
 
-      {/* Mobile Bottom Navigation Bar (DEV-007) */}
-      <nav 
-        aria-label={t('app.mobileNav')}
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-[#090d15]/95 backdrop-blur-lg border-t border-slate-200 dark:border-white/[0.08] px-2 py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom,0px))] flex items-center justify-around shadow-lg"
-      >
-        {isKanbanTabEnabled && (
-          <button
-            onClick={() => setActiveTab('kanban')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-              activeTab === 'kanban'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <LayoutGrid className="w-5 h-5 mb-0.5" />
-            <span className="text-xs tracking-tight">{t('header.kanban')}</span>
-          </button>
-        )}
-
-        {isSprintTabEnabled && (
-          <button
-            onClick={() => setActiveTab('sprint')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-              activeTab === 'sprint'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Target className="w-5 h-5 mb-0.5" />
-            <span className="text-xs tracking-tight">{t('header.sprints')}</span>
-          </button>
-        )}
-
-        {isReleaseTabEnabled && (
-          <button
-            onClick={() => setActiveTab('release')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-              activeTab === 'release'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Rocket className="w-5 h-5 mb-0.5" />
-            <span className="text-xs tracking-tight">{t('header.releases')}</span>
-          </button>
-        )}
-
-        {isTimelineTabEnabled && (
-          <button
-            onClick={() => setActiveTab('timeline')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-              activeTab === 'timeline'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Calendar className="w-5 h-5 mb-0.5" />
-            <span className="text-xs tracking-tight">{t('header.timeline') || 'Roadmap'}</span>
-          </button>
-        )}
-
-        {isMetricsTabEnabled && (
-          <button
-            onClick={() => setActiveTab('metrics')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-              activeTab === 'metrics'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-500/10'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <BarChart2 className="w-5 h-5 mb-0.5" />
-            <span className="text-xs tracking-tight">{t('header.metrics')}</span>
-          </button>
-        )}
-
-        <button
-          onClick={() => setActiveTab('trash')}
-          className={`relative flex flex-col items-center justify-center flex-1 py-1.5 px-2 rounded-xl transition-all min-h-[48px] active:scale-95 ${
-            activeTab === 'trash'
-              ? 'text-rose-600 dark:text-rose-400 font-semibold bg-rose-500/10'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <div className="relative">
-            <Trash2 className="w-5 h-5 mb-0.5" />
-            {trashedItems.length > 0 && (
-              <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-xs font-bold rounded-full bg-rose-600 text-white">
-                {trashedItems.length}
-              </span>
-            )}
-          </div>
-          <span className="text-xs tracking-tight">{t('header.trash')}</span>
-        </button>
-      </nav>
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        isKanbanTabEnabled={isKanbanTabEnabled}
+        isSprintTabEnabled={isSprintTabEnabled}
+        isReleaseTabEnabled={isReleaseTabEnabled}
+        isTimelineTabEnabled={isTimelineTabEnabled}
+        isMetricsTabEnabled={isMetricsTabEnabled}
+        trashedCount={trashedItems.length}
+      />
 
       {/* Floating Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* DEV-358: Vercel Web Analytics (solo activo en demo sandbox pública) */}
+      {/* Vercel Web Analytics */}
       <VercelAnalytics />
-
     </div>
   );
 }

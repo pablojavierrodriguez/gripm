@@ -101,7 +101,8 @@ const sortByOrder = (items) => [...items].sort((a, b) => a.order - b.order);
 // --- 5. The component wires the actions and the guard ---------------------
 
 {
-  const board = fs.readFileSync(BOARD, 'utf8');
+  const kanbanCol = path.join(ROOT, 'src', 'components', 'kanban', 'KanbanColumn.tsx');
+  const board = fs.readFileSync(BOARD, 'utf8') + (fs.existsSync(kanbanCol) ? fs.readFileSync(kanbanCol, 'utf8') : '');
   const card = fs.readFileSync(CARD, 'utf8');
 
   assert.ok(
