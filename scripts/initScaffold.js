@@ -34,7 +34,7 @@ import {
   importTodosAsTasks
 } from './init/writers.js';
 import { delegatePlaybookInit } from './init/playbookDelegate.js';
-import { scanCodebase } from './audit-engine.mjs';
+import { scanCodebase } from '@gripm/playbook/audit-engine';
 
 // Re-export templates for full backward compatibility
 export { getSkillTemplate, getAgentsMdTemplate };

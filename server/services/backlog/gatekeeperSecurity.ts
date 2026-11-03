@@ -16,7 +16,7 @@ import {
   isIgnored,
   parseIgnoreFile,
   parseIgnoreLines
-} from '../../../scripts/check-loc.mjs';
+} from '@gripm/playbook/check-loc';
 
 export interface TaskMutationOptions {
   force?: boolean;

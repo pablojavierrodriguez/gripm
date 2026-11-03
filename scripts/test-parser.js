@@ -287,7 +287,7 @@ console.log('✅ DEV-117: Canonical project identity resolution & priority verif
 // a la forma del motor rompe con cada refactor upstream sin proteger nada.
 {
   const ROOT_DIR = path.resolve(process.cwd());
-  const auditorPath = path.join(ROOT_DIR, 'scripts', 'audit-ux-code.cjs');
+  const auditorPath = path.join(ROOT_DIR, 'node_modules/@gripm/playbook/scripts/audit-ux-code.cjs');
 
   // 6.1 El invariante de gutter de scrollbar (ENV-001) es un contrato sobre
   //     src/index.css, no una firma de JSX. El auditor no escanea CSS, asi que su

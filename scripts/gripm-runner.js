@@ -18,7 +18,7 @@ import { runUninstallCommand } from './uninstall.js';
 import { findAvailablePort } from './portUtils.js';
 import { parseUniversalExport, formatTaskMarkdown } from '../src/utils/universalImporter.ts';
 import { runAddCommand, printAddHelp } from './cliAdd.ts';
-import { runCli as runAuditCli } from './audit-engine.mjs';
+import { runCli as runAuditCli } from '@gripm/playbook/audit-engine';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

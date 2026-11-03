@@ -13,7 +13,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { scanCodebase, detectTests, computeHealthScore } from '../server/services/auditService.ts';
-import { scanCodebase as scanCodebaseEngine } from './audit-engine.mjs';
+import { scanCodebase as scanCodebaseEngine } from '@gripm/playbook/audit-engine';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

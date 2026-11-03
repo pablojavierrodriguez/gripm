@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// scripts/check-loc.mjs
+// node_modules/@gripm/playbook/scripts/check-loc.mjs
 import fs5 from "node:fs";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
@@ -249,8 +249,7 @@ Options:
 }
 var __filename3, __dirname3, DEFAULT_MAX_LINES, DEFAULT_WARN_LINES, DEFAULT_EXTENSIONS, DEFAULT_IGNORED_DIRS, CANDIDATE_SRC_DIRS, isColorSupported, c, isDirectEntry;
 var init_check_loc = __esm({
-  "scripts/check-loc.mjs"() {
-    "use strict";
+  "node_modules/@gripm/playbook/scripts/check-loc.mjs"() {
     __filename3 = fileURLToPath3(import.meta.url);
     __dirname3 = path6.dirname(__filename3);
     DEFAULT_MAX_LINES = 1e3;
@@ -329,7 +328,7 @@ var init_check_loc = __esm({
   }
 });
 
-// scripts/audit-engine.mjs
+// node_modules/@gripm/playbook/scripts/audit-engine.mjs
 var audit_engine_exports = {};
 __export(audit_engine_exports, {
   ANTI_SLOP_PATTERNS: () => ANTI_SLOP_PATTERNS,
@@ -755,8 +754,7 @@ Options:
 }
 var __filename4, COMMENT_PREFIX, TODO_RE, ANTI_SLOP_PATTERNS, TS_IGNORE_RE, TS_NOCHECK_RE, ESLINT_DISABLE_RE, CONSOLE_LOG_RE, TEST_CONFIG_MAP, VERIFY_COMMAND_FALLBACKS, isColorSupported2, c2, entryBase, isCli;
 var init_audit_engine = __esm({
-  "scripts/audit-engine.mjs"() {
-    "use strict";
+  "node_modules/@gripm/playbook/scripts/audit-engine.mjs"() {
     init_check_loc();
     __filename4 = fileURLToPath4(import.meta.url);
     COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";

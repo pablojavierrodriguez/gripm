@@ -10,13 +10,16 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { validateCommitMessage } from './validate-commit-msg.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
-const SCRIPT_PATH = path.join(ROOT, 'scripts/validate-commit-msg.mjs');
+const PKG_SCRIPTS = path.join(ROOT, 'node_modules/@gripm/playbook/scripts');
+const SCRIPT_PATH = path.join(PKG_SCRIPTS, 'validate-commit-msg.mjs');
+
+// Import validateCommitMessage from the installed package.
+const { validateCommitMessage } = await import(pathToFileURL(SCRIPT_PATH).href);
 
 console.log('🧪 Iniciando verificación del validador de commit-msg (DEV-339)...');
 

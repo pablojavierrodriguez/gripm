@@ -1842,7 +1842,7 @@ import fs7 from "node:fs";
 import path8 from "node:path";
 import { execSync } from "node:child_process";
 
-// scripts/check-loc.mjs
+// node_modules/@gripm/playbook/scripts/check-loc.mjs
 import fs6 from "node:fs";
 import path7 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
@@ -4481,7 +4481,7 @@ async function checkForUpdates(currentVersion, { force = false, timeoutMs = 2e3 
 // server/routes/audit.ts
 import path17 from "node:path";
 
-// scripts/audit-engine.mjs
+// node_modules/@gripm/playbook/scripts/audit-engine.mjs
 import fs14 from "node:fs";
 import path15 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";

@@ -10,7 +10,7 @@ import {
   scanCodebase as scanCodebaseEngine,
   detectTests as detectTestsEngine,
   computeHealthScore as computeHealthScoreEngine
-} from '../../scripts/audit-engine.mjs';
+} from '@gripm/playbook/audit-engine';
 
 export interface RepoHealthReport {
   score: number; // 0 to 100

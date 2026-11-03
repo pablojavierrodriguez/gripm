@@ -1,9 +1,9 @@
 ---
 id: DEV-360
 title: "Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos"
-status: draft
+status: ready
 created_date: '2026-11-02'
-updated_date: '2026-11-02'
+updated_date: '2026-11-03'
 labels:
   - "architecture"
   - "refactor"
@@ -40,11 +40,11 @@ Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
-- [ ] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
-- [ ] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
-- [ ] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
-- [ ] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
-- [ ] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+- [x] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
+- [x] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
+- [x] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
+- [x] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
+- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
 <!-- AC:END -->
 
 ## Implementation Plan

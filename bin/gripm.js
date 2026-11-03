@@ -341,7 +341,7 @@ var init_updateChecker = __esm({
   }
 });
 
-// scripts/check-loc.mjs
+// node_modules/@gripm/playbook/scripts/check-loc.mjs
 import fs6 from "node:fs";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
@@ -581,8 +581,7 @@ Options:
 }
 var __filename4, __dirname4, DEFAULT_MAX_LINES, DEFAULT_WARN_LINES, DEFAULT_EXTENSIONS, DEFAULT_IGNORED_DIRS, CANDIDATE_SRC_DIRS, isColorSupported, c, isDirectEntry;
 var init_check_loc = __esm({
-  "scripts/check-loc.mjs"() {
-    "use strict";
+  "node_modules/@gripm/playbook/scripts/check-loc.mjs"() {
     __filename4 = fileURLToPath4(import.meta.url);
     __dirname4 = path6.dirname(__filename4);
     DEFAULT_MAX_LINES = 1e3;
@@ -661,7 +660,7 @@ var init_check_loc = __esm({
   }
 });
 
-// scripts/audit-engine.mjs
+// node_modules/@gripm/playbook/scripts/audit-engine.mjs
 import fs7 from "node:fs";
 import path7 from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
@@ -1064,8 +1063,7 @@ Options:
 }
 var __filename5, COMMENT_PREFIX, TODO_RE, ANTI_SLOP_PATTERNS, TS_IGNORE_RE, TS_NOCHECK_RE, ESLINT_DISABLE_RE, CONSOLE_LOG_RE, TEST_CONFIG_MAP, VERIFY_COMMAND_FALLBACKS, isColorSupported2, c2, entryBase, isCli;
 var init_audit_engine = __esm({
-  "scripts/audit-engine.mjs"() {
-    "use strict";
+  "node_modules/@gripm/playbook/scripts/audit-engine.mjs"() {
     init_check_loc();
     __filename5 = fileURLToPath5(import.meta.url);
     COMMENT_PREFIX = "(?:\\/\\/|#|\\/\\*+|\\*)\\s*";

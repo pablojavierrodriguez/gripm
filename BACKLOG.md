@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-11-02 por gripm
+> Consolidado generado el 2026-11-03 por gripm
 
 ## Resumen de Estados
 
@@ -217,7 +217,36 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (2)
+### 🚀 Ready for Deploy (3)
+
+#### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
+- **Prioridad**: `high` | **Tipo**: `refactor`
+
+### Problem Statement
+Actualmente `@gripm/board` predica el principio Zero-Clutter y DRY (`DEV-250` y `DEV-345`), pero en la práctica mantiene **19 scripts duplicados** de `@gripm/playbook` copiados físicamente dentro de `scripts/` y `scripts/lib/` (`audit-ux-code.cjs`, `gate-qa.mjs`, `audit-engine.mjs`, `check-loc.mjs`, `sync-playbook.mjs`, `init.mjs`, `validate-commit-msg.mjs`, `ux-rules.json` y 10 módulos en `scripts/lib/`), además de scripts históricos de migraciones ya superadas (`canonicalize-status.js`, `purge-fabricated-task-sections.js`) y reglas duplicadas en `.agents/rules/git-approval.md` (que duplica `.agents/rules/git-workflow.md`).
+
+Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el Playbook desde su paquete (`@gripm/playbook`), eliminando toda copia manual de código ajeno y todo archivo muerto sin uso.
+
+### Cross-Project Dependency
+- **Requiere en `@gripm/playbook`:** `PLAY-057` (para que `playbook sync` no vuelva a copiar `scripts/` al sincronizar desde `--source` o remoto) y `PLAY-059` (para contar con el auditor UX modularizado).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Vincular `@gripm/playbook` en `devDependencies` de `package.json` y actualizar los imports en `server/services/auditService.ts`, `server/services/backlogService.ts` y `scripts/initScaffold.js` hacia `@gripm/playbook/*` (`@gripm/playbook/audit-engine`, `@gripm/playbook/check-loc`, etc.), manteniendo el empaquetado standalone en `bin/` vía `esbuild`.
+  2. Eliminar de `scripts/` y `scripts/lib/` los 19 archivos clonados de `@gripm/playbook` y actualizar los scripts de `package.json` (`gate:review`, `check-loc`, `playbook:check`, `playbook:sync`, `audit:ux`, etc.) y `.githooks/commit-msg` para invocar los binarios de `@gripm/playbook`.
+  3. Purgar los scripts de migración muertos (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js` y sus entradas en `package.json`) y eliminar `.agents/rules/git-approval.md` (consolidado en `.agents/rules/git-workflow.md`).
+  4. Actualizar `.gripm/playbook-lock.json` mediante `npm run playbook:sync` verificando que queden 0 entradas bajo `scripts/`.
+- **Out-of-Scope:**
+  - `scripts/import-docs.js` se conserva temporalmente o se reemplaza su fixture en `scripts/test-parser.js` si se decide retirar.
+
+**Criterios de Aceptación:**
+- [x] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
+- [x] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
+- [x] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
+- [x] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
+- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+
+---
 
 #### [DEV-363] Descomposicion modular de backend y servicios (backlogService.ts y api.ts bajo 1000 LOC)
 - **Prioridad**: `high` | **Tipo**: `refactor`
@@ -284,7 +313,7 @@ Además, `src/components/Header.tsx` se encuentra en **992 LOC** (al borde de la
 
 ---
 
-### 📋 Backlog / Draft (24)
+### 📋 Backlog / Draft (23)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -837,35 +866,6 @@ Mejora de la precision temporal y ergonomia visual del lienzo de Roadmap:
 - [ ] #2 Las columnas mensuales y semanales ajustan su ancho exactamente a la cantidad real de dias correspondientes
 - [ ] #3 El scroll vertical entre el panel de jerarquia y el lienzo de barras se mantiene 100% alineado
 - [ ] #4 Todas las cadenas de texto del componente utilizan las claves de i18n correspondientes sin texto duro
-
----
-
-#### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-### Problem Statement
-Actualmente `@gripm/board` predica el principio Zero-Clutter y DRY (`DEV-250` y `DEV-345`), pero en la práctica mantiene **19 scripts duplicados** de `@gripm/playbook` copiados físicamente dentro de `scripts/` y `scripts/lib/` (`audit-ux-code.cjs`, `gate-qa.mjs`, `audit-engine.mjs`, `check-loc.mjs`, `sync-playbook.mjs`, `init.mjs`, `validate-commit-msg.mjs`, `ux-rules.json` y 10 módulos en `scripts/lib/`), además de scripts históricos de migraciones ya superadas (`canonicalize-status.js`, `purge-fabricated-task-sections.js`) y reglas duplicadas en `.agents/rules/git-approval.md` (que duplica `.agents/rules/git-workflow.md`).
-
-Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el Playbook desde su paquete (`@gripm/playbook`), eliminando toda copia manual de código ajeno y todo archivo muerto sin uso.
-
-### Cross-Project Dependency
-- **Requiere en `@gripm/playbook`:** `PLAY-057` (para que `playbook sync` no vuelva a copiar `scripts/` al sincronizar desde `--source` o remoto) y `PLAY-059` (para contar con el auditor UX modularizado).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Vincular `@gripm/playbook` en `devDependencies` de `package.json` y actualizar los imports en `server/services/auditService.ts`, `server/services/backlogService.ts` y `scripts/initScaffold.js` hacia `@gripm/playbook/*` (`@gripm/playbook/audit-engine`, `@gripm/playbook/check-loc`, etc.), manteniendo el empaquetado standalone en `bin/` vía `esbuild`.
-  2. Eliminar de `scripts/` y `scripts/lib/` los 19 archivos clonados de `@gripm/playbook` y actualizar los scripts de `package.json` (`gate:review`, `check-loc`, `playbook:check`, `playbook:sync`, `audit:ux`, etc.) y `.githooks/commit-msg` para invocar los binarios de `@gripm/playbook`.
-  3. Purgar los scripts de migración muertos (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js` y sus entradas en `package.json`) y eliminar `.agents/rules/git-approval.md` (consolidado en `.agents/rules/git-workflow.md`).
-  4. Actualizar `.gripm/playbook-lock.json` mediante `npm run playbook:sync` verificando que queden 0 entradas bajo `scripts/`.
-- **Out-of-Scope:**
-  - `scripts/import-docs.js` se conserva temporalmente o se reemplaza su fixture en `scripts/test-parser.js` si se decide retirar.
-
-**Criterios de Aceptación:**
-- [ ] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
-- [ ] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
-- [ ] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
-- [ ] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
-- [ ] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
 
 ---
 

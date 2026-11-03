@@ -26,7 +26,7 @@ Antes de iniciar cualquier implementación o cambio de código:
 
 5. **Staging Obligatorio y Cero Commits No Solicitados:**
    - Los archivos `.md` de la tarea modificada y el consolidado `BACKLOG.md` deben prepararse en el mismo conjunto de cambios que el código fuente.
-   - **Sin orden explícita no hay commit:** En cumplimiento con `.agents/rules/git-approval.md`, el agente prepara los cambios en el árbol de trabajo y se detiene. Jamás ejecutar `git commit` por deducción propia.
+   - **Sin orden explícita no hay commit:** En cumplimiento con `.agents/rules/git-workflow.md`, el agente prepara los cambios en el árbol de trabajo y se detiene. Jamás ejecutar `git commit` por deducción propia.
 
 ---
 
