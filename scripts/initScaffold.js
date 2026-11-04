@@ -20,6 +20,7 @@ import {
   promptMethodology,
   promptMode,
   promptMultiSelect,
+  promptPlaybookOptions,
   promptConfirm,
   printDiagnosticSnapshot
 } from './init/prompts.js';
@@ -34,6 +35,12 @@ import {
   importTodosAsTasks
 } from './init/writers.js';
 import { delegatePlaybookInit } from './init/playbookDelegate.js';
+import {
+  DEFAULT_GRANULAR_PLAYBOOK_SELECTION,
+  DEFAULT_PLAYBOOK_SELECTION,
+  normalizePlaybookOptions,
+  PLAYBOOK_INIT_CHOICES
+} from './init/playbookOptions.js';
 import { scanCodebase } from '@gripm/playbook/audit-engine';
 
 // Re-export templates for full backward compatibility
@@ -122,6 +129,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
   let updatePkgJson = options.packageJson !== undefined ? options.packageJson : basePreset.assets.packageJson;
   let updateGitignore = options.gitignore !== undefined ? options.gitignore : basePreset.assets.gitignore;
   let shouldImportTodos = false;
+  let playbookOptions = { ...(options.playbookOptions || {}) };
 
   if (isInteractive) {
     const rl = readline.createInterface({
@@ -292,6 +300,15 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
           installAgentsMd = assetKeys.has('agentsMd');
           updatePkgJson = assetKeys.has('packageJson');
           updateGitignore = assetKeys.has('gitignore');
+
+          if (installPlaybook) {
+            playbookOptions = await promptPlaybookOptions(
+              rl,
+              PLAYBOOK_INIT_CHOICES,
+              playbookOptions,
+              isEn
+            );
+          }
         }
       }
     } finally {
@@ -304,6 +321,7 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     // Non-interactive fallback: if no profile specified, default to recommended or minimal
     if (!profile) {
       profile = recommendedProfile || 'minimal';
+      speedMode = options.speedMode || 'quick';
       const chosenPreset = PRESETS[profile] || PRESETS.minimal;
       methodology = options.methodology || chosenPreset.methodology;
       mode = options.mode || (options.hub || options.multi ? 'multi' : (options.single ? 'single' : chosenPreset.mode));
@@ -315,6 +333,32 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       if (options.agentsMd === undefined) installAgentsMd = options.minimal ? chosenPreset.assets.agentsMd : true;
       if (options.packageJson === undefined) updatePkgJson = chosenPreset.assets.packageJson;
       if (options.gitignore === undefined) updateGitignore = chosenPreset.assets.gitignore;
+    }
+  }
+
+  let normalizedPlaybookOptions = {};
+  let playbookMode;
+  if (!installPlaybook && Object.keys(playbookOptions).length > 0) {
+    throw new Error('Playbook options require Playbook initialization.');
+  }
+  if (installPlaybook) {
+    if (installBoard) {
+      const isGranular = speedMode === 'granular';
+      const defaults = isGranular
+        ? DEFAULT_GRANULAR_PLAYBOOK_SELECTION
+        : DEFAULT_PLAYBOOK_SELECTION;
+      normalizedPlaybookOptions = normalizePlaybookOptions({
+        ...defaults,
+        ...playbookOptions
+      });
+      playbookMode = isGranular ? 'custom' : 'quick';
+    } else if (options.yes) {
+      normalizedPlaybookOptions = normalizePlaybookOptions({
+        harnesses: DEFAULT_PLAYBOOK_SELECTION.harnesses,
+        ...playbookOptions
+      });
+    } else {
+      normalizedPlaybookOptions = normalizePlaybookOptions(playbookOptions);
     }
   }
 
@@ -343,7 +387,8 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     playbook: false,
     packageJson: false,
     gitignore: false,
-    registeredInHub: false
+    registeredInHub: false,
+    success: true
   };
 
   const isEnOutput = language === 'en';
@@ -363,7 +408,9 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
       enabledTabs,
       kanban,
       estimation,
-      verifyCommand
+      verifyCommand,
+      preset: installPlaybook ? normalizedPlaybookOptions.preset : undefined,
+      automation: installPlaybook ? normalizedPlaybookOptions.automation : undefined
     }, isEnOutput);
     results.gripmConfig = true;
     results.enabledTabs = savedConfig.enabledTabs;
@@ -432,11 +479,20 @@ export async function runInitWizard(targetRepo = process.cwd(), options = {}) {
     const playbookSuccess = delegatePlaybookInit(targetRepo, {
       language,
       projectName,
-      yes: options.yes,
+      yes: options.yes || installBoard,
       board: installBoard,
-      mode: profile === 'full' ? 'quick' : (speedMode === 'quick' ? 'quick' : 'custom')
+      mode: playbookMode,
+      playbookOptions: normalizedPlaybookOptions
     }, isEnOutput);
     results.playbook = playbookSuccess;
+    if (!playbookSuccess) {
+      results.success = false;
+      console.error(isEnOutput
+        ? '  ❌ Gripm initialization is incomplete because Playbook failed. Board files were preserved.'
+        : '  ❌ La inicialización de Gripm quedó incompleta porque falló Playbook. Se conservaron los archivos de Board.'
+      );
+      return results;
+    }
   } else {
     console.log(isEnOutput
       ? '  ✨ Clean repository: Gripm Board configured without Playbook.'

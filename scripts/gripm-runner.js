@@ -16,6 +16,7 @@ import { formatUpdateBanner, checkForUpdates, getCachedUpdateInfo, semverGreater
 import { runInitWizard } from './initScaffold.js';
 import { runUninstallCommand } from './uninstall.js';
 import { findAvailablePort } from './portUtils.js';
+import { parsePlaybookCliOptions } from './init/playbookOptions.js';
 import { parseUniversalExport, formatTaskMarkdown } from '../src/utils/universalImporter.ts';
 import { runAddCommand, printAddHelp } from './cliAdd.ts';
 import { runCli as runAuditCli } from '@gripm/playbook/audit-engine';
@@ -116,6 +117,13 @@ function printMainHelp() {
     --language, --lang <es|en>     Idioma del proyecto para scaffolding y plantillas (por defecto: es)
     --with-playbook, --playbook    Instala también Gripm Playbook (@gripm/playbook) con roles de agentes
     --no-playbook                  Omite la instalación de Gripm Playbook (deja el repositorio limpio)
+    --playbook-harness <id>        Harness de Playbook; repetible
+    --playbook-skills <lista>      Selección separada por comas, "all" o "none"
+    --playbook-rules <lista>       Selección de reglas de Playbook
+    --playbook-scripts <lista>     Selección de scripts de Playbook
+    --playbook-docs <lista>        Selección de documentos de Playbook
+    --playbook-preset <valor>      Rigor: pragmatic o strict
+    --playbook-automation <valor>  Entrega automatizada o manual
     --yes, -y                      Aceptar opciones por defecto sin preguntas (para CI / no interactivo)
     --uninstall, --clean           Desacoplar gripm de este repositorio (nunca borra backlog/)
     --global, --all                Con --uninstall: purga también el registro global del dispositivo
@@ -218,6 +226,9 @@ async function main() {
     '--name',
     '--id',
     '--mode',
+    '--playbook-harness', '--playbook-skills', '--playbook-rules',
+    '--playbook-scripts', '--playbook-docs', '--playbook-preset',
+    '--playbook-automation',
     '--format',
     '--max', '--max-lines',
     '--warn', '--warn-lines',
@@ -542,7 +553,7 @@ async function main() {
     const cliSpeedMode = rawMode === 'quick' || rawMode === 'granular' ? rawMode : undefined;
     const cliInstMode = rawMode === 'single' || rawMode === 'multi' ? rawMode : undefined;
     
-    await runInitWizard(targetRepo, {
+    const initResult = await runInitWizard(targetRepo, {
       yes: isYes,
       minimal: isMinimal,
       full: isFull,
@@ -560,8 +571,13 @@ async function main() {
       packageJson: args.includes('--no-scripts') ? false : (args.includes('--scripts') ? true : undefined),
       gitignore: args.includes('--no-gitignore') ? false : (args.includes('--gitignore') ? true : undefined),
       importTodos: args.includes('--import-todos') || args.includes('--todos') ? true : undefined,
+      playbookOptions: parsePlaybookCliOptions(args),
       force: args.includes('--force')
     });
+    if (initResult.success === false) {
+      process.exitCode = 1;
+      return;
+    }
     process.exit(0);
   }
 

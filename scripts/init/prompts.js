@@ -55,6 +55,68 @@ export async function promptMultiSelect(rl, title, items, defaultIndices, isEn =
   return selectedIndices.map(idx => items[idx]);
 }
 
+export async function promptChoice(rl, title, choices, defaultValue, isEn = true) {
+  const defaultIndex = Math.max(0, choices.findIndex(choice => choice.value === defaultValue));
+  console.log(`\n  ${title}`);
+  choices.forEach((choice, index) => {
+    const marker = index === defaultIndex
+      ? (isEn ? ' [Default]' : ' [Predeterminado]')
+      : '';
+    console.log(`     ${index + 1}. ${choice.label}${marker}`);
+  });
+
+  const answer = await rl.question(isEn
+    ? `     Select option [${defaultIndex + 1}]: `
+    : `     Selecciona opción [${defaultIndex + 1}]: `
+  );
+  const selectedIndex = Number.parseInt(answer.trim(), 10) - 1;
+  return choices[selectedIndex]?.value || choices[defaultIndex].value;
+}
+
+export async function promptPlaybookOptions(rl, choices, defaults = {}, isEn = true) {
+  const listOptions = ['harnesses', 'skills', 'rules', 'scripts', 'docs'];
+  const selected = {};
+
+  for (const key of listOptions) {
+    const listTitle = isEn
+      ? `Playbook ${key}:`
+      : `${key === 'harnesses' ? 'Harnesses' : key} de Playbook:`;
+    const options = choices[key].map(choice => ({
+      ...choice,
+      key: choice.value,
+      name: choice.label,
+      nameEn: choice.label,
+      nameEs: choice.label
+    }));
+    const values = defaults[key] ?? choices[key].map(choice => choice.value);
+    const selectedItems = await promptMultiSelect(
+      rl,
+      listTitle,
+      options,
+      options.flatMap((option, index) => values.includes(option.value) ? [index] : []),
+      isEn
+    );
+    selected[key] = selectedItems.map(item => item.value);
+  }
+
+  selected.preset = await promptChoice(
+    rl,
+    isEn ? 'Playbook rigor:' : 'Rigor de Playbook:',
+    choices.presets,
+    defaults.preset || 'pragmatic',
+    isEn
+  );
+  selected.automation = await promptChoice(
+    rl,
+    isEn ? 'Playbook automation:' : 'Automatización de Playbook:',
+    choices.automation,
+    defaults.automation || 'automated',
+    isEn
+  );
+
+  return selected;
+}
+
 /**
  * Prompt for language selection.
  */

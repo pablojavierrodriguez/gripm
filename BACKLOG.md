@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (4)
+### 🚀 Ready for Deploy (5)
 
 #### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
 - **Prioridad**: `high` | **Tipo**: `refactor`
@@ -245,6 +245,46 @@ Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el
 - [x] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
 - [x] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
 - [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+
+---
+
+#### [DEV-361] Onboarding unificado sin friccion en gripm --init: delegacion silenciosa a Playbook y presets de automatizacion
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+### Problem Statement
+When users initialize Gripm Board and Playbook together, Gripm collects setup choices and then starts a second interactive Playbook wizard without passing those choices. This repeats questions and can make the generated repository differ from the user's selections. Users need one coherent setup flow for the combined products, and the Playbook-only path must retain its existing single native wizard.
+
+### Cross-Project Dependency
+- **Requiere en `@gripm/playbook`:** `PLAY-058` (soporte de flags `--rules`, `--preset` y modularidad completa en `playbook init`).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Support Board-only, Playbook-only, and Board + Playbook initialization without invoking or prompting Playbook when Board-only is selected, or introducing duplicate prompts in the other paths.
+  2. In quick/non-interactive initialization, apply `pragmatic` rigor and `automated` delivery mode, with every harness supported by the installed Playbook package selected. No single harness is privileged.
+  3. In granular initialization, preselect every harness supported by Playbook and allow users to change harnesses, skills, rules, scripts, docs, rigor, and automation in one pass. Selecting no harness is rejected explicitly; empty selections for the other artifact lists are permitted.
+  4. Persist `preset` and `automation` as top-level `.gripm/config.json` values whenever Board + Playbook are initialized together. In Playbook-only mode, Playbook remains responsible for its config.
+  5. If Playbook delegation fails, report the failure and return a non-zero CLI result while preserving already-written Board files; do not silently claim full success or roll back user files.
+  6. Keep supported harnesses sourced from the installed Playbook catalog. VS Code Copilot, OpenCode, and explicit no-harness support are tracked separately in `PLAY-062`.
+- **Out-of-Scope:**
+  - Adding or changing harness adapters in `@gripm/playbook`.
+  - Modifying the web Cockpit onboarding UI.
+  - Deleting or rolling back Board files after a Playbook failure.
+- **Decisions:**
+  - Playbook 2.9.1 supports Antigravity, Cursor, and Claude Code. Gripm must not hardcode Antigravity as the product default.
+  - Quick mode passes the selected bundle non-interactively using Playbook's CLI flags; granular mode collects choices in Gripm and passes them to Playbook once.
+  - In Playbook-only interactive mode, retain Playbook's native wizard as the sole wizard. For non-interactive `--yes`, use all currently supported harnesses.
+  - Existing Gripm `--scripts` means Board package scripts. New CLI overrides for Playbook use the `--playbook-*` namespace to avoid ambiguity.
+  - The repository health baseline is 32/100 with pre-existing LOC violations; source changes remain isolated to the CLI init modules and tests, with no growth to files at or above 1000 LOC.
+
+**Criterios de Aceptación:**
+- [x] #1 Quick mode for both Board presets initializes Board + Playbook without a second wizard, passes `--yes --mode quick --preset pragmatic --automation automated`, and selects all harnesses exposed by the installed Playbook catalog.
+- [x] #2 Granular combined setup presents the available Playbook harnesses, skills, rules, scripts, docs, rigor, and automation in one Gripm wizard, with all available harnesses initially selected; an empty harness selection is rejected before delegation.
+- [x] #3 Board-only setup does not invoke Playbook; Playbook-only interactive setup invokes only Playbook's native wizard, while Playbook-only `--yes` passes all supported harnesses and creates no Board-owned config.
+- [x] #4 The delegate passes selected values to Playbook CLI flags, and new Gripm command-line overrides use `--playbook-*` names without changing the existing Board `--scripts` behavior.
+- [x] #5 Combined setup persists top-level `preset` and `automation` in `.gripm/config.json`; other Board config fields and existing user files remain intact.
+- [x] #6 A Playbook spawn or non-zero exit returns an explicit failure and non-zero Gripm CLI result while preserving Board files already written.
+- [x] #7 `scripts/test-init-suite.js` covers quick, granular, Board-only, Playbook-only, argument mapping, empty harness rejection, persistence, no duplicate prompts, and delegated failure.
+- [x] #8 `npm run lint`, `npm test`, `npm run backlog:check`, `npm run test:linux`, `npm run publish:check`, `npm run build`, and `npm run verify:changes -- --all` pass.
 
 ---
 
@@ -346,7 +386,7 @@ Además, `src/components/Header.tsx` se encuentra en **992 LOC** (al borde de la
 
 ---
 
-### 📋 Backlog / Draft (23)
+### 📋 Backlog / Draft (22)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -899,36 +939,6 @@ Mejora de la precision temporal y ergonomia visual del lienzo de Roadmap:
 - [ ] #2 Las columnas mensuales y semanales ajustan su ancho exactamente a la cantidad real de dias correspondientes
 - [ ] #3 El scroll vertical entre el panel de jerarquia y el lienzo de barras se mantiene 100% alineado
 - [ ] #4 Todas las cadenas de texto del componente utilizan las claves de i18n correspondientes sin texto duro
-
----
-
-#### [DEV-361] Onboarding unificado sin friccion en gripm --init: delegacion silenciosa a Playbook y presets de automatizacion
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-### Problem Statement
-Cuando un usuario ejecuta `gripm --init` y selecciona instalar la suite completa (`Gripm Board + Gripm Playbook`), `scripts/initScaffold.js` realiza su propio interrogatorio interactivo y luego invoca `delegatePlaybookInit` (`scripts/init/playbookDelegate.js`) con `stdio: 'inherit'` sin pasarle las decisiones ya tomadas (modo `quick` vs `custom`, selección de skills, scripts, plantillas, harnesses y nivel de rigor). Esto provoca un **doble interrogatorio redundante** en consola y fricción inmediata en el onboarding.
-
-Además, el usuario necesita poder elegir entre:
-1. **Automatización Total con Gestión por Excepción (Default):** Los agentes operan el flujo y las compuertas mecánicamente de punta a punta y solo escalan al humano ante ambigüedades de negocio (Gate R1) o violaciones de arquitectura.
-2. **Modo Personalizado / Manual Consciente:** Donde el usuario elige exactamente qué módulos del Board, qué skills/reglas del Playbook y qué nivel de rigor (`pragmatic` vs `strict`) activar, o si prefiere control manual de transiciones con advertencia explícita de sus implicancias.
-
-### Cross-Project Dependency
-- **Requiere en `@gripm/playbook`:** `PLAY-058` (soporte de flags `--rules`, `--preset` y modularidad completa en `playbook init`).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Unificar la recolección de opciones en `scripts/initScaffold.js` / `scripts/init/prompts.js` para que si el usuario elige `Modo Rápido`, `delegatePlaybookInit` se ejecute **100% automatizado sin repreguntar** (`--yes`, `--mode quick`, `--lang`, `--name`, `--preset pragmatic`, `--no-board`).
-  2. Si el usuario elige `Control Total (Componente por Componente)` e incluye Playbook, permitirle seleccionar en el mismo flujo unificado qué Harnesses (`antigravity`, `cursor`, `claude`), qué Roles/Skills, qué Reglas (`team-playbook`, `state-machine`, `git-workflow`), qué Nivel de Rigor (`pragmatic` vs `strict`) y si desea automatización completa o modo manual, pasando todas las flags resueltas a `delegatePlaybookInit`.
-  3. Persistir en `.gripm/config.json` el perfil de automatización y rigor elegido.
-- **Out-of-Scope:**
-  - Modificar la UI web del Cockpit para el onboarding CLI.
-
-**Criterios de Aceptación:**
-- [ ] #1 En `Modo Rápido` (`Minimalist AI-First` o `Batteries Included`), seleccionar `Board + Playbook` ejecuta la instalación completa en una sola pasada sin abrir un segundo prompt interactivo en `delegatePlaybookInit`.
-- [ ] #2 En `Modo Componente por Componente`, el usuario puede elegir granularmente módulos del Board, roles/skills del Playbook, reglas de gobernanza, preset de rigor (`pragmatic` vs `strict`) y modo de automatización (automatizado por excepción vs manual con aviso de implicancias).
-- [ ] #3 `scripts/init/playbookDelegate.js` traduce y pasa todas las opciones seleccionadas (`--harness`, `--skills`, `--rules`, `--scripts`, `--docs`, `--preset`, `--yes`) al binario de `@gripm/playbook`.
-- [ ] #4 `scripts/test-init-suite.js` valida que la inicialización combinada `Board + Playbook` tanto en modo rápido como granular respete exactamente la selección del usuario sin prompts duplicados.
-- [ ] #5 La Pirámide de Verificación pasa con código 0.
 
 ---
 
