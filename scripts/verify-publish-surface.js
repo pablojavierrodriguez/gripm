@@ -58,6 +58,7 @@ const FORBIDDEN_PLAYBOOK_ENTRIES = [
   '.agents/skills/product-designer/SKILL.md',
   '.agents/skills/code-level-ux-auditor/SKILL.md',
   '.agents/skills/market-researcher/SKILL.md',
+  '.agents/skills/release-management/SKILL.md',
 ];
 
 /** Patrones de contenido que revelan entorno local o proyectos privados (SEC-08: soporte multiplataforma sin hardcoding personal). */

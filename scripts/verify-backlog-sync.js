@@ -393,6 +393,27 @@ if (fs.existsSync(releasesJsonPath)) {
   }
 }
 
+// REGLA 4b: Verificación de sincronización de CHANGELOG.md con releases.json (DEV-368)
+const changelogScript = path.join(ROOT_DIR, 'scripts/generate-changelog.cjs');
+if (fs.existsSync(changelogScript)) {
+  if (isFixMode) {
+    try {
+      execSync(`node "${changelogScript}"`, { cwd: currentRepoDir, stdio: 'pipe' });
+    } catch (e) {
+      console.error(`  ${c.red('✖')} [Error de Changelog] Falló la regeneración de CHANGELOG.md: ${e.message}`);
+      errorsFound++;
+    }
+  } else {
+    try {
+      execSync(`node "${changelogScript}" --check`, { cwd: currentRepoDir, stdio: 'pipe' });
+    } catch {
+      console.error(`  ${c.red('✖')} [Error de Changelog] CHANGELOG.md no refleja backlog/releases.json.`);
+      console.error(`    ${c.yellow('▲')} Ejecuta 'npm run changelog' para sincronizar el historial de releases.`);
+      errorsFound++;
+    }
+  }
+}
+
 // REGLA 5: Validación de IDs de Sprint canónicos (DEV-192)
 const sprintJsonPath = path.join(currentRepoDir, 'backlog/sprints.json');
 if (fs.existsSync(sprintJsonPath)) {

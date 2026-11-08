@@ -40,3 +40,5 @@ data/*
 .playbook-backups/
 .agents/teamwork/
 .package.json.prepack.bak
+release-title.txt
+release-notes.txt

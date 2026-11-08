@@ -85,6 +85,7 @@
     "audit:ux:baseline": "node node_modules/@gripm/playbook/scripts/audit-ux-code.cjs --update-baseline",
     "audit:deps": "npm audit --audit-level=critical",
     "changelog": "node scripts/generate-changelog.cjs",
+    "changelog:check": "node scripts/generate-changelog.cjs --check",
     "lint": "tsc --noEmit",
     "format": "node scripts/verify-backlog-sync.js --fix",
     "publish:check": "node scripts/verify-publish-surface.js",

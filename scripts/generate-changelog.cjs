@@ -56,7 +56,10 @@ const semverCompare = (a, b) => {
  */
 const normalizeMarkdown = (raw) => {
   if (!raw) return '';
-  return String(raw).replace(/\\r\\n|\\n/g, '\n').trim();
+  return String(raw)
+    .replace(/\\r\\n|\\n/g, '\n')
+    .replace(/\s*[\u2014\u2013]\s*/g, ' - ')
+    .trim();
 };
 
 function main() {
@@ -95,6 +98,8 @@ function main() {
       ? `\nEn preparación: ${pending.map((r) => `\`${r.version}\``).join(', ')}.\n`
       : '';
 
+  const isCheckMode = process.argv.includes('--check');
+
   const output = `# Changelog
 
 Todas las novedades relevantes de gripm se documentan en este archivo.
@@ -120,6 +125,26 @@ ${sections.join('\n\n---\n\n')}
 - [Código de conducta](CODE_OF_CONDUCT.md)
 - [Política de seguridad](SECURITY.md)
 `;
+
+  if (isCheckMode) {
+    if (!fs.existsSync(OUTPUT_PATH)) {
+      console.error(`\n  ${c.red('✖')} CHANGELOG.md no existe.`);
+      console.error(`    ${c.yellow('▲')} Ejecuta 'npm run changelog' para crearlo.\n`);
+      process.exit(1);
+    }
+    const current = fs.readFileSync(OUTPUT_PATH, 'utf8');
+    const normCurrent = current.replace(/\r\n/g, '\n').trim();
+    const normOutput = output.replace(/\r\n/g, '\n').trim();
+
+    if (normCurrent !== normOutput) {
+      console.error(`\n  ${c.red('✖')} CHANGELOG.md no refleja backlog/releases.json.`);
+      console.error(`    ${c.yellow('▲')} Ejecuta 'npm run changelog' y commitea el diff de CHANGELOG.md.\n`);
+      process.exit(1);
+    }
+
+    console.log(`\n  ${c.green('✔')} CHANGELOG.md 100% sincronizado con releases.json (modo check).\n`);
+    process.exit(0);
+  }
 
   fs.writeFileSync(OUTPUT_PATH, output, 'utf8');
 
