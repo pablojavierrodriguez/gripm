@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-11-08 por gripm
+> Consolidado generado el 2026-11-09 por gripm
 
 ## Resumen de Estados
 
@@ -217,7 +217,7 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (7)
+### 🚀 Ready for Deploy (8)
 
 #### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
 - **Prioridad**: `high` | **Tipo**: `refactor`
@@ -435,6 +435,31 @@ El job `publish` en `.github/workflows/ci.yml` sufre de acoplamiento frágil: si
 - [x] #3 gh release create incluye el flag --latest.
 - [x] #4 La verificación de sincronización de CHANGELOG.md se ejecuta en la fase previa (verify) antes de mergear a main.
 - [x] #5 npm run backlog:check y npm run backlog:sync terminan con código 0.
+
+---
+
+#### [DEV-369] Desacople de reglas de dominio y seguridad de AGENTS.md hacia arquitectura en 4 capas
+- **Prioridad**: `high` | **Tipo**: `refactor`
+
+### Problem Statement
+`AGENTS.md` de Gripm Board acumula 151 líneas, conteniendo 26 gotchas reactivos (Sección 6) y 7 directivas de seguridad (Sección 7) agregadas tras post-mortems pasados. Esto viola la arquitectura de progressive disclosure en 4 capas de Gripm Playbook, engordando el contexto en cada interacción de IA. Adicionalmente, la Sección 2 instruye a los agentes a "Actualizar gotchas en este AGENTS.md", perpetuando el antipatrón de prompt bloat.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Extraer las reglas de dominio, modelo de datos y operación de backlog hacia `.agents/rules/gripm-domain.md`.
+  2. Extraer los puntos de contención y seguridad hacia `.agents/rules/security.md`, enlazando a `SECURITY.md`.
+  3. Reemplazar la instrucción de retro de la Sección 2 por la derivación a tests/linters, `.agents/rules/` o skills.
+  4. Reducir `AGENTS.md` a un enrutador liviano (< 85 líneas) que delega en las reglas de dominio, seguridad y skills.
+  5. Sincronizar el backlog con `npm run backlog:sync` y validar coherencia con `npm run backlog:check`.
+- **Out-of-Scope:**
+  - Alterar lógica de ejecución de la aplicación.
+
+**Criterios de Aceptación:**
+- [x] #1 Se crea `.agents/rules/gripm-domain.md` agrupando las reglas de MCP, ortogonalidad del modelo de datos y directivas de UI/entorno.
+- [x] #2 Se crea `.agents/rules/security.md` resumiendo la superficie de riesgo SEC-01 a SEC-10 y enlazando a `SECURITY.md`.
+- [x] #3 `AGENTS.md` se refactoriza como enrutador liviano (~110 líneas) eliminando las secciones acumulativas 6 y 7 y actualizando la salida de retrospectivas.
+- [x] #4 `npm run backlog:check` y `npm run backlog:sync` pasan con código 0.
+- [x] #5 `npx tsc --noEmit` y `npm test` terminan con código 0.
 
 ---
 

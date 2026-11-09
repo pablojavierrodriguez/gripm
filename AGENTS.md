@@ -47,7 +47,7 @@ Toda modificación de código debe estar asociada a una tarea en `backlog/tasks/
 - **Timebox:** En primera opción, el sprint finaliza cuando vence su plazo programado (duración fija), independientemente del progreso alcanzado. Lo no completado se re-planifica al siguiente sprint o vuelve al backlog.
 - **Productividad Continua:** Si los ítems se entregan antes del vencimiento del timebox, el PO amplía el alcance incorporando nuevos ítems refinados del backlog para no pausar la productividad. Raramente un sprint concluye de forma anticipada.
 - **Prohibido el Cierre o Retro por Deducción:** El agente **NUNCA** cierra un sprint ni ejecuta una retrospectiva por iniciativa propia. Ambas acciones se ejecutan **única y exclusivamente ante orden textual y explícita del PO** (ej: *"cerremos el sprint"*, *"hacé la retro del sprint"*).
-- **Salidas Obligatorias de la Retro:** Actualizar gotchas en este `AGENTS.md`, actualizar skills relevantes y crear tareas en el backlog para mejoras identificadas.
+- **Salidas Obligatorias de la Retro (Progressive Disclosure):** Convertir aprendizajes en: (1) tests o reglas estáticas mecánicas, (2) invariantes en `.agents/rules/gripm-domain.md`, o (3) mejoras a skills de rol. Prohibido agregar micro-gotchas a este `AGENTS.md`, preservando su rol de enrutador liviano.
 
 ---
 
@@ -99,53 +99,14 @@ Usar el servidor MCP de gripm (`npm run mcp` o `bin/gripm-mcp.js`) para interact
 
 ---
 
-## 6. Gotchas Críticos y Reglas Técnicas Anti-Regresión
+## 6. Reglas de Dominio, Seguridad y Referencias Desacopladas
 
-### Operación con Backlog y MCP
-1. **`status` siempre como campo top-level en `gripm_update_task`:**
-   ```json
-   // ROTO: { "taskId": "DEV-001", "updates": { "status": "ready" } }
-   // OK:   { "taskId": "DEV-001", "status": "ready" }
-   ```
-2. **`toggleAcIndex` secuencial:** NUNCA paralelizar llamadas sobre una misma tarea para evitar race conditions al tildar ACs.
-3. **Cero marcadores de sección sin escapar (DEV-132):** NUNCA escribir marcadores HTML literales como `<!-- AC:BEGIN -->` dentro de descripciones o notas; usar texto neutro `[marcador AC:BEGIN]` o la forma escapada `<!\-- AC:BEGIN -->`.
-4. **Slugs de tareas canónicos:** Nombres de archivo bajo el patrón canónico `DEV-XXX - slug-descriptivo.md` (o `dev-xxx - slug-descriptivo.md`). El prefijo numérico debe coincidir de forma unívoca con el `id` declarado en el frontmatter YAML. Prohibido doble guión (`dev--XXX`).
-5. **Cero colisiones de ID:** Antes de crear una tarea, releer el ID máximo **en el momento de crearla** -no al inicio de la sesión: con dos agentes escribiendo en paralelo la ventana de colisión es real- y asignar `max + 1`. Verificar antes de cerrar: `grep -h '^id: DEV-' backlog/tasks/*.md | sort | uniq -d` debe devolver **vacío**.
+Para evitar el **Prompt Bloat** y preservar la ventana de contexto de los modelos de IA, las especificaciones detalladas residen en reglas dedicadas:
 
-### Ortogonalidad y Modelo de Datos
-6. **Ortogonalidad estricta ("Anti-Label-Smuggling"):** Estado, Sprint, Release, Prioridad y Asignado son dimensiones 100% independientes. Prohibido usar "Backlog" como sprint, o deducir versiones fantasma como `vSprint 5` por pertenecer a un sprint. Si un campo no tiene valor, su valor visual canónico debe ser unívoco: `Sin Sprint`, `Sin Asignar` o `-`.
-7. **Estado `ideas` de primera clase:** NUNCA normalizar o degradar `ideas` a `draft` en parsers o vistas.
-8. **Simetría `sprint` vs `sprints`:** Al desasignar sprint en `ItemModal`, enviar `sprint: ""` y `targetSprint: ""` explícitamente para persistir la limpieza en disco.
-
-### Entorno, Terminal y UI
-9. **Sandbox de Terminal (Prohibido `curl http://localhost:4100`):** El sandbox bloquea peticiones HTTP locales. Para validar si el servidor escucha en el puerto 4100, verificar el bind local en terminal o logs sin emitir peticiones de red directas. Para interactuar con la UI, usar `browser_subagent`.
-10. **Estabilidad de layout (Zero-CLS):** El elemento raíz `html` debe declarar siempre `overflow-y: scroll; scrollbar-gutter: stable;` en `index.css`.
-11. **Portales para modales y menús (DEV-129, DEV-130):** Renderizar overlays (`ConfirmModal`, dropdowns) vía `createPortal(..., document.body)` para evitar bugs de stacking context y containing block (`transform`, `backdrop-filter`).
-12. **Cero `truncate` en confirmaciones:** En cajas de advertencia o confirmación, usar siempre `break-words text-xs leading-relaxed` para nunca cortar texto crítico con elipsis (`…`).
-13. **Tipos de ítem dinámicos:** Emplear Proxy defensivo o `getItemTypeInfo` para renderizar cualquier clave personalizada sin provocar fallas.
-14. **Anti-Suppression:** NUNCA apagar linters o ignorar tipos (`@ts-ignore`, `eslint-disable`) para tapar síntomas.
-15. **Resolución absoluta de rutas:** Usar siempre `root: PKG_ROOT` y rutas absolutas en binarios CLI y plugins para ejecución global.
-16. **Metodología Lean / Kanban preferente:** En `gripm`, el desarrollo se opera preferentemente bajo flujo continuo Kanban con una cola de backlog priorizada y entregas agrupadas por valor en Releases, evitando la sobrecarga artificial de timeboxes de sprint cuando el ritmo ágil es continuo.
-17. **Gobernanza de configuración pública (`.gripm/config.json`):** El archivo `.gripm/config.json` del repositorio define la configuración canónica OSS (`"language": "en"`, `"theme": "dark"`, `"density": "comfortable"`, `"methodology": "kanban"`, `"enabledTabs": { "kanban": true, "sprint": false, "release": true }`). Prohibido commitear en este archivo configuraciones o preferencias de entorno personales del desarrollador.
-18. **Paridad CI vs Local (DEV-249):** La suite headless (`npm test`) no ejecuta `test:ui` ni `verify-changes.js --all`. Ante cambios en Header/navegación, empaquetado o antes de sellar releases, correr ambos obligatoriamente y validar la suite desde estado limpio (sin depender de `dist/` preexistente en disco).
-19. **Inmunidad a CRLF (DEV-249):** Todo script que parsee líneas debe normalizar `\r` (`replace(/\r$/, '')`). El repositorio preserva `.gitattributes` (`* text=auto eol=lf`) para evitar divergencias entre plataformas.
-20. **Trazabilidad de arquitectura (ADR, DEV-260):** Toda decisión de arquitectura con trade-offs reales que **no sea derivable del código** se registra como un ADR en `docs/adr/NNNN-slug.md` (numeración secuencial e inmutable, convención y estados en `docs/adr/README.md`). Los ADR aceptados son append-only: una decisión que cambia se documenta en un registro nuevo que marca al anterior como `Reemplazado`. `docs/ARCHITECTURE.md` describe el estado actual; el ADR explica el porqué. Al cerrar un sprint o release, el campo `ADR Recorded` de la especificación o registro de release apunta a la ruta del ADR correspondiente.
-21. **Cero tamaños de fuente arbitrarios (UX-011):** Usar siempre la escala canónica de Tailwind (`text-xs`, `text-sm`, `text-base`). Prohibido introducir clases de estilo libre como `text-[9px]`, `text-[10px]` o `text-[11px]` en componentes de UI para evitar dispersión tipográfica y fallas en la suite de auditoría UX (`audit-ux-baseline`).
-22. **Semántica de filtros de estado (Anti-Ambigüedad, DEV-287):** En selectores y chips de filtro, nombrar el conjunto de trabajo en curso como **"Estados activos"** (ES) / **"Active statuses"** (EN). Prohibido usar "Todos los estados" para referirse a estados no terminales, reservando "Todos" únicamente cuando la consulta incluya exhaustivamente `done`, `cancelled` y `dismissed`.
-23. **Visibilidad de versión en entornos Sandbox (DEV-288):** Todo despliegue web/sandbox debe exponer su versión canónica visiblemente (ej. en el modal de atajos de teclado o cabecera) para permitir la certificación inmediata por parte de usuarios y QA sin recurrir a la consola de desarrollo.
-24. **Documentación bilingüe en un único archivo (DEV-309):** Para documentos comunitarios y de gobernanza (`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, etc.), se unifican ambos idiomas en el mismo archivo: versión en inglés arriba, versión en español debajo, con selector de anclajes de navegación rápida en la cabecera (`🌐 [English](#...) | [Español](#...)`). Queda prohibido bifurcar la documentación en archivos paralelos `*.es.md` (exceptuando temporalmente `README.md` / `README.es.md`).
-25. **Cero guiones largos artificiales (Anti-Em-Dash / Anti-IA):** Queda terminantemente prohibido el uso de guiones largos (em-dash ` - ` o en-dash ` - `) en títulos de navegador, interfaces de usuario, opciones de select, nombres de releases, notas de versión, `CHANGELOG.md`, `releases.json`, `BACKLOG.md` y documentación. Utilizar **siempre y exclusivamente** el guión simple estándar `-` con espacios (` - `). El uso de ` - ` es un cliché estilístico artificial que degrada la identidad y calidad del producto.
-26. **Cero despliegues a producción desde `dev` (Anti-Dev-Production-Deploy, DEV-340):** Queda terminantemente prohibido ejecutar `vercel --prod` o promover a producción desde la rama `dev` o ramas de trabajo. La producción debe originarse única y exclusivamente en `main` mediante `npm run deploy:prod` tras certificar la Pirámide de Verificación y mergear a `main`, siguiendo el protocolo formal de `.agents/skills/release-management/SKILL.md`.
-
----
-
-## 7. Superficie de Riesgo, Seguridad y Mitigaciones (SEC-01 a SEC-10)
-
-- **Daemon local sin autenticación HTTP (SEC-10):** gripm es una herramienta local monousuario. La API REST no incluye autenticación ni tokens. La frontera de aislamiento es el proceso del usuario.
-- **Exposición en LAN con `--host 0.0.0.0` (SEC-06):** Iniciar el servidor en `0.0.0.0` permite el acceso a cualquier dispositivo en la misma red local. Usar exclusivamente en redes de confianza; nunca en redes públicas.
-- **Contención en `/api/fs/browse` (SEC-07):** El explorador de carpetas valida contención estricta mediante `path.relative` y `realpathSync` contra raíces permitidas (`home`, `cwd`, proyectos registrados), evitando traversals.
-- **Servidor MCP stdio y validación estricta (SEC-03, SEC-05):** `gripm-mcp` opera mediante `stdin`/`stdout`. Valida todos los parámetros de entrada (`limit`, `offset`, `taskId`, `toggleAcIndex`) y asegura contención estricta de rutas en `--repo`.
-- **Ejecución segura en el Gatekeeper (SEC-01):** El Gatekeeper de certificación ejecuta `verifyCommand` **únicamente si fue provisto como argumento explícito** en la llamada MCP, con timeout estricto de 15 segundos. **Queda terminantemente prohibido leer o ejecutar comandos desde el frontmatter de los archivos `.md` en disco, y el servidor MCP nunca persiste scripts en el frontmatter.**
-- **Cero fabricación de ACs (SEC-02):** `gripm_sync_backlog` opera con `autoFix: false` por defecto. Queda prohibido alterar checkboxes `- [ ]` a `- [x]` sin verificación real en tareas `done`.
-- **Trazabilidad en bypass (SEC-09):** El uso de `force: true` para sortear el Gatekeeper emite una advertencia formal y persiste metadata de auditoría en la respuesta.
+- **Invariantes de Dominio y Modelo de Datos:** [`.agents/rules/gripm-domain.md`](.agents/rules/gripm-domain.md) (operación de backlog y MCP, ortogonalidad de estados/sprints, estándares de UI, portales y estabilidad de layout).
+- **Superficie de Riesgo y Seguridad (SEC-01 a SEC-10):** [`.agents/rules/security.md`](.agents/rules/security.md) y política general en [`SECURITY.md`](SECURITY.md).
+- **Flujo Canónico de Git y Concurrencia:** [`.agents/rules/git-workflow.md`](.agents/rules/git-workflow.md).
+- **Dogfooding del Backlog:** [`.agents/rules/backlog-dogfooding.md`](.agents/rules/backlog-dogfooding.md).
+- **Protocolo de Release y Despliegue:** [`.agents/skills/release-management/SKILL.md`](.agents/skills/release-management/SKILL.md).
+- **Auditoría de UX y Ergonomía:** [`.agents/skills/code-level-ux-auditor/SKILL.md`](.agents/skills/code-level-ux-auditor/SKILL.md).
 
