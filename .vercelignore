@@ -10,7 +10,7 @@
 # los paths de acá hace falta para compilar.
 
 # --- Trabajo privado: nunca subir ---
-backlog/
+/backlog/
 BACKLOG.md
 /data/
 .gripm/
