@@ -14,10 +14,8 @@ import {
   FileCode,
   RotateCcw,
   Database,
-  Upload,
   Settings,
   Menu,
-  X,
   Sparkles,
   Globe,
   Keyboard,
@@ -32,6 +30,7 @@ import { isSprintModuleActive, isReleaseModuleActive, isTimelineModuleActive, is
 import { ConfirmModal } from './ConfirmModal';
 import { AuditBadge } from './audit/AuditBadge';
 import { useTranslation } from '../utils/i18n';
+import { HeaderMobileMenu } from './header/HeaderMobileMenu';
 
 export type HeaderActiveTab = ActiveTab | 'metrics';
 
@@ -694,247 +693,32 @@ export const Header: FC<HeaderProps> = ({
       </header>
 
       {/* Mobile Drawer (DEV-007) */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 z-50 md:hidden flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          <div 
-            className="w-full max-w-xs h-full bg-white dark:bg-[#0d1322] border-l border-slate-200 dark:border-white/10 shadow-2xl p-5 flex flex-col justify-between overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center shadow-sm bg-[#080c14] border border-indigo-400/30">
-                    <img src="/logo.png" alt="gripm" className="w-full h-full object-cover" />
-                  </div>
-                  <span className="font-bold text-sm tracking-tight text-slate-800 dark:text-white">
-                    gripm
-                  </span>
-                </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  aria-label="Cerrar menú"
-                  title="Cerrar"
-                  className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Quick Actions List */}
-              <div className="mt-4 space-y-1">
-                <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-2 py-1">
-                  Acciones Rápidas
-                </div>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onNewItem();
-                  }}
-                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <Plus className="w-4 h-4 text-indigo-500" />
-                  <span>{t('header.newItem')}</span>
-                </button>
-
-                {onOpenAudit && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenAudit();
-                    }}
-                    className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span className="flex-1 text-left">{t('audit.modalTitle')}</span>
-                    {auditReport && (
-                      <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
-                        {Math.round(auditReport.score)}/100
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {!singleProject && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNewProject();
-                    }}
-                    className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                  >
-                    <FolderPlus className="w-4 h-4 text-emerald-500" />
-                    <span>{t('header.newProject')}</span>
-                  </button>
-                )}
-
-                {currentProject?.hasDocs && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onResyncDocs();
-                    }}
-                    disabled={isResyncing}
-                    className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-4 h-4 text-indigo-500 ${isResyncing ? 'animate-spin' : ''}`} />
-                    <span>{isResyncing ? t('header.syncingDocs') : t('header.resyncDocs', { name: currentProject.name })}</span>
-                  </button>
-                )}
-
-                {!singleProject && onOpenImportWizard && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenImportWizard();
-                    }}
-                    className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                  >
-                    <Upload className="w-4 h-4 text-violet-500" />
-                    <span>{t('header.importMarkdown')}</span>
-                  </button>
-                )}
-
-                {isMetricsEnabled && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onSelectTab('metrics');
-                    }}
-                    className={`w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
-                      activeTab === 'metrics'
-                        ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-semibold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                    }`}
-                  >
-                    <BarChart2 className="w-4 h-4 text-indigo-500" />
-                    <span>{t('header.metrics')}</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onSelectTab('settings');
-                  }}
-                  className={`w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
-                    activeTab === 'settings'
-                      ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-semibold'
-                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <Settings className="w-4 h-4 text-indigo-500" />
-                  <span>{t('settings.title')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onSelectTab('trash');
-                  }}
-                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-500" />
-                  <span>{t('header.trash')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenCommandPalette?.();
-                  }}
-                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <Command className="w-4 h-4 text-indigo-500" />
-                  <span>{t('palette.title')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenShortcuts?.();
-                  }}
-                  className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <Keyboard className="w-4 h-4 text-indigo-500" />
-                  <span>{t('shortcuts.title')}</span>
-                </button>
-
-                <button
-                  onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-                  className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Globe className="w-4 h-4 text-indigo-500" />
-                    <span>{t('header.switchLang')}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 uppercase font-mono font-semibold">{language.toUpperCase()}</span>
-                </button>
-
-                <button
-                  onClick={onToggleTheme}
-                  className="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
-                    <span>{isDarkMode ? t('header.themeLight') : t('header.themeDark')}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 uppercase font-mono">{isDarkMode ? 'Dark' : 'Light'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Live Sync & Version Footer */}
-            <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${
-                  isSandbox ? 'bg-indigo-500' : (liveConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')
-                }`} />
-                <span>
-                  {isSandbox ? t('header.sandboxMode') : (liveConnected ? t('header.liveConnected') : t('header.liveReconnecting'))}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* DEV-222: el reset vive también acá. En móvil el Header es una fila
-                    `grid-cols-[1fr_auto_1fr]` cuyo cluster derecho no refluye y queda
-                    fuera del viewport, así que el botón de la fila superior es
-                    inalcanzable y además queda tapado por el nav: tocarlo navega a
-                    Sprints en vez de resetear. El drawer es el único lugar alcanzable
-                    en móvil. El arreglo de raíz del Header es DEV-207. */}
-                {isSandbox && onRestoreDemo && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onRestoreDemo();
-                    }}
-                    title={t('header.resetDemoDesc')}
-                    className="flex items-center gap-1 min-h-[44px] px-2 rounded-md text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{t('header.resetDemo')}</span>
-                  </button>
-                )}
-                {updateAvailable?.hasUpdate && (
-                  <a
-                    href={updateAvailable.url || 'https://github.com/pablojavierrodriguez/gripm/releases'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
-                  >
-                    <Sparkles className="w-3 h-3 animate-pulse" />
-                    <span>v{updateAvailable.latestVersion}</span>
-                  </a>
-                )}
-                <span className="text-[10px] font-mono opacity-60">v{updateAvailable?.currentVersion || '0.5.0'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <HeaderMobileMenu
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        onNewItem={onNewItem}
+        onOpenAudit={onOpenAudit}
+        auditReport={auditReport}
+        singleProject={singleProject}
+        onNewProject={onNewProject}
+        currentProject={currentProject}
+        onResyncDocs={onResyncDocs}
+        isResyncing={isResyncing}
+        onOpenImportWizard={onOpenImportWizard}
+        isMetricsEnabled={isMetricsEnabled}
+        activeTab={activeTab}
+        onSelectTab={onSelectTab}
+        onOpenCommandPalette={onOpenCommandPalette}
+        onOpenShortcuts={onOpenShortcuts}
+        language={language}
+        setLanguage={setLanguage}
+        isDarkMode={isDarkMode}
+        onToggleTheme={onToggleTheme}
+        isSandbox={isSandbox}
+        liveConnected={liveConnected}
+        onRestoreDemo={onRestoreDemo}
+        updateAvailable={updateAvailable}
+      />
 
       {/* Confirm Modal for Deleting/Unlinking Project */}
       <ConfirmModal

@@ -21,8 +21,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const AUDITOR = path.join(ROOT, 'scripts', 'audit-ux-code.cjs');
-const RULES = path.join(ROOT, 'scripts', 'ux-rules.json');
+const AUDITOR = path.join(ROOT, 'node_modules/@gripm/playbook/scripts/audit-ux-code.cjs');
+const RULES = path.join(ROOT, 'node_modules/@gripm/playbook/scripts/ux-rules.json');
 // Resolves the baseline in .gripm/ (Zero-Clutter architecture) or project root fallback.
 const BASELINE = fs.existsSync(path.join(ROOT, '.gripm', 'audit-ux-baseline.json'))
   ? path.join(ROOT, '.gripm', 'audit-ux-baseline.json')
@@ -42,10 +42,7 @@ const BASELINE = fs.existsSync(path.join(ROOT, '.gripm', 'audit-ux-baseline.json
  */
 function auditorFor() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-ux-baseline-'));
-  const scriptPath = path.join(dir, 'audit-ux-code.cjs');
-  fs.copyFileSync(AUDITOR, scriptPath);
-  fs.copyFileSync(RULES, path.join(dir, 'ux-rules.json'));
-  return { dir, scriptPath };
+  return { dir, scriptPath: AUDITOR };
 }
 
 /** The snapshot path for a fixture project. */

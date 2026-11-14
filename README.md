@@ -66,6 +66,13 @@ The onboarding wizard prompts for your preferred language (`en` or `es`), adopti
 npx @gripm/board --init -y
 ```
 
+To initialize Board and Playbook together without another wizard:
+```bash
+npx @gripm/board --init --with-playbook --full --yes
+```
+
+Playbook selections can be overridden with `--playbook-harness <id>` (repeatable), `--playbook-skills`, `--playbook-rules`, `--playbook-scripts`, `--playbook-docs`, `--playbook-preset`, and `--playbook-automation`. List options accept comma-separated values, `all`, or `none`; `--scripts` remains the Board package-script option.
+
 ### 2. Launch the visual board
 
 ```bash

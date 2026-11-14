@@ -16,7 +16,7 @@ The user never has to manually specify when to trigger a sprint or which sub-age
 | :--- | :--- | :--- | :--- |
 | **Mode 1: Surgical Focus** *(Fast-Track)* | Targeted bugfixes, calculations/invariants, copy/typo tweaks, linter fixes, failing unit tests. | **Host Orchestrator** applies [`principal-engineer`](skills/principal-engineer/SKILL.md) rules directly (or via 1 focused sub-agent). If certifying a backlog item (`review` ➔ `ready`), spawns a clean-context [`qa-auditor`](skills/qa-auditor/SKILL.md) sub-agent. | **Zero bureaucracy.** No sprint doc. Atomic modification + verification (`typecheck` + tests). |
 | **Mode 2: Tactical Duo** *(UX + Engineering)* | Component redesign, new modals/sheets, ergonomics & touch targets, visual charts. | **Host (`pm-orchestrator`)** dispatches clean-context sub-agents: **[`product-designer`](skills/product-designer/SKILL.md)** ➔ **[`principal-engineer`](skills/principal-engineer/SKILL.md)** ➔ **[`qa-auditor`](skills/qa-auditor/SKILL.md)**. | **Lightweight.** Plan outlined directly in chat. No sprint doc unless touching database schema. |
-| **Mode 3: Full Sprint & Backlog Flow** | Major backlog feature, database schema migrations, complex business workflows. | **Host (`pm-orchestrator`)** orchestrates isolated sub-agents: **[`market-researcher`](skills/market-researcher/SKILL.md)** ➔ **[`product-designer`](skills/product-designer/SKILL.md)** ➔ **[`principal-engineer`](skills/principal-engineer/SKILL.md)** (SDD) ➔ **[`qa-auditor`](skills/qa-auditor/SKILL.md)** ➔ **Release Management**. | **Formal.** Tracked via backlog task or sprint spec, verified through the Verification Pyramid and packaged by value. |
+| **Mode 3: Full Sprint & Backlog Flow** | Major backlog feature, database schema migrations, complex business workflows. | **Host (`pm-orchestrator`)** orchestrates isolated sub-agents: **[`market-researcher`](skills/market-researcher/SKILL.md)** ➔ **[`product-designer`](skills/product-designer/SKILL.md)** ➔ **[`principal-engineer`](skills/principal-engineer/SKILL.md)** (SDD) ➔ **[`qa-auditor`](skills/qa-auditor/SKILL.md)** ➔ **[`release-management`](skills/release-management/SKILL.md)**. | **Formal.** Tracked via backlog task or sprint spec, verified through the Verification Pyramid and packaged by value. |
 
 ---
 
@@ -35,7 +35,8 @@ When the host `pm-orchestrator` delegates to a specialist via `invoke_subagent`,
 | **Market Researcher** | `TypeName: "research"`<br>`Workspace: "inherit"`<br>*(Read-only + Web search)* | [`.agents/skills/market-researcher/SKILL.md`](skills/market-researcher/SKILL.md) | Problem statement + domain + specific UX/API questions. | `[RESEARCH]` brief: >= 3 product benchmarks, filtered domain edge-case table, and concrete recommendations. |
 | **Product Designer** | `TypeName: "research"` *(or `"self"` if generating visual assets)*<br>`Workspace: "inherit"`<br>*(Read-first design specification)* | [`.agents/skills/product-designer/SKILL.md`](skills/product-designer/SKILL.md) | Problem statement + ACs + Research brief + project design tokens. | `[DESIGN SPEC]`: semantic tokens, >= 44×44px touch targets, all 7 interactive states, Purpose Test verdicts, and copy veracity check. |
 | **Principal Engineer** | `TypeName: "self"`<br>`Workspace: "inherit"` *(or `"share"` in parallel SDD)*<br>*(Full write + Terminal tools)* | [`.agents/skills/principal-engineer/SKILL.md`](skills/principal-engineer/SKILL.md) | Refined task (`doing`) + ACs + Design Spec + Architecture boundaries + files in scope + `.agents/rules/`. | Implemented modular code (< 1000 LOC per file, layers decoupled), checked ACs (`- [x]`), green local typecheck/tests, Honest Scope & Residual Risk Declaration (what was not tested + residual risk), task in `review`. |
-| **QA Auditor** *(NEVER in the coder's thread)* | `TypeName: "self"`<br>`Workspace: "inherit"`<br>*(Contract-bounded: NO source code edits, terminal execution only)* | [`.agents/skills/qa-auditor/SKILL.md`](skills/qa-auditor/SKILL.md) & [`.agents/skills/code-level-ux-auditor/SKILL.md`](skills/code-level-ux-auditor/SKILL.md) | **Blind audit payload only:** Task file path (ACs) + `git diff` (or commit range) + command to run `node scripts/gate-qa.mjs <ID>`. Zero developer rationalization history. | `[QA MATRIX]`: mechanical `gate:qa` exit code + blind semantic audit of `git diff` vs. ACs + verdict (`APPROVED -> ready` or `REJECTED -> doing` with file:line findings). |
+| **QA Auditor** *(NEVER in the coder's thread)* | `TypeName: "self"`<br>`Workspace: "inherit"`<br>*(Contract-bounded: NO source code edits, terminal execution only)* | [`.agents/skills/qa-auditor/SKILL.md`](skills/qa-auditor/SKILL.md) & [`.agents/skills/code-level-ux-auditor/SKILL.md`](skills/code-level-ux-auditor/SKILL.md) | **Blind audit payload only:** Task file path (ACs) + `git diff` (or commit range) + command to run `npx playbook gate <ID>` (or `node scripts/gate-qa.mjs <ID>`). Zero developer rationalization history. | `[QA MATRIX]`: mechanical `gate:qa` exit code + blind semantic audit of `git diff` vs. ACs + verdict (`APPROVED -> ready` or `REJECTED -> doing` with file:line findings). |
+| **Release Management** | PO + Delivery Lead<br>`TypeName: "self"`<br>`Workspace: "inherit"`<br>*(Git & Deployment tools)* | [`.agents/skills/release-management/SKILL.md`](skills/release-management/SKILL.md) | Certified tasks in `ready` + `git log main..dev` + deploy hook target + SemVer scope. | Deployed package to production from `main`, SemVer 2.0 tag (`vX.Y.Z`), user-facing release notes, reconciled backlog (`ready` ➔ `done` with `releasedAt:`). |
 
 ### 🟢 When to Parallelize (Sub-Agents / Background Tasks):
 1. **Blind QA Certification (`qa-auditor`):**
@@ -43,7 +44,7 @@ When the host `pm-orchestrator` delegates to a specialist via `invoke_subagent`,
 2. **Exploratory Research & Benchmarking (`market-researcher`):**
    - Investigate industry references (Linear, Stripe, Notion, Obsidian) or analyze external API documentation without polluting the core technical context.
 3. **Accessibility (a11y) & Static Code Audits (`code-level-ux-auditor`):**
-   - Execute contrast ratios, accessibility checks, or static UX scans (`node scripts/audit-ux-code.cjs`) asynchronously.
+   - Execute contrast ratios, accessibility checks, or static UX scans (`npx playbook audit` or `node scripts/audit-ux-code.cjs`) asynchronously.
 4. **Auditing Visual Layouts (`browser_subagent`):**
    - Reserved **exclusively** for visual layout/CSS issues not deducible statically, complex viewport rendering, or upon explicit user request.
 
@@ -143,19 +144,19 @@ Transitions, actors, and guards are specified in [STATE_MACHINE.md](STATE_MACHIN
   2. ✅ Unit & integration tests (`npm test`, headless code 0)
   3. ✅ Backlog & spec consistency checks
   4. ✅ Production build (`npm run build`)
-  5. ✅ `node scripts/audit-ux-code.cjs --strict` (static UX audit, headless)
+  5. ✅ `npx playbook audit --strict` / `node scripts/audit-ux-code.cjs --strict` (static UX audit, headless)
 - **Blind Semantic Diff Audit:** Beyond mechanical checks, the clean-context QA sub-agent verifies that every checked AC (`- [x]`) is genuinely implemented in the `git diff`, with no module-wide `vi.mock()` evasions, no `as unknown as` type escapes, strict modularity (zero files >= 1000 LOC, zero God-Files bundling multi-layer logic), and all mandatory headless audits satisfied.
 - **Anti-Browser-Subagent Inefficiency:** Prohibited to invoke `browser_subagent` for logic, state, API contracts, or persistence that can be audited in milliseconds headlessly. Reserved strictly for static-undeducible CSS/layout issues or explicit user prompt.
-- **Output:** Once both `node scripts/gate-qa.mjs <ID>` (`exit 0`) and the blind diff audit pass, moves the item to `status: ready`. On failure, records actionable findings (`file:line`) and moves it back to `doing` (transition T3).
+- **Output:** Once both `npx playbook gate <ID>` (or `node scripts/gate-qa.mjs <ID>`) (`exit 0`) and the blind diff audit pass, moves the item to `status: ready`. On failure, records actionable findings (`file:line`) and moves it back to `doing` (transition T3).
 - **`ready` is the formal delivery of development**: the item is validated and immediately eligible for packaging and deployment. A certified item is frozen: any post-QA code change invalidates the certification and requires a return to `doing`.
 
 #### Double Gate: Mechanical Runner + Blind Sub-Agent
 
-> **Neither prose nor same-thread roleplay is a gate.** An agent asked to "act as the QA Auditor" in the same turn that it wrote the code will tick the ACs by inertia and rationalize its own shortcuts. This playbook prevents both failure modes: `scripts/gate-qa.mjs` enforces the mechanical gate (**exit code 0**), and **context isolation (`invoke_subagent`)** enforces an unbiased semantic audit of the `git diff`.
+> **Neither prose nor same-thread roleplay is a gate.** An agent asked to "act as the QA Auditor" in the same turn that it wrote the code will tick the ACs by inertia and rationalize its own shortcuts. This playbook prevents both failure modes: `npx playbook gate` / `gate-qa` enforces the mechanical gate (**exit code 0**), and **context isolation (`invoke_subagent`)** enforces an unbiased semantic audit of the `git diff`.
 
 ```bash
-node scripts/gate-qa.mjs TASK-ID                    # full mechanical gate
-node scripts/gate-qa.mjs TASK-ID --no-run  # inspection only; exits 2, never certifies
+npx playbook gate TASK-ID                    # full mechanical gate (or node scripts/gate-qa.mjs TASK-ID)
+npx playbook gate TASK-ID --no-run           # inspection only; exits 2, never certifies
 ```
 
 The runner rejects, mechanically: an item not in `review`; any unchecked acceptance criterion; a `blocked_reason` that is missing, empty or whitespace on a `blocked` item (and a stray `blocked_reason` on an item that is not blocked); and any declared dependency that is missing from disk or not in `done`. It then runs the pyramid, and a step that cannot execute is reported `SKIPPED` - **a pyramid where nothing ran fails the gate rather than passing it**, because certification on an unexecuted gate is the exact theatre this runner exists to prevent.
@@ -167,10 +168,11 @@ Running the gate is necessary (`exit 0`) and the clean-context QA Auditor sub-ag
 A task that cannot proceed is moved to `status: blocked` with a **non-empty `blocked_reason`** in its frontmatter, rather than being left to rot in `doing` where it inflates WIP and nobody remembers why it stopped. It returns to `doing` or `draft` only when the impediment is resolved or its blocking dependencies reach `done` or are explicitly unlinked. The invariant is enforced by the runner, not by discipline.
 
 ### Phase 5: Release Management & Prod Implementation (`ready` ➔ `done`)
+- **Governing Skill:** Governed by the canonical [`.agents/skills/release-management/SKILL.md`](skills/release-management/SKILL.md) 6-phase release protocol.
 - **Packaging by Delivered Value:** Release Management (PO + Scrum/Delivery Lead) groups available items in `ready` based on value delivered.
 - **Decoupled Sprints & Releases:** Sprints and releases have no 1:1 coupling. Releases are created based on delivered value with any available `ready` items (historical or from the active sprint), with or without an active sprint.
-- **Production Deployment (`done`):** Upon committing and pushing the release package to production (main cloud), the packaged items transition to `status: done`.
-- **Fundamental Invariant:** **No item can exist in production that is not in `done`**.
+- **Production Deployment (`done`):** Upon committing and pushing the release package to production from canonical `main` trunk and executing the project deploy hook, the packaged items transition to `status: done`.
+- **Fundamental Invariants:** **No item can exist in production that is not in `done`**, and **no item enters `done` without an actual production deploy** (Anti-State-Lie). Daily tasks never bump version numbers.
 
 ---
 
@@ -179,13 +181,18 @@ A task that cannot proceed is moved to `status: blocked` with a **non-empty `blo
 1. **Fixed Timebox:** A sprint concludes when its scheduled timebox expires (fixed duration), regardless of whether all planned items are finished. Incomplete items are replanned to the next sprint or returned to the backlog.
 2. **Continuous Productivity:** If all items in a sprint are completed before the timebox expires, the PO expands the sprint scope by pulling in newly refined backlog items to maintain productivity. Sprints rarely conclude prematurely.
 3. **No Autonomous Close or Retro:** The AI agent **NEVER** closes a sprint or executes a retrospective autonomously by deduction. Both actions require explicit, textual instructions from the PO (e.g., *"close the sprint"*, *"run the sprint retro"*).
-4. **Mandatory Retro Outputs:** Update rules in `AGENTS.md`, refine skills, and create backlog tasks for all identified technical debt or process improvements.
+4. **Mandatory Retro Outputs (4-Tier Progressive Disclosure):**
+   - **Mechanical First:** If the issue can be caught statically, write a headless test, linter rule, or static AST signature in `.uxaudit.json`.
+   - **Domain Invariant:** If it is a business or domain rule, record it in `.agents/rules/<domain>.md` or `DOMAIN.md`.
+   - **Role Protocol:** If it refines how an engineering or design role operates, update the corresponding skill in `.agents/skills/`.
+   - **Root Instruction Hygiene:** Never append micro-gotchas into `AGENTS.md` or `CLAUDE.md`. The root file must remain a lean router (~100-150 LOC).
+   - **Technical Debt:** Create backlog tasks (`status: draft`) for identified debt or structural improvements.
 
 ---
 
 ## 🧠 Continuous Learning Protocol (Knowledge Feeder)
 
 At the conclusion of each release or sprint:
-1. **New UI or input discoveries:** Documented into relevant design/form skills.
+1. **New UI or input discoveries:** Documented into relevant design/form skills or `.uxaudit.json`.
 2. **Superior architectural patterns:** Documented as an Architectural Decision Record (ADR).
-3. **No bug or friction is solved twice:** Converted into a permanent project rule in `AGENTS.md`.
+3. **No bug or friction is solved twice:** Converted into a mechanical assertion (test/linter) or documented in `.agents/rules/` or relevant skills, preserving a lean `AGENTS.md` router.

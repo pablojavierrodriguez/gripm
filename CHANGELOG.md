@@ -11,6 +11,8 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
+En preparación: `1.12.0`.
+
 ---
 
 ## [1.11.0] - 2026-11-02 🚀 Motor de Diagnostico y Salud de Repositorio, Suite Gripm, Arquitectura Zero-Clutter y Filtros Globales en Timeline

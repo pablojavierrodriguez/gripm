@@ -31,6 +31,7 @@ const c = {
 
 const isFixMode = process.argv.includes('--fix') || process.argv.includes('--auto-sync');
 const isHookMode = process.argv.includes('--hook');
+const isStrictMode = process.argv.includes('--strict');
 
 console.log(`\n  ${c.bold('gripm')} ${c.dim('·')} Verificando sincronización del Backlog...`);
 
@@ -393,7 +394,29 @@ if (fs.existsSync(releasesJsonPath)) {
   }
 }
 
-// REGLA 5: Validación de IDs de Sprint canónicos (DEV-192)
+// REGLA 4b: Verificación de sincronización de CHANGELOG.md con releases.json (DEV-368)
+const changelogScript = path.join(ROOT_DIR, 'scripts/generate-changelog.cjs');
+if (fs.existsSync(changelogScript)) {
+  if (isFixMode) {
+    try {
+      execSync(`node "${changelogScript}"`, { cwd: currentRepoDir, stdio: 'pipe' });
+    } catch (e) {
+      console.error(`  ${c.red('✖')} [Error de Changelog] Falló la regeneración de CHANGELOG.md: ${e.message}`);
+      errorsFound++;
+    }
+  } else {
+    try {
+      execSync(`node "${changelogScript}" --check`, { cwd: currentRepoDir, stdio: 'pipe' });
+    } catch {
+      console.error(`  ${c.red('✖')} [Error de Changelog] CHANGELOG.md no refleja backlog/releases.json.`);
+      console.error(`    ${c.yellow('▲')} Ejecuta 'npm run changelog' para sincronizar el historial de releases.`);
+      errorsFound++;
+    }
+  }
+}
+
+// REGLA 5: Validación de IDs de Sprint canónicos (DEV-192) y sprints activos
+const activeSprintIds = new Set();
 const sprintJsonPath = path.join(currentRepoDir, 'backlog/sprints.json');
 if (fs.existsSync(sprintJsonPath)) {
   try {
@@ -404,11 +427,81 @@ if (fs.existsSync(sprintJsonPath)) {
           console.error(`  ${c.red('✖')} [Error de Sprint] Sprint "${sp.name}" tiene ID no canónico '${sp.id}' (debe seguir el patrón sprint-<n>).`);
           errorsFound++;
         }
+        if (String(sp?.status || '').toLowerCase() === 'active') {
+          if (sp.id) activeSprintIds.add(String(sp.id));
+          if (sp.name) activeSprintIds.add(String(sp.name));
+        }
       }
     }
   } catch (e) {
     console.error(`  ${c.red('✖')} [Error de Sprint] No se pudo leer o parsear '${sprintJsonPath}': ${e.message}`);
     errorsFound++;
+  }
+}
+
+// REGLA 6 (DEV-370): Unicidad de IDs en backlog/tasks/ con paridad respecto a gate-qa.mjs
+// Bloquea si alguna copia colisionante no es histórica ('done'/'dismissed'), pertenece a un sprint activo,
+// o se ejecuta bajo --strict. Emite advertencia ▲ sin bloquear si todas son deuda histórica fuera de sprint activo.
+const HISTORICAL_TASK_STATUSES = new Set(['done', 'dismissed']);
+const allDiskFiles = fs.existsSync(tasksDir)
+  ? fs.readdirSync(tasksDir).filter(f => f.endsWith('.md'))
+  : [];
+const stagedContentByFile = new Map(taskEntries.map(e => [e.file, e.content]));
+const idGroups = new Map();
+
+function registerCollisionCandidate(fileName, raw, isStagedEntry) {
+  const fmBlock = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fmBlock) return;
+  const fmBody = fmBlock[1];
+  const dupIdMatch = fmBody.match(/^id:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+  const parsedId = dupIdMatch ? dupIdMatch[1].trim() : fileName.split(' - ')[0].trim();
+  if (!parsedId) return;
+  const dupStatusMatch = fmBody.match(/^status:\s*['"]?([A-Za-z0-9_-]+)['"]?/m);
+  const parsedStatus = dupStatusMatch ? dupStatusMatch[1].toLowerCase() : '(missing)';
+  const dupSprintMatch = fmBody.match(/^(?:sprint_id|sprint|target_sprint|targetSprint):\s*['"]?([^\r\n'"]+)['"]?/m);
+  const parsedSprint = dupSprintMatch ? dupSprintMatch[1].trim() : null;
+
+  if (!idGroups.has(parsedId)) idGroups.set(parsedId, []);
+  idGroups.get(parsedId).push({
+    file: fileName,
+    status: parsedStatus,
+    sprintId: parsedSprint,
+    staged: isStagedEntry,
+  });
+}
+
+for (const fileName of allDiskFiles) {
+  let raw = stagedContentByFile.get(fileName);
+  const isStagedEntry = isHookMode && stagedContentByFile.has(fileName);
+  if (raw === undefined) {
+    try {
+      raw = fs.readFileSync(path.join(tasksDir, fileName), 'utf8');
+    } catch {
+      continue;
+    }
+  }
+  registerCollisionCandidate(fileName, raw, isStagedEntry);
+}
+
+// En --hook mode, un archivo recién creado y stageado podría no existir en diskEntries previas si git rm/rename, pero sí existe en WD o index.
+if (isHookMode) {
+  for (const entry of taskEntries) {
+    if (allDiskFiles.includes(entry.file)) continue;
+    registerCollisionCandidate(entry.file, entry.content, true);
+  }
+}
+
+for (const [dupId, copies] of idGroups.entries()) {
+  if (copies.length < 2) continue;
+  const fileList = copies.map(entry => `"${entry.file}" [${entry.status}]`).join(' y ');
+  const touchesActiveSprint = copies.some(entry => entry.sprintId && activeSprintIds.has(entry.sprintId));
+  const hasNonHistoricalStatus = copies.some(entry => !HISTORICAL_TASK_STATUSES.has(entry.status));
+
+  if (isStrictMode || touchesActiveSprint || hasNonHistoricalStatus) {
+    console.error(`  ${c.red('✖')} [Error de Unicidad] El ID de tarea "${dupId}" está duplicado en ${fileList}.`);
+    errorsFound++;
+  } else {
+    console.warn(`  ${c.yellow('▲')} [Advertencia Histórica] El ID duplicado "${dupId}" aparece en tareas archivadas (${fileList}) - ignorado fuera de alcance activo.`);
   }
 }
 

@@ -66,6 +66,13 @@ El asistente interactivo consulta tu idioma de preferencia (`es` o `en`), el per
 npx @gripm/board --init -y
 ```
 
+Para inicializar Board y Playbook juntos sin abrir un segundo asistente:
+```bash
+npx @gripm/board --init --with-playbook --full --yes
+```
+
+Puedes cambiar las selecciones de Playbook con `--playbook-harness <id>` (repetible), `--playbook-skills`, `--playbook-rules`, `--playbook-scripts`, `--playbook-docs`, `--playbook-preset` y `--playbook-automation`. Las opciones de listas aceptan valores separados por comas, `all` o `none`; `--scripts` sigue configurando los scripts de Board.
+
 ### 2. Abre el tablero visual
 
 ```bash

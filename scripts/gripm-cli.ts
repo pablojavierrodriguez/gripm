@@ -190,7 +190,7 @@ async function main() {
 
   // DEV-354: Soporte para subcomando 'audit' en gripm-cli
   if (args[0] === 'audit' || (args.includes('audit') && !args.includes('--export'))) {
-    const { runCli: runAuditCli } = await import('./audit-engine.mjs');
+    const { runCli: runAuditCli } = await import('@gripm/playbook/audit-engine');
     const auditArgs = args.filter(a => a !== 'audit');
     await runAuditCli(auditArgs);
     return;

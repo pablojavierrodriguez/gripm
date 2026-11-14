@@ -47,6 +47,8 @@ export function writeConfig(targetRepo, configData, isEn = true) {
     density: configData.density || existing.density || 'comfortable',
     autoSave: configData.autoSave !== undefined ? configData.autoSave : (existing.autoSave !== undefined ? existing.autoSave : true),
     mode: configData.mode || existing.mode || 'single',
+    preset: configData.preset || existing.preset,
+    automation: configData.automation || existing.automation,
     methodology: configData.methodology || existing.methodology || 'kanban',
     defaultView: configData.defaultView || existing.defaultView || 'kanban',
     modules: {

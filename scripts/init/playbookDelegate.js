@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { normalizePlaybookOptions } from './playbookOptions.js';
 
 /**
  * Resolves the Playbook CLI command and base arguments.
  * Resolution order:
  * 1. process.env.GRIPM_PLAYBOOK_CLI
  * 2. local node_modules/.bin/playbook in targetRepo
- * 3. npx -y @gripm/playbook@^2.8.0
+ * 3. npx -y @gripm/playbook@^2.9.1
  */
 export function resolvePlaybookCommand(targetRepo = process.cwd()) {
   const isWin = process.platform === 'win32';
@@ -43,7 +44,7 @@ export function resolvePlaybookCommand(targetRepo = process.cwd()) {
   const npxCmd = isWin ? 'npx.cmd' : 'npx';
   return {
     command: npxCmd,
-    baseArgs: ['-y', '@gripm/playbook@^2.8.0'],
+    baseArgs: ['-y', '@gripm/playbook@^2.9.1'],
     shell: isWin
   };
 }
@@ -83,41 +84,49 @@ export function delegatePlaybookInit(targetRepo, options = {}, isEn = true) {
     initArgs.push('--mode', options.mode);
   }
 
+  const playbookOptions = normalizePlaybookOptions(options.playbookOptions);
+  for (const harness of playbookOptions.harnesses || []) {
+    initArgs.push('--harness', harness);
+  }
+  for (const key of ['skills', 'rules', 'scripts', 'docs']) {
+    if (playbookOptions[key] !== undefined) {
+      initArgs.push(`--${key}`, playbookOptions[key].length ? playbookOptions[key].join(',') : 'none');
+    }
+  }
+  if (playbookOptions.preset) {
+    initArgs.push('--preset', playbookOptions.preset);
+  }
+  if (playbookOptions.automation) {
+    initArgs.push('--automation', playbookOptions.automation);
+  }
+
   const allArgs = [...baseArgs, ...initArgs];
 
-  try {
-    const result = spawnSync(command, allArgs, {
-      cwd: targetRepo,
-      stdio: 'inherit',
-      shell
-    });
+  const result = spawnSync(command, allArgs, {
+    cwd: targetRepo,
+    stdio: 'inherit',
+    shell
+  });
 
-    if (result.error) {
-      console.warn(isEn
-        ? `  ⚠️ Could not spawn Gripm Playbook CLI: ${result.error.message}`
-        : `  ⚠️ No se pudo ejecutar el CLI de Gripm Playbook: ${result.error.message}`
-      );
-      return false;
-    }
-
-    if (result.status !== 0) {
-      console.warn(isEn
-        ? `  ⚠️ Gripm Playbook initialization exited with code ${result.status}.`
-        : `  ⚠️ La inicialización de Gripm Playbook finalizó con código ${result.status}.`
-      );
-      return false;
-    }
-
-    console.log(isEn
-      ? '  ✅ Gripm Playbook initialized successfully.'
-      : '  ✅ Gripm Playbook inicializado con éxito.'
-    );
-    return true;
-  } catch (err) {
+  if (result.error) {
     console.warn(isEn
-      ? `  ⚠️ Error during Gripm Playbook delegation: ${err.message}`
-      : `  ⚠️ Error durante la delegación a Gripm Playbook: ${err.message}`
+      ? `  ⚠️ Could not spawn Gripm Playbook CLI: ${result.error.message}`
+      : `  ⚠️ No se pudo ejecutar el CLI de Gripm Playbook: ${result.error.message}`
     );
     return false;
   }
+
+  if (result.status !== 0) {
+    console.warn(isEn
+      ? `  ⚠️ Gripm Playbook initialization exited with code ${result.status}.`
+      : `  ⚠️ La inicialización de Gripm Playbook finalizó con código ${result.status}.`
+    );
+    return false;
+  }
+
+  console.log(isEn
+    ? '  ✅ Gripm Playbook initialized successfully.'
+    : '  ✅ Gripm Playbook inicializado con éxito.'
+  );
+  return true;
 }

@@ -20,6 +20,17 @@ export function sendJson(res: any, status: number, payload: any) {
 
 export function getBody(req: any, res: any): Promise<any> {
   return new Promise((resolve, reject) => {
+    if (req.body !== undefined && req.body !== null) {
+      if (typeof req.body === 'string') {
+        try {
+          return resolve(JSON.parse(req.body));
+        } catch (e) {
+          return resolve({});
+        }
+      }
+      return resolve(req.body);
+    }
+
     let body = '';
     let receivedBytes = 0;
     let aborted = false;

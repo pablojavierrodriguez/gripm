@@ -71,6 +71,7 @@ const STEPS = [
   ['task-cache', 'scripts/test-task-cache.js'],
   ['timeline-date-engine', 'scripts/test-timeline-date-engine.js'],
   ['audit-service', 'scripts/test-audit-service.js'],
+  ['verify-backlog-sync', 'scripts/test-verify-backlog-sync.js'],
 ];
 
 const DEFAULT_TIMEOUT_SECONDS = 180;
