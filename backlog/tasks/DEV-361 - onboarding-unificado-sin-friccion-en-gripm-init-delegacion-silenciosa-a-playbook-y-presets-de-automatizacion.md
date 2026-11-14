@@ -1,18 +1,19 @@
 ---
 id: DEV-361
 title: "Onboarding unificado sin friccion en gripm --init: delegacion silenciosa a Playbook y presets de automatizacion"
-status: ready
+status: done
 created_date: '2026-11-02'
-updated_date: '2026-11-04'
+updated_date: '2026-11-14'
 labels:
   - "cli"
   - "onboarding"
   - "dx"
   - "modular"
 dependencies:
-  - DEV-360
+  - "DEV-360"
 priority: high
 type: feature
+milestone: "v1.12.0"
 estimate: 3
 claimed_by: "copilot:db2bad02-4e8a-4cc5-a4e1-208400ba01ff"
 ---
@@ -68,45 +69,3 @@ When users initialize Gripm Board and Playbook together, Gripm collects setup ch
 4. Extend `scripts/test-init-suite.js` through the existing `GRIPM_PLAYBOOK_CLI` seam; validate prompt counts, arguments, persistence, and failures.
 5. Run the Gripm verification pyramid, including `npm run test:linux` and the standalone build.
 <!-- SECTION:PLAN:END -->
-
-## [TECH ARCHITECTURE]
-
-- `scripts/init/playbookOptions.js` derives choices from the installed Playbook catalog and validates wizard and CLI selections before writing Board files.
-- `scripts/init/prompts.js` collects granular choices inside Gripm's existing readline session; `scripts/initScaffold.js` coordinates quick, granular, Board-only, and Playbook-only paths.
-- `scripts/init/playbookDelegate.js` serializes validated selections into Playbook's native init flags. Combined setup is non-interactive at the delegation boundary; Playbook-only interactive setup retains its native wizard.
-- `scripts/init/writers.js` stores combined `preset` and `automation` values at the top level without discarding existing Board settings. Delegation failures return an unsuccessful result and non-zero CLI status without rollback.
-
-## [QA MATRIX]
-
-### Acceptance criteria review
-
-- AC #1: PASS. Quick setup tests verify `--yes`, `--mode quick`, pragmatic/automated defaults, and every harness in the installed Playbook catalog for both Board presets.
-- AC #2: PASS. The single Gripm granular prompt collects all seven Playbook selections; tests verify all catalog harnesses are preselected, empty harnesses are rejected before Board config is written, and other artifact lists may be empty.
-- AC #3: PASS. Tests verify Board-only does not invoke Playbook; Playbook-only `--yes` selects all supported harnesses without Board config, and its interactive delegation leaves the native wizard enabled.
-- AC #4: PASS. CLI parser/delegation tests verify the namespaced `--playbook-*` arguments and preserve Board's existing `--scripts` behavior.
-- AC #5: PASS. Combined setup persists top-level `preset` and `automation`, preserves existing Board settings, and leaves unrelated user files intact.
-- AC #6: PASS. Delegated non-zero exits are explicit, return failure/non-zero CLI status, and preserve Board files. Spawn errors follow the same failure path in `scripts/init/playbookDelegate.js`.
-- AC #7: PASS. `scripts/test-init-suite.js` covers quick, granular, Board-only, Playbook-only, argument mapping, empty harness rejection, persistence, wizard behavior, and delegated failure.
-- AC #8: PASS. All required commands below passed.
-
-### Verification Pyramid
-
-| Step | Exact command | Result |
-| --- | --- | --- |
-| 1. Typecheck | `npm run lint` | PASS, exit 0 |
-| 2. Headless tests | `npm test` | PASS, exit 0 |
-| 2. Platform tests | `npm run test:linux` | PASS, exit 0 |
-| 3. Backlog consistency | `npm run backlog:check` | PASS, exit 0; backlog synchronized |
-| 3. Publish surface | `npm run publish:check` | PASS, exit 0 |
-| 3. Change verification | `npm run verify:changes -- --all` | PASS, exit 0; 656 files checked. YAML checks reported unavailable because Python/PyYAML is not installed. |
-| 4. LOC/modularity | `npx playbook check-loc` | PASS, exit 0; no scanned source file at the 1000 LOC ceiling. Advisory warnings remain. |
-| 4. Repository health | `gripm_get_repo_health(projectId: "gripm", category: "all")` | PASS; 32/100, matching the task's 32/100 baseline. Existing repository LOC debt remains; no changed source file reaches 1000 LOC. |
-| 5. Static UX | `npx playbook audit --strict` | PASS, exit 0; 0 findings, 159 accepted baseline observations. |
-| 6. Production build | `npm run build` | PASS, exit 0; Vite and standalone binaries built. |
-| Final gate | `node node_modules/@gripm/playbook/scripts/gate-qa.mjs DEV-361` | PASS, exit 0; gate promoted `review` → `ready`. |
-
-### Findings and verdict
-
-- No blocking AC or verification findings.
-- LOC checks report advisory repository debt only; no modified source file reaches the 1000 LOC ceiling. Browser testing is not applicable to this CLI-only change; the setup paths are covered headlessly.
-- Verdict: `[ APPROVED → ready ]`.

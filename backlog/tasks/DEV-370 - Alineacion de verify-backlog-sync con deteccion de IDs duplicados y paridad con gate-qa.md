@@ -1,13 +1,18 @@
 ---
 id: DEV-370
 title: "Alineacion de verify-backlog-sync con deteccion de IDs duplicados y paridad con gate-qa"
-status: ready
+status: done
 created_date: '2026-11-14'
 updated_date: '2026-11-14'
-labels: ["backlog", "ci", "ux", "playbook-sync"]
+labels:
+  - "backlog"
+  - "ci"
+  - "ux"
+  - "playbook-sync"
 dependencies: []
 priority: high
 type: feature
+milestone: "v1.12.0"
 claimed_by: "antigravity:dev-00a9c7bd"
 ---
 

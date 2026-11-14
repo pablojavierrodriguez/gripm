@@ -1,13 +1,14 @@
 ---
 id: DEV-368
 title: "Idempotencia y desacople de publicación en ci.yml con extracción limpia de release notes y flag latest"
-status: ready
+status: done
 created_date: '2026-11-08'
-updated_date: '2026-11-08'
+updated_date: '2026-11-14'
 labels: []
 dependencies: []
 priority: medium
 type: tech_debt
+milestone: "v1.12.0"
 ---
 
 ## Description

@@ -1,13 +1,17 @@
 ---
 id: DEV-369
 title: "Desacople de reglas de dominio y seguridad de AGENTS.md hacia arquitectura en 4 capas"
-status: ready
+status: done
 created_date: '2026-11-09'
-updated_date: '2026-11-09'
-labels: ["governance", "prompt-bloat", "architecture"]
+updated_date: '2026-11-14'
+labels:
+  - "governance"
+  - "prompt-bloat"
+  - "architecture"
 dependencies: []
 priority: high
 type: refactor
+milestone: "v1.12.0"
 ---
 
 ## Description

@@ -1,13 +1,14 @@
 ---
 id: DEV-367
 title: "Adopción de la skill release-management de Playbook y configuración de deploy hooks"
-status: ready
+status: done
 created_date: '2026-11-08'
-updated_date: '2026-11-08'
+updated_date: '2026-11-14'
 labels: []
 dependencies: []
 priority: high
 type: feature
+milestone: "v1.12.0"
 ---
 
 ## Description

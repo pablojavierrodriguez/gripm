@@ -5,7 +5,7 @@
     "version": "1.12.0",
     "date": "2026-11-14",
     "targetDate": "2026-11-14",
-    "status": "unreleased",
+    "status": "released",
     "title": "v1.12.0 - Native Playbook Integration, Unified Init, and Modular Architecture",
     "summary": "Version 1.12.0 of Gripm Board: native consumption of @gripm/playbook via npm with removal of 19 duplicate scripts, unified gripm --init onboarding, modularization of frontend and backend components under 1000 LOC, 4-tier AGENTS.md architecture, idempotent CI release workflow, and duplicate task ID detection parity.",
     "scopeNotes": "Minor release 1.12.0: native Playbook dependency, unified init, modularization, 4-tier governance, and release automation.",

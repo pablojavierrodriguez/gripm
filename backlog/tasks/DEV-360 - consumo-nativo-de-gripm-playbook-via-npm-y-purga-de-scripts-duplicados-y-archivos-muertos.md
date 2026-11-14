@@ -1,9 +1,9 @@
 ---
 id: DEV-360
 title: "Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos"
-status: ready
+status: done
 created_date: '2026-11-02'
-updated_date: '2026-11-03'
+updated_date: '2026-11-14'
 labels:
   - "architecture"
   - "refactor"
@@ -13,6 +13,7 @@ labels:
 dependencies: []
 priority: high
 type: refactor
+milestone: "v1.12.0"
 estimate: 5
 ---
 

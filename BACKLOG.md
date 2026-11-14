@@ -217,279 +217,6 @@ El objetivo es permitir a los desarrolladores y product managers personalizar la
 
 ---
 
-### 🚀 Ready for Deploy (9)
-
-#### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-### Problem Statement
-Actualmente `@gripm/board` predica el principio Zero-Clutter y DRY (`DEV-250` y `DEV-345`), pero en la práctica mantiene **19 scripts duplicados** de `@gripm/playbook` copiados físicamente dentro de `scripts/` y `scripts/lib/` (`audit-ux-code.cjs`, `gate-qa.mjs`, `audit-engine.mjs`, `check-loc.mjs`, `sync-playbook.mjs`, `init.mjs`, `validate-commit-msg.mjs`, `ux-rules.json` y 10 módulos en `scripts/lib/`), además de scripts históricos de migraciones ya superadas (`canonicalize-status.js`, `purge-fabricated-task-sections.js`) y reglas duplicadas en `.agents/rules/git-approval.md` (que duplica `.agents/rules/git-workflow.md`).
-
-Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el Playbook desde su paquete (`@gripm/playbook`), eliminando toda copia manual de código ajeno y todo archivo muerto sin uso.
-
-### Cross-Project Dependency
-- **Requiere en `@gripm/playbook`:** `PLAY-057` (para que `playbook sync` no vuelva a copiar `scripts/` al sincronizar desde `--source` o remoto) y `PLAY-059` (para contar con el auditor UX modularizado).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Vincular `@gripm/playbook` en `devDependencies` de `package.json` y actualizar los imports en `server/services/auditService.ts`, `server/services/backlogService.ts` y `scripts/initScaffold.js` hacia `@gripm/playbook/*` (`@gripm/playbook/audit-engine`, `@gripm/playbook/check-loc`, etc.), manteniendo el empaquetado standalone en `bin/` vía `esbuild`.
-  2. Eliminar de `scripts/` y `scripts/lib/` los 19 archivos clonados de `@gripm/playbook` y actualizar los scripts de `package.json` (`gate:review`, `check-loc`, `playbook:check`, `playbook:sync`, `audit:ux`, etc.) y `.githooks/commit-msg` para invocar los binarios de `@gripm/playbook`.
-  3. Purgar los scripts de migración muertos (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js` y sus entradas en `package.json`) y eliminar `.agents/rules/git-approval.md` (consolidado en `.agents/rules/git-workflow.md`).
-  4. Actualizar `.gripm/playbook-lock.json` mediante `npm run playbook:sync` verificando que queden 0 entradas bajo `scripts/`.
-- **Out-of-Scope:**
-  - `scripts/import-docs.js` se conserva temporalmente o se reemplaza su fixture en `scripts/test-parser.js` si se decide retirar.
-
-**Criterios de Aceptación:**
-- [x] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
-- [x] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
-- [x] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
-- [x] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
-- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
-
----
-
-#### [DEV-361] Onboarding unificado sin friccion en gripm --init: delegacion silenciosa a Playbook y presets de automatizacion
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-### Problem Statement
-When users initialize Gripm Board and Playbook together, Gripm collects setup choices and then starts a second interactive Playbook wizard without passing those choices. This repeats questions and can make the generated repository differ from the user's selections. Users need one coherent setup flow for the combined products, and the Playbook-only path must retain its existing single native wizard.
-
-### Cross-Project Dependency
-- **Requiere en `@gripm/playbook`:** `PLAY-058` (soporte de flags `--rules`, `--preset` y modularidad completa en `playbook init`).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Support Board-only, Playbook-only, and Board + Playbook initialization without invoking or prompting Playbook when Board-only is selected, or introducing duplicate prompts in the other paths.
-  2. In quick/non-interactive initialization, apply `pragmatic` rigor and `automated` delivery mode, with every harness supported by the installed Playbook package selected. No single harness is privileged.
-  3. In granular initialization, preselect every harness supported by Playbook and allow users to change harnesses, skills, rules, scripts, docs, rigor, and automation in one pass. Selecting no harness is rejected explicitly; empty selections for the other artifact lists are permitted.
-  4. Persist `preset` and `automation` as top-level `.gripm/config.json` values whenever Board + Playbook are initialized together. In Playbook-only mode, Playbook remains responsible for its config.
-  5. If Playbook delegation fails, report the failure and return a non-zero CLI result while preserving already-written Board files; do not silently claim full success or roll back user files.
-  6. Keep supported harnesses sourced from the installed Playbook catalog. VS Code Copilot, OpenCode, and explicit no-harness support are tracked separately in `PLAY-062`.
-- **Out-of-Scope:**
-  - Adding or changing harness adapters in `@gripm/playbook`.
-  - Modifying the web Cockpit onboarding UI.
-  - Deleting or rolling back Board files after a Playbook failure.
-- **Decisions:**
-  - Playbook 2.9.1 supports Antigravity, Cursor, and Claude Code. Gripm must not hardcode Antigravity as the product default.
-  - Quick mode passes the selected bundle non-interactively using Playbook's CLI flags; granular mode collects choices in Gripm and passes them to Playbook once.
-  - In Playbook-only interactive mode, retain Playbook's native wizard as the sole wizard. For non-interactive `--yes`, use all currently supported harnesses.
-  - Existing Gripm `--scripts` means Board package scripts. New CLI overrides for Playbook use the `--playbook-*` namespace to avoid ambiguity.
-  - The repository health baseline is 32/100 with pre-existing LOC violations; source changes remain isolated to the CLI init modules and tests, with no growth to files at or above 1000 LOC.
-
-**Criterios de Aceptación:**
-- [x] #1 Quick mode for both Board presets initializes Board + Playbook without a second wizard, passes `--yes --mode quick --preset pragmatic --automation automated`, and selects all harnesses exposed by the installed Playbook catalog.
-- [x] #2 Granular combined setup presents the available Playbook harnesses, skills, rules, scripts, docs, rigor, and automation in one Gripm wizard, with all available harnesses initially selected; an empty harness selection is rejected before delegation.
-- [x] #3 Board-only setup does not invoke Playbook; Playbook-only interactive setup invokes only Playbook's native wizard, while Playbook-only `--yes` passes all supported harnesses and creates no Board-owned config.
-- [x] #4 The delegate passes selected values to Playbook CLI flags, and new Gripm command-line overrides use `--playbook-*` names without changing the existing Board `--scripts` behavior.
-- [x] #5 Combined setup persists top-level `preset` and `automation` in `.gripm/config.json`; other Board config fields and existing user files remain intact.
-- [x] #6 A Playbook spawn or non-zero exit returns an explicit failure and non-zero Gripm CLI result while preserving Board files already written.
-- [x] #7 `scripts/test-init-suite.js` covers quick, granular, Board-only, Playbook-only, argument mapping, empty harness rejection, persistence, no duplicate prompts, and delegated failure.
-- [x] #8 `npm run lint`, `npm test`, `npm run backlog:check`, `npm run test:linux`, `npm run publish:check`, `npm run build`, and `npm run verify:changes -- --all` pass.
-
----
-
-#### [DEV-363] Descomposicion modular de backend y servicios (backlogService.ts y api.ts bajo 1000 LOC)
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-### Problem Statement
-El diagnóstico estático del propio repositorio (`audit-engine.mjs`) expone que el backend de `@gripm/board` incumple severamente la regla de modularidad (< 1000 LOC) y separación de responsabilidades:
-- `server/services/backlogService.ts` tiene **2.622 líneas**, actuando como un God-File que acopla resolución de rutas, validación de seguridad de comandos (`validateVerifyCommand`), lectura/escritura de tareas en Markdown y JSON, motor de sincronización de `BACKLOG.md`, gestión de sprints/releases/retros y cálculo de métricas.
-- `server/routes/api.ts` tiene **1.246 líneas**, concentrando todos los endpoints HTTP en un único controlador monolítico.
-- `server/services/auditService.ts` contiene una evasión de tipos `as unknown as RepoHealthReport` en la línea 86.
-- `scripts/backlogMdParser.ts` (1.157 líneas) y `scripts/mcp-server.ts` (1.074 líneas) también superan el techo de 1000 líneas.
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Descomponer `server/services/backlogService.ts` en módulos cohesivos (< 700 LOC cada uno) bajo `server/services/backlog/`:
-     - `gatekeeperSecurity.ts`: Validación y ejecución segura de `verifyCommand` y Gatekeeper (`validateVerifyCommand`, `runGatekeeperCheck`).
-     - `backlogSyncEngine.ts`: Reconciliación, validación de slugs/ACs y generación de `BACKLOG.md` (`syncBacklog`, `exportBacklog`).
-     - `backlogCycles.ts`: Gestión de Sprints, Releases y Retrospectivas (`sprints.json`, `releases.json`, `retrospectives.json`).
-     - `backlogStats.ts`: Cálculo de métricas y estadísticas agregadas.
-     - `backlogService.ts`: Fachada limpia y operaciones CRUD de tareas (< 800 LOC), preservando todos los exports públicos para no romper consumidores ni tests.
-  2. Descomponer `server/routes/api.ts` extrayendo sub-routers por dominio (`server/routes/tasksRoutes.ts`, `server/routes/cyclesRoutes.ts`, `server/routes/projectsRoutes.ts`), dejando `api.ts` < 600 LOC.
-  3. Modularizar las secciones auxiliares de `scripts/backlogMdParser.ts` y los schemas de tools de `scripts/mcp-server.ts` para que ambos bajen de 1000 LOC.
-  4. Eliminar el cast `as unknown as` en `server/services/auditService.ts` tipando adecuadamente el contrato de retorno.
-- **Out-of-Scope:**
-  - Cambiar contratos de endpoints REST o esquemas JSON de respuestas.
-
-**Criterios de Aceptación:**
-- [x] #1 `server/services/backlogService.ts`, `server/routes/api.ts`, `scripts/backlogMdParser.ts`, `scripts/mcp-server.ts` y todos los nuevos submódulos creados tienen estrictamente **menos de 1000 líneas de código** (rango objetivo: 200 - 750 LOC).
-- [x] #2 Todos los exports públicos de `server/services/backlogService.ts` y `scripts/backlogMdParser.ts` se mantienen 100% compatibles sin romper importadores existentes.
-- [x] #3 `server/services/auditService.ts` no contiene `as unknown as` ni ninguna evasión de tipos prohibida por `anti-slop.mjs`.
-- [x] #4 `npm run build` regenera limpiamente los 4 binarios en `bin/` (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
-- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
-
----
-
-#### [DEV-364] Descomposicion modular de God-Components de Frontend y utilidades bajo 1000 LOC
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-### Problem Statement
-El frontend de `@gripm/board` presenta 5 archivos que superan el límite estricto de 1000 líneas de código (`check-loc.mjs`), degradando el Health Score del repositorio a 37/100 y dificultando el mantenimiento y el trabajo en paralelo de agentes:
-1. `src/components/SprintView.tsx` (**2.371 LOC**)
-2. `src/App.tsx` (**1.891 LOC**)
-3. `src/components/KanbanBoard.tsx` (**1.467 LOC**)
-4. `src/components/ReleaseAssembler.tsx` (**1.224 LOC**)
-5. `src/utils/universalImporter.ts` (**1.036 LOC**)
-
-Además, `src/components/Header.tsx` se encuentra en **992 LOC** (al borde de la infracción crítica).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Descomponer `src/components/SprintView.tsx` extrayendo subcomponentes y hooks en `src/components/sprint/` (`SprintHeader.tsx`, `SprintBacklogDrawer.tsx`, `SprintBoardColumns.tsx`, `RetrospectivePanel.tsx`, `useSprintOperations.ts`).
-  2. Descomponer `src/App.tsx` extrayendo hooks de coordinación y estado en `src/hooks/` (`useProjectBootstrap.ts`, `useSSEUpdates.ts`, `useKeyboardShortcuts.ts`, `useItemMutations.ts`).
-  3. Descomponer `src/components/KanbanBoard.tsx` extrayendo subcomponentes en `src/components/kanban/` (`KanbanColumn.tsx`, `KanbanListView.tsx`, `BulkActionsBar.tsx`, `useKanbanDragAndDrop.ts`).
-  4. Descomponer `src/components/ReleaseAssembler.tsx` extrayendo vistas en `src/components/release/` (`ReleaseCandidateBuilder.tsx`, `ReleaseHistoryList.tsx`, `ReleaseNotesPreviewModal.tsx`).
-  5. Descomponer `src/utils/universalImporter.ts` separando los adaptadores de formato (Jira/Linear/Trello/CSV/GitHub/Markdown) en `src/utils/importers/`.
-  6. Reducir `src/components/Header.tsx` (< 750 LOC) extrayendo selectores/menús secundarios.
-- **Out-of-Scope:**
-  - Alterar estilos visuales, comportamiento de negocio o flujos de usuario existentes.
-
-**Criterios de Aceptación:**
-- [x] #1 `SprintView.tsx`, `App.tsx`, `KanbanBoard.tsx`, `ReleaseAssembler.tsx`, `universalImporter.ts`, `Header.tsx` y todos los submódulos extraídos tienen **menos de 1000 líneas de código** (0 violaciones críticas en `src/`).
-- [x] #2 `node scripts/check-loc.mjs --strict --src src` pasa con código 0 y **0 violaciones**.
-- [x] #3 No se introducen regresiones en las pruebas de lógica UI (`test-ui-logic.js`, `verify-density-1366.js`, `verify-focus-trap.js`, `verify-kanban-reorder.js`, `verify-status-contrast.js`) ni en el smoke test de UI (`npm run test:ui`).
-- [x] #4 `npx tsc --noEmit`, `npm run build` y `npm test` pasan con código 0.
-
----
-
-#### [DEV-366] Fijar @gripm/playbook a la versión publicada 2.9.1
-- **Prioridad**: `high` | **Tipo**: `chore`
-
-### Problem Statement
-`@gripm/board` todavía instala `@gripm/playbook` desde `file:../gripm-playbook`, por lo que su dependencia depende de un checkout hermano y no de la versión 2.9.1 ya publicada en npm.
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Cambiar `@gripm/playbook` en `devDependencies` de `package.json` a `^2.9.1` y actualizar `package-lock.json` para que resuelva 2.9.1 desde npm.
-  2. Verificar que `npm ls @gripm/playbook --depth=0` resuelva 2.9.1 sin errores ni dependencia `file:`.
-  3. Ejecutar la Pirámide de Verificación de Gripm, incluyendo `npm run test:linux` y `npm run build` para validar los binarios standalone.
-- **Out-of-Scope:**
-  - La integración de `gripm --init` con `--preset` y `--rules`, prevista para revisión posterior.
-  - Publicar Gripm, crear commits o hacer push.
-  - Remediar el baseline de salud existente. La auditoría inicial reporta 32/100, 24 hallazgos de LOC y 2 archivos de más de 1000 LOC; este cambio queda limitado a manifiestos y verificación, sin modificar esos archivos.
-- **Decisiones R1:**
-  - `@gripm/playbook` permanece en `devDependencies`, donde ya se consume durante desarrollo, verificación y empaquetado.
-  - El rango `^2.9.1` es el requerido; el lockfile debe fijar la resolución efectiva y no conservar el origen local.
-  - Si npm no puede resolver el paquete, la instalación debe fallar explícitamente; no se conservará un fallback a `file:../gripm-playbook`.
-  - El cambio no altera el runtime publicado de Gripm ni amplía la tarea DEV-360, que permanece en `ready`.
-
-**Criterios de Aceptación:**
-- [x] #1 `package.json` declara `@gripm/playbook` como `^2.9.1` en `devDependencies`, y `package-lock.json` fija la resolución npm de 2.9.1 sin origen `file:`.
-- [x] #2 `npm ls @gripm/playbook --depth=0` termina con código 0 y muestra la versión instalada 2.9.1 como válida.
-- [x] #3 La verificación de tipos (`npm run lint`) y la suite (`npm test`) terminan con código 0.
-- [x] #4 `npm run test:linux` termina con código 0.
-- [x] #5 `npm run backlog:sync` y `npm run backlog:check` terminan con código 0.
-- [x] #6 `npm run publish:check` termina con código 0.
-- [x] #7 `npm run build` genera correctamente los binarios standalone y termina con código 0.
-- [x] #8 `npm run verify:changes -- --all` termina con código 0.
-
----
-
-#### [DEV-367] Adopción de la skill release-management de Playbook y configuración de deploy hooks
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-### Problem Statement
-En Gripm Board, las reglas operativas de release (DEV-340, deploy-prod, verify-publish-surface, changelog) están dispersas en AGENTS.md sin una skill formal que guíe al agente paso a paso al realizar cortes de versión.
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Consumir la skill `.agents/skills/release-management/SKILL.md` desde Playbook y fijar los hooks específicos de Gripm Board:
-     - Pre-Release: Pirámide de Verificación (`verify-changes.js --all`, `tsc --noEmit`, `npm test`, `npm run publish:check`, `npm run test:ui`).
-     - Release Notes: `npm run changelog` sincronizado con `backlog/releases.json`.
-     - Deploy Hook: Despliegue de producción en Vercel Sandbox (`npm run deploy:prod`) desde `main` (DEV-340) y publicación npm con provenance en CI.
-     - Post-Deploy: Reconciliación de backlog (`releasedAt`).
-  2. Actualizar `AGENTS.md` para referenciar `.agents/skills/release-management/` como el procedimiento canónico para cortes de versión.
-- **Out-of-Scope:**
-  - Modificar la lógica interna de `npm run changelog` o `deploy-prod.js`.
-
-**Criterios de Aceptación:**
-- [x] #1 La skill .agents/skills/release-management/SKILL.md está presente y sincronizada en Gripm Board.
-- [x] #2 AGENTS.md referencia la skill en la sección de releases y flujo ágil de entrega.
-- [x] #3 npm run backlog:check y npm run backlog:sync terminan con código 0.
-- [x] #4 La Pirámide de Verificación (npm test, npx tsc --noEmit) termina con código 0.
-
----
-
-#### [DEV-368] Idempotencia y desacople de publicación en ci.yml con extracción limpia de release notes y flag latest
-- **Prioridad**: `medium` | **Tipo**: `tech_debt`
-
-### Problem Statement
-El job `publish` en `.github/workflows/ci.yml` sufre de acoplamiento frágil: si `check_npm` detecta que la versión ya está en npm, se saltea todo el paso de Git Tag y GitHub Release. Además, el parseo de `releases.json` se ejecuta con un script inline de bash/node (`node -e "..."`) de 10 líneas y `gh release create` no declara `--latest`.
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Desacoplar los pasos en el job `publish` de `ci.yml`:
-     - `npm_published`: publica a npm solo si falta en el registro.
-     - `tag_exists`: verifica remotamente si existe el tag y lo crea solo si falta.
-     - `release_exists`: verifica con `gh release view` si existe la release y la crea solo si falta.
-  2. Eliminar el script inline `node -e "..."` de `ci.yml` reemplazándolo por un script dedicado (ej. `node scripts/extract-release-notes.js` o la utilidad de Playbook).
-  3. Agregar el flag `--latest` a la llamada `gh release create`.
-  4. Mover la verificación de consistencia de `CHANGELOG.md` al job `verify` (o integrarla en `backlog:check`) para evitar que fallas de sincronización detengan la publicación en `main`.
-- **Out-of-Scope:**
-  - Alterar los 19 pasos del runner de tests de `scripts/run-tests.js`.
-
-**Criterios de Aceptación:**
-- [x] #1 ci.yml desacopla npm publish, creación de Git Tag y creación de GitHub Release en steps independientes con guardas idempotentes.
-- [x] #2 La extracción de notas de release en CI no utiliza scripts inline en bash, usando en su lugar un script dedicado con salidas deterministas.
-- [x] #3 gh release create incluye el flag --latest.
-- [x] #4 La verificación de sincronización de CHANGELOG.md se ejecuta en la fase previa (verify) antes de mergear a main.
-- [x] #5 npm run backlog:check y npm run backlog:sync terminan con código 0.
-
----
-
-#### [DEV-369] Desacople de reglas de dominio y seguridad de AGENTS.md hacia arquitectura en 4 capas
-- **Prioridad**: `high` | **Tipo**: `refactor`
-
-### Problem Statement
-`AGENTS.md` de Gripm Board acumula 151 líneas, conteniendo 26 gotchas reactivos (Sección 6) y 7 directivas de seguridad (Sección 7) agregadas tras post-mortems pasados. Esto viola la arquitectura de progressive disclosure en 4 capas de Gripm Playbook, engordando el contexto en cada interacción de IA. Adicionalmente, la Sección 2 instruye a los agentes a "Actualizar gotchas en este AGENTS.md", perpetuando el antipatrón de prompt bloat.
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  1. Extraer las reglas de dominio, modelo de datos y operación de backlog hacia `.agents/rules/gripm-domain.md`.
-  2. Extraer los puntos de contención y seguridad hacia `.agents/rules/security.md`, enlazando a `SECURITY.md`.
-  3. Reemplazar la instrucción de retro de la Sección 2 por la derivación a tests/linters, `.agents/rules/` o skills.
-  4. Reducir `AGENTS.md` a un enrutador liviano (< 85 líneas) que delega en las reglas de dominio, seguridad y skills.
-  5. Sincronizar el backlog con `npm run backlog:sync` y validar coherencia con `npm run backlog:check`.
-- **Out-of-Scope:**
-  - Alterar lógica de ejecución de la aplicación.
-
-**Criterios de Aceptación:**
-- [x] #1 Se crea `.agents/rules/gripm-domain.md` agrupando las reglas de MCP, ortogonalidad del modelo de datos y directivas de UI/entorno.
-- [x] #2 Se crea `.agents/rules/security.md` resumiendo la superficie de riesgo SEC-01 a SEC-10 y enlazando a `SECURITY.md`.
-- [x] #3 `AGENTS.md` se refactoriza como enrutador liviano (~110 líneas) eliminando las secciones acumulativas 6 y 7 y actualizando la salida de retrospectivas.
-- [x] #4 `npm run backlog:check` y `npm run backlog:sync` pasan con código 0.
-- [x] #5 `npx tsc --noEmit` y `npm test` terminan con código 0.
-
----
-
-#### [DEV-370] Alineacion de verify-backlog-sync con deteccion de IDs duplicados y paridad con gate-qa
-- **Prioridad**: `high` | **Tipo**: `feature`
-
-### Problem Statement
-Auditorias reales detectaron desalineacion entre el validador local de gripm (`scripts/verify-backlog-sync.js`) y `gate-qa.mjs` de `@gripm/playbook`:
-1. `verify-backlog-sync.js` no verificaba la unicidad global ni acotada de `id:` entre los archivos de `backlog/tasks/`, permitiendo falsos verdes si existian dos archivos declarando el mismo ID en el backlog activo o en sprints activos.
-2. Al sincronizar `@gripm/playbook` actualizado (`PLAY-070..073`: reglas `UX-018`, `UX-019`, `UX-020`, `physical-hit-test.mjs`, matriz de alcanzabilidad `BottomNav` y manejo acotado de IDs duplicados), se detecta en `gripm` un overlay fijo sin `createPortal` en `src/components/header/HeaderMobileMenu.tsx` (atrapado potencialmente detras de `<header className="sticky top-0 z-30 backdrop-blur-md">`).
-
-### Bounded Scope & Decisions (Gate R1)
-- **In-Scope:**
-  - Actualizar `scripts/verify-backlog-sync.js` para detectar IDs duplicados entre `taskEntries` leyendo sprints activos desde `backlog/sprints.json`:
-    - Bloquea (`errorsFound++`) si alguna copia duplicada tiene estado no historico (fuera de `['done', 'dismissed']`), pertenece a un sprint con `status === 'active'`, o si se pasa `--strict`.
-    - Emite advertencia (`▲`) sin bloquear cuando todas las copias duplicadas son puramente historicas (`done` / `dismissed`) fuera de sprints activos y sin `--strict`.
-  - Agregar tests unitarios y CLI de paridad en `scripts/test-verify-backlog-sync.js` y registrar el paso en `scripts/run-tests.js`.
-  - Sincronizar `@gripm/playbook` actualizado (`PLAY-070..073`) sobre `.agents/` y resolver el hallazgo real `UX-018` en `src/components/header/HeaderMobileMenu.tsx` mediante `createPortal(..., document.body)`.
-  - Ejecutar la Piramide de Verificacion completa de `gripm` (`tsc`, `npm test`, `audit:ux:strict`, `backlog:sync`, `backlog:check`, `publish:check`, `build`, `verify-changes --all`).
-- **Out-of-Scope:**
-  - Modificar la interfaz visual del menu movil mas alla de su encapsulacion en `createPortal`.
-
-**Criterios de Aceptación:**
-- [x] #1 `scripts/verify-backlog-sync.js` detecta IDs duplicados en `backlog/tasks/`, bloqueando cuando alguna copia esta fuera de `done`/`dismissed`, pertenece a un sprint activo (`backlog/sprints.json`) o se pasa `--strict`, y emitiendo advertencia `▲` sin bloquear para duplicados puramente historicos.
-- [x] #2 `scripts/test-verify-backlog-sync.js` (registrado en `scripts/run-tests.js`) verifica regresion de duplicados historicos vs activos y `--strict`.
-- [x] #3 `.agents/` queda sincronizado con `@gripm/playbook` (`UX-018..020`, `physical-hit-test.mjs`, BottomNav Reachability Matrix y scoped collision checks) y `src/components/header/HeaderMobileMenu.tsx` utiliza `createPortal(..., document.body)` pasando `UX-018`.
-- [x] #4 Piramide de Verificacion completa en `gripm` (`npx tsc --noEmit`, `npm test`, `npm run audit:ux:strict` contra catalogo actualizado, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`) pasa con codigo 0.
-
----
-
 ### 📋 Backlog / Draft (28)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
@@ -1224,7 +951,7 @@ Users managing a repository with Gripm Board have no visual surface to see which
 
 ---
 
-### ✅ Done / Deployed (322)
+### ✅ Done / Deployed (331)
 
 #### [DEV-001] Interoperabilidad nativa con Backlog.md y motor Markdown
 - **Prioridad**: `high` | **Tipo**: `feature`
@@ -9177,6 +8904,286 @@ Para repositorios con estandares particulares o necesidades especificas de refin
 - [x] #4 Soporte de patrones de exclusion especificos de auditoria (`audit.exclude`) para aislar carpetas o fixtures (por ejemplo, scripts de test de auditoria) sin alterar el `.gitignore` global.
 - [x] #5 El panel visual de diagnostico (`AuditModal.tsx`) y el comando CLI reflejan las reglas activas y respetan la configuracion del proyecto.
 - [x] #6 Suite de pruebas automatizadas que valide la persistencia de configuracion, la retrocompatibilidad con repositorios existentes y la paridad de comportamiento.
+
+---
+
+#### [DEV-360] Consumo nativo de @gripm/playbook via npm y purga de scripts duplicados y archivos muertos
+- **Prioridad**: `high` | **Tipo**: `refactor`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+Actualmente `@gripm/board` predica el principio Zero-Clutter y DRY (`DEV-250` y `DEV-345`), pero en la práctica mantiene **19 scripts duplicados** de `@gripm/playbook` copiados físicamente dentro de `scripts/` y `scripts/lib/` (`audit-ux-code.cjs`, `gate-qa.mjs`, `audit-engine.mjs`, `check-loc.mjs`, `sync-playbook.mjs`, `init.mjs`, `validate-commit-msg.mjs`, `ux-rules.json` y 10 módulos en `scripts/lib/`), además de scripts históricos de migraciones ya superadas (`canonicalize-status.js`, `purge-fabricated-task-sections.js`) y reglas duplicadas en `.agents/rules/git-approval.md` (que duplica `.agents/rules/git-workflow.md`).
+
+Como consumidor de `@gripm/playbook`, `@gripm/board` debe importar y ejecutar el Playbook desde su paquete (`@gripm/playbook`), eliminando toda copia manual de código ajeno y todo archivo muerto sin uso.
+
+### Cross-Project Dependency
+- **Requiere en `@gripm/playbook`:** `PLAY-057` (para que `playbook sync` no vuelva a copiar `scripts/` al sincronizar desde `--source` o remoto) y `PLAY-059` (para contar con el auditor UX modularizado).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Vincular `@gripm/playbook` en `devDependencies` de `package.json` y actualizar los imports en `server/services/auditService.ts`, `server/services/backlogService.ts` y `scripts/initScaffold.js` hacia `@gripm/playbook/*` (`@gripm/playbook/audit-engine`, `@gripm/playbook/check-loc`, etc.), manteniendo el empaquetado standalone en `bin/` vía `esbuild`.
+  2. Eliminar de `scripts/` y `scripts/lib/` los 19 archivos clonados de `@gripm/playbook` y actualizar los scripts de `package.json` (`gate:review`, `check-loc`, `playbook:check`, `playbook:sync`, `audit:ux`, etc.) y `.githooks/commit-msg` para invocar los binarios de `@gripm/playbook`.
+  3. Purgar los scripts de migración muertos (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js` y sus entradas en `package.json`) y eliminar `.agents/rules/git-approval.md` (consolidado en `.agents/rules/git-workflow.md`).
+  4. Actualizar `.gripm/playbook-lock.json` mediante `npm run playbook:sync` verificando que queden 0 entradas bajo `scripts/`.
+- **Out-of-Scope:**
+  - `scripts/import-docs.js` se conserva temporalmente o se reemplaza su fixture en `scripts/test-parser.js` si se decide retirar.
+
+**Criterios de Aceptación:**
+- [x] #1 `@gripm/playbook` está declarado en `devDependencies` de `package.json` y los módulos internos (`auditService.ts`, `backlogService.ts`, `initScaffold.js`) importan `audit-engine` y `check-loc` desde `@gripm/playbook` sin copias locales en `scripts/`.
+- [x] #2 Los 19 archivos duplicados de `@gripm/playbook` en `scripts/` y el directorio `scripts/lib/` han sido eliminados del repositorio, y `.gripm/playbook-lock.json` registra únicamente archivos bajo `.agents/`.
+- [x] #3 Los scripts históricos sin uso (`scripts/canonicalize-status.js`, `scripts/purge-fabricated-task-sections.js`) y la regla redundante `.agents/rules/git-approval.md` han sido eliminados sin dejar referencias rotas.
+- [x] #4 `npm run build` empaqueta correctamente `bin/gripm.js`, `bin/gripm-mcp.js`, `bin/server.js` y `bin/gripm-cli.js` con `esbuild`, y `npm run publish:check` confirma que el tarball de producción funciona en sala limpia (`test-clean-room.js`).
+- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run backlog:check`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+
+---
+
+#### [DEV-361] Onboarding unificado sin friccion en gripm --init: delegacion silenciosa a Playbook y presets de automatizacion
+- **Prioridad**: `high` | **Tipo**: `feature`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+When users initialize Gripm Board and Playbook together, Gripm collects setup choices and then starts a second interactive Playbook wizard without passing those choices. This repeats questions and can make the generated repository differ from the user's selections. Users need one coherent setup flow for the combined products, and the Playbook-only path must retain its existing single native wizard.
+
+### Cross-Project Dependency
+- **Requiere en `@gripm/playbook`:** `PLAY-058` (soporte de flags `--rules`, `--preset` y modularidad completa en `playbook init`).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Support Board-only, Playbook-only, and Board + Playbook initialization without invoking or prompting Playbook when Board-only is selected, or introducing duplicate prompts in the other paths.
+  2. In quick/non-interactive initialization, apply `pragmatic` rigor and `automated` delivery mode, with every harness supported by the installed Playbook package selected. No single harness is privileged.
+  3. In granular initialization, preselect every harness supported by Playbook and allow users to change harnesses, skills, rules, scripts, docs, rigor, and automation in one pass. Selecting no harness is rejected explicitly; empty selections for the other artifact lists are permitted.
+  4. Persist `preset` and `automation` as top-level `.gripm/config.json` values whenever Board + Playbook are initialized together. In Playbook-only mode, Playbook remains responsible for its config.
+  5. If Playbook delegation fails, report the failure and return a non-zero CLI result while preserving already-written Board files; do not silently claim full success or roll back user files.
+  6. Keep supported harnesses sourced from the installed Playbook catalog. VS Code Copilot, OpenCode, and explicit no-harness support are tracked separately in `PLAY-062`.
+- **Out-of-Scope:**
+  - Adding or changing harness adapters in `@gripm/playbook`.
+  - Modifying the web Cockpit onboarding UI.
+  - Deleting or rolling back Board files after a Playbook failure.
+- **Decisions:**
+  - Playbook 2.9.1 supports Antigravity, Cursor, and Claude Code. Gripm must not hardcode Antigravity as the product default.
+  - Quick mode passes the selected bundle non-interactively using Playbook's CLI flags; granular mode collects choices in Gripm and passes them to Playbook once.
+  - In Playbook-only interactive mode, retain Playbook's native wizard as the sole wizard. For non-interactive `--yes`, use all currently supported harnesses.
+  - Existing Gripm `--scripts` means Board package scripts. New CLI overrides for Playbook use the `--playbook-*` namespace to avoid ambiguity.
+  - The repository health baseline is 32/100 with pre-existing LOC violations; source changes remain isolated to the CLI init modules and tests, with no growth to files at or above 1000 LOC.
+
+**Criterios de Aceptación:**
+- [x] #1 Quick mode for both Board presets initializes Board + Playbook without a second wizard, passes `--yes --mode quick --preset pragmatic --automation automated`, and selects all harnesses exposed by the installed Playbook catalog.
+- [x] #2 Granular combined setup presents the available Playbook harnesses, skills, rules, scripts, docs, rigor, and automation in one Gripm wizard, with all available harnesses initially selected; an empty harness selection is rejected before delegation.
+- [x] #3 Board-only setup does not invoke Playbook; Playbook-only interactive setup invokes only Playbook's native wizard, while Playbook-only `--yes` passes all supported harnesses and creates no Board-owned config.
+- [x] #4 The delegate passes selected values to Playbook CLI flags, and new Gripm command-line overrides use `--playbook-*` names without changing the existing Board `--scripts` behavior.
+- [x] #5 Combined setup persists top-level `preset` and `automation` in `.gripm/config.json`; other Board config fields and existing user files remain intact.
+- [x] #6 A Playbook spawn or non-zero exit returns an explicit failure and non-zero Gripm CLI result while preserving Board files already written.
+- [x] #7 `scripts/test-init-suite.js` covers quick, granular, Board-only, Playbook-only, argument mapping, empty harness rejection, persistence, no duplicate prompts, and delegated failure.
+- [x] #8 `npm run lint`, `npm test`, `npm run backlog:check`, `npm run test:linux`, `npm run publish:check`, `npm run build`, and `npm run verify:changes -- --all` pass.
+
+---
+
+#### [DEV-363] Descomposicion modular de backend y servicios (backlogService.ts y api.ts bajo 1000 LOC)
+- **Prioridad**: `high` | **Tipo**: `refactor`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+El diagnóstico estático del propio repositorio (`audit-engine.mjs`) expone que el backend de `@gripm/board` incumple severamente la regla de modularidad (< 1000 LOC) y separación de responsabilidades:
+- `server/services/backlogService.ts` tiene **2.622 líneas**, actuando como un God-File que acopla resolución de rutas, validación de seguridad de comandos (`validateVerifyCommand`), lectura/escritura de tareas en Markdown y JSON, motor de sincronización de `BACKLOG.md`, gestión de sprints/releases/retros y cálculo de métricas.
+- `server/routes/api.ts` tiene **1.246 líneas**, concentrando todos los endpoints HTTP en un único controlador monolítico.
+- `server/services/auditService.ts` contiene una evasión de tipos `as unknown as RepoHealthReport` en la línea 86.
+- `scripts/backlogMdParser.ts` (1.157 líneas) y `scripts/mcp-server.ts` (1.074 líneas) también superan el techo de 1000 líneas.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Descomponer `server/services/backlogService.ts` en módulos cohesivos (< 700 LOC cada uno) bajo `server/services/backlog/`:
+     - `gatekeeperSecurity.ts`: Validación y ejecución segura de `verifyCommand` y Gatekeeper (`validateVerifyCommand`, `runGatekeeperCheck`).
+     - `backlogSyncEngine.ts`: Reconciliación, validación de slugs/ACs y generación de `BACKLOG.md` (`syncBacklog`, `exportBacklog`).
+     - `backlogCycles.ts`: Gestión de Sprints, Releases y Retrospectivas (`sprints.json`, `releases.json`, `retrospectives.json`).
+     - `backlogStats.ts`: Cálculo de métricas y estadísticas agregadas.
+     - `backlogService.ts`: Fachada limpia y operaciones CRUD de tareas (< 800 LOC), preservando todos los exports públicos para no romper consumidores ni tests.
+  2. Descomponer `server/routes/api.ts` extrayendo sub-routers por dominio (`server/routes/tasksRoutes.ts`, `server/routes/cyclesRoutes.ts`, `server/routes/projectsRoutes.ts`), dejando `api.ts` < 600 LOC.
+  3. Modularizar las secciones auxiliares de `scripts/backlogMdParser.ts` y los schemas de tools de `scripts/mcp-server.ts` para que ambos bajen de 1000 LOC.
+  4. Eliminar el cast `as unknown as` en `server/services/auditService.ts` tipando adecuadamente el contrato de retorno.
+- **Out-of-Scope:**
+  - Cambiar contratos de endpoints REST o esquemas JSON de respuestas.
+
+**Criterios de Aceptación:**
+- [x] #1 `server/services/backlogService.ts`, `server/routes/api.ts`, `scripts/backlogMdParser.ts`, `scripts/mcp-server.ts` y todos los nuevos submódulos creados tienen estrictamente **menos de 1000 líneas de código** (rango objetivo: 200 - 750 LOC).
+- [x] #2 Todos los exports públicos de `server/services/backlogService.ts` y `scripts/backlogMdParser.ts` se mantienen 100% compatibles sin romper importadores existentes.
+- [x] #3 `server/services/auditService.ts` no contiene `as unknown as` ni ninguna evasión de tipos prohibida por `anti-slop.mjs`.
+- [x] #4 `npm run build` regenera limpiamente los 4 binarios en `bin/` (`gripm.js`, `gripm-mcp.js`, `server.js`, `gripm-cli.js`).
+- [x] #5 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+
+---
+
+#### [DEV-364] Descomposicion modular de God-Components de Frontend y utilidades bajo 1000 LOC
+- **Prioridad**: `high` | **Tipo**: `refactor`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+El frontend de `@gripm/board` presenta 5 archivos que superan el límite estricto de 1000 líneas de código (`check-loc.mjs`), degradando el Health Score del repositorio a 37/100 y dificultando el mantenimiento y el trabajo en paralelo de agentes:
+1. `src/components/SprintView.tsx` (**2.371 LOC**)
+2. `src/App.tsx` (**1.891 LOC**)
+3. `src/components/KanbanBoard.tsx` (**1.467 LOC**)
+4. `src/components/ReleaseAssembler.tsx` (**1.224 LOC**)
+5. `src/utils/universalImporter.ts` (**1.036 LOC**)
+
+Además, `src/components/Header.tsx` se encuentra en **992 LOC** (al borde de la infracción crítica).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Descomponer `src/components/SprintView.tsx` extrayendo subcomponentes y hooks en `src/components/sprint/` (`SprintHeader.tsx`, `SprintBacklogDrawer.tsx`, `SprintBoardColumns.tsx`, `RetrospectivePanel.tsx`, `useSprintOperations.ts`).
+  2. Descomponer `src/App.tsx` extrayendo hooks de coordinación y estado en `src/hooks/` (`useProjectBootstrap.ts`, `useSSEUpdates.ts`, `useKeyboardShortcuts.ts`, `useItemMutations.ts`).
+  3. Descomponer `src/components/KanbanBoard.tsx` extrayendo subcomponentes en `src/components/kanban/` (`KanbanColumn.tsx`, `KanbanListView.tsx`, `BulkActionsBar.tsx`, `useKanbanDragAndDrop.ts`).
+  4. Descomponer `src/components/ReleaseAssembler.tsx` extrayendo vistas en `src/components/release/` (`ReleaseCandidateBuilder.tsx`, `ReleaseHistoryList.tsx`, `ReleaseNotesPreviewModal.tsx`).
+  5. Descomponer `src/utils/universalImporter.ts` separando los adaptadores de formato (Jira/Linear/Trello/CSV/GitHub/Markdown) en `src/utils/importers/`.
+  6. Reducir `src/components/Header.tsx` (< 750 LOC) extrayendo selectores/menús secundarios.
+- **Out-of-Scope:**
+  - Alterar estilos visuales, comportamiento de negocio o flujos de usuario existentes.
+
+**Criterios de Aceptación:**
+- [x] #1 `SprintView.tsx`, `App.tsx`, `KanbanBoard.tsx`, `ReleaseAssembler.tsx`, `universalImporter.ts`, `Header.tsx` y todos los submódulos extraídos tienen **menos de 1000 líneas de código** (0 violaciones críticas en `src/`).
+- [x] #2 `node scripts/check-loc.mjs --strict --src src` pasa con código 0 y **0 violaciones**.
+- [x] #3 No se introducen regresiones en las pruebas de lógica UI (`test-ui-logic.js`, `verify-density-1366.js`, `verify-focus-trap.js`, `verify-kanban-reorder.js`, `verify-status-contrast.js`) ni en el smoke test de UI (`npm run test:ui`).
+- [x] #4 `npx tsc --noEmit`, `npm run build` y `npm test` pasan con código 0.
+
+---
+
+#### [DEV-366] Fijar @gripm/playbook a la versión publicada 2.9.1
+- **Prioridad**: `high` | **Tipo**: `chore`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+`@gripm/board` todavía instala `@gripm/playbook` desde `file:../gripm-playbook`, por lo que su dependencia depende de un checkout hermano y no de la versión 2.9.1 ya publicada en npm.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Cambiar `@gripm/playbook` en `devDependencies` de `package.json` a `^2.9.1` y actualizar `package-lock.json` para que resuelva 2.9.1 desde npm.
+  2. Verificar que `npm ls @gripm/playbook --depth=0` resuelva 2.9.1 sin errores ni dependencia `file:`.
+  3. Ejecutar la Pirámide de Verificación de Gripm, incluyendo `npm run test:linux` y `npm run build` para validar los binarios standalone.
+- **Out-of-Scope:**
+  - La integración de `gripm --init` con `--preset` y `--rules`, prevista para revisión posterior.
+  - Publicar Gripm, crear commits o hacer push.
+  - Remediar el baseline de salud existente. La auditoría inicial reporta 32/100, 24 hallazgos de LOC y 2 archivos de más de 1000 LOC; este cambio queda limitado a manifiestos y verificación, sin modificar esos archivos.
+- **Decisiones R1:**
+  - `@gripm/playbook` permanece en `devDependencies`, donde ya se consume durante desarrollo, verificación y empaquetado.
+  - El rango `^2.9.1` es el requerido; el lockfile debe fijar la resolución efectiva y no conservar el origen local.
+  - Si npm no puede resolver el paquete, la instalación debe fallar explícitamente; no se conservará un fallback a `file:../gripm-playbook`.
+  - El cambio no altera el runtime publicado de Gripm ni amplía la tarea DEV-360, que permanece en `ready`.
+
+**Criterios de Aceptación:**
+- [x] #1 `package.json` declara `@gripm/playbook` como `^2.9.1` en `devDependencies`, y `package-lock.json` fija la resolución npm de 2.9.1 sin origen `file:`.
+- [x] #2 `npm ls @gripm/playbook --depth=0` termina con código 0 y muestra la versión instalada 2.9.1 como válida.
+- [x] #3 La verificación de tipos (`npm run lint`) y la suite (`npm test`) terminan con código 0.
+- [x] #4 `npm run test:linux` termina con código 0.
+- [x] #5 `npm run backlog:sync` y `npm run backlog:check` terminan con código 0.
+- [x] #6 `npm run publish:check` termina con código 0.
+- [x] #7 `npm run build` genera correctamente los binarios standalone y termina con código 0.
+- [x] #8 `npm run verify:changes -- --all` termina con código 0.
+
+---
+
+#### [DEV-367] Adopción de la skill release-management de Playbook y configuración de deploy hooks
+- **Prioridad**: `high` | **Tipo**: `feature`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+En Gripm Board, las reglas operativas de release (DEV-340, deploy-prod, verify-publish-surface, changelog) están dispersas en AGENTS.md sin una skill formal que guíe al agente paso a paso al realizar cortes de versión.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Consumir la skill `.agents/skills/release-management/SKILL.md` desde Playbook y fijar los hooks específicos de Gripm Board:
+     - Pre-Release: Pirámide de Verificación (`verify-changes.js --all`, `tsc --noEmit`, `npm test`, `npm run publish:check`, `npm run test:ui`).
+     - Release Notes: `npm run changelog` sincronizado con `backlog/releases.json`.
+     - Deploy Hook: Despliegue de producción en Vercel Sandbox (`npm run deploy:prod`) desde `main` (DEV-340) y publicación npm con provenance en CI.
+     - Post-Deploy: Reconciliación de backlog (`releasedAt`).
+  2. Actualizar `AGENTS.md` para referenciar `.agents/skills/release-management/` como el procedimiento canónico para cortes de versión.
+- **Out-of-Scope:**
+  - Modificar la lógica interna de `npm run changelog` o `deploy-prod.js`.
+
+**Criterios de Aceptación:**
+- [x] #1 La skill .agents/skills/release-management/SKILL.md está presente y sincronizada en Gripm Board.
+- [x] #2 AGENTS.md referencia la skill en la sección de releases y flujo ágil de entrega.
+- [x] #3 npm run backlog:check y npm run backlog:sync terminan con código 0.
+- [x] #4 La Pirámide de Verificación (npm test, npx tsc --noEmit) termina con código 0.
+
+---
+
+#### [DEV-368] Idempotencia y desacople de publicación en ci.yml con extracción limpia de release notes y flag latest
+- **Prioridad**: `medium` | **Tipo**: `tech_debt`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+El job `publish` en `.github/workflows/ci.yml` sufre de acoplamiento frágil: si `check_npm` detecta que la versión ya está en npm, se saltea todo el paso de Git Tag y GitHub Release. Además, el parseo de `releases.json` se ejecuta con un script inline de bash/node (`node -e "..."`) de 10 líneas y `gh release create` no declara `--latest`.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Desacoplar los pasos en el job `publish` de `ci.yml`:
+     - `npm_published`: publica a npm solo si falta en el registro.
+     - `tag_exists`: verifica remotamente si existe el tag y lo crea solo si falta.
+     - `release_exists`: verifica con `gh release view` si existe la release y la crea solo si falta.
+  2. Eliminar el script inline `node -e "..."` de `ci.yml` reemplazándolo por un script dedicado (ej. `node scripts/extract-release-notes.js` o la utilidad de Playbook).
+  3. Agregar el flag `--latest` a la llamada `gh release create`.
+  4. Mover la verificación de consistencia de `CHANGELOG.md` al job `verify` (o integrarla en `backlog:check`) para evitar que fallas de sincronización detengan la publicación en `main`.
+- **Out-of-Scope:**
+  - Alterar los 19 pasos del runner de tests de `scripts/run-tests.js`.
+
+**Criterios de Aceptación:**
+- [x] #1 ci.yml desacopla npm publish, creación de Git Tag y creación de GitHub Release en steps independientes con guardas idempotentes.
+- [x] #2 La extracción de notas de release en CI no utiliza scripts inline en bash, usando en su lugar un script dedicado con salidas deterministas.
+- [x] #3 gh release create incluye el flag --latest.
+- [x] #4 La verificación de sincronización de CHANGELOG.md se ejecuta en la fase previa (verify) antes de mergear a main.
+- [x] #5 npm run backlog:check y npm run backlog:sync terminan con código 0.
+
+---
+
+#### [DEV-369] Desacople de reglas de dominio y seguridad de AGENTS.md hacia arquitectura en 4 capas
+- **Prioridad**: `high` | **Tipo**: `refactor`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+`AGENTS.md` de Gripm Board acumula 151 líneas, conteniendo 26 gotchas reactivos (Sección 6) y 7 directivas de seguridad (Sección 7) agregadas tras post-mortems pasados. Esto viola la arquitectura de progressive disclosure en 4 capas de Gripm Playbook, engordando el contexto en cada interacción de IA. Adicionalmente, la Sección 2 instruye a los agentes a "Actualizar gotchas en este AGENTS.md", perpetuando el antipatrón de prompt bloat.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  1. Extraer las reglas de dominio, modelo de datos y operación de backlog hacia `.agents/rules/gripm-domain.md`.
+  2. Extraer los puntos de contención y seguridad hacia `.agents/rules/security.md`, enlazando a `SECURITY.md`.
+  3. Reemplazar la instrucción de retro de la Sección 2 por la derivación a tests/linters, `.agents/rules/` o skills.
+  4. Reducir `AGENTS.md` a un enrutador liviano (< 85 líneas) que delega en las reglas de dominio, seguridad y skills.
+  5. Sincronizar el backlog con `npm run backlog:sync` y validar coherencia con `npm run backlog:check`.
+- **Out-of-Scope:**
+  - Alterar lógica de ejecución de la aplicación.
+
+**Criterios de Aceptación:**
+- [x] #1 Se crea `.agents/rules/gripm-domain.md` agrupando las reglas de MCP, ortogonalidad del modelo de datos y directivas de UI/entorno.
+- [x] #2 Se crea `.agents/rules/security.md` resumiendo la superficie de riesgo SEC-01 a SEC-10 y enlazando a `SECURITY.md`.
+- [x] #3 `AGENTS.md` se refactoriza como enrutador liviano (~110 líneas) eliminando las secciones acumulativas 6 y 7 y actualizando la salida de retrospectivas.
+- [x] #4 `npm run backlog:check` y `npm run backlog:sync` pasan con código 0.
+- [x] #5 `npx tsc --noEmit` y `npm test` terminan con código 0.
+
+---
+
+#### [DEV-370] Alineacion de verify-backlog-sync con deteccion de IDs duplicados y paridad con gate-qa
+- **Prioridad**: `high` | **Tipo**: `feature`
+- **Sprint / Milestone**: v1.12.0
+
+### Problem Statement
+Auditorias reales detectaron desalineacion entre el validador local de gripm (`scripts/verify-backlog-sync.js`) y `gate-qa.mjs` de `@gripm/playbook`:
+1. `verify-backlog-sync.js` no verificaba la unicidad global ni acotada de `id:` entre los archivos de `backlog/tasks/`, permitiendo falsos verdes si existian dos archivos declarando el mismo ID en el backlog activo o en sprints activos.
+2. Al sincronizar `@gripm/playbook` actualizado (`PLAY-070..073`: reglas `UX-018`, `UX-019`, `UX-020`, `physical-hit-test.mjs`, matriz de alcanzabilidad `BottomNav` y manejo acotado de IDs duplicados), se detecta en `gripm` un overlay fijo sin `createPortal` en `src/components/header/HeaderMobileMenu.tsx` (atrapado potencialmente detras de `<header className="sticky top-0 z-30 backdrop-blur-md">`).
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Actualizar `scripts/verify-backlog-sync.js` para detectar IDs duplicados entre `taskEntries` leyendo sprints activos desde `backlog/sprints.json`:
+    - Bloquea (`errorsFound++`) si alguna copia duplicada tiene estado no historico (fuera de `['done', 'dismissed']`), pertenece a un sprint con `status === 'active'`, o si se pasa `--strict`.
+    - Emite advertencia (`▲`) sin bloquear cuando todas las copias duplicadas son puramente historicas (`done` / `dismissed`) fuera de sprints activos y sin `--strict`.
+  - Agregar tests unitarios y CLI de paridad en `scripts/test-verify-backlog-sync.js` y registrar el paso en `scripts/run-tests.js`.
+  - Sincronizar `@gripm/playbook` actualizado (`PLAY-070..073`) sobre `.agents/` y resolver el hallazgo real `UX-018` en `src/components/header/HeaderMobileMenu.tsx` mediante `createPortal(..., document.body)`.
+  - Ejecutar la Piramide de Verificacion completa de `gripm` (`tsc`, `npm test`, `audit:ux:strict`, `backlog:sync`, `backlog:check`, `publish:check`, `build`, `verify-changes --all`).
+- **Out-of-Scope:**
+  - Modificar la interfaz visual del menu movil mas alla de su encapsulacion en `createPortal`.
+
+**Criterios de Aceptación:**
+- [x] #1 `scripts/verify-backlog-sync.js` detecta IDs duplicados en `backlog/tasks/`, bloqueando cuando alguna copia esta fuera de `done`/`dismissed`, pertenece a un sprint activo (`backlog/sprints.json`) o se pasa `--strict`, y emitiendo advertencia `▲` sin bloquear para duplicados puramente historicos.
+- [x] #2 `scripts/test-verify-backlog-sync.js` (registrado en `scripts/run-tests.js`) verifica regresion de duplicados historicos vs activos y `--strict`.
+- [x] #3 `.agents/` queda sincronizado con `@gripm/playbook` (`UX-018..020`, `physical-hit-test.mjs`, BottomNav Reachability Matrix y scoped collision checks) y `src/components/header/HeaderMobileMenu.tsx` utiliza `createPortal(..., document.body)` pasando `UX-018`.
+- [x] #4 Piramide de Verificacion completa en `gripm` (`npx tsc --noEmit`, `npm test`, `npm run audit:ux:strict` contra catalogo actualizado, `npm run backlog:sync && npm run backlog:check`, `npm run publish:check`, `npm run build`, `node scripts/verify-changes.js --all`) pasa con codigo 0.
 
 ---
 

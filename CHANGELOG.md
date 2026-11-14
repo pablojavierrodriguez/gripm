@@ -11,7 +11,25 @@ entrada, modificar `releases.json` y ejecutar `npm run changelog`.
 
 ## [Unreleased]
 
-En preparación: `1.12.0`.
+---
+
+## [1.12.0] - 2026-11-14 - Native Playbook Integration, Unified Init, and Modular Architecture
+
+### Highlights
+*Version 1.12.0 of Gripm Board: native consumption of @gripm/playbook via npm, unified gripm --init onboarding, modular decomposition of frontend and backend under 1000 LOC, 4-tier progressive disclosure in AGENTS.md, idempotent CI release workflow, and duplicate task ID detection parity.*
+
+### Features & Onboarding
+- **Unified `gripm --init` Onboarding:** Single interactive initialization flow delegating Playbook setup cleanly with automation presets.
+- **Native `@gripm/playbook` Consumption:** Consumes Playbook directly via npm (`^2.11.0`), removing 19 duplicate scripts and keeping `.agents/` synchronized.
+- **Duplicate Task ID Detection Parity:** Aligned `verify-backlog-sync` with `gate-qa` active-sprint collision detection and `--strict` blocking.
+
+### Architecture & Delivery
+- **Modular Backend & Frontend Decomposition:** Refactored `backlogService.ts`, `api.ts`, `App.tsx`, `SprintView.tsx`, `KanbanBoard.tsx`, and `universalImporter.ts` into focused modules under 1000 LOC.
+- **4-Tier Progressive Disclosure:** Decoupled domain and security rules from root `AGENTS.md`.
+- **Release Management & Idempotent CI:** Adopted `release-management` protocol, deploy hooks, and decoupled npm/GitHub Release publishing in `ci.yml`.
+
+### Fixes
+- **Mobile Menu Portal:** Wrapped `HeaderMobileMenu` overlay in `createPortal(..., document.body)` to prevent stacking-context occlusion.
 
 ---
 

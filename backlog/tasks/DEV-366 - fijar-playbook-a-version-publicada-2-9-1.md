@@ -1,9 +1,9 @@
 ---
 id: DEV-366
 title: "Fijar @gripm/playbook a la versión publicada 2.9.1"
-status: ready
+status: done
 created_date: '2026-11-03'
-updated_date: '2026-11-04'
+updated_date: '2026-11-14'
 labels:
   - "dependency"
   - "release"
@@ -12,6 +12,7 @@ dependencies:
   - "DEV-360"
 priority: high
 type: chore
+milestone: "v1.12.0"
 claimed_by: "copilot:db2bad02-4e8a-4cc5-a4e1-208400ba01ff"
 ---
 

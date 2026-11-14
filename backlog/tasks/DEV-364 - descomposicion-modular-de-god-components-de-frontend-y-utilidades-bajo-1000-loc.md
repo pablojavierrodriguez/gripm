@@ -1,9 +1,9 @@
 ---
 id: DEV-364
 title: "Descomposicion modular de God-Components de Frontend y utilidades bajo 1000 LOC"
-status: ready
+status: done
 created_date: '2026-11-02'
-updated_date: '2026-11-02'
+updated_date: '2026-11-14'
 labels:
   - "refactor"
   - "frontend"
@@ -12,6 +12,7 @@ labels:
 dependencies: []
 priority: high
 type: refactor
+milestone: "v1.12.0"
 estimate: 8
 claimed_by: "antigravity:subagent-dev-364"
 ---

@@ -396,7 +396,8 @@ if (fs.existsSync(releasesJsonPath)) {
 
 // REGLA 4b: Verificación de sincronización de CHANGELOG.md con releases.json (DEV-368)
 const changelogScript = path.join(ROOT_DIR, 'scripts/generate-changelog.cjs');
-if (fs.existsSync(changelogScript)) {
+const hasReleasesJson = fs.existsSync(path.join(currentRepoDir, 'backlog', 'releases.json'));
+if (fs.existsSync(changelogScript) && hasReleasesJson) {
   if (isFixMode) {
     try {
       execSync(`node "${changelogScript}"`, { cwd: currentRepoDir, stdio: 'pipe' });
