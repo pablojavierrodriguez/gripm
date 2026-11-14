@@ -1,5 +1,29 @@
 [
   {
+    "id": "rel-1-12-0",
+    "projectId": "gripm",
+    "version": "1.12.0",
+    "date": "2026-11-14",
+    "targetDate": "2026-11-14",
+    "status": "unreleased",
+    "title": "v1.12.0 - Native Playbook Integration, Unified Init, and Modular Architecture",
+    "summary": "Version 1.12.0 of Gripm Board: native consumption of @gripm/playbook via npm with removal of 19 duplicate scripts, unified gripm --init onboarding, modularization of frontend and backend components under 1000 LOC, 4-tier AGENTS.md architecture, idempotent CI release workflow, and duplicate task ID detection parity.",
+    "scopeNotes": "Minor release 1.12.0: native Playbook dependency, unified init, modularization, 4-tier governance, and release automation.",
+    "itemCodes": [
+      "DEV-360",
+      "DEV-361",
+      "DEV-363",
+      "DEV-364",
+      "DEV-366",
+      "DEV-367",
+      "DEV-368",
+      "DEV-369",
+      "DEV-370"
+    ],
+    "markdownContent": "## [1.12.0] - 2026-11-14 - Native Playbook Integration, Unified Init, and Modular Architecture\n\n### Highlights\n*Version 1.12.0 of Gripm Board: native consumption of @gripm/playbook via npm, unified gripm --init onboarding, modular decomposition of frontend and backend under 1000 LOC, 4-tier progressive disclosure in AGENTS.md, idempotent CI release workflow, and duplicate task ID detection parity.*\n\n### Features & Onboarding\n- **Unified `gripm --init` Onboarding:** Single interactive initialization flow delegating Playbook setup cleanly with automation presets.\n- **Native `@gripm/playbook` Consumption:** Consumes Playbook directly via npm (`^2.11.0`), removing 19 duplicate scripts and keeping `.agents/` synchronized.\n- **Duplicate Task ID Detection Parity:** Aligned `verify-backlog-sync` with `gate-qa` active-sprint collision detection and `--strict` blocking.\n\n### Architecture & Delivery\n- **Modular Backend & Frontend Decomposition:** Refactored `backlogService.ts`, `api.ts`, `App.tsx`, `SprintView.tsx`, `KanbanBoard.tsx`, and `universalImporter.ts` into focused modules under 1000 LOC.\n- **4-Tier Progressive Disclosure:** Decoupled domain and security rules from root `AGENTS.md`.\n- **Release Management & Idempotent CI:** Adopted `release-management` protocol, deploy hooks, and decoupled npm/GitHub Release publishing in `ci.yml`.\n\n### Fixes\n- **Mobile Menu Portal:** Wrapped `HeaderMobileMenu` overlay in `createPortal(..., document.body)` to prevent stacking-context occlusion.",
+    "createdAt": "2026-11-14T15:08:00.000Z"
+  },
+  {
     "id": "rel-1-11-0",
     "projectId": "gripm",
     "version": "1.11.0",
