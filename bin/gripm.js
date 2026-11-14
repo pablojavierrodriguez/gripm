@@ -8039,7 +8039,8 @@ var DEFAULT_CORE_SKILLS = [
   "product-designer",
   "principal-engineer",
   "qa-auditor",
-  "code-level-ux-auditor"
+  "code-level-ux-auditor",
+  "release-management"
 ];
 var VALID_SCRIPTS = [
   "gate:qa",
@@ -8074,7 +8075,8 @@ var SKILL_LABELS = {
   "qa-auditor": "qa-auditor           - Quality assurance, Verification Pyramid",
   "product-designer": "product-designer     - UI/UX design, design system, tokens, touch",
   "market-researcher": "market-researcher    - Market benchmarks, competitive analysis",
-  "code-level-ux-auditor": "code-level-ux-auditor- Static UX auditing, a11y, layout collision"
+  "code-level-ux-auditor": "code-level-ux-auditor- Static UX auditing, a11y, layout collision",
+  "release-management": "release-management   - 6-phase release protocol, SemVer, deploy, ready -> done"
 };
 var SCRIPT_LABELS = {
   "gate:qa": "gate:qa           - playbook gate (QA gatekeeper)",
