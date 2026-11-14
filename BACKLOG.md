@@ -1,5 +1,5 @@
 # Backlog: gripm
-> Consolidado generado el 2026-11-09 por gripm
+> Consolidado generado el 2026-11-14 por gripm
 
 ## Resumen de Estados
 
@@ -463,7 +463,7 @@ El job `publish` en `.github/workflows/ci.yml` sufre de acoplamiento frágil: si
 
 ---
 
-### 📋 Backlog / Draft (22)
+### 📋 Backlog / Draft (28)
 
 #### [DEV-039] Sincronización no invasiva de árbol Git con estados de backlog y releases
 - **Prioridad**: `low` | **Tipo**: `feature`
@@ -1069,6 +1069,131 @@ Una vez eliminados los scripts duplicados (`DEV-360`) y descompuestos los God-Fi
 - [ ] #2 El comando de diagnóstico de salud del repositorio (`audit-engine`) sobre `@gripm/board` reporta un **Health Score >= 95/100** con 0 errores de LOC y 0 supresiones.
 - [ ] #3 Se corrigen las advertencias reales `ERROR`/`WARNING` (`UX-009`, `UX-010`) en `src/components/` y se actualiza `.gripm/audit-ux-baseline.json` sin observaciones huérfanas.
 - [ ] #4 La Pirámide de Verificación completa (`npx tsc --noEmit`, `npm test`, `npm run test:ui`, `npm run publish:check`, `node scripts/verify-changes.js --all`) pasa con código 0.
+
+---
+
+#### [DEV-371] Motor de memoria persistente de decisiones e invariantes en gripm-mcp
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+### Problem Statement
+A primary driver behind the adoption of tools like `gentle-ai` (`Engram`) and `LinklyAI` is solving AI agent amnesia across sessions and after context compaction. While `gripm-mcp` excels at managing backlog tasks (`backlog/tasks/*.md`), agents currently have no lightweight MCP tool in Gripm to persist and query architectural decisions, root-cause bug learnings, and domain invariants across sessions without reading dozens of task files.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Add local-first project memory persistence in `.gripm/memory.json` (and optional Markdown decision records under `backlog/decisions/*.md`).
+  - Expose two token-efficient MCP tools in `scripts/mcp-server.ts`:
+    - `gripm_remember`: record or update a categorized decision, bug learning, or domain invariant with tags and related file paths.
+    - `gripm_recall`: search and retrieve compact relevant memories by keyword query, tag, or file path.
+  - Update `.agents/skills/gripm/SKILL.md` so agents automatically consult and record high-value decisions across sessions.
+- **Out-of-Scope:**
+  - External vector databases, cloud embeddings, or compiled native binaries.
+
+**Criterios de Aceptación:**
+- [ ] #1 `scripts/mcp-server.ts` exposes `gripm_remember` and `gripm_recall` tools with strict input validation and atomic disk writes.
+- [ ] #2 `gripm_recall` supports keyword, tag, and file-path filtering with a compact token-efficient output format.
+- [ ] #3 `.agents/skills/gripm/SKILL.md` documents when and how agents use `gripm_remember` and `gripm_recall` across sessions.
+- [ ] #4 `bin/gripm-mcp.js` is rebuilt via `npm run build:bin` and headless MCP integration tests verify memory creation, retrieval, and persistence.
+
+---
+
+#### [DEV-372] Panel visual de Memoria del Proyecto y Decisiones en el Cockpit Web
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+### Problem Statement
+Pure CLI memory stores act as black boxes where developers cannot easily see, curate, or delete inaccurate memories recorded by AI agents. Gripm Board has a unique visual advantage (`localhost:4100`) to give humans full transparency and sovereignty over project memory.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Add a Project Memory / Decisions view (or module tab configurable in `.gripm/config.json`) in the web cockpit where users can browse, search, create, edit, pin, or archive entries stored by `gripm_remember`.
+  - Include serene empty-state guidance and complete bilingual (`es` / `en`) labels.
+- **Out-of-Scope:**
+  - Real-time collaborative cloud syncing.
+
+**Criterios de Aceptación:**
+- [ ] #1 Web cockpit renders the Project Memory / Decisions list with search, tag filters, and pin/delete actions backed by local storage API endpoints.
+- [ ] #2 Empty state renders a calm neutral state explaining how agents and humans record project decisions via MCP or UI.
+- [ ] #3 View complies with all mobile/desktop ergonomics (>= 44x44px touch targets, `createPortal` modals, zero `UX-001`..`UX-020` violations).
+- [ ] #4 Headless component and API integration tests pass with exit code 0.
+
+---
+
+#### [DEV-373] Modo Zero-Ceremony en gripm init y alineacion con niveles de adopcion del Playbook
+- **Prioridad**: `high` | **Tipo**: `enhancement`
+
+### Problem Statement
+Developers adopting `@gripm/board` want immediate visual task management and MCP integration without being forced into strict git branching ceremonies (`dev -> main`), mandatory English commit hooks, or blocking refinement bureaucracy on day one.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Align `gripm --init` and `gripm playbook sync` with `@gripm/playbook`'s progressive adoption tiers (`lite`, `standard`, `strict` from `PLAY-078`) and standalone skills (`PLAY-074` / `PLAY-075`).
+  - Make the default onboarding frictionless while allowing teams to opt into strict gates when ready.
+- **Out-of-Scope:**
+  - Removing existing `--full` or `--playbook-preset strict` options for power users.
+
+**Criterios de Aceptación:**
+- [ ] #1 `gripm --init` offers clear progressive presets (`Lite AI-First`, `Standard Board + Playbook`, `Strict Governance`) with zero-friction defaults.
+- [ ] #2 `gripm playbook sync` supports syncing individual skills or slash commands without overwriting local project git rules.
+- [ ] #3 CLI onboarding tests verify all presets and flags with exit code 0.
+
+---
+
+#### [DEV-374] Autoconfiguracion multi-harness de gripm-mcp y skills para Claude Code Cursor Windsurf Copilot y OpenCode
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+### Problem Statement
+Configuring `gripm-mcp` today requires users to manually copy-paste JSON blocks into `.mcp.json`, `.cursor/mcp.json`, or Claude Desktop config files. Competing configurators like `gentle-ai` automatically detect and wire MCP servers and skills into all installed coding agents in a single step.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Add non-destructive MCP and skill auto-configuration in `gripm --init` (and `gripm mcp --setup`) that detects and writes/merges project-level MCP configuration files (`.mcp.json` for Claude Code, `.cursor/mcp.json` for Cursor, `.vscode/mcp.json` for VS Code Copilot, OpenCode config) while preserving existing MCP servers.
+- **Out-of-Scope:**
+  - Modifying OS-global configuration files outside the repository without explicit `--global` confirmation.
+
+**Criterios de Aceptación:**
+- [ ] #1 `gripm --init` and `gripm mcp --setup` can generate or non-destructively merge `gripm-mcp` entries into `.mcp.json`, `.cursor/mcp.json`, and `.vscode/mcp.json`.
+- [ ] #2 Existing third-party MCP servers in those configuration files are preserved intact.
+- [ ] #3 Integration tests verify idempotent JSON merge and multi-harness setup across supported clients.
+
+---
+
+#### [DEV-375] Exposicion de llms-txt en repo y demo web mas empaquetado de la skill gripm para skills-sh
+- **Prioridad**: `high` | **Tipo**: `feature`
+
+### Problem Statement
+AI agent directories (`skills.sh`, `LinklyAI/best-skills`, `mcpmarket.com`, `awesomeskill.ai`) index repositories through root `skills/<name>/SKILL.md` paths and machine-readable `llms.txt` files. Currently, `@gripm/board`'s skill lives only at `.agents/skills/gripm/SKILL.md` and neither the repo nor `gripm.vercel.app` serves an `llms.txt` index.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Expose `skills/gripm/SKILL.md` in parity with `.agents/skills/gripm/SKILL.md` so `npx skills add pablojavierrodriguez/gripm` works out of the box on `skills.sh`.
+  - Create root `llms.txt` and `public/llms.txt` (served at `https://gripm.vercel.app/llms.txt`) detailing Gripm Board, all MCP tools, CLI commands, and Playbook integration.
+  - Update `scripts/verify-publish-surface.js` and `package.json` `files` if needed while keeping npm publish surface clean.
+- **Out-of-Scope:**
+  - External backlink campaigns.
+
+**Criterios de Aceptación:**
+- [ ] #1 Root `llms.txt` and `public/llms.txt` exist and document `@gripm/board` capabilities, MCP tools, CLI commands, and installation one-liners.
+- [ ] #2 `skills/gripm/SKILL.md` is exposed for `npx skills add` compatibility and kept in parity with `.agents/skills/gripm/SKILL.md`.
+- [ ] #3 `npm run publish:check` and `node scripts/verify-changes.js --all` pass with exit code 0.
+
+---
+
+#### [DEV-376] Explorador y gestor visual de Agent Skills y Stack Packs en el Cockpit de Gripm
+- **Prioridad**: `medium` | **Tipo**: `feature`
+
+### Problem Statement
+Users managing a repository with Gripm Board have no visual surface to see which Agent Skills, Stack Packs (`nextjs`, `react`, `node-api`, `testing`, `mobile`, `pwa`), Slash Commands, and Harnesses are currently installed in `.agents/` or `.claude/`, nor to toggle them without memorizing CLI flags.
+
+### Bounded Scope & Decisions (Gate R1)
+- **In-Scope:**
+  - Add an "Agent Skills & Harnesses" section in Settings / Diagnostics within the Gripm Board UI that lists installed skills, active governance tier (`lite`, `standard`, `strict`), and configured harnesses.
+  - Allow syncing or toggling stack packs safely via the local backend.
+- **Out-of-Scope:**
+  - Remote execution of unvetted third-party scripts from arbitrary URLs.
+
+**Criterios de Aceptación:**
+- [ ] #1 Settings / Diagnostics view displays installed skills (`.agents/skills/` and `.claude/`), active governance preset, and configured AI harnesses.
+- [ ] #2 Users can trigger stack pack synchronization or preset updates safely from the local cockpit UI.
+- [ ] #3 UI passes strict static UX audit (`npm run audit:ux:strict`) and headless component tests.
 
 ---
 
