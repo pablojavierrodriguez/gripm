@@ -163,6 +163,52 @@ Importing the module does **not** run an audit; only executing it as a binary do
 - **Impact:** Blocks the pinch-to-zoom gesture on mobile devices, degrading accessibility for users with low vision and violating WCAG 1.4.4.
 - **Fix:** Remove `maximum-scale=1` and `user-scalable=no` (or `user-scalable=0`) from the viewport meta to allow touch scaling.
 
+### 16. [UX-016] · WARNING · Blocking native dialog in UI code
+- **Signature:** `window.confirm()`, `window.alert()`, `window.prompt()`, or bare `confirm()`, `alert()`, `prompt()` in UI code.
+- **Impact:** Synchronously freezes the browser event loop, blocking animations, background tasks and layout, breaking PWA immersion and failing WCAG accessibility (focus trapping and screen-reader accessibility).
+- **Fix:** Replace with non-blocking accessible dialogs (e.g. Radix UI `AlertDialog`, Headless UI `Dialog`, or custom modal component in a portal).
+
+### 17. [UX-017] · WARNING · Mobile modal backdrop-blur compositor collision
+- **Signature:** `backdrop-blur` combined with reduced opacity background (`bg-*/95`, `bg-*/90`, `bg-opacity-`) inside modal or sheet surface.
+- **Impact:** Breaks GPU hardware layer composition on iOS Safari (WebKit) and Android Chromium, causing the modal to render fully translucent or flickering with black artifacts.
+- **Fix:** Separate the blurred backdrop scrim (`fixed inset-0 bg-black/50 backdrop-blur-sm`) from the modal content container (`relative bg-background` with 100% opacity).
+
+### 18. [UX-018] · WARNING · Unportaled fixed overlay stacking context trap
+- **Signature:** Overlay or modal/sheet backdrop using `fixed inset-0` with `z-30`/`z-40`/`z-50`/`willChange` without `createPortal` or Portal primitive.
+- **Impact:** When rendered inside an ancestor with `will-change`, `transform`, `filter`, or `opacity` animation wrappers, an unportaled fixed overlay is trapped inside the parent stacking context and physically occluded behind BottomNav or floating chrome even when declaring `z-50`.
+- **Fix:** Render modal, dialog, and sheet overlays into `document.body` via `createPortal(..., document.body)` or a Radix Portal primitive outside animated page wrappers.
+
+### 19. [UX-019] · WARNING · Mobile page sticky bottom footer occluded by BottomNav
+- **Signature:** Page-level `sticky bottom-0` action bar without mobile BottomNav vertical compensation (`bottom-16 md:bottom-0 z-30`).
+- **Impact:** On mobile viewports with a persistent fixed bottom navigation bar, page action footers anchored at `sticky bottom-0` sit directly behind BottomNav and become unreachable to taps.
+- **Fix:** Offset the sticky footer above mobile BottomNav using `sticky bottom-16 md:bottom-0 z-30` (or `calc` with bottom chrome height + safe area).
+
+### 20. [UX-020] · WARNING · Scrollable sheet body sticky footer hides CTA on mobile scroll or keyboard
+- **Signature:** `sticky bottom-0` element placed inside a `Sheet`, `ResponsiveSheet`, `Drawer`, `Dialog`, or `Modal` instead of a dedicated non-scrolling `footer` slot.
+- **Impact:** Sticky CTAs nested inside an `overflow-y-auto` sheet body jump, clip, or scroll out of the touchable area when the mobile software keyboard resizes the viewport.
+- **Fix:** Pass actions via the component `footer` slot (e.g. `footer={...}` or `<SheetFooter className="shrink-0 bg-background border-t p-4">`) outside the scrollable body container.
+
+---
+
+## 📱 Mobile Micro-Ergonomics & Touch Heuristics
+
+### Focus Lifecycle Isolation in Modals & Safe Sheet Default Focus
+- **Anti-Pattern:** Autofocus hooks in modals depending on form state or mutating callbacks (e.g. `useEffect(() => { inputRef.current?.focus(); }, [isOpen, formState.isDirty])`), OR indiscriminately focusing the first `<input>` when mounting a mobile Bottom Sheet (`< 768px`).
+- **Symptom:** Typing mid-form resets focus when `isDirty` flips, and opening a mobile Bottom Sheet immediately pops the software keyboard, cutting the usable viewport roughly in half before the user reads or confirms actions.
+- **Rule:**
+  1. Autofocus effects must depend **strictly and exclusively** on open state (`[open]` or `[isOpen]`), never on form values, dirty state, or un-memoized handlers.
+  2. On mobile (`< 768px`), Bottom Sheets must focus the dialog/sheet container (`tabIndex={-1}`) by default and only focus the first `<input>` when explicitly opted in via `autoFocusFirstField`.
+
+### Physical Hit-Testing & Pseudo-Element Padding-Box Math
+- **Anti-Pattern:** Relying on DOM presence or `toBeVisible()` alone at `375x812`, or estimating pseudo-element expansion (`after:-inset-y-*`) from outer height without subtracting borders.
+- **Math:** An `absolute` `::after` / `::before` pseudo-element is anchored to the element's **padding-box** (border-box minus border widths). For example, `h-6 border-2` gives `24px - 4px = 20px` padding-box: `after:-inset-y-2.5` only expands to `40px` (fails `44px`), whereas `after:-inset-y-3` reaches `44px`.
+- **Rule:** Validate critical mobile CTAs and compact expanded controls with `assertPhysicallyClickable` / `assertLocatorPhysicallyClickable` (`scripts/lib/physical-hit-test.mjs`), confirming effective `>= 44x44px`, `[0..812]` vertical bounds, and `document.elementFromPoint(cx, cy)` ownership.
+
+### Virtual Keyboard Collision Prevention
+- **Anti-Pattern:** Capturing PIN, OTP, or numeric amounts with an in-app custom on-screen keypad while leaving the `<input>` open to native OS software keyboard invocation.
+- **Symptom:** The native mobile keyboard pops up over the in-app numpad, obscuring controls and triggering viewport height jumps.
+- **Rule:** When rendering an in-app keypad or virtual touch keyboard, configure target inputs with `inputMode="none"` and `readOnly` (or intercept touch events) to keep the OS keyboard suppressed.
+
 ---
 
 ## ✅ Pre-merge acceptance checklist
@@ -170,13 +216,21 @@ Importing the module does **not** run an audit; only executing it as a binary do
 - [ ] Do text/email inputs have `autoCapitalize` and sanitisation?
 - [ ] Do numeric inputs use `inputMode="decimal"` and locale-aware parsing?
 - [ ] Does the scrollable container have enough clearance against fixed bottom UI (`pb-32` + safe area)?
-- [ ] Do interactive elements have an effective 44×44px target?
+- [ ] Do interactive elements have an effective 44x44px target (when using `::after` / `::before`, verified from padding-box via `assertPhysicallyClickable` in `scripts/lib/physical-hit-test.mjs`, e.g. `after:-inset-y-3` on `h-6 border-2`)?
+- [ ] Do mobile Bottom Sheets (`< 768px`) focus the dialog container (`tabIndex={-1}`) by default and enable input autofocus only via explicit opt-in (`autoFocusFirstField`)?
 - [ ] If there is drag, does it run with `setPointerCapture` and GPU acceleration?
 - [ ] Do dates with month/day names carry an explicit locale?
 - [ ] Do figures and numeric columns use `tabular-nums`?
 - [ ] Does every icon-only button have an accessible name?
 - [ ] Do UI text, titles, and metadata use the standard hyphen (` - `) and avoid em-dash (`—`) or en-dash (`–`)?
 - [ ] Does the mobile viewport allow pinch zoom without locking it (no `maximum-scale=1` nor `user-scalable=no`)?
+- [ ] Does the UI avoid synchronous blocking dialogs (`window.confirm`, `alert`, `prompt`) in favor of accessible `AlertDialog` primitives?
+- [ ] In modals and sheets, is `backdrop-blur` isolated to the scrim overlay rather than combined with translucent backgrounds on the modal surface?
+- [ ] Do fixed modal/sheet overlays (`fixed inset-0`) render through `createPortal(..., document.body)` or a Portal primitive so animated `will-change` / `transform` wrappers cannot trap them behind `BottomNav` (`UX-018`)?
+- [ ] Do page-level `sticky bottom-0` action footers compensate mobile `BottomNav` clearance (`bottom-16 md:bottom-0 z-30`, `UX-019`)?
+- [ ] Do Sheet/Dialog CTAs use an anchored `footer` slot or `<SheetFooter>` outside scrollable containers instead of `sticky bottom-0` inside the scrollable body (`UX-020`)?
+- [ ] Are modal autofocus effects isolated to `[open]`, avoiding re-focus triggers on `isDirty`?
+- [ ] Do custom in-app keypad inputs specify `inputMode="none"` and `readOnly` to prevent native keyboard collision?
 - [ ] Does the manual review catch decorative overload (background gradients and orbs, stacked `backdrop-blur` across several surfaces, uniformly large shadows) that degrades text contrast or flattens visual hierarchy? Look for the cumulative effect on text and surface edges, not the isolated technique: the vice appears through repetition, and a technique justified on one plane becomes noise across three.
 - [ ] Does `npx playbook audit --strict` (or `node scripts/audit-ux-code.cjs --strict`) exit green?
 

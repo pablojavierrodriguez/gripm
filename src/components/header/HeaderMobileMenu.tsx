@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Plus,
@@ -76,9 +77,9 @@ export const HeaderMobileMenu: FC<HeaderMobileMenuProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
       <div className="absolute inset-y-0 right-0 w-full max-w-xs bg-white dark:bg-[#0f172a] shadow-2xl p-4 flex flex-col justify-between border-l border-slate-200 dark:border-white/10 animate-in slide-in-from-right duration-200">
         <div>
@@ -301,6 +302,7 @@ export const HeaderMobileMenu: FC<HeaderMobileMenuProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

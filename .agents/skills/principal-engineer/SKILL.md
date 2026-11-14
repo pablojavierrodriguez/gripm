@@ -34,6 +34,7 @@ Build robust, resilient, high-performance software that materializes design and 
 - **Modules with explicit boundaries and contracts:** No "utils" catch-all drawers. Each module exposes its public interface and hides its internal implementation.
 - **Controlled inputs:** every input has a defined initial value (`""` or a default), never `undefined`. Avoid uncontrolled-to-controlled transitions.
 - **Remote state and cache:** optimistic mutations with explicit rollback on failure. Never leave the UI showing a state the server rejected.
+- **Empty collection truth ("Empty Array != Fallback"):** In offline-first, cached, or local-first architectures (local databases, client storage, or remote sync queries), an HTTP 200 response with an empty collection (`[]`) is an authoritative assertion of server state (zero records exist). Treating an empty array as falsy or falling back to stale cache (`remoteData?.length ? remoteData : localCache`) is a critical defect that resurrects deleted entities as zombies. Local cache must be cleared or reconciled via tombstone records.
 - **Explicit loading states:** `idle` / `loading` / `success` / `error` / `empty`. Empty state is **not** an error state.
 - **Persisted state hydration:** rehydration from local storage must never be destroyed by a transient null-session render. A `user === null` on cold start is not a reason to wipe what the user already had.
 
@@ -53,6 +54,7 @@ Categories that appear in nearly every domain:
 | **Sign and magnitude consistency** | A consumption or decrement never increases inventory or capacity; it is subtracted. | Accumulating a reduction as if it were net availability. |
 | **Atomic rollback** | Unlinking or deleting a dependent item deterministically restores the parent's counter or state. | Leaving residual references or metrics after unlinking. |
 | **Absence is not deficit** | With 0 records, emit a calm neutral empty state, not an indicator that infers error. | Treating an empty list or initial state as a system failure. |
+| **Empty collection is server truth ("Empty Array != Fallback")** | An HTTP 200 with `[]` represents 0 records, clearing local caches. | Falling back to local cache when remote array is empty (`data?.length ? data : cache`), resurrecting deleted zombie entities. |
 | **Unit normalization** | Every aggregation or projection converts heterogeneous magnitudes (time, bytes, measures) to the canonical target unit. | Adding milliseconds to seconds, or kilobytes to megabytes without conversion. |
 | **Entity identity** | Every entity created on the client carries a valid identifier for the target schema. | Malformed IDs rejected by the database or API. |
 
@@ -150,7 +152,15 @@ const user = payload as TotalUserResponse
 > [!CAUTION]
 > **Lesson recorded in this repository's history:** a fixture passed for the wrong reason (not because the rule under test was satisfied, but because the module isolation swallowed the path it was supposed to verify). Operational rule: when a test passes, verify **why** it passes before declaring it coverage. A test that passes without exercising its objective is a defect with a green check.
 
-### 13. Systematic Debugging Protocol
+### 13. Headless Component Integration & Anti-Hanging Test Discipline
+
+- **Headless Component & Store Integration First:** Every interactive component, modal flow, input masking, and state store dispatch must be verified with headless integration tests (`.test.tsx` using React Testing Library / `@testing-library/react` + JSDOM or Happy-DOM) before submitting a task to review. Jumping straight to browser E2E (Playwright) to verify state updates or button clicks is an anti-pattern that bloats execution time and destabilizes agent workflows.
+- **Anti-Hanging Guardrails in Test Suites:**
+  - Bounded test timeouts: Ensure individual test timeouts never exceed 15 seconds (`testTimeout: 15000` in Vitest/Playwright).
+  - Deterministic execution flags: Always run tests in non-interactive mode (`--run`, `--no-watch`, `CI=true`).
+  - WebServer & Process Hygiene: When integration tests spawn background servers or watchers, configure `reuseExistingServer: true` and verify port readiness with a clean 5-second abort. Teardowns must cleanly unbind listeners, close database handles, and terminate spawned subprocesses to prevent zombie processes.
+
+### 14. Systematic Debugging Protocol
 
 When diagnosing or fixing a defect or test failure, guessing or trying fixes blindly is strictly prohibited. Modifying production code before isolating the exact root cause creates superficial patches that leave underlying defects intact and rot the codebase.
 
@@ -179,14 +189,14 @@ If a fix attempt fails to pass the red test or introduces secondary failures:
 
 ---
 
-### 14. Anti-Slop Linter Reference (Oxlint / AST)
+### 15. Anti-Slop Linter Reference (Oxlint / AST)
 
 For deterministic static analysis rules, `.oxlintrc.json` configuration, and AST evasion detection recipes against AI code slop, see:
 [`references/oxlint-anti-slop.md`](references/oxlint-anti-slop.md)
 
 ---
 
-### 15. Static Repository Diagnostic & Health Assessment
+### 16. Static Repository Diagnostic & Health Assessment
 
 When entering an existing codebase or preparing non-trivial changes, the agent must perform an initial static code diagnostic before writing or refactoring code. Operating blindly without knowing the project baseline leads to compounding structural decay and accidental regressions.
 

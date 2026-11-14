@@ -20,7 +20,7 @@ Execute **in strict order**. Each step is cheaper than the next; skipping one is
 | # | Step | Cost | Blocks `ready` |
 | :--- | :--- | :--- | :--- |
 | 1 | Strict typecheck | ms | Yes |
-| 2 | Headless tests | s | Yes |
+| 2 | Headless tests (Unit & Component Integration) | s (< 2s) | Yes |
 | 3 | Spec - backlog consistency | s | Yes |
 | 4 | File budget & modularity (< 1000 LOC) | ms | Advisory (blocking with `--strict`) |
 | 5 | Static UX audit | s | Yes |
@@ -29,6 +29,25 @@ Execute **in strict order**. Each step is cheaper than the next; skipping one is
 
 > [!CAUTION]
 > **Prohibited: opening a browser for what resolves headlessly in milliseconds.** API contracts, state logic, computation, persistence, and formatting are verified with types, tests, and the static auditor. The browser is reserved for CSS/layout not statically deducible, or on explicit user request.
+
+### Step 2 - Headless Tests (Unit & Component Integration)
+
+```bash
+npm test
+# (or npx vitest run, npm run test:unit, npm run test:integration)
+```
+
+The headless test suite certifies both pure business logic and interactive UI components without spinning up browser binaries:
+- **Component & Store Integration First:** Interactive flows (dialogs, drawers, form validation, masked inputs, selector interactions, and atomic store dispatches) MUST be certified in this step via headless tests (`.test.tsx` with React Testing Library / `@testing-library/react`, `renderHook`, and JSDOM or Happy-DOM).
+- **Zero-Waste State Verification:** If headless component integration tests pass at 100%, invoking real browsers (Step 7) is **strictly prohibited for verifying state, API contracts, or interaction logic**. Real browser runs are reserved exclusively for visual layout not statically deducible or explicit user request.
+
+#### Anti-Hanging Guardrails (Test Suite Hygiene)
+
+In CLI terminals, CI pipelines, and autonomous agent sessions, test runners must ensure deterministic, non-blocking execution:
+- **Bounded Test Timeouts:** Test runners (Vitest, Jest, Playwright) must enforce an explicit per-test timeout of at most **15 seconds** (`testTimeout: 15000`).
+- **Forced Non-Interactive Flags:** Commands executed by agents must run with deterministic flags (`--run`, `--no-watch`, `CI=true`).
+- **Zombie Process & Server Hygiene:** If a test suite requires a local webserver (`npm run dev`), it must configure port re-use (`reuseExistingServer: true`) and abort cleanly within 5 seconds if unavailable, rather than waiting indefinitely.
+- **Safety Timeout in `gate-qa`:** The mechanical gate runner enforces a safety timeout of **2 minutes** (120s) per pyramid step. Any runner entering a deadlock or zombie loop is aborted mechanically to protect agent turns and token budget.
 
 ### Step 4 - File Budget & Modularity
 
@@ -51,7 +70,7 @@ npx playbook audit --strict
 # (or node scripts/audit-ux-code.cjs --strict)
 ```
 
-Covers 15 static signatures: decimal comma blocker, keyboard shortcuts on touch, drag/scroll collision, time localization leak, autocapitalize trap, fixed-UI occlusion, horizontal crowding, micro-jank, touch targets, icon buttons without accessible name, typographic scale, tactile feedback, tabular numerals, anti-em-dash / anti-AI cliché (UX-014), and viewport touch zoom lock (UX-015).
+Covers 20 static signatures: decimal comma blocker, keyboard shortcuts on touch, drag/scroll collision, time localization leak, autocapitalize trap, fixed-UI occlusion, horizontal crowding, micro-jank, touch targets, icon buttons without accessible name, typographic scale, tactile feedback, tabular numerals, anti-em-dash / anti-AI cliché (UX-014), viewport touch zoom lock (UX-015), blocking native dialogs (UX-016), modal backdrop-blur collisions (UX-017), unportaled fixed overlays (UX-018), uncompensated mobile page sticky footers (UX-019), and scrollable sheet sticky CTAs (UX-020).
 
 If the project does not have the package installed, manually audit the signatures in the `code-level-ux-auditor` skill.
 
@@ -106,8 +125,11 @@ A non-`blocked` item is not affected by this command: it exits with `exit 0` and
 ### Step 6 - Browser (conditional)
 
 - Console free of errors and warnings.
-- Target viewports verified (375px / 390px, plus the desktop breakpoint).
+- Target viewports verified (`375x812` mobile baseline, `390px`, plus the desktop breakpoint).
 - Edge cases: very long strings, extreme numbers, rapid repeated taps (debounce / double-submit).
+- **Physical hit-testing (not just `toBeVisible()`):** Visibility checks pass even when `BottomNav`, banners, or FAB physically intercept clicks or push controls off-screen. In mobile DOM / Playwright verification at `375x812`, run `assertPhysicallyClickable` / `assertLocatorPhysicallyClickable` from `scripts/lib/physical-hit-test.mjs` (`@gripm/playbook/hit-test`) on critical controls and CTAs to assert `effectiveBox` >= 44x44px, `box.y >= 0 && box.y + box.height <= 812`, and `document.elementFromPoint(cx, cy)` resolving to the target element or its descendant.
+- **Mobile Bottom Sheet initial focus:** Opening a Bottom Sheet on `< 768px` focuses the sheet container (`tabIndex={-1}`), NOT an `<input>` (which shrinks usable viewport with the virtual keyboard), unless `autoFocusFirstField` is explicitly opted in.
+- **BottomNav Critical Action Reachability:** Verify that every critical entity action is directly reachable from the primary `BottomNav` entry path to that entity (not orphaned exclusively inside an overflow/`More` route).
 - a11y: keyboard navigation with visible focus ring, tab order, accessible names.
 
 ---
@@ -124,8 +146,8 @@ Test **every view and every metric with 0 records**. A calm neutral state must b
 
 ### 2. Touch Ergonomics
 
-- Effective touch target **>= 44x44px** for primary actions, **>= 36px** for secondary ones compensated with padding.
-- Verify with `getBoundingClientRect()` that the real area complies, not just the CSS class.
+- Effective touch target **>= 44x44px** for primary actions, **>= 36px** for secondary ones compensated with padding or active `::after` / `::before` pseudo-elements.
+- Verify with `assertPhysicallyClickable` (`scripts/lib/physical-hit-test.mjs`) that effective bounds (accounting for border subtraction on pseudo-element `padding-box`, e.g., `h-6 border-2` yields `20px` padding-box and needs `after:-inset-y-3` for `44px`, not `after:-inset-y-2.5` = `40px`), `375x812` containment, and `document.elementFromPoint(cx, cy)` ownership all pass.
 
 ### 3. Numerics and Localization
 
